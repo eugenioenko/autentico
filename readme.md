@@ -1,3 +1,8 @@
+todos
+
+- add logger
+- add validation
+
 register
 
 ```bash
