@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
@@ -10,12 +9,11 @@ import (
 	"autentico/pkg/routes"
 )
 
-// handler for logging out a user
-func logoutUser(w http.ResponseWriter, r *http.Request) {
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User logged out successfully"})
-}
+// @title Autentico Microservice API
+// @version 1.0
+// @description Authentication and ABAC Authorization Microservice
+// @host localhost:8080
+// @BasePath /api/v1/
 
 func main() {
 	_, err := db.InitDB()
@@ -24,13 +22,16 @@ func main() {
 	}
 	defer db.CloseDB()
 
-	http.HandleFunc("/create", routes.CreateUser)
-	http.HandleFunc("/login", routes.LoginUser)
-	http.HandleFunc("/update", routes.UpdateUser)
-	http.HandleFunc("/delete", routes.DeleteUser)
+	basePath := config.AppBasePath
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(basePath+"/users/create", routes.CreateUser)
+	mux.HandleFunc(basePath+"/users/login", routes.LoginUser)
+	mux.HandleFunc(basePath+"/users/update", routes.UpdateUser)
+	mux.HandleFunc(basePath+"/users/delete", routes.DeleteUser)
 	//http.HandleFunc("/logout", logoutUser)
 
 	port := config.AppPort
-	log.Printf("Auth server started at localhost:%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("Auth server started at http://localhost:%s%s", port, basePath)
+	log.Fatal(http.ListenAndServe(":"+port, mux))
 }

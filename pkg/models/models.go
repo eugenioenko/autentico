@@ -2,6 +2,12 @@ package models
 
 import "time"
 
+type UserCreateRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email,omitempty"`
+}
+
 type User struct {
 	ID        string
 	Username  string

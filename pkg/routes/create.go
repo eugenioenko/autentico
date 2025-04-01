@@ -10,8 +10,16 @@ import (
 	"autentico/pkg/utils"
 )
 
+// @Summary Create a new user
+// @Description Registers a new user in the system
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param user body UserCreateRequest true "User creation payload"
+// @Success 201 {object} UserResponse
+// @Router /create [post]
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-	var user User
+	var user UserCreateRequest
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
 		utils.ErrorResponse(w, "Invalid request payload", http.StatusBadRequest)
