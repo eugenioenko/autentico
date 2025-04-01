@@ -5,12 +5,18 @@ import (
 )
 
 const (
-	AppPort                    = "8080"
-	AppBasePath                = "/api/v1/"
-	DbFilePath                 = "./auth.db"
-	AuthAccessTokenSecret      = "your-secret-here"
-	AuthAccessTokenExpiration  = 15 * time.Minute
-	AuthRefreshTokenSecret     = "your-secret-here"
-	AuthRefreshTokenExpiration = 30 * 24 * time.Hour
-	SwaggerPort                = "8888"
+	AppPort                     = "8080"
+	AppBasePath                 = "/api/v1"
+	DbFilePath                  = "./auth.db"
+	AuthAccessTokenSecret       = "your-secret-here"
+	AuthAccessTokenExpiration   = 15 * time.Minute
+	AuthRefreshTokenSecret      = "your-secret-here"
+	AuthRefreshTokenExpiration  = 30 * 24 * time.Hour
+	SwaggerPort                 = "8888"
+	ValidationMinUsernameLength = 4
+	ValidationMaxUsernameLength = 64
+	ValidationMinPasswordLength = 6
+	ValidationMaxPasswordLength = 64
+	ValidationUsernameIsEmail   = true
+	ValidationEmailRequired     = false
 )

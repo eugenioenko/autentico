@@ -26,19 +26,19 @@ func LoginUser(username, password string) (*AuthUser, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("User not found")
 		}
-		return nil, fmt.Errorf("failed to get user: %v", err)
+		return nil, fmt.Errorf("Failed to get user: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid password: %v", err)
+		return nil, fmt.Errorf("Invalid password: %w", err)
 	}
 
 	accessToken, _, err := GenerateTokens(user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate tokens: %v", err)
+		return nil, fmt.Errorf("Failed to generate tokens: %w", err)
 	}
 
 	authUser := &AuthUser{

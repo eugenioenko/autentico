@@ -1,12 +1,8 @@
 package models
 
-import "time"
-
-type UserCreateRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email,omitempty"`
-}
+import (
+	"time"
+)
 
 type User struct {
 	ID        string
@@ -23,17 +19,23 @@ type UserResponse struct {
 	CreatedAt time.Time
 }
 
+// ApiUserResponse is used for Swagger documentation
+type ApiUserResponse struct {
+	Data  UserResponse `json:"data"`
+	Error ApiError     `json:"error,omitempty"`
+}
+
 type AuthUser struct {
 	ID    string `json:"id"`
 	Token string `json:"token"`
 }
 
 type ApiError struct {
-	Message string `json:"error"`
+	Message string `json:"message"`
 	Code    int    `json:"code"`
 }
 
-type ApiResponse struct {
-	Data  any       `json:"data,omitempty"`
+type ApiResponse[T any] struct {
+	Data  T         `json:"data,omitempty"`
 	Error *ApiError `json:"error,omitempty"`
 }

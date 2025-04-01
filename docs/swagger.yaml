@@ -1,5 +1,19 @@
-basePath: /
+basePath: /api/v1/
 definitions:
+  models.ApiError:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  models.ApiUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.UserResponse'
+      error:
+        $ref: '#/definitions/models.ApiError'
+    type: object
   models.UserCreateRequest:
     properties:
       email:
@@ -23,7 +37,7 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: Authentication service using Go standard library
+  description: Authentication and ABAC Authorization Microservice
   title: Autentico Microservice API
   version: "1.0"
 paths:
@@ -45,7 +59,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.UserResponse'
+            $ref: '#/definitions/models.ApiUserResponse'
       summary: Create a new user
       tags:
       - auth

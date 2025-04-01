@@ -43,7 +43,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.UserResponse"
+                            "$ref": "#/definitions/models.ApiUserResponse"
                         }
                     }
                 }
@@ -51,6 +51,28 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.ApiError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ApiUserResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.UserResponse"
+                },
+                "error": {
+                    "$ref": "#/definitions/models.ApiError"
+                }
+            }
+        },
         "models.UserCreateRequest": {
             "type": "object",
             "properties": {
@@ -89,10 +111,10 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/",
+	BasePath:         "/api/v1/",
 	Schemes:          []string{},
 	Title:            "Autentico Microservice API",
-	Description:      "Authentication service using Go standard library",
+	Description:      "Authentication and ABAC Authorization Microservice",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

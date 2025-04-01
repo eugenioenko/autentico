@@ -1,13 +1,13 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Authentication service using Go standard library",
+        "description": "Authentication and ABAC Authorization Microservice",
         "title": "Autentico Microservice API",
         "contact": {},
         "version": "1.0"
     },
     "host": "localhost:8080",
-    "basePath": "/",
+    "basePath": "/api/v1/",
     "paths": {
         "/create": {
             "post": {
@@ -37,7 +37,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.UserResponse"
+                            "$ref": "#/definitions/models.ApiUserResponse"
                         }
                     }
                 }
@@ -45,6 +45,28 @@
         }
     },
     "definitions": {
+        "models.ApiError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ApiUserResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.UserResponse"
+                },
+                "error": {
+                    "$ref": "#/definitions/models.ApiError"
+                }
+            }
+        },
         "models.UserCreateRequest": {
             "type": "object",
             "properties": {

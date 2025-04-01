@@ -16,7 +16,7 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		err = fmt.Errorf("failed to hash password: %v", err)
+		err = fmt.Errorf("Failed to hash password: %w", err)
 		return nil, err
 	}
 	hashedPasswordStr := string(hashedPassword)
@@ -24,7 +24,7 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 	query := `INSERT INTO users (id, username, password, email) VALUES (?, ?, ?, ?) RETURNING created_at`
 	err = db.GetDB().QueryRow(query, id, username, hashedPasswordStr, email).Scan(&createdAt)
 	if err != nil {
-		err = fmt.Errorf("failed to create user: %v", err)
+		err = fmt.Errorf("Failed to create user: %w", err)
 		return nil, err
 	}
 

@@ -6,12 +6,12 @@ import (
 	"net/http"
 )
 
-func SuccessResponse(w http.ResponseWriter, data interface{}, statusCodes ...int) {
+func SuccessResponse[T any](w http.ResponseWriter, data T, statusCodes ...int) {
 	statusCode := http.StatusOK
 	if len(statusCodes) > 0 {
 		statusCode = statusCodes[0]
 	}
-	apiResponse := ApiResponse{Data: data}
+	apiResponse := ApiResponse[T]{Data: data}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(apiResponse); err != nil {
@@ -25,7 +25,7 @@ func ErrorResponse(w http.ResponseWriter, message string, statusCode int, errorC
 		errorCode = errorCodes[0]
 	}
 	apiError := &ApiError{Message: message, Code: errorCode}
-	apiResponse := ApiResponse{Error: apiError}
+	apiResponse := ApiResponse[any]{Error: apiError}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(apiResponse); err != nil {
