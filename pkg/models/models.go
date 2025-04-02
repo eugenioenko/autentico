@@ -26,8 +26,10 @@ type ApiUserResponse struct {
 }
 
 type AuthUser struct {
-	ID    string `json:"id"`
-	Token string `json:"token"`
+	ID           string `json:"id"`
+	Username     string `json:"username"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
 type ApiError struct {

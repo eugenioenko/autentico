@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -37,4 +38,16 @@ func GenerateTokens(user User) (string, string, error) {
 	}
 
 	return signedAccessToken, signedRefreshToken, nil
+}
+
+func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     config.AuthRefreshTokenCookieName,
+		Value:    refreshToken,
+		Expires:  time.Now().Add(config.AuthRefreshTokenExpiration),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode, // Helps mitigate CSRF attacks
+		Path:     "/",
+	})
 }

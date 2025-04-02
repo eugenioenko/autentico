@@ -36,14 +36,16 @@ func LoginUser(username, password string) (*AuthUser, error) {
 		return nil, fmt.Errorf("Invalid password: %w", err)
 	}
 
-	accessToken, _, err := GenerateTokens(user)
+	accessToken, refreshToken, err := GenerateTokens(user)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate tokens: %w", err)
 	}
 
 	authUser := &AuthUser{
-		ID:    user.ID,
-		Token: accessToken,
+		ID:           user.ID,
+		Username:     user.Username,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	return authUser, nil

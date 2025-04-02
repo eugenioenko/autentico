@@ -6,25 +6,47 @@ import (
 	"net/http"
 
 	"autentico/pkg/auth"
+	"autentico/pkg/config"
+	. "autentico/pkg/models"
 	"autentico/pkg/utils"
 )
 
-func LoginUser(w http.ResponseWriter, r *http.Request) {
-	var creds struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+// @Summary Logins a user
+// @Description Logins the user. Creates an accessToken and a refreshToken
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param user body UserLoginRequest true "User login payload"
+// @Success 201 {object} ApiUserResponse
+// @Router /login [post]
 
-	err := json.NewDecoder(r.Body).Decode(&creds)
+func LoginUser(w http.ResponseWriter, r *http.Request) {
+	var req UserLoginRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		utils.ErrorResponse(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	response, err := auth.LoginUser(creds.Username, creds.Password)
+	err = ValidateUserLoginRequest(req)
+	if err != nil {
+		err = fmt.Errorf("User credentials error. %w", err)
+		utils.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	response, err := auth.LoginUser(req.Username, req.Password)
 	if err != nil {
 		utils.ErrorResponse(w, fmt.Sprintf("Login failed: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// send the refresh token as secure cookie
+	if config.AuthRefreshTokenAsSecureCookie {
+		auth.SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
+		response.RefreshToken = ""
+	}
+
 	utils.SuccessResponse(w, response)
 }
