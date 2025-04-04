@@ -25,11 +25,20 @@ type ApiUserResponse struct {
 	Error ApiError     `json:"error,omitempty"`
 }
 
-type AuthUser struct {
-	ID           string `json:"id"`
-	Username     string `json:"username"`
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken,omitempty"`
+type AuthResponse struct {
+	UserID       string
+	AccessToken  string
+	RefreshToken string
+	SessionID    string
+}
+
+type AuthToken struct {
+	UserID           string
+	AccessToken      string
+	RefreshToken     string
+	SessionID        string
+	AccessExpiresAt  time.Time
+	RefreshExpiresAt time.Time
 }
 
 type ApiError struct {
@@ -40,4 +49,53 @@ type ApiError struct {
 type ApiResponse[T any] struct {
 	Data  T         `json:"data,omitempty"`
 	Error *ApiError `json:"error,omitempty"`
+}
+
+// todo use this models
+
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	Scope        string `json:"scope"`
+}
+
+type RevokeRequest struct {
+	Token         string `json:"token"`
+	TokenTypeHint string `json:"token_type_hint,omitempty"`
+	ClientID      string `json:"client_id"`
+	ClientSecret  string `json:"client_secret"`
+}
+
+type IntrospectionResponse struct {
+	Active   bool   `json:"active"`
+	ClientID string `json:"client_id"`
+	UserID   string `json:"user_id"`
+	Scope    string `json:"scope"`
+	Exp      int64  `json:"exp"`
+	Iat      int64  `json:"iat"`
+}
+
+type AuthCodeRequest struct {
+	ResponseType string `json:"response_type"`
+	ClientID     string `json:"client_id"`
+	RedirectURI  string `json:"redirect_uri"`
+	Scope        string `json:"scope"`
+	State        string `json:"state"`
+}
+
+type TokenRequest struct {
+	GrantType    string `json:"grant_type"`
+	Code         string `json:"code"`
+	RedirectURI  string `json:"redirect_uri"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+type RefreshTokenRequest struct {
+	GrantType    string `json:"grant_type"`
+	RefreshToken string `json:"refresh_token"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }

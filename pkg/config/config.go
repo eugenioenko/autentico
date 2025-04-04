@@ -14,6 +14,8 @@ const (
 	AuthRefreshTokenExpiration     = 30 * 24 * time.Hour
 	AuthRefreshTokenCookieName     = "autentico_refresh_token"
 	AuthRefreshTokenAsSecureCookie = true
+	AuthDefaultClientID            = "el_autentico_!"
+	AuthDefaultIssuer              = "https://autentico.com"
 	SwaggerPort                    = "8888"
 	ValidationMinUsernameLength    = 4
 	ValidationMaxUsernameLength    = 64

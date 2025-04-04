@@ -10,7 +10,7 @@ import (
 	. "autentico/pkg/models"
 )
 
-func LoginUser(username, password string) (*AuthUser, error) {
+func LoginUser(username, password string) (*AuthToken, error) {
 	var user User
 	query := `
 		SELECT id, username, password, email, created_at
@@ -36,17 +36,10 @@ func LoginUser(username, password string) (*AuthUser, error) {
 		return nil, fmt.Errorf("Invalid password: %w", err)
 	}
 
-	accessToken, refreshToken, err := GenerateTokens(user)
+	tokens, err := GenerateTokens(user)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate tokens: %w", err)
 	}
 
-	authUser := &AuthUser{
-		ID:           user.ID,
-		Username:     user.Username,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}
-
-	return authUser, nil
+	return tokens, nil
 }
