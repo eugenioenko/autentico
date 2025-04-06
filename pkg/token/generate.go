@@ -14,8 +14,8 @@ import (
 
 func GenerateTokens(user User) (*AuthToken, error) {
 	sessionID := xid.New().String()
-	accessTokenExpiresAt := time.Now().Add(config.AuthAccessTokenExpiration).UTC()
-	refreshTokenExpiresAt := time.Now().Add(config.AuthRefreshTokenExpiration).UTC()
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()
 
 	accessClaims := jwt.MapClaims{
 		"sub":   user.ID,
@@ -23,11 +23,11 @@ func GenerateTokens(user User) (*AuthToken, error) {
 		"sid":   sessionID,
 		"iat":   time.Now().Unix(),
 		"exp":   accessTokenExpiresAt.Unix(),
-		"aud":   config.AuthDefaultClientID,
-		"iss":   config.AuthDefaultIssuer,
+		"aud":   config.Get().AuthDefaultClientID,
+		"iss":   config.Get().AuthDefaultIssuer,
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	signedAccessToken, err := accessToken.SignedString([]byte(config.AuthAccessTokenSecret))
+	signedAccessToken, err := accessToken.SignedString([]byte(config.Get().AuthAccessTokenSecret))
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
 	}
@@ -40,7 +40,7 @@ func GenerateTokens(user User) (*AuthToken, error) {
 		"exp": refreshTokenExpiresAt.Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	signedRefreshToken, err := refreshToken.SignedString([]byte(config.AuthRefreshTokenSecret))
+	signedRefreshToken, err := refreshToken.SignedString([]byte(config.Get().AuthRefreshTokenSecret))
 	if err != nil {
 		return nil, fmt.Errorf("could not sign refresh token: %v", err)
 	}
@@ -59,9 +59,9 @@ func GenerateTokens(user User) (*AuthToken, error) {
 
 func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     config.AuthRefreshTokenCookieName,
+		Name:     config.Get().AuthRefreshTokenCookieName,
 		Value:    refreshToken,
-		Expires:  time.Now().Add(config.AuthRefreshTokenExpiration),
+		Expires:  time.Now().Add(config.Get().AuthRefreshTokenExpiration),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode, // Helps mitigate CSRF attacks

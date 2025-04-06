@@ -35,7 +35,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if config.ValidationUsernameIsEmail && req.Email == "" {
+	if config.Get().ValidationUsernameIsEmail && req.Email == "" {
 		req.Email = req.Username
 	}
 

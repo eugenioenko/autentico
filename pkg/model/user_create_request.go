@@ -19,15 +19,15 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		input.Username,
 		validation.Required,
 		validation.Length(
-			config.ValidationMinUsernameLength,
-			config.ValidationMaxUsernameLength,
+			config.Get().ValidationMinUsernameLength,
+			config.Get().ValidationMaxUsernameLength,
 		),
 	)
 	if err != nil {
 		return fmt.Errorf("Username is invalid: %w", err)
 	}
 
-	if config.ValidationUsernameIsEmail {
+	if config.Get().ValidationUsernameIsEmail {
 		err = validation.Validate(
 			input.Username,
 			is.Email,
@@ -41,15 +41,15 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		input.Password,
 		validation.Required,
 		validation.Length(
-			config.ValidationMinPasswordLength,
-			config.ValidationMaxPasswordLength,
+			config.Get().ValidationMinPasswordLength,
+			config.Get().ValidationMaxPasswordLength,
 		),
 	)
 	if err != nil {
 		return fmt.Errorf("Password is invalid: %w", err)
 	}
 
-	if config.ValidationEmailRequired || input.Email != "" {
+	if config.Get().ValidationEmailRequired || input.Email != "" {
 		err = validation.Validate(
 			input.Email,
 			validation.Required,

@@ -16,13 +16,13 @@ import (
 // @BasePath /api/v1/
 
 func main() {
-	_, err := db.InitDB(config.DbFilePath)
+	_, err := db.InitDB(config.Get().DbFilePath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.CloseDB()
 
-	basePath := config.AppBasePath
+	basePath := config.Get().AppBasePath
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(basePath+"/users/create", routes.CreateUser)
@@ -32,7 +32,7 @@ func main() {
 	mux.HandleFunc(basePath+"/auth/introspect", routes.IntrospectToken)
 	//http.HandleFunc("/logout", logoutUser)
 
-	port := config.AppPort
+	port := config.Get().AppPort
 	log.Printf("Auth server started at http://localhost:%s%s", port, basePath)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }

@@ -17,8 +17,8 @@ func ValidateUserLoginRequest(input UserLoginRequest) error {
 		input.Username,
 		validation.Required,
 		validation.Length(
-			config.ValidationMinUsernameLength,
-			config.ValidationMaxUsernameLength,
+			config.Get().ValidationMinUsernameLength,
+			config.Get().ValidationMaxUsernameLength,
 		),
 	)
 	if err != nil {
@@ -29,8 +29,8 @@ func ValidateUserLoginRequest(input UserLoginRequest) error {
 		input.Password,
 		validation.Required,
 		validation.Length(
-			config.ValidationMinPasswordLength,
-			config.ValidationMaxPasswordLength,
+			config.Get().ValidationMinPasswordLength,
+			config.Get().ValidationMaxPasswordLength,
 		),
 	)
 

@@ -81,12 +81,12 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  authToken.AccessToken,
 		RefreshToken: authToken.RefreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    int(config.AuthAccessTokenExpiration / time.Second),
+		ExpiresIn:    int(config.Get().AuthAccessTokenExpiration / time.Second),
 		Scope:        "read write",
 	}
 
 	// send the refresh token as secure cookie
-	if config.AuthRefreshTokenAsSecureCookie {
+	if config.Get().AuthRefreshTokenAsSecureCookie {
 		token.SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
 		response.RefreshToken = ""
 	}
