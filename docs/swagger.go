@@ -1,7 +1,6 @@
-package main
+package docs
 
 import (
-	_ "autentico/docs"
 	"autentico/pkg/config"
 	"log"
 	"net/http"

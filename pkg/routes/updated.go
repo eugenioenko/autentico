@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"autentico/pkg/users"
+	"autentico/pkg/user"
 )
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +21,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = users.UpdateUser(update.Username, update.Email)
+	err = user.UpdateUser(update.Username, update.Email)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error updating user: %v", err), http.StatusInternalServerError)
 		return

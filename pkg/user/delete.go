@@ -1,4 +1,4 @@
-package users
+package user
 
 import (
 	"autentico/pkg/db"

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
 	"encoding/json"
 	"net/http"
 )

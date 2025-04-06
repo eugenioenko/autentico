@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"autentico/pkg/users"
+	"autentico/pkg/user"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,7 +18,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = users.DeleteUser(username.Username)
+	err = user.DeleteUser(username.Username)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error deleting user: %v", err), http.StatusInternalServerError)
 		return

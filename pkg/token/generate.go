@@ -1,4 +1,4 @@
-package auth
+package token
 
 import (
 	"fmt"
@@ -9,13 +9,13 @@ import (
 	"github.com/rs/xid"
 
 	"autentico/pkg/config"
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
 )
 
 func GenerateTokens(user User) (*AuthToken, error) {
 	sessionID := xid.New().String()
-	accessTokenExpiresAt := time.Now().Add(config.AuthAccessTokenExpiration)
-	refreshTokenExpiresAt := time.Now().Add(config.AuthRefreshTokenExpiration)
+	accessTokenExpiresAt := time.Now().Add(config.AuthAccessTokenExpiration).UTC()
+	refreshTokenExpiresAt := time.Now().Add(config.AuthRefreshTokenExpiration).UTC()
 
 	accessClaims := jwt.MapClaims{
 		"sub":   user.ID,

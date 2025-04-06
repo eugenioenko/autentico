@@ -8,10 +8,9 @@ import (
 
 	"autentico/pkg/auth"
 	"autentico/pkg/config"
-	"autentico/pkg/models"
-	. "autentico/pkg/models"
-	"autentico/pkg/sessions"
-	"autentico/pkg/tokens"
+	. "autentico/pkg/model"
+	"autentico/pkg/session"
+	"autentico/pkg/token"
 	"autentico/pkg/utils"
 )
 
@@ -46,7 +45,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tokens.CreateToken(models.Token{
+	err = token.CreateToken(Token{
 		UserID:                authToken.UserID,
 		AccessToken:           authToken.AccessToken,
 		RefreshToken:          authToken.RefreshToken,
@@ -63,7 +62,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, err.Error(), http.StatusBadRequest)
 	}
 
-	err = sessions.CreateSession(models.Session{
+	err = session.CreateSession(Session{
 		ID:           authToken.SessionID,
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
@@ -88,7 +87,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	// send the refresh token as secure cookie
 	if config.AuthRefreshTokenAsSecureCookie {
-		auth.SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
+		token.SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
 		response.RefreshToken = ""
 	}
 

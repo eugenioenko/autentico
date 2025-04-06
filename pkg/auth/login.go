@@ -7,7 +7,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"autentico/pkg/db"
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
+	"autentico/pkg/token"
 )
 
 func LoginUser(username, password string) (*AuthToken, error) {
@@ -36,7 +37,7 @@ func LoginUser(username, password string) (*AuthToken, error) {
 		return nil, fmt.Errorf("Invalid password: %w", err)
 	}
 
-	tokens, err := GenerateTokens(user)
+	tokens, err := token.GenerateTokens(user)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate tokens: %w", err)
 	}

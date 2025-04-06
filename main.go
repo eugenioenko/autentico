@@ -16,7 +16,7 @@ import (
 // @BasePath /api/v1/
 
 func main() {
-	_, err := db.InitDB()
+	_, err := db.InitDB(config.DbFilePath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -29,6 +29,7 @@ func main() {
 	mux.HandleFunc(basePath+"/users/login", routes.LoginUser)
 	mux.HandleFunc(basePath+"/users/update", routes.UpdateUser)
 	mux.HandleFunc(basePath+"/users/delete", routes.DeleteUser)
+	mux.HandleFunc(basePath+"/auth/introspect", routes.IntrospectToken)
 	//http.HandleFunc("/logout", logoutUser)
 
 	port := config.AppPort

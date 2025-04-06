@@ -1,8 +1,8 @@
-package users
+package user
 
 import (
 	"autentico/pkg/db"
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
 	"fmt"
 	"time"
 

@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"autentico/pkg/config"
-	. "autentico/pkg/models"
-	"autentico/pkg/users"
+	. "autentico/pkg/model"
+	"autentico/pkg/user"
 	"autentico/pkg/utils"
 )
 
@@ -39,7 +39,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		req.Email = req.Username
 	}
 
-	response, err := users.CreateUser(req.Username, req.Password, req.Email)
+	response, err := user.CreateUser(req.Username, req.Password, req.Email)
 	if err != nil {
 		err = fmt.Errorf("User creation error. %w", err)
 		utils.ErrorResponse(w, err.Error(), http.StatusInternalServerError)

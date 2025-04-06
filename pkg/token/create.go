@@ -1,8 +1,8 @@
-package tokens
+package token
 
 import (
 	"autentico/pkg/db"
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
 
 	"github.com/rs/xid"
 )

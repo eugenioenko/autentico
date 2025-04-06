@@ -1,8 +1,8 @@
-package sessions
+package session
 
 import (
 	"autentico/pkg/db"
-	. "autentico/pkg/models"
+	. "autentico/pkg/model"
 )
 
 func CreateSession(session Session) error {

@@ -40,4 +40,4 @@ watch:
 .PHONY: docs
 docs:
 	swag init
-	go run swagger/swagger.go
+	go run docs/swagger.go

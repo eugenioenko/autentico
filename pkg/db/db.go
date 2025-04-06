@@ -1,7 +1,6 @@
 package db
 
 import (
-	"autentico/pkg/config"
 	"database/sql"
 	"log"
 
@@ -10,9 +9,9 @@ import (
 
 var db *sql.DB
 
-func InitDB() (*sql.DB, error) {
+func InitDB(dbFilePath string) (*sql.DB, error) {
 	var err error
-	db, err = sql.Open("sqlite", config.DbFilePath)
+	db, err = sql.Open("sqlite", dbFilePath)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return nil, err
@@ -40,21 +39,20 @@ func InitDB() (*sql.DB, error) {
 			CONSTRAINT unique_email UNIQUE (email)
 		);
 
-
 		CREATE TABLE IF NOT EXISTS tokens (
 			id TEXT PRIMARY KEY,                     -- Unique token ID
-			user_id TEXT,                            -- The user to whom the token belongs
-			access_token TEXT,                       -- The actual access token (JWT or opaque token)
-			refresh_token TEXT,                      -- The refresh token used for refreshing access tokens
-			access_token_type TEXT NOT NULL,         -- Type of access token (e.g., 'Bearer', 'JWT')
-			refresh_token_expires_at DATETIME,       -- Expiration time for the refresh token (if applicable)
-			refresh_token_last_used_at DATETIME,     -- Tracks when the refresh token was last used
-			access_token_expires_at DATETIME,                     -- Expiration time for the access token
+			user_id TEXT NOT NULL,                    -- The user to whom the token belongs
+			access_token TEXT NOT NULL,               -- The actual access token (JWT or opaque token)
+			refresh_token TEXT NOT NULL,              -- The refresh token used for refreshing access tokens
+			access_token_type TEXT NOT NULL,          -- Type of access token (e.g., 'Bearer', 'JWT')
+			refresh_token_expires_at DATETIME NOT NULL, -- Expiration time for the refresh token (if applicable)
+			refresh_token_last_used_at DATETIME,      -- Tracks when the refresh token was last used
+			access_token_expires_at DATETIME NOT NULL, -- Expiration time for the access token
 			issued_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- When the token was issued
-			scope TEXT,                              -- The scopes granted for this token
-			grant_type TEXT NOT NULL,                -- The OAuth2 grant type (e.g., 'authorization_code', 'client_credentials')
-			revoked_at DATETIME,                     -- Timestamp for when the token was revoked
-			CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)        -- Link to the user
+			scope TEXT NOT NULL,                          -- The scopes granted for this token (nullable)
+			grant_type TEXT NOT NULL,                 -- The OAuth2 grant type (e.g., 'authorization_code', 'client_credentials')
+			revoked_at DATETIME,                      -- Timestamp for when the token was revoked
+			CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) -- Link to the user
 		);
 
 		CREATE TABLE IF NOT EXISTS sessions (
