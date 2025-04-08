@@ -1,0 +1,41 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Databases
+/db/*.db
+# Go build artifacts
+/build/
+/bin/
+/dist/
+
+# Go modules
+/go.sum
+/vendor/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and temp files
+*.log
+*.tmp
+*.cache
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Test output
+coverage.out
+
+# Local environment/config
+.env
+.env.*
