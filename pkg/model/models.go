@@ -21,8 +21,8 @@ type UserResponse struct {
 
 // ApiUserResponse is used for Swagger documentation
 type ApiUserResponse struct {
-	Data  UserResponse `json:"data"`
-	Error ApiError     `json:"error,omitempty"`
+	Data  *UserResponse `json:"data,omitempty"`
+	Error *ApiError     `json:"error,omitempty"`
 }
 
 type AuthResponse struct {
@@ -66,15 +66,6 @@ type RevokeRequest struct {
 	TokenTypeHint string `json:"token_type_hint,omitempty"`
 	ClientID      string `json:"client_id"`
 	ClientSecret  string `json:"client_secret"`
-}
-
-type IntrospectionResponse struct {
-	Active   bool   `json:"active"`
-	ClientID string `json:"client_id"`
-	UserID   string `json:"user_id"`
-	Scope    string `json:"scope"`
-	Exp      int64  `json:"exp"`
-	Iat      int64  `json:"iat"`
 }
 
 type AuthCodeRequest struct {

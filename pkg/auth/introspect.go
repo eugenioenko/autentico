@@ -27,11 +27,11 @@ func IntrospectToken(token string) (*Token, error) {
 	}
 
 	if t.RevokedAt != nil {
-		return nil, errors.New("Token has been revoked")
+		return nil, errors.New("token has been revoked")
 	}
 
 	if time.Now().After(t.AccessTokenExpiresAt) {
-		return nil, errors.New("Access token has expired")
+		return nil, errors.New("access token has expired")
 	}
 
 	return &t, nil
