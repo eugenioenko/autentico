@@ -22,17 +22,23 @@ func main() {
 	}
 	defer db.CloseDB()
 
-	basePath := config.Get().AppBasePath
+	oauth := config.Get().AppOAuthPath
 	mux := http.NewServeMux()
 
-	mux.HandleFunc(basePath+"/users/create", routes.CreateUser)
-	mux.HandleFunc(basePath+"/users/login", routes.LoginUser)
-	mux.HandleFunc(basePath+"/users/update", routes.UpdateUser)
-	mux.HandleFunc(basePath+"/users/delete", routes.DeleteUser)
-	mux.HandleFunc(basePath+"/auth/introspect", routes.IntrospectToken)
-	//http.HandleFunc("/logout", logoutUser)
+	mux.HandleFunc(oauth+"/users/create", routes.CreateUser)
+	mux.HandleFunc(oauth+"/users/login", routes.LoginUser)
+	mux.HandleFunc(oauth+"/users/update", routes.UpdateUser)
+	mux.HandleFunc(oauth+"/users/delete", routes.DeleteUser)
+
+	mux.HandleFunc("/.well-known/openid-configuration", routes.WellKnownConfig)
+	mux.HandleFunc("/.well-known/jwks.json", routes.WellKnownConfig)
+	mux.HandleFunc(oauth+"/authorize", routes.DummyRoute)
+	mux.HandleFunc(oauth+"/token", routes.DummyRoute)
+	mux.HandleFunc(oauth+"/userinfo", routes.DummyRoute)
+	mux.HandleFunc(oauth+"/logout", routes.DummyRoute)
+	mux.HandleFunc(oauth+"/introspect", routes.DummyRoute)
 
 	port := config.Get().AppPort
-	log.Printf("Auth server started at http://localhost:%s%s", port, basePath)
+	log.Printf("Auth server started at http://localhost:%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }

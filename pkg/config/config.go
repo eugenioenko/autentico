@@ -1,12 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"time"
 )
 
 type Config struct {
+	AppHost                        string
 	AppPort                        string
-	AppBasePath                    string
+	AppOAuthPath                   string
+	AppAuthIssuer                  string
 	DbFilePath                     string
 	AuthAccessTokenSecret          string
 	AuthAccessTokenExpiration      time.Duration
@@ -25,9 +28,17 @@ type Config struct {
 	ValidationEmailRequired        bool
 }
 
+const (
+	appHost      = "http://localhost"
+	appPort      = "8080"
+	appOAuthPath = "/oauth2"
+)
+
 var defaultConfig = Config{
-	AppPort:                        "8080",
-	AppBasePath:                    "/api/v1",
+	AppHost:                        appHost,
+	AppPort:                        appPort,
+	AppOAuthPath:                   appOAuthPath,
+	AppAuthIssuer:                  fmt.Sprintf("%s:%s/%s", appHost, appPort, appOAuthPath),
 	DbFilePath:                     "./db/auth.db",
 	AuthAccessTokenSecret:          "your-secret-here",
 	AuthAccessTokenExpiration:      15 * time.Minute,
@@ -36,7 +47,6 @@ var defaultConfig = Config{
 	AuthRefreshTokenCookieName:     "autentico_refresh_token",
 	AuthRefreshTokenAsSecureCookie: true,
 	AuthDefaultClientID:            "el_autentico_!",
-	AuthDefaultIssuer:              "https://autentico.com",
 	SwaggerPort:                    "8888",
 	ValidationMinUsernameLength:    4,
 	ValidationMaxUsernameLength:    64,

@@ -24,7 +24,7 @@ func GenerateTokens(user User) (*AuthToken, error) {
 		"iat":   time.Now().Unix(),
 		"exp":   accessTokenExpiresAt.Unix(),
 		"aud":   config.Get().AuthDefaultClientID,
-		"iss":   config.Get().AuthDefaultIssuer,
+		"iss":   config.Get().AppAuthIssuer,
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	signedAccessToken, err := accessToken.SignedString([]byte(config.Get().AuthAccessTokenSecret))
