@@ -10,9 +10,10 @@ import (
 
 	"autentico/pkg/config"
 	. "autentico/pkg/model"
+	"autentico/pkg/user"
 )
 
-func GenerateTokens(user User) (*AuthToken, error) {
+func GenerateTokens(user user.User) (*AuthToken, error) {
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()

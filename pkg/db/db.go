@@ -61,12 +61,24 @@ var createTableSQL = `
 		deactivated_at DATETIME,                       -- Timestamp when the session was deactivated or invalidated
 		FOREIGN KEY (user_id) REFERENCES users(id)    -- Link to the user
 	);
+
+	CREATE TABLE IF NOT EXISTS auth_codes (
+    code TEXT PRIMARY KEY,                    -- The actual authorization code
+    user_id TEXT NOT NULL,                    -- The authenticated user
+    redirect_uri TEXT NOT NULL,               -- Must match the one used in the initial request
+    scope TEXT,                               -- Scopes associated with this code
+    expires_at DATETIME NOT NULL,             -- Expiration time (typically short-lived)
+    used BOOLEAN DEFAULT FALSE,               -- To prevent reuse
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+	);
 `
 
 var dropTableSQL = `
 		DROP TABLE IF EXISTS users;
 		DROP TABLE IF EXISTS sessions;
 		DROP TABLE IF EXISTS tokens;
+		DROP TABLE IF EXISTS auth_codes;
 	`
 
 func InitDB(dbFilePath string) (*sql.DB, error) {

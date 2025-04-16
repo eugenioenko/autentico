@@ -1,4 +1,4 @@
-package auth
+package login
 
 import (
 	"database/sql"
@@ -7,12 +7,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"autentico/pkg/db"
-	. "autentico/pkg/model"
-	"autentico/pkg/token"
+	"autentico/pkg/user"
 )
 
-func LoginUser(username, password string) (*AuthToken, error) {
-	var user User
+func AuthenticateUser(username, password string) (*user.User, error) {
+	var user user.User
 	query := `
 		SELECT id, username, password, email, created_at
 		FROM users WHERE username = ?
@@ -27,20 +26,15 @@ func LoginUser(username, password string) (*AuthToken, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("User not found")
+			return nil, fmt.Errorf("user not found")
 		}
-		return nil, fmt.Errorf("Failed to get user: %w", err)
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("Invalid password: %w", err)
+		return nil, fmt.Errorf("invalid password: %w", err)
 	}
 
-	tokens, err := token.GenerateTokens(user)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to generate tokens: %w", err)
-	}
-
-	return tokens, nil
+	return &user, nil
 }

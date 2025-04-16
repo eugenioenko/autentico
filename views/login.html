@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Autentico Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --font-size: 16px;
+        --border-radius: 2px;
+      }
+
+      :root {
+        --color-primary: #2e5bff;
+        --color-accent: #188060;
+        --color-danger: #d60b0b;
+        --color-text: #0f0f0f;
+        --color-inverse: #ffffff;
+        --color-background: #f1f1f1;
+        --color-card: #ffffff;
+        --color-border: #696969;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --color-primary: #2e5bff;
+          --color-accent: #188060;
+          --color-danger: #d60b0b;
+          --color-text: #e7e7e7;
+          --color-inverse: #e7e7e7;
+          --color-background: #0f0f0f;
+          --color-card: #1e1f22;
+          --color-border: #cccccc;
+        }
+      }
+    </style>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100dvh;
+        font-family: "Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-weight: 300;
+        background-color: var(--color-background);
+        font-size: var(--font-size);
+        color: var(--color-text);
+      }
+
+      main {
+        flex-grow: 1;
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+      }
+
+      form {
+        background-color: var(--color-card);
+        padding: 30px;
+        border-radius: var(--border-radius);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0;
+      }
+
+      label {
+        padding-bottom: 4px;
+        display: block;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--color-border);
+      }
+
+      button {
+        width: 100%;
+        padding: 10px;
+        background-color: var(--color-primary);
+        color: var(--color-inverse);
+        border: none;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1rem;
+        margin-top: 16px;
+      }
+
+      button:hover {
+        background-color: var(--color-accent);
+      }
+
+      .logo {
+        width: 96px;
+        height: 96px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 9999px;
+        background-color: var(--color-inverse);
+        border: 1px solid var(--color-border);
+        margin: 16px 0 32px 0;
+        padding: 16px;
+      }
+
+      .logo > svg {
+        fill: var(--color-primary);
+      }
+      .control {
+        width: 100%;
+      }
+
+      .error {
+        color: var(--color-danger);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <form method="POST" action="/oauth2/login">
+        <div class="logo">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            version="1.1"
+            width="800px"
+            height="800px"
+            viewBox="0 0 59.807 59.807"
+            xml:space="preserve"
+          >
+            <g>
+              <g>
+                <path
+                  d="M52.851,18.505c-1.103,7.352-11.396,8.822-11.396,6.433c0-2.39,0.735-16.176-3.125-17.278    c-3.861-1.103-2.39-6.801-4.411-7.352c-1.522-0.416-3.254-0.314-4.015-0.24c-0.761-0.075-2.492-0.177-4.015,0.239    c-2.022,0.551-0.551,6.25-4.411,7.352c-3.861,1.104-3.125,14.889-3.125,17.278c0,2.389-10.294,0.919-11.397-6.433    C5.853,11.152-3.338,28.981,5.669,36.15c8.159,6.494,21.75,6.502,24.234,6.445c2.484,0.057,16.076,0.049,24.235-6.445    C63.145,28.982,53.955,11.153,52.851,18.505z M21.844,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.618-1.378,1.378-1.378    c0.761,0,1.378,0.618,1.378,1.378S22.605,22.596,21.844,22.596z M26.807,23.698c-0.761,0-1.378-0.618-1.378-1.378    c0-0.761,0.618-1.378,1.378-1.378c0.761,0,1.378,0.618,1.378,1.378C28.186,23.082,27.569,23.698,26.807,23.698z M33.424,23.698    c-0.761,0-1.378-0.618-1.378-1.378c0-0.761,0.618-1.378,1.378-1.378c0.762,0,1.378,0.618,1.378,1.378    C34.803,23.082,34.186,23.698,33.424,23.698z M38.388,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.617-1.378,1.378-1.378    s1.377,0.618,1.377,1.378S39.149,22.596,38.388,22.596z"
+                />
+                <path
+                  d="M34.084,47.818c0,0-2.487-0.301-3.181,3.18c-1.33,6.679,2.299,4.654,2.299,4.654c3.65-2.312,7.634,1.038,11.324,3.435    c3.691,2.396,1.12-1.943,1.12-1.943C39.707,47.788,34.084,47.818,34.084,47.818z"
+                />
+                <path
+                  d="M25.723,47.818c0,0-5.623-0.03-11.564,9.325c0,0-2.571,4.338,1.12,1.943c3.69-2.396,7.675-5.746,11.325-3.435    c0,0,3.629,2.024,2.299-4.654C28.21,47.517,25.723,47.818,25.723,47.818z"
+                />
+              </g>
+            </g>
+          </svg>
+        </div>
+        <input type="hidden" name="state" value="{{.State}}" />
+        <input type="hidden" name="redirect" value="{{.Redirect}}" />
+        <div class="control">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+        <div class="control">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit">Log In</button>
+      </form>
+    </main>
+    <footer></footer>
+  </body>
+</html>

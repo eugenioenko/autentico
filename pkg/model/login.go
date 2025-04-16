@@ -7,12 +7,14 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
-type UserLoginRequest struct {
+type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	State    string `json:"state"`
+	Redirect string `json:"redirect"`
 }
 
-func ValidateUserLoginRequest(input UserLoginRequest) error {
+func ValidateLoginRequest(input LoginRequest) error {
 	err := validation.Validate(
 		input.Username,
 		validation.Required,
@@ -22,7 +24,7 @@ func ValidateUserLoginRequest(input UserLoginRequest) error {
 		),
 	)
 	if err != nil {
-		return fmt.Errorf("Username is invalid: %w", err)
+		return fmt.Errorf("username is invalid: %w", err)
 	}
 
 	err = validation.Validate(
@@ -35,7 +37,7 @@ func ValidateUserLoginRequest(input UserLoginRequest) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("Password is invalid: %w", err)
+		return fmt.Errorf("password is invalid: %w", err)
 	}
 
 	return nil

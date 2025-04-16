@@ -1,16 +1,15 @@
-package routes
+package utils
 
 import (
 	"net/http"
 
-	. "autentico/pkg/model"
-	"autentico/pkg/utils"
+	"autentico/pkg/model"
 )
 
 func DummyRoute(w http.ResponseWriter, r *http.Request) {
-	response := AuthErrorResponse{
+	response := model.AuthErrorResponse{
 		Error:            "not_implemented",
 		ErrorDescription: "Not implemented",
 	}
-	utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+	WriteApiResponse(w, response, http.StatusInternalServerError)
 }

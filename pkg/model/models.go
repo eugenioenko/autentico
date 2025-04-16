@@ -4,27 +4,6 @@ import (
 	"time"
 )
 
-type User struct {
-	ID        string
-	Username  string
-	Password  string
-	Email     string
-	CreatedAt time.Time
-}
-
-type UserResponse struct {
-	ID        string
-	Username  string
-	Email     string
-	CreatedAt time.Time
-}
-
-// ApiUserResponse is used for Swagger documentation
-type ApiUserResponse struct {
-	Data  *UserResponse `json:"data,omitempty"`
-	Error *ApiError     `json:"error,omitempty"`
-}
-
 type AuthResponse struct {
 	UserID       string
 	AccessToken  string
