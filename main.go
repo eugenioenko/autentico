@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"autentico/pkg/db"
 	"autentico/pkg/introspect"
 	"autentico/pkg/login"
+	"autentico/pkg/middleware"
 	"autentico/pkg/token"
 	"autentico/pkg/user"
 	"autentico/pkg/utils"
@@ -21,6 +23,16 @@ import (
 // @host localhost:8080
 // @BasePath /api/v1/
 
+func inspectRequestMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Inspect the request here
+		// For example, you can log the method and URL of the request
+		fmt.Println("Inspecting request:")
+		log.Printf("Method: %s, URL: %s", r.Method, r.URL)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	_, err := db.InitDB(config.Get().DbFilePath)
 	if err != nil {
@@ -32,17 +44,16 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/users/create", user.HandleCreateUser)
-
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
-	// mux.HandleFunc("/.well-known/jwks.json", routes.WellKnownConfig)
-	mux.HandleFunc(oauth+"/authorize", authorize.HandleAuthorize)
+	mux.Handle("/oauth2/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
+	mux.Handle("/oauth2/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/userinfo", utils.DummyRoute)
-	mux.HandleFunc(oauth+"/login", login.HandleLoginUser)
 	mux.HandleFunc(oauth+"/logout", utils.DummyRoute)
 	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
 
 	port := config.Get().AppPort
-	log.Printf("Auth server started at http://localhost:%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	log.Printf("Autentico started at http://localhost:%s", port)
+	loggingMux := middleware.LoggingMiddleware(mux)
+	log.Fatal(http.ListenAndServe(":"+port, loggingMux))
 }
