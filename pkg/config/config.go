@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	AppDomain                       string
 	AppHost                         string
 	AppPort                         string
 	AppURL                          string
@@ -21,6 +22,8 @@ type Config struct {
 	AuthDefaultClientID             string
 	AuthDefaultIssuer               string
 	AuthAuthorizationCodeExpiration time.Duration
+	AuthCSRFProtectionSecretKey     string
+	AuthCSRFSecureCookie            bool // set to true in prod over https
 	SwaggerPort                     string
 	ValidationMinUsernameLength     int
 	ValidationMaxUsernameLength     int
@@ -31,17 +34,19 @@ type Config struct {
 }
 
 const (
-	appHost      = "http://localhost"
+	appProtocol  = "http://"
+	appDomain    = "localhost"
 	appPort      = "8080"
 	appOAuthPath = "/oauth2"
 )
 
 var defaultConfig = Config{
-	AppHost:                         appHost,
+	AppDomain:                       appDomain,
+	AppHost:                         fmt.Sprintf("%s:%s", appDomain, appPort),
 	AppPort:                         appPort,
-	AppURL:                          fmt.Sprintf("%s:%s", appHost, appPort),
+	AppURL:                          fmt.Sprintf("%s%s:%s", appProtocol, appDomain, appPort),
 	AppOAuthPath:                    appOAuthPath,
-	AppAuthIssuer:                   fmt.Sprintf("%s:%s%s", appHost, appPort, appOAuthPath),
+	AppAuthIssuer:                   fmt.Sprintf("%s%s:%s%s", appProtocol, appDomain, appPort, appOAuthPath),
 	DbFilePath:                      "./db/auth.db",
 	AuthAccessTokenSecret:           "your-secret-here",
 	AuthAccessTokenExpiration:       15 * time.Minute,
@@ -51,6 +56,8 @@ var defaultConfig = Config{
 	AuthRefreshTokenAsSecureCookie:  true,
 	AuthDefaultClientID:             "el_autentico_!",
 	AuthAuthorizationCodeExpiration: 10 * time.Minute,
+	AuthCSRFProtectionSecretKey:     "your-secret-here",
+	AuthCSRFSecureCookie:            false,
 	SwaggerPort:                     "8888",
 	ValidationMinUsernameLength:     4,
 	ValidationMaxUsernameLength:     64,

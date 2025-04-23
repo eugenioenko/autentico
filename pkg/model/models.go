@@ -30,16 +30,6 @@ type ApiResponse[T any] struct {
 	Error *ApiError `json:"error,omitempty"`
 }
 
-// todo use this models
-
-type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	Scope        string `json:"scope"`
-}
-
 type RevokeRequest struct {
 	Token         string `json:"token"`
 	TokenTypeHint string `json:"token_type_hint,omitempty"`
@@ -53,21 +43,6 @@ type AuthCodeRequest struct {
 	RedirectURI  string `json:"redirect_uri"`
 	Scope        string `json:"scope"`
 	State        string `json:"state"`
-}
-
-type TokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	Code         string `json:"code"`
-	RedirectURI  string `json:"redirect_uri"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-}
-
-type RefreshTokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	RefreshToken string `json:"refresh_token"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
 }
 
 type AuthErrorResponse struct {

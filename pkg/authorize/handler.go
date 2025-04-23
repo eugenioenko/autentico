@@ -5,10 +5,13 @@ import (
 	"net/http"
 
 	"autentico/pkg/utils"
+
+	"github.com/gorilla/csrf"
 )
 
 func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+
 	request := AuthorizeRequest{
 		ResponseType: q.Get("response_type"),
 		ClientID:     q.Get("client_id"),
@@ -33,9 +36,10 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: validate redirect_uri if necessary
 
-	data := map[string]string{
-		"State":    request.State,
-		"Redirect": request.RedirectURI,
+	data := map[string]any{
+		"State":          request.State,
+		"Redirect":       request.RedirectURI,
+		csrf.TemplateTag: csrf.TemplateField(r),
 	}
 
 	err = tmpl.Execute(w, data)

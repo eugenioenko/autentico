@@ -8,6 +8,7 @@ import (
 	authcode "autentico/pkg/auth_code"
 	"autentico/pkg/config"
 	"autentico/pkg/model"
+	"autentico/pkg/user"
 	"autentico/pkg/utils"
 )
 
@@ -28,9 +29,9 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.WriteApiResponse(w, response, http.StatusBadRequest)
 		return
+
 	}
 
-	// Parse the form data
 	err := r.ParseForm()
 	if err != nil {
 		response := model.AuthErrorResponse{
@@ -58,7 +59,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := AuthenticateUser(request.Username, request.Password)
+	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
 		response := model.AuthErrorResponse{
 			Error:            "server_error",
@@ -99,5 +100,4 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.Redirect, code.Code, request.State)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
-
 }
