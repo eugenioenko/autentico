@@ -1,4 +1,4 @@
-package model
+package login
 
 import (
 	"autentico/pkg/config"

@@ -42,14 +42,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := model.LoginRequest{
+	request := LoginRequest{
 		Username: r.FormValue("username"),
 		Password: r.FormValue("password"),
 		Redirect: r.FormValue("redirect"),
 		State:    r.FormValue("state"),
 	}
 
-	err = model.ValidateLoginRequest(request)
+	err = ValidateLoginRequest(request)
 	if err != nil {
 		response := model.AuthErrorResponse{
 			Error:            "invalid_request",

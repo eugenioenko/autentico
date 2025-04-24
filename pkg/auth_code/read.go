@@ -12,10 +12,8 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
         FROM auth_codes
         WHERE code = ?;
     `
-	row := db.GetDB().QueryRow(query, code)
-
 	var authCode AuthCode
-	err := row.Scan(
+	err := db.GetDB().QueryRow(query, code).Scan(
 		&authCode.Code,
 		&authCode.UserID,
 		&authCode.RedirectURI,
