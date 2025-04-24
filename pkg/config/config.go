@@ -6,32 +6,58 @@ import (
 )
 
 type Config struct {
-	AppDomain                       string
-	AppHost                         string
-	AppPort                         string
-	AppURL                          string
-	AppOAuthPath                    string
-	AppAuthIssuer                   string
-	DbFilePath                      string
-	AuthAccessTokenSecret           string
-	AuthAccessTokenExpiration       time.Duration
-	AuthRefreshTokenSecret          string
-	AuthRefreshTokenExpiration      time.Duration
-	AuthRefreshTokenCookieName      string
-	AuthRefreshTokenAsSecureCookie  bool
-	AuthDefaultClientID             string
-	AuthDefaultIssuer               string
+	// AppDomain is the domain name of the application (e.g., "localhost").
+	AppDomain string
+	// AppHost is the host address combining domain and port (e.g., "localhost:8080").
+	AppHost string
+	// AppPort is the port on which the application runs (e.g., "8080").
+	AppPort string
+	// AppURL is the full URL of the application (e.g., "http://localhost:8080").
+	AppURL string
+	// AppOAuthPath is the base path for OAuth2 endpoints (e.g., "/oauth2").
+	AppOAuthPath string
+	// AppAuthIssuer is the issuer URL for authentication tokens.
+	AppAuthIssuer string
+	// DbFilePath is the file path for the SQLite database.
+	DbFilePath string
+	// AuthAccessTokenSecret is the secret key used to sign access tokens.
+	AuthAccessTokenSecret string
+	// AuthAccessTokenExpiration is the duration for which access tokens are valid.
+	AuthAccessTokenExpiration time.Duration
+	// AuthRefreshTokenSecret is the secret key used to sign refresh tokens.
+	AuthRefreshTokenSecret string
+	// AuthRefreshTokenExpiration is the duration for which refresh tokens are valid.
+	AuthRefreshTokenExpiration time.Duration
+	// AuthRefreshTokenCookieName is the name of the cookie storing the refresh token.
+	AuthRefreshTokenCookieName string
+	// AuthRefreshTokenAsSecureCookie determines if the refresh token cookie is secure.
+	AuthRefreshTokenAsSecureCookie bool
+	// AuthDefaultClientID is the default client ID for the application.
+	AuthDefaultClientID string
+	// AuthDefaultIssuer is the default issuer for authentication.
+	AuthDefaultIssuer string
+	// AuthAuthorizationCodeExpiration is the duration for which authorization codes are valid.
 	AuthAuthorizationCodeExpiration time.Duration
-	AuthCSRFProtectionSecretKey     string
-	AuthCSRFSecureCookie            bool // set to true in prod over https
-	AuthAllowedRedirectURIs         []string
-	SwaggerPort                     string
-	ValidationMinUsernameLength     int
-	ValidationMaxUsernameLength     int
-	ValidationMinPasswordLength     int
-	ValidationMaxPasswordLength     int
-	ValidationUsernameIsEmail       bool
-	ValidationEmailRequired         bool
+	// AuthCSRFProtectionSecretKey is the secret key used for CSRF protection.
+	AuthCSRFProtectionSecretKey string
+	// AuthCSRFSecureCookie determines if the CSRF cookie is secure.
+	AuthCSRFSecureCookie bool
+	// AuthAllowedRedirectURIs is a list of allowed redirect URIs for OAuth2 flows.
+	AuthAllowedRedirectURIs []string
+	// SwaggerPort is the port on which the Swagger documentation server runs.
+	SwaggerPort string
+	// ValidationMinUsernameLength is the minimum length for usernames.
+	ValidationMinUsernameLength int
+	// ValidationMaxUsernameLength is the maximum length for usernames.
+	ValidationMaxUsernameLength int
+	// ValidationMinPasswordLength is the minimum length for passwords.
+	ValidationMinPasswordLength int
+	// ValidationMaxPasswordLength is the maximum length for passwords.
+	ValidationMaxPasswordLength int
+	// ValidationUsernameIsEmail determines if usernames must be valid email addresses.
+	ValidationUsernameIsEmail bool
+	// ValidationEmailRequired determines if email is required for user registration.
+	ValidationEmailRequired bool
 }
 
 const (

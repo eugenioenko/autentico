@@ -22,21 +22,19 @@
 ### Requirements
 
 - Go 1.21+
-- SQLite or PostgreSQL
-- Docker (optional)
 
-### Build and Run
+### Running the application
 
 ```bash
-# Clone the repository
 git clone https://github.com/eugenioenko/autentico.git
 cd autentico
-
-# Build the application
-make build
-
-# Run the application
 make run
+```
+
+### Building the application
+
+````bash
+make build
 ```
 
 ---
@@ -48,8 +46,8 @@ make run
 To view the Swagger API documentation, you can run the Swagger server:
 
 ```bash
-go run cmd/swagger.go
-```
+make docs
+````
 
 The Swagger UI will be available at: [http://localhost:8888/swagger/index.html](http://localhost:8888/swagger/index.html)
 
@@ -57,23 +55,36 @@ The Swagger UI will be available at: [http://localhost:8888/swagger/index.html](
 
 ## ⚙️ Configuration
 
-The configuration is managed via the `pkg/config/config.go` file. Below are the key settings:
+The configuration is managed via the `pkg/config/config.go` file. Below are the available settings and their descriptions. Eventually, some configurations will be moved to environment variables for enhanced security.
 
-- **App Settings**:
+| **Setting**                       | **Description**                                      | **Default Value**         |
+| --------------------------------- | ---------------------------------------------------- | ------------------------- |
+| `AppDomain`                       | The domain name of the application.                  | `localhost`               |
+| `AppPort`                         | The port on which the application runs.              | `8080`                    |
+| `AppOAuthPath`                    | The base path for OAuth2 endpoints.                  | `/oauth2`                 |
+| `DbFilePath`                      | The file path for the SQLite database.               | `./db/auth.db`            |
+| `AuthAccessTokenSecret`           | Secret key used to sign access tokens.               | `your-secret-here`        |
+| `AuthAccessTokenExpiration`       | Duration for which access tokens are valid.          | `15m`                     |
+| `AuthRefreshTokenSecret`          | Secret key used to sign refresh tokens.              | `your-secret-here`        |
+| `AuthRefreshTokenExpiration`      | Duration for which refresh tokens are valid.         | `30d`                     |
+| `AuthRefreshTokenCookieName`      | Name of the cookie storing the refresh token.        | `autentico_refresh_token` |
+| `AuthRefreshTokenAsSecureCookie`  | Whether the refresh token cookie is secure.          | `true`                    |
+| `AuthDefaultClientID`             | Default client ID for the application.               | `el_autentico_!`          |
+| `AuthAuthorizationCodeExpiration` | Duration for which authorization codes are valid.    | `10m`                     |
+| `AuthAllowedRedirectURIs`         | List of allowed redirect URIs for OAuth2 flows.      | `[]`                      |
+| `AuthCSRFProtectionSecretKey`     | Secret key used for CSRF protection.                 | `your-secret-here`        |
+| `AuthCSRFSecureCookie`            | Whether the CSRF cookie is secure.                   | `false`                   |
+| `ValidationMinUsernameLength`     | Minimum length for usernames.                        | `4`                       |
+| `ValidationMaxUsernameLength`     | Maximum length for usernames.                        | `64`                      |
+| `ValidationMinPasswordLength`     | Minimum length for passwords.                        | `6`                       |
+| `ValidationMaxPasswordLength`     | Maximum length for passwords.                        | `64`                      |
+| `ValidationUsernameIsEmail`       | Whether usernames must be valid email addresses.     | `true`                    |
+| `ValidationEmailRequired`         | Whether email is required for user registration.     | `false`                   |
+| `SwaggerPort`                     | Port on which the Swagger documentation server runs. | `8888`                    |
 
-  - `AppDomain`: Default is `localhost`.
-  - `AppPort`: Default is `8080`.
-  - `AppURL`: Base URL for the application.
+---
 
-- **Authentication**:
-
-  - `AuthAccessTokenExpiration`: Default is `15m`.
-  - `AuthRefreshTokenExpiration`: Default is `30d`.
-  - `AuthAllowedRedirectURIs`: List of allowed redirect URIs.
-
-- **Security**:
-  - `AuthCSRFProtectionSecretKey`: Secret key for CSRF protection.
-  - `AuthCSRFSecureCookie`: Set to `true` in production.
+To modify these settings, update the `defaultConfig` variable in `pkg/config/config.go`.
 
 ---
 
