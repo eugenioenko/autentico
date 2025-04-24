@@ -13,12 +13,14 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	request := AuthorizeRequest{
-		ResponseType: q.Get("response_type"),
-		ClientID:     q.Get("client_id"),
-		RedirectURI:  q.Get("redirect_uri"),
-		Scope:        q.Get("scope"),
-		State:        q.Get("state"),
-		Nonce:        q.Get("nonce"),
+		ResponseType:        q.Get("response_type"),
+		ClientID:            q.Get("client_id"),
+		RedirectURI:         q.Get("redirect_uri"),
+		Scope:               q.Get("scope"),
+		State:               q.Get("state"),
+		Nonce:               q.Get("nonce"),                 // TODO
+		CodeChallenge:       q.Get("code_challenge"),        // TODO
+		CodeChallengeMethod: q.Get("code_challenge_method"), // TODO
 	}
 
 	err := ValidateAuthorizeRequest(request)

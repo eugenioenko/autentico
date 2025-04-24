@@ -6,12 +6,14 @@ import (
 )
 
 type AuthorizeRequest struct {
-	ResponseType string
-	ClientID     string
-	RedirectURI  string
-	Scope        string
-	State        string
-	Nonce        string
+	ResponseType        string
+	ClientID            string
+	RedirectURI         string
+	Scope               string
+	State               string
+	Nonce               string
+	CodeChallenge       string
+	CodeChallengeMethod string
 }
 
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {
