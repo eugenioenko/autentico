@@ -4,6 +4,7 @@ import (
 	"autentico/pkg/db"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 func AuthCodeByCode(code string) (*AuthCode, error) {
@@ -27,7 +28,7 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // No record found
+			return nil, fmt.Errorf("authorization code not found")
 		}
 		return nil, err // Other errors
 	}

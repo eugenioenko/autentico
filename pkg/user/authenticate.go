@@ -27,14 +27,14 @@ func AuthenticateUser(username, password string) (*User, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("invalid username or password")
 		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, fmt.Errorf("failed to retrieve user: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid password: %w", err)
+		return nil, fmt.Errorf("invalid username or password")
 	}
 
 	return &user, nil

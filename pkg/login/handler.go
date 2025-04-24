@@ -59,6 +59,16 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate redirect_uri
+	if !utils.IsValidRedirectURI(request.Redirect) {
+		response := model.AuthErrorResponse{
+			Error:            "invalid_request",
+			ErrorDescription: "Invalid redirect_uri",
+		}
+		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		return
+	}
+
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
 		response := model.AuthErrorResponse{

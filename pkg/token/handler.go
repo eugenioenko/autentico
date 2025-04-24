@@ -115,18 +115,18 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		usr, err = user.AuthenticateUser(request.Username, request.Password)
 		if err != nil {
 			response := model.AuthErrorResponse{
-				Error:            "server_error",
-				ErrorDescription: fmt.Sprintf("login failed. %v", err),
+				Error:            "invalid_grant",
+				ErrorDescription: fmt.Sprintf("Invalid username or password: %v", err),
 			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteApiResponse(w, response, http.StatusUnauthorized)
 			return
 		}
 	}
 
 	if usr == nil {
 		response := model.AuthErrorResponse{
-			Error:            "invalid_grant",
-			ErrorDescription: "unsupported grant type",
+			Error:            "unsupported_grant_type",
+			ErrorDescription: "The provided grant type is not supported",
 		}
 		utils.WriteApiResponse(w, response, http.StatusBadRequest)
 		return
@@ -134,7 +134,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := GenerateTokens(*usr)
 	if err != nil {
-		utils.ErrorResponse(w, fmt.Sprintf("Login failed: %v", err), http.StatusInternalServerError)
+		utils.ErrorResponse(w, fmt.Sprintf("Token generation failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -147,7 +147,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		AccessTokenExpiresAt:  authToken.AccessExpiresAt,
 		IssuedAt:              time.Now().UTC(),
 		Scope:                 "read write",
-		GrantType:             "password",
+		GrantType:             request.GrantType, // Use the correct grant type
 	})
 
 	if err != nil {

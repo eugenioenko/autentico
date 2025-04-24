@@ -28,13 +28,21 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate redirect_uri
+	if !utils.IsValidRedirectURI(request.RedirectURI) {
+		response := AuthorizeErrorResponse{
+			Error:            "invalid_request",
+			ErrorDescription: "Invalid redirect_uri",
+		}
+		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		return
+	}
+
 	tmpl, err := template.ParseFiles("./views/login.html")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
-	// TODO: validate redirect_uri if necessary
 
 	data := map[string]any{
 		"State":          request.State,

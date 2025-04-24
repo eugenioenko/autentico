@@ -31,7 +31,7 @@ func IntrospectToken(token string) (*Token, error) {
 	}
 
 	if time.Now().After(t.AccessTokenExpiresAt) {
-		return nil, errors.New("access token has expired")
+		return nil, errors.New("token has expired")
 	}
 
 	return &t, nil

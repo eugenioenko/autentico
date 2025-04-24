@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/go-ozzo/ozzo-validation/is"
 )
 
 type LoginRequest struct {
@@ -38,6 +39,23 @@ func ValidateLoginRequest(input LoginRequest) error {
 
 	if err != nil {
 		return fmt.Errorf("password is invalid: %w", err)
+	}
+
+	err = validation.Validate(
+		input.Redirect,
+		validation.Required,
+		is.URL,
+	)
+	if err != nil {
+		return fmt.Errorf("redirect URI is invalid: %w", err)
+	}
+
+	err = validation.Validate(
+		input.State,
+		validation.Required,
+	)
+	if err != nil {
+		return fmt.Errorf("state is invalid: %w", err)
 	}
 
 	return nil
