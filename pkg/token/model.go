@@ -12,6 +12,8 @@ type TokenRequest struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret,omitempty"`
 	CodeVerifier string `json:"code_verifier,omitempty"`
+	Username     string `json:"username,omitempty"`
+	Password     string `json:"password,omitempty"`
 }
 
 func ValidateTokenRequest(input TokenRequest) error {
@@ -26,6 +28,14 @@ func ValidateTokenRequestAuthorizationCode(input TokenRequest) error {
 		validation.Field(&input.Code, validation.Required),
 		validation.Field(&input.RedirectURI, validation.Required, is.URL),
 		//validation.Field(&input.ClientID, validation.Required),
+	)
+}
+
+func ValidateTokenRequestPassword(input TokenRequest) error {
+	return validation.ValidateStruct(&input,
+		validation.Field(&input.GrantType, validation.Required, validation.In("password")),
+		validation.Field(&input.Username, validation.Required),
+		validation.Field(&input.Password, validation.Required),
 	)
 }
 

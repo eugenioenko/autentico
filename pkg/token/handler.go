@@ -50,34 +50,83 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ValidateTokenRequestAuthorizationCode(request)
-	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: fmt.Sprintf("%v", err),
+	var usr *user.User
+
+	if request.GrantType == "authorization_code" {
+		err = ValidateTokenRequestAuthorizationCode(request)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "invalid_request",
+				ErrorDescription: fmt.Sprintf("%v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
 		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
-		return
+
+		code, err := authcode.AuthCodeByCode(request.Code)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "invalid_grant",
+				ErrorDescription: fmt.Sprintf("%v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
+		}
+
+		if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
+			response := model.AuthErrorResponse{
+				Error:            "invalid_grant",
+				ErrorDescription: "Authorization code is invalid or has already been used",
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
+		}
+
+		err = authcode.MarkAuthCodeAsUsed(request.Code)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "server_error",
+				ErrorDescription: fmt.Sprintf("Failed to mark authorization code as used: %v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+			return
+		}
+
+		usr, err = user.UserByID(code.UserID)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "invalid_request",
+				ErrorDescription: fmt.Sprintf("%v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
+		}
+	} else if request.GrantType == "password" {
+		err = ValidateTokenRequestPassword(request)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "invalid_request",
+				ErrorDescription: fmt.Sprintf("%v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
+		}
+
+		usr, err = user.AuthenticateUser(request.Username, request.Password)
+		if err != nil {
+			response := model.AuthErrorResponse{
+				Error:            "server_error",
+				ErrorDescription: fmt.Sprintf("login failed. %v", err),
+			}
+			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			return
+		}
 	}
 
-	code, err := authcode.AuthCodeByCode(request.Code)
-	if err != nil {
+	if usr == nil {
 		response := model.AuthErrorResponse{
 			Error:            "invalid_grant",
-			ErrorDescription: fmt.Sprintf("%v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
-		return
-	}
-
-	// TODO: validate that the auth_code hasn't been used and is valid
-	// TODO: mark the auth_code as used
-
-	usr, err := user.UserByID(code.UserID)
-	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: fmt.Sprintf("%v", err),
+			ErrorDescription: "unsupported grant type",
 		}
 		utils.WriteApiResponse(w, response, http.StatusBadRequest)
 		return
