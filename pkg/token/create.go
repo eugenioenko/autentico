@@ -2,7 +2,6 @@ package token
 
 import (
 	"autentico/pkg/db"
-	. "autentico/pkg/model"
 
 	"github.com/rs/xid"
 )

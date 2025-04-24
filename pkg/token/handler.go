@@ -138,7 +138,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = CreateToken(model.Token{
+	err = CreateToken(Token{
 		UserID:                authToken.UserID,
 		AccessToken:           authToken.AccessToken,
 		RefreshToken:          authToken.RefreshToken,
@@ -159,7 +159,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = session.CreateSession(model.Session{
+	err = session.CreateSession(session.Session{
 		ID:           authToken.SessionID,
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,

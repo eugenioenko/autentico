@@ -2,12 +2,12 @@ package introspect
 
 import (
 	"autentico/pkg/db"
-	. "autentico/pkg/model"
+	"autentico/pkg/token"
 	"errors"
 	"time"
 )
 
-func IntrospectToken(token string) (*Token, error) {
+func IntrospectToken(tokenId string) (*token.Token, error) {
 	query := `
 		SELECT id, user_id, access_token, refresh_token,
 			access_token_type, refresh_token_expires_at,
@@ -15,8 +15,9 @@ func IntrospectToken(token string) (*Token, error) {
 			issued_at, scope, grant_type, revoked_at
 		FROM tokens WHERE access_token = ? OR refresh_token = ?;
 	`
-	var t Token
-	err := db.GetDB().QueryRow(query, token, token).Scan(
+	var t token.Token
+	row := db.GetDB().QueryRow(query, tokenId)
+	err := row.Scan(
 		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken,
 		&t.AccessTokenType, &t.RefreshTokenExpiresAt, &t.RefreshTokenLastUsedAt,
 		&t.AccessTokenExpiresAt, &t.IssuedAt, &t.Scope, &t.GrantType, &t.RevokedAt,

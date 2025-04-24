@@ -9,7 +9,6 @@ import (
 	"github.com/rs/xid"
 
 	"autentico/pkg/config"
-	. "autentico/pkg/model"
 	"autentico/pkg/user"
 )
 
