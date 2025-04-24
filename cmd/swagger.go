@@ -1,6 +1,7 @@
-package docs
+package main
 
 import (
+	_ "autentico/docs"
 	"autentico/pkg/config"
 	"log"
 	"net/http"
@@ -11,6 +12,6 @@ import (
 func main() {
 	port := config.Get().SwaggerPort
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
-	log.Printf("Swagger server started at http://localhost:%s", port)
+	log.Printf("Swagger server started at http://localhost:%s/swagger/index.html", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -18,21 +17,11 @@ import (
 	"autentico/pkg/wellknown"
 )
 
-// @title Autentico OIDC Service
+// @title Autentico OIDC
 // @version 1.0
-// @description Authentication and ABAC Authorization Microservice
+// @description Authentication and ABAC Authorization Service
 // @host localhost:8080
-// @BasePath /api/v1/
-
-func inspectRequestMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Inspect the request here
-		// For example, you can log the method and URL of the request
-		fmt.Println("Inspecting request:")
-		log.Printf("Method: %s, URL: %s", r.Method, r.URL)
-		next.ServeHTTP(w, r)
-	})
-}
+// @BasePath /oauth2
 
 func main() {
 	_, err := db.InitDB(config.Get().DbFilePath)

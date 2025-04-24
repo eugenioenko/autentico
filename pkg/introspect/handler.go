@@ -8,6 +8,17 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleIntrospect godoc
+// @Summary Introspect a token
+// @Description Validates and retrieves metadata about a token
+// @Tags introspect
+// @Accept json
+// @Produce json
+// @Param token body IntrospectRequest true "Token introspection payload"
+// @Success 200 {object} IntrospectResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/introspect [post]
 func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	var req IntrospectRequest
 

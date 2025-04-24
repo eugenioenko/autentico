@@ -7,6 +7,17 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleLogout godoc
+// @Summary Log out a user
+// @Description Terminates the user's session
+// @Tags session
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer access token"
+// @Success 200 {string} string "Session terminated successfully"
+// @Failure 401 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/logout [post]
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {

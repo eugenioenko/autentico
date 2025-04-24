@@ -9,14 +9,17 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleCreateUser godoc
 // @Summary Create a new user
 // @Description Registers a new user in the system
-// @Tags auth
+// @Tags users
 // @Accept json
 // @Produce json
 // @Param user body UserCreateRequest true "User creation payload"
-// @Success 201 {object} ApiUserResponse
-// @Router /create [post]
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /users/create [post]
 func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var request UserCreateRequest
 

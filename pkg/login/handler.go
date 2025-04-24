@@ -11,15 +11,20 @@ import (
 	"autentico/pkg/utils"
 )
 
-// @Summary Logins a user
-// @Description Logins the user. Creates an accessToken and a refreshToken
+// HandleLoginUser godoc
+// @Summary Log in a user
+// @Description Authenticates a user and generates an authorization code
 // @Tags auth
-// @Accept json
+// @Accept application/x-www-form-urlencoded
 // @Produce json
-// @Param user body LoginRequest true "User login payload"
-// @Success 201 {object} ApiUserResponse
-// @Router /login [post]
-
+// @Param username formData string true "Username"
+// @Param password formData string true "Password"
+// @Param redirect formData string true "Redirect URI"
+// @Param state formData string true "State"
+// @Success 302 {string} string "Redirect to the provided URI with code and state"
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/login [post]
 func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")

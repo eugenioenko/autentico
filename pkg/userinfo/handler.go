@@ -8,6 +8,17 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleUserInfo godoc
+// @Summary Get user information
+// @Description Retrieves user information based on the access token
+// @Tags userinfo
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer access token"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/userinfo [get]
 func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {

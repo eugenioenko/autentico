@@ -8,6 +8,17 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleRevoke godoc
+// @Summary Revoke a token
+// @Description Revokes an access or refresh token
+// @Tags token
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param token formData string true "Token to revoke"
+// @Success 200 {string} string "Token revoked successfully"
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/revoke [post]
 func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")

@@ -1,20 +1,71 @@
-basePath: /api/v1/
+basePath: /oauth2
 definitions:
-  models.ApiError:
+  introspect.IntrospectRequest:
+    properties:
+      token:
+        type: string
+    type: object
+  introspect.IntrospectResponse:
+    properties:
+      active:
+        description: Whether the token is valid (true or false).
+        type: boolean
+      aud:
+        description: Intended audience for the token (e.g., the API).
+        type: string
+      client_id:
+        description: Client ID for which the token was issued.
+        type: string
+      error:
+        type: string
+      error_description:
+        type: string
+      exp:
+        description: Expiration time (Unix timestamp).
+        type: integer
+      iat:
+        description: Issued-at time (Unix timestamp).
+        type: integer
+      jti:
+        description: Unique identifier for the token.
+        type: string
+      nbf:
+        description: Not-before time (Unix timestamp).
+        type: integer
+      scope:
+        description: Space-delimited list of scopes associated with the token.
+        type: string
+      sub:
+        description: The subject of the token (typically the user ID).
+        type: string
+      token_type:
+        description: The type of the token (usually "bearer").
+        type: string
+      username:
+        description: The username of the authenticated user.
+        type: string
+    type: object
+  model.ApiError:
     properties:
       code:
         type: integer
       message:
         type: string
     type: object
-  models.ApiUserResponse:
+  token.TokenResponse:
     properties:
-      data:
-        $ref: '#/definitions/models.UserResponse'
-      error:
-        $ref: '#/definitions/models.ApiError'
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      scope:
+        type: string
+      token_type:
+        type: string
     type: object
-  models.UserCreateRequest:
+  user.UserCreateRequest:
     properties:
       email:
         type: string
@@ -23,7 +74,7 @@ definitions:
       username:
         type: string
     type: object
-  models.UserResponse:
+  user.UserResponse:
     properties:
       createdAt:
         type: string
@@ -37,11 +88,270 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: Authentication and ABAC Authorization Microservice
-  title: Autentico Microservice API
+  description: Authentication and ABAC Authorization Service
+  title: Autentico OIDC
   version: "1.0"
 paths:
-  /create:
+  /oauth2/authorize:
+    get:
+      consumes:
+      - application/json
+      description: Handles the authorization request and displays the login page
+      parameters:
+      - description: Response type
+        in: query
+        name: response_type
+        required: true
+        type: string
+      - description: Client ID
+        in: query
+        name: client_id
+        required: true
+        type: string
+      - description: Redirect URI
+        in: query
+        name: redirect_uri
+        required: true
+        type: string
+      - description: Scope
+        in: query
+        name: scope
+        type: string
+      - description: State
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML login page
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Authorize a client
+      tags:
+      - authorize
+  /oauth2/introspect:
+    post:
+      consumes:
+      - application/json
+      description: Validates and retrieves metadata about a token
+      parameters:
+      - description: Token introspection payload
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/introspect.IntrospectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/introspect.IntrospectResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Introspect a token
+      tags:
+      - introspect
+  /oauth2/login:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Authenticates a user and generates an authorization code
+      parameters:
+      - description: Username
+        in: formData
+        name: username
+        required: true
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        required: true
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect
+        required: true
+        type: string
+      - description: State
+        in: formData
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to the provided URI with code and state
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Log in a user
+      tags:
+      - auth
+  /oauth2/logout:
+    post:
+      consumes:
+      - application/json
+      description: Terminates the user's session
+      parameters:
+      - description: Bearer access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session terminated successfully
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Log out a user
+      tags:
+      - session
+  /oauth2/revoke:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Revokes an access or refresh token
+      parameters:
+      - description: Token to revoke
+        in: formData
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token revoked successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Revoke a token
+      tags:
+      - token
+  /oauth2/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Exchanges authorization code or credentials for tokens
+      parameters:
+      - description: Grant type
+        in: formData
+        name: grant_type
+        required: true
+        type: string
+      - description: Authorization code
+        in: formData
+        name: code
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: Client ID
+        in: formData
+        name: client_id
+        type: string
+      - description: Username
+        in: formData
+        name: username
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/token.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Token endpoint
+      tags:
+      - token
+  /oauth2/userinfo:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves user information based on the access token
+      parameters:
+      - description: Bearer access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Get user information
+      tags:
+      - userinfo
+  /users/create:
     post:
       consumes:
       - application/json
@@ -52,15 +362,23 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/models.UserCreateRequest'
+          $ref: '#/definitions/user.UserCreateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.ApiUserResponse'
+            $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
       summary: Create a new user
       tags:
-      - auth
+      - users
 swagger: "2.0"

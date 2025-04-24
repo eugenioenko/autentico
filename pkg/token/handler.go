@@ -12,6 +12,22 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleToken godoc
+// @Summary Token endpoint
+// @Description Exchanges authorization code or credentials for tokens
+// @Tags token
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param grant_type formData string true "Grant type"
+// @Param code formData string false "Authorization code"
+// @Param redirect_uri formData string false "Redirect URI"
+// @Param client_id formData string false "Client ID"
+// @Param username formData string false "Username"
+// @Param password formData string false "Password"
+// @Success 200 {object} TokenResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /oauth2/token [post]
 func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
