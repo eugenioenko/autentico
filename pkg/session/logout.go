@@ -10,13 +10,13 @@ import (
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		utils.ErrorResponse(w, "Authorization header is required", http.StatusUnauthorized)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Authorization header is required")
 		return
 	}
 
 	accessToken := utils.ExtractBearerToken(authHeader)
 	if accessToken == "" {
-		utils.ErrorResponse(w, "Invalid Authorization header", http.StatusUnauthorized)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Invalid Authorization header")
 		return
 	}
 
@@ -27,9 +27,9 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	`
 	_, err := db.GetDB().Exec(query, accessToken)
 	if err != nil {
-		utils.ErrorResponse(w, "Failed to terminate session", http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to terminate session")
 		return
 	}
 
-	utils.SuccessResponse(w, "Session terminated successfully", http.StatusOK)
+	utils.SuccessResponse(w, "ok", http.StatusOK)
 }

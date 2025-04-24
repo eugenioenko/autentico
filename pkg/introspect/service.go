@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func IntrospectToken(tokenId string) (*token.Token, error) {
+func IntrospectToken(tokenID string) (*token.Token, error) {
 	query := `
 		SELECT id, user_id, access_token, refresh_token,
 			access_token_type, refresh_token_expires_at,
@@ -16,7 +16,7 @@ func IntrospectToken(tokenId string) (*token.Token, error) {
 		FROM tokens WHERE access_token = ? OR refresh_token = ?;
 	`
 	var t token.Token
-	row := db.GetDB().QueryRow(query, tokenId)
+	row := db.GetDB().QueryRow(query, tokenID, tokenID)
 	err := row.Scan(
 		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken,
 		&t.AccessTokenType, &t.RefreshTokenExpiresAt, &t.RefreshTokenLastUsedAt,

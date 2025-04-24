@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"autentico/pkg/utils"
+	"autentico/view"
 
 	"github.com/gorilla/csrf"
 )
@@ -25,22 +26,17 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	err := ValidateAuthorizeRequest(request)
 	if err != nil {
-		response := AuthorizeErrorResponse{Error: "invalid_request", ErrorDescription: err.Error()}
-		utils.WriteApiResponse(w, response, http.StatusForbidden)
+		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
 		return
 	}
 
 	// Validate redirect_uri
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		response := AuthorizeErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Invalid redirect_uri",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
 	}
 
-	tmpl, err := template.ParseFiles("./views/login.html")
+	tmpl, err := template.New("login").Parse(view.LoginTemplate)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

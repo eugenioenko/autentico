@@ -8,21 +8,21 @@ import (
 	"autentico/pkg/utils"
 )
 
-func RevokeToken(w http.ResponseWriter, r *http.Request) {
+func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.ErrorResponse(w, "Only POST method is allowed", http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
 		return
 	}
 
 	err := r.ParseForm()
 	if err != nil {
-		utils.ErrorResponse(w, "Invalid form data", http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
 		return
 	}
 
 	tokenID := r.FormValue("token")
 	if tokenID == "" {
-		utils.ErrorResponse(w, "Token is required", http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
 		return
 	}
 
@@ -33,9 +33,11 @@ func RevokeToken(w http.ResponseWriter, r *http.Request) {
 	`
 	_, err = db.GetDB().Exec(query, time.Now().UTC(), tokenID, tokenID)
 	if err != nil {
-		utils.ErrorResponse(w, "Failed to revoke token", http.StatusInternalServerError)
+		// avoiding leaking information about token
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	utils.SuccessResponse(w, "Token revoked successfully", http.StatusOK)
+	// intentionally empty response body
+	w.WriteHeader(http.StatusOK)
 }

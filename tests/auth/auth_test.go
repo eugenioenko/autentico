@@ -1,13 +1,12 @@
 package auth_test
 
 import (
-	"autentico/pkg/auth"
-	"autentico/pkg/model"
-	"autentico/pkg/routes"
+	"autentico/pkg/config"
+	"autentico/pkg/session"
+	"autentico/pkg/token"
 	"autentico/pkg/user"
+	"autentico/pkg/userinfo"
 	testutils "autentico/tests/utils"
-	"fmt"
-
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -15,42 +14,114 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testEmail    = "johndoe@mail.com"
+	testPassword = "password"
+)
+
 func TestLoginWithCredentials(t *testing.T) {
 	testutils.WithTestDB(t)
-	user.CreateUser("johndoe@mail.com", "password", "johndoe@mail.com")
-	_, err := auth.LoginUser("johndoe@mail.com", "password")
-	if err != nil {
-		t.Fail()
-	}
+	_, err := user.CreateUser(testEmail, testPassword, testEmail)
+	assert.NoError(t, err)
+
+	_, err = user.AuthenticateUser(testEmail, testPassword)
+	assert.NoError(t, err)
 }
 
-func TestIntrospect(t *testing.T) {
-	email := "johndoe@mail.com"
-	password := "test1234"
+func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+	user.CreateUser(testEmail, testPassword, testEmail)
 
-	// create user
-	body := fmt.Sprintf(`{
-		"username": "%s",
-		"email": "%s",
-		"password": "%s"
-	}`, email, email, password)
+	body := map[string]string{
+		"grant_type": "password",
+		"username":   testEmail,
+		"password":   testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
 
-	res := testutils.MockApiRequest(t, body, http.MethodPost, "/user/create", routes.CreateUser)
-	var user model.ApiUserResponse
-	err := json.Unmarshal(res, &user)
+	var tokenResponse token.TokenResponse
+	err := json.Unmarshal(res.Body.Bytes(), &tokenResponse)
 	assert.NoError(t, err)
-	assert.Equal(t, user.Data.Username, email)
-	assert.Equal(t, user.Data.Email, email)
+	assert.NotEmpty(t, tokenResponse.AccessToken)
+	assert.NotEmpty(t, tokenResponse.RefreshToken)
+}
 
-	// login user
-	body = fmt.Sprintf(`{
-			"username": "%s",
-			"password": "%s"
-		}`, email, password)
+func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = true
+	})
+	user.CreateUser(testEmail, testPassword, testEmail)
 
-	res = testutils.MockApiRequest(t, body, http.MethodPost, "/users/login", routes.CreateUser)
-	var token model.TokenResponse
-	err = json.Unmarshal(res, &token)
+	body := map[string]string{
+		"grant_type": "password",
+		"username":   testEmail,
+		"password":   testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+
+	var tokenResponse token.TokenResponse
+	err := json.Unmarshal(res.Body.Bytes(), &tokenResponse)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, tokenResponse.AccessToken)
+	assert.Empty(t, tokenResponse.RefreshToken)
+}
+
+func TestRevokeToken(t *testing.T) {
+	testutils.WithTestDB(t)
+	user.CreateUser(testEmail, testPassword, testEmail)
+	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
+	authToken, _ := token.GenerateTokens(*authUser)
+	token.CreateToken(token.Token{
+		UserID:       authToken.UserID,
+		AccessToken:  authToken.AccessToken,
+		RefreshToken: authToken.RefreshToken,
+	})
+
+	body := map[string]string{
+		"token": authToken.AccessToken,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+
+	assert.Equal(t, http.StatusOK, res.Code)
+}
+
+func TestUserInfoEndpoint(t *testing.T) {
+	testutils.WithTestDB(t)
+	user, _ := user.CreateUser(testEmail, testPassword, testEmail)
+
+	body := map[string]string{
+		"grant_type": "password",
+		"username":   testEmail,
+		"password":   testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+
+	var token token.TokenResponse
+	json.Unmarshal(res.Body.Bytes(), &token)
+
+	res = testutils.MockApiRequestWithAuth(t, "", http.MethodGet, "/oauth2/userinfo", userinfo.HandleUserInfo, token.AccessToken)
+	var userInfo map[string]interface{}
+	err := json.Unmarshal(res.Body.Bytes(), &userInfo)
+	assert.NoError(t, err)
+	assert.Equal(t, user.ID, userInfo["sub"])
+}
+
+func TestLogoutEndpoint(t *testing.T) {
+	testutils.WithTestDB(t)
+	user.CreateUser(testEmail, testPassword, testEmail)
+	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
+
+	authToken, _ := token.GenerateTokens(*authUser)
+	token.CreateToken(token.Token{
+		UserID:       authToken.UserID,
+		AccessToken:  authToken.AccessToken,
+		RefreshToken: authToken.RefreshToken,
+	})
+
+	res := testutils.MockApiRequestWithAuth(t, "", http.MethodPost, "/oauth2/logout", session.HandleLogout, authToken.AccessToken)
+	assert.Equal(t, "{\"data\":\"ok\"}\n", res.Body.String())
 }

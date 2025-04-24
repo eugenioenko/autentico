@@ -24,6 +24,7 @@ type Config struct {
 	AuthAuthorizationCodeExpiration time.Duration
 	AuthCSRFProtectionSecretKey     string
 	AuthCSRFSecureCookie            bool // set to true in prod over https
+	AuthAllowedRedirectURIs         []string
 	SwaggerPort                     string
 	ValidationMinUsernameLength     int
 	ValidationMaxUsernameLength     int
@@ -58,6 +59,7 @@ var defaultConfig = Config{
 	AuthAuthorizationCodeExpiration: 10 * time.Minute,
 	AuthCSRFProtectionSecretKey:     "your-secret-here",
 	AuthCSRFSecureCookie:            false,
+	AuthAllowedRedirectURIs:         []string{}, // When sets, restricts redirect uris to the list
 	SwaggerPort:                     "8888",
 	ValidationMinUsernameLength:     4,
 	ValidationMaxUsernameLength:     64,

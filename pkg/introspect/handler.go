@@ -13,28 +13,19 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		utils.WriteApiResponse(w,
-			IntrospectResponse{Error: "invalid_request", ErrorDescription: err.Error()},
-			http.StatusBadRequest,
-		)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
 	err = ValidateTokenIntrospectRequest(req)
 	if err != nil {
-		utils.WriteApiResponse(w,
-			IntrospectResponse{Error: "invalid_request", ErrorDescription: err.Error()},
-			http.StatusForbidden,
-		)
+		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
 		return
 	}
 
 	res, err := IntrospectToken(req.Token)
 	if err != nil {
-		utils.WriteApiResponse(w, IntrospectResponse{Error: "invalid_token",
-			ErrorDescription: err.Error()},
-			http.StatusForbidden,
-		)
+		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_token", err.Error())
 		return
 	}
 

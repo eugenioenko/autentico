@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"autentico/pkg/model"
 	. "autentico/pkg/model"
 	"encoding/json"
 	"net/http"
@@ -39,4 +40,11 @@ func WriteApiResponse(w http.ResponseWriter, data any, statusCode int) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+func WriteErrorResponse(w http.ResponseWriter, statusCode int, errorType, errorDescription string) {
+	WriteApiResponse(w, model.AuthErrorResponse{
+		Error:            errorType,
+		ErrorDescription: errorDescription,
+	}, statusCode)
 }

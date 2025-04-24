@@ -1,11 +1,9 @@
 package auth_test
 
 import (
-	"autentico/pkg/model"
-	"autentico/pkg/routes"
+	"autentico/pkg/authorize"
 	testutils "autentico/tests/utils"
 	"encoding/json"
-
 	"net/http"
 	"testing"
 
@@ -13,19 +11,21 @@ import (
 )
 
 func TestAuthorizeRequest(t *testing.T) {
-	url := `/authorize?response_type=code&redirect_uri=https://client.example.com/callback&scope=openid`
-	res := testutils.MockApiRequest(t, "", http.MethodGet, url, routes.Authorize)
-	var res2 model.AuthorizeErrorResponse
-	err := json.Unmarshal(res, &res2)
-	assert.NoError(t, err)
-	assert.Equal(t, res2.Error, "invalid_request")
+	url := `/oauth2/authorize?response_type=code&redirect_uri=https://client.example.com/callback&scope=openid`
+	res := testutils.MockJSONRequest(t, "", http.MethodGet, url, authorize.HandleAuthorize)
+	doc := string(res)
+
+	assert.Contains(t, doc, "https://client.example.com/callback")
+	assert.Contains(t, doc, "<body id=\"autentico\">")
+
 }
 
 func TestAuthorizeInvalidRequest(t *testing.T) {
+	res := testutils.MockJSONRequest(t, "", http.MethodGet, "/oauth2/authorize", authorize.HandleAuthorize)
 
-	res := testutils.MockApiRequest(t, "", http.MethodGet, "/authorize", routes.Authorize)
-	var res2 model.AuthorizeErrorResponse
+	var res2 map[string]interface{}
 	err := json.Unmarshal(res, &res2)
 	assert.NoError(t, err)
-	assert.Equal(t, res2.Error, "invalid_request")
+	assert.Contains(t, res2, "error")
+	assert.Equal(t, "invalid_request", res2["error"])
 }

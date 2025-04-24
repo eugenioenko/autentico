@@ -22,14 +22,13 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		utils.ErrorResponse(w, "Invalid request payload", http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
 
 	err = ValidateUserCreateRequest(request)
 	if err != nil {
-		err = fmt.Errorf("User validation error. %w", err)
-		utils.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
 		return
 	}
 
@@ -39,8 +38,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	response, err := CreateUser(request.Username, request.Password, request.Email)
 	if err != nil {
-		err = fmt.Errorf("User creation error. %w", err)
-		utils.ErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("User creation error. %v", err))
 		return
 	}
 

@@ -7,7 +7,6 @@ import (
 
 	authcode "autentico/pkg/auth_code"
 	"autentico/pkg/config"
-	"autentico/pkg/model"
 	"autentico/pkg/session"
 	"autentico/pkg/user"
 	"autentico/pkg/utils"
@@ -15,21 +14,13 @@ import (
 
 func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Only POST method is allowed",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
 		return
 	}
 
 	err := r.ParseForm()
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Request payload needs to be application/x-www-form-urlencoded",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
 	}
 
@@ -38,15 +29,13 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		Code:        r.FormValue("code"),
 		RedirectURI: r.FormValue("redirect_uri"),
 		ClientID:    r.FormValue("client_id"),
+		Username:    r.FormValue("username"),
+		Password:    r.FormValue("password"),
 	}
 
 	err = ValidateTokenRequest(request)
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: fmt.Sprintf("%v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 		return
 	}
 
@@ -55,86 +44,54 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if request.GrantType == "authorization_code" {
 		err = ValidateTokenRequestAuthorizationCode(request)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_request",
-				ErrorDescription: fmt.Sprintf("%v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
 
 		code, err := authcode.AuthCodeByCode(request.Code)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_grant",
-				ErrorDescription: fmt.Sprintf("%v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("%v", err))
 			return
 		}
 
 		if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_grant",
-				ErrorDescription: "Authorization code is invalid or has already been used",
-			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has already been used")
 			return
 		}
 
 		err = authcode.MarkAuthCodeAsUsed(request.Code)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "server_error",
-				ErrorDescription: fmt.Sprintf("Failed to mark authorization code as used: %v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to mark authorization code as used: %v", err))
 			return
 		}
 
 		usr, err = user.UserByID(code.UserID)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_request",
-				ErrorDescription: fmt.Sprintf("%v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
 	} else if request.GrantType == "password" {
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_request",
-				ErrorDescription: fmt.Sprintf("%v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusBadRequest)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
 
 		usr, err = user.AuthenticateUser(request.Username, request.Password)
 		if err != nil {
-			response := model.AuthErrorResponse{
-				Error:            "invalid_grant",
-				ErrorDescription: fmt.Sprintf("Invalid username or password: %v", err),
-			}
-			utils.WriteApiResponse(w, response, http.StatusUnauthorized)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
 	}
 
 	if usr == nil {
-		response := model.AuthErrorResponse{
-			Error:            "unsupported_grant_type",
-			ErrorDescription: "The provided grant type is not supported",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "The provided grant type is not supported")
 		return
 	}
 
 	authToken, err := GenerateTokens(*usr)
 	if err != nil {
-		utils.ErrorResponse(w, fmt.Sprintf("Token generation failed: %v", err), http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
 		return
 	}
 
@@ -151,11 +108,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "server_error",
-			ErrorDescription: fmt.Sprintf("%v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
 
@@ -170,11 +123,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "server_error",
-			ErrorDescription: fmt.Sprintf("%v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
 

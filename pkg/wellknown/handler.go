@@ -10,7 +10,6 @@ import (
 )
 
 func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
-
 	config := config.Get()
 	response := model.WellKnownConfigResponse{
 		Issuer:                config.AppAuthIssuer,

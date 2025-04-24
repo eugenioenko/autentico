@@ -9,7 +9,7 @@ func CreateSession(session Session) error {
 		INSERT INTO sessions (
 			id, user_id, access_token, refresh_token,
 			user_agent, ip_address, location, expires_at
-		)VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 	`
 	_, err := db.GetDB().Exec(query,
 		session.ID,

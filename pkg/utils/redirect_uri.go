@@ -1,19 +1,21 @@
 package utils
 
 import (
+	"autentico/pkg/config"
 	"net/url"
 	"strings"
 )
-
-var allowedRedirectURIs = []string{
-	"https://client.example.com/callback",
-	"https://another-client.example.com/callback",
-}
 
 func IsValidRedirectURI(uri string) bool {
 	parsedURI, err := url.Parse(uri)
 	if err != nil || parsedURI.Scheme == "" || parsedURI.Host == "" {
 		return false
+	}
+
+	allowedRedirectURIs := config.Get().AuthAllowedRedirectURIs
+	if len(allowedRedirectURIs) == 0 {
+		// all redirect uris are allowed
+		return true
 	}
 
 	for _, allowedURI := range allowedRedirectURIs {

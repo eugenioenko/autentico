@@ -7,7 +7,6 @@ import (
 
 	authcode "autentico/pkg/auth_code"
 	"autentico/pkg/config"
-	"autentico/pkg/model"
 	"autentico/pkg/user"
 	"autentico/pkg/utils"
 )
@@ -23,22 +22,13 @@ import (
 
 func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Only POST method is allowed",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
 		return
-
 	}
 
 	err := r.ParseForm()
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Request payload needs to be application/x-www-form-urlencoded",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
 	}
 
@@ -51,41 +41,25 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err = ValidateLoginRequest(request)
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: fmt.Sprintf("user credentials error. %v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("user credentials error. %v", err))
 		return
 	}
 
 	// Validate redirect_uri
 	if !utils.IsValidRedirectURI(request.Redirect) {
-		response := model.AuthErrorResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Invalid redirect_uri",
-		}
-		utils.WriteApiResponse(w, response, http.StatusBadRequest)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
 	}
 
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "server_error",
-			ErrorDescription: fmt.Sprintf("login failed. %v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("login failed. %v", err))
 		return
 	}
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "server_error",
-			ErrorDescription: fmt.Sprintf("failed secure code generation. %v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
 		return
 	}
 
@@ -100,11 +74,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
-		response := model.AuthErrorResponse{
-			Error:            "server_error",
-			ErrorDescription: fmt.Sprintf("failed secure code insert. %v", err),
-		}
-		utils.WriteApiResponse(w, response, http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
 		return
 	}
 

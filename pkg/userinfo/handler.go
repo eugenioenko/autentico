@@ -4,32 +4,40 @@ import (
 	"net/http"
 
 	"autentico/pkg/introspect"
+	"autentico/pkg/user"
 	"autentico/pkg/utils"
 )
 
 func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		utils.ErrorResponse(w, "Authorization header is required", http.StatusUnauthorized)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Authorization header is required")
 		return
 	}
 
 	accessToken := utils.ExtractBearerToken(authHeader)
 	if accessToken == "" {
-		utils.ErrorResponse(w, "Invalid Authorization header", http.StatusUnauthorized)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Invalid Authorization header")
 		return
 	}
 
 	tok, err := introspect.IntrospectToken(accessToken)
 	if err != nil {
-		utils.ErrorResponse(w, "Invalid or expired token", http.StatusUnauthorized)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
+		return
+	}
+
+	user, err := user.UserByID(tok.UserID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Unable to fetch user information")
 		return
 	}
 
 	response := map[string]interface{}{
-		"sub":   tok.UserID,
-		"email": tok.Scope, // Replace with actual user email if available
-		"scope": tok.Scope,
+		"sub":      tok.UserID,
+		"email":    user.Email,
+		"username": user.Username,
+		"scope":    tok.Scope,
 	}
-	utils.SuccessResponse(w, response, http.StatusOK)
+	utils.WriteApiResponse(w, response, http.StatusOK)
 }
