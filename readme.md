@@ -23,18 +23,13 @@
 
 - Go 1.21+
 
-### Running the application
+### Building and Running
 
 ```bash
 git clone https://github.com/eugenioenko/autentico.git
 cd autentico
-make run
-```
-
-### Building the application
-
-````bash
 make build
+make run
 ```
 
 ---
@@ -47,7 +42,7 @@ To view the Swagger API documentation, you can run the Swagger server:
 
 ```bash
 make docs
-````
+```
 
 The Swagger UI will be available at: [http://localhost:8888/swagger/index.html](http://localhost:8888/swagger/index.html)
 
