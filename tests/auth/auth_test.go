@@ -33,7 +33,7 @@ func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthRefreshTokenAsSecureCookie = false
 	})
-	user.CreateUser(testEmail, testPassword, testEmail)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
 	body := map[string]string{
 		"grant_type": "password",
@@ -54,7 +54,7 @@ func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthRefreshTokenAsSecureCookie = true
 	})
-	user.CreateUser(testEmail, testPassword, testEmail)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
 	body := map[string]string{
 		"grant_type": "password",
@@ -72,10 +72,10 @@ func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
 
 func TestRevokeToken(t *testing.T) {
 	testutils.WithTestDB(t)
-	user.CreateUser(testEmail, testPassword, testEmail)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
 	authToken, _ := token.GenerateTokens(*authUser)
-	token.CreateToken(token.Token{
+	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
 		RefreshToken: authToken.RefreshToken,
@@ -101,7 +101,7 @@ func TestUserInfoEndpoint(t *testing.T) {
 	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
 
 	var token token.TokenResponse
-	json.Unmarshal(res.Body.Bytes(), &token)
+	_ = json.Unmarshal(res.Body.Bytes(), &token)
 
 	res = testutils.MockApiRequestWithAuth(t, "", http.MethodGet, "/oauth2/userinfo", userinfo.HandleUserInfo, token.AccessToken)
 	var userInfo map[string]interface{}
@@ -112,11 +112,11 @@ func TestUserInfoEndpoint(t *testing.T) {
 
 func TestLogoutEndpoint(t *testing.T) {
 	testutils.WithTestDB(t)
-	user.CreateUser(testEmail, testPassword, testEmail)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
 
 	authToken, _ := token.GenerateTokens(*authUser)
-	token.CreateToken(token.Token{
+	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
 		RefreshToken: authToken.RefreshToken,

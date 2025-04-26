@@ -2,7 +2,6 @@ package utils
 
 import (
 	"autentico/pkg/model"
-	. "autentico/pkg/model"
 	"encoding/json"
 	"net/http"
 )
@@ -12,7 +11,7 @@ func SuccessResponse[T any](w http.ResponseWriter, data T, statusCodes ...int) {
 	if len(statusCodes) > 0 {
 		statusCode = statusCodes[0]
 	}
-	apiResponse := ApiResponse[T]{Data: data}
+	apiResponse := model.ApiResponse[T]{Data: data}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(apiResponse); err != nil {
@@ -25,8 +24,8 @@ func ErrorResponse(w http.ResponseWriter, message string, statusCode int, errorC
 	if len(errorCodes) > 0 {
 		errorCode = errorCodes[0]
 	}
-	apiError := &ApiError{Message: message, Code: errorCode}
-	apiResponse := ApiResponse[any]{Error: apiError}
+	apiError := &model.ApiError{Message: message, Code: errorCode}
+	apiResponse := model.ApiResponse[any]{Error: apiError}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(apiResponse); err != nil {

@@ -16,7 +16,7 @@ func ValidateTokenIntrospectRequest(input IntrospectRequest) error {
 		validation.Required,
 	)
 	if err != nil {
-		return fmt.Errorf("Token is required: %w", err)
+		return fmt.Errorf("token is required: %w", err)
 	}
 
 	return nil

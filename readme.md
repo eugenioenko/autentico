@@ -23,18 +23,13 @@
 
 - Go 1.21+
 
-### Running the application
+### Building and Running
 
 ```bash
 git clone https://github.com/eugenioenko/autentico.git
 cd autentico
-make run
-```
-
-### Building the application
-
-````bash
 make build
+make run
 ```
 
 ---
@@ -47,7 +42,7 @@ To view the Swagger API documentation, you can run the Swagger server:
 
 ```bash
 make docs
-````
+```
 
 The Swagger UI will be available at: [http://localhost:8888/swagger/index.html](http://localhost:8888/swagger/index.html)
 
@@ -68,7 +63,7 @@ The configuration is managed via the `pkg/config/config.go` file. Below are the 
 | `AuthRefreshTokenSecret`          | Secret key used to sign refresh tokens.              | `your-secret-here`        |
 | `AuthRefreshTokenExpiration`      | Duration for which refresh tokens are valid.         | `30d`                     |
 | `AuthRefreshTokenCookieName`      | Name of the cookie storing the refresh token.        | `autentico_refresh_token` |
-| `AuthRefreshTokenAsSecureCookie`  | Whether the refresh token cookie is secure.          | `true`                    |
+| `AuthRefreshTokenAsSecureCookie`  | Whether refresh token is returned as secure cookie.  | `false`                   |
 | `AuthDefaultClientID`             | Default client ID for the application.               | `el_autentico_!`          |
 | `AuthAuthorizationCodeExpiration` | Duration for which authorization codes are valid.    | `10m`                     |
 | `AuthAllowedRedirectURIs`         | List of allowed redirect URIs for OAuth2 flows.      | `[]`                      |

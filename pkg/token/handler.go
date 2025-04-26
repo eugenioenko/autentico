@@ -57,7 +57,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	var usr *user.User
 
-	if request.GrantType == "authorization_code" {
+	switch request.GrantType {
+	case "authorization_code":
 		err = ValidateTokenRequestAuthorizationCode(request)
 		if err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
@@ -86,7 +87,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
-	} else if request.GrantType == "password" {
+
+	case "password":
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
@@ -98,6 +100,10 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
+
+	default:
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "The provided grant type is not supported")
+		return
 	}
 
 	if usr == nil {

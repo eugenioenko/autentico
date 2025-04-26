@@ -47,7 +47,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		),
 	)
 	if err != nil {
-		return fmt.Errorf("Username is invalid: %w", err)
+		return fmt.Errorf("username is invalid: %w", err)
 	}
 
 	if config.Get().ValidationUsernameIsEmail {
@@ -56,7 +56,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 			is.Email,
 		)
 		if err != nil {
-			return fmt.Errorf("Username is invalid: %w", err)
+			return fmt.Errorf("username is invalid: %w", err)
 		}
 	}
 
@@ -69,7 +69,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		),
 	)
 	if err != nil {
-		return fmt.Errorf("Password is invalid: %w", err)
+		return fmt.Errorf("password is invalid: %w", err)
 	}
 
 	if config.Get().ValidationEmailRequired || input.Email != "" {
@@ -79,7 +79,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 			is.Email,
 		)
 		if err != nil {
-			return fmt.Errorf("Email is invalid: %w", err)
+			return fmt.Errorf("email is invalid: %w", err)
 		}
 	}
 
