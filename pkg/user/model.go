@@ -79,7 +79,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 			is.Email,
 		)
 		if err != nil {
-			return fmt.Errorf("Email is invalid: %w", err)
+			return fmt.Errorf("email is invalid: %w", err)
 		}
 	}
 

@@ -62,3 +62,15 @@ jobs:
         run: go mod tidy
       - name: Run tests
         run: go test ./tests/... -v
+
+  vulnerability-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Download nancy
+        run: |
+          curl -L https://github.com/sonatype-nexus-community/nancy/releases/download/v0.0.44/nancy-linux.amd64-v0.0.44 -o /usr/local/bin/nancy
+          chmod +x /usr/local/bin/nancy
+      - name: Run nancy to check for vulnerabilities
+        run: go list -json -deps ./... | nancy sleuth
