@@ -80,7 +80,7 @@ var defaultConfig = Config{
 	AuthRefreshTokenSecret:          "your-secret-here",
 	AuthRefreshTokenExpiration:      30 * 24 * time.Hour,
 	AuthRefreshTokenCookieName:      "autentico_refresh_token",
-	AuthRefreshTokenAsSecureCookie:  true,
+	AuthRefreshTokenAsSecureCookie:  false,
 	AuthDefaultClientID:             "el_autentico_!",
 	AuthAuthorizationCodeExpiration: 10 * time.Minute,
 	AuthCSRFProtectionSecretKey:     "your-secret-here",
