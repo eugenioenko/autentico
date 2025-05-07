@@ -19,9 +19,9 @@ import (
 
 // @title Autentico OIDC
 // @version 1.0
-// @description Authentication and ABAC Authorization Service
+// @description Authentication Service
 // @host localhost:8080
-// @BasePath /oauth2
+// @BasePath /
 
 func main() {
 	_, err := db.InitDB(config.Get().DbFilePath)
@@ -45,6 +45,12 @@ func main() {
 
 	port := config.Get().AppPort
 	log.Printf("Autentico started at http://localhost:%s", port)
-	loggingMux := middleware.LoggingMiddleware(mux)
-	log.Fatal(http.ListenAndServe(":"+port, loggingMux))
+	middlewareList := []func(http.Handler) http.Handler{
+		middleware.LoggingMiddleware,
+	}
+	if config.Get().AppEnableCORS {
+		middlewareList = append(middlewareList, middleware.CORSMiddleware)
+	}
+	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
+	log.Fatal(http.ListenAndServe(":"+port, combinedMiddleware(mux)))
 }

@@ -14,6 +14,8 @@ type Config struct {
 	AppPort string
 	// AppURL is the full URL of the application (e.g., "http://localhost:8080").
 	AppURL string
+	// AppEnableCORS determines if Cross-Origin Resource Sharing (CORS) is enabled for the application.
+	AppEnableCORS bool
 	// AppOAuthPath is the base path for OAuth2 endpoints (e.g., "/oauth2").
 	AppOAuthPath string
 	// AppAuthIssuer is the issuer URL for authentication tokens.
@@ -72,6 +74,7 @@ var defaultConfig = Config{
 	AppHost:                         fmt.Sprintf("%s:%s", appDomain, appPort),
 	AppPort:                         appPort,
 	AppURL:                          fmt.Sprintf("%s%s:%s", appProtocol, appDomain, appPort),
+	AppEnableCORS:                   true,
 	AppOAuthPath:                    appOAuthPath,
 	AppAuthIssuer:                   fmt.Sprintf("%s%s:%s%s", appProtocol, appDomain, appPort, appOAuthPath),
 	DbFilePath:                      "./db/auth.db",
