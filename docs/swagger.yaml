@@ -1,4 +1,4 @@
-basePath: /oauth2
+basePath: /
 definitions:
   introspect.IntrospectRequest:
     properties:
@@ -52,6 +52,47 @@ definitions:
       message:
         type: string
     type: object
+  model.WellKnownConfigResponse:
+    properties:
+      authorization_endpoint:
+        type: string
+      claims_supported:
+        items:
+          type: string
+        type: array
+      end_session_endpoint:
+        type: string
+      id_token_signing_alg_values_supported:
+        items:
+          type: string
+        type: array
+      issuer:
+        type: string
+      jwks_uri:
+        type: string
+      registration_endpoint:
+        type: string
+      response_types_supported:
+        items:
+          type: string
+        type: array
+      scopes_supported:
+        items:
+          type: string
+        type: array
+      subject_types_supported:
+        items:
+          type: string
+        type: array
+      token_endpoint:
+        type: string
+      token_endpoint_auth_methods_supported:
+        items:
+          type: string
+        type: array
+      userinfo_endpoint:
+        type: string
+    type: object
   token.TokenResponse:
     properties:
       access_token:
@@ -88,10 +129,25 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: Authentication and ABAC Authorization Service
+  description: Authentication Service
   title: Autentico OIDC
   version: "1.0"
 paths:
+  /.well-known/openid-configuration:
+    get:
+      consumes:
+      - application/json
+      description: Returns the OpenID Connect Well-Known Configuration
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.WellKnownConfigResponse'
+      summary: Get Well-Known Configuration
+      tags:
+      - Well-Known
   /oauth2/authorize:
     get:
       consumes:

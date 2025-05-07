@@ -9,6 +9,14 @@ import (
 	"autentico/pkg/utils"
 )
 
+// HandleWellKnownConfig handles the .well-known configuration endpoint
+// @Summary Get Well-Known Configuration
+// @Description Returns the OpenID Connect Well-Known Configuration
+// @Tags Well-Known
+// @Accept json
+// @Produce json
+// @Success 200 {object} model.WellKnownConfigResponse
+// @Router /.well-known/openid-configuration [get]
 func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 	config := config.Get()
 	response := model.WellKnownConfigResponse{
