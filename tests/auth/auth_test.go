@@ -110,6 +110,36 @@ func TestUserInfoEndpoint(t *testing.T) {
 	assert.Equal(t, user.ID, userInfo["sub"])
 }
 
+func TestTokenEndpointRefresh(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+
+	body := map[string]string{
+		"grant_type": "password",
+		"username":   testEmail,
+		"password":   testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+
+	var tkn token.TokenResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &tkn)
+
+	body = map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": tkn.RefreshToken,
+	}
+	refreshRes := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+
+	var response token.TokenResponse
+	err := json.Unmarshal(refreshRes.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, response.AccessToken)
+	assert.NotEmpty(t, response.TokenType)
+}
+
 func TestLogoutEndpoint(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)

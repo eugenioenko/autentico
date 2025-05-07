@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation"
@@ -24,14 +25,39 @@ type Token struct {
 }
 
 type TokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	Code         string `json:"code"`
-	RedirectURI  string `json:"redirect_uri"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret,omitempty"`
-	CodeVerifier string `json:"code_verifier,omitempty"`
-	Username     string `json:"username,omitempty"`
-	Password     string `json:"password,omitempty"`
+	GrantType    string `json:"grant_type"`              // The OAuth2 grant type (e.g., 'authorization_code', 'refresh_token', 'password')
+	Code         string `json:"code"`                    // The authorization code received from the authorization server
+	RedirectURI  string `json:"redirect_uri"`            // The redirect URI used in the authorization request
+	ClientID     string `json:"client_id"`               // The client ID of the application making the request
+	ClientSecret string `json:"client_secret,omitempty"` // The client secret (optional, depending on the grant type)
+	CodeVerifier string `json:"code_verifier,omitempty"` // The code verifier for PKCE (optional, depending on the grant type)
+	Username     string `json:"username,omitempty"`      // The username for the resource owner (used in password grant type)
+	Password     string `json:"password,omitempty"`      // The password for the resource owner (used in password grant type)
+	RefreshToken string `json:"refresh_token,omitempty"` // The refresh token (used in refresh token grant type)
+}
+
+type RefreshTokenClaims struct {
+	UserID    string `json:"sub"` // The ID of the user associated with the refresh token
+	SessionID string `json:"sid"` // The session ID for which the refresh token is issued
+	IssuedAt  int64  `json:"iat"` // The timestamp when the refresh token was issued
+	ExpiresAt int64  `json:"exp"` // The timestamp when the refresh token will expire
+}
+
+func (r *RefreshTokenClaims) Valid() error {
+	if time.Unix(r.ExpiresAt, 0).Before(time.Now()) {
+		return fmt.Errorf("token has expired")
+	}
+	return nil
+}
+
+type AccessTokenClaims struct {
+	UserID    string `json:"sub"`   // The ID of the user associated with the access token
+	Email     string `json:"email"` // The email of the user associated with the access token
+	SessionID string `json:"sid"`   // The session ID for which the access token is issued
+	IssuedAt  int64  `json:"iat"`   // The timestamp when the access token was issued
+	ExpiresAt int64  `json:"exp"`   // The timestamp when the access token will expire
+	Audience  string `json:"aud"`   // The audience for which the access token is intended
+	Issuer    string `json:"iss"`   // The issuer of the access token
 }
 
 func ValidateTokenRequest(input TokenRequest) error {
@@ -45,7 +71,7 @@ func ValidateTokenRequestAuthorizationCode(input TokenRequest) error {
 		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code")),
 		validation.Field(&input.Code, validation.Required),
 		validation.Field(&input.RedirectURI, validation.Required, is.URL),
-		//validation.Field(&input.ClientID, validation.Required),
+		// validation.Field(&input.ClientID, validation.Required),
 	)
 }
 
@@ -54,6 +80,15 @@ func ValidateTokenRequestPassword(input TokenRequest) error {
 		validation.Field(&input.GrantType, validation.Required, validation.In("password")),
 		validation.Field(&input.Username, validation.Required),
 		validation.Field(&input.Password, validation.Required),
+	)
+}
+
+func ValidateTokenRequestRefresh(input TokenRequest) error {
+	return validation.ValidateStruct(&input,
+		validation.Field(&input.GrantType, validation.Required, validation.In("refresh_token")),
+		validation.Field(&input.RefreshToken, validation.Required),
+		// validation.Field(&input.ClientID, validation.Required),
+		// validation.Field(&input.CodeVerifier, validation.Required),
 	)
 }
 

@@ -41,12 +41,13 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := TokenRequest{
-		GrantType:   r.FormValue("grant_type"),
-		Code:        r.FormValue("code"),
-		RedirectURI: r.FormValue("redirect_uri"),
-		ClientID:    r.FormValue("client_id"),
-		Username:    r.FormValue("username"),
-		Password:    r.FormValue("password"),
+		GrantType:    r.FormValue("grant_type"),
+		Code:         r.FormValue("code"),
+		RedirectURI:  r.FormValue("redirect_uri"),
+		ClientID:     r.FormValue("client_id"),
+		Username:     r.FormValue("username"),
+		Password:     r.FormValue("password"),
+		RefreshToken: r.FormValue("refresh_token"),
 	}
 
 	err = ValidateTokenRequest(request)
@@ -101,6 +102,31 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+	case "refresh_token":
+		err := ValidateTokenRequestRefresh(request)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+			return
+		}
+
+		authToken, err := DecodeRefreshToken(request.RefreshToken, config.Get().AuthRefreshTokenSecret)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+			return
+		}
+
+		if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Refresh token has expired")
+			return
+		}
+
+		// TODO: Check if refresh token has been revoked in the session
+
+		usr, err = user.UserByID(authToken.UserID)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to retrieve user: %v", err))
+			return
+		}
 	default:
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "The provided grant type is not supported")
 		return
