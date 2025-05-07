@@ -61,7 +61,7 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
       - name: Run tests
-        run: go test ./... -v
+        run: go test -p 1 -v ./...
 
   static-analysis:
     runs-on: ubuntu-latest

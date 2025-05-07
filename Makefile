@@ -19,7 +19,7 @@ fmt:
 # Run tests
 .PHONY: test
 test:
-	go test ./...
+	go test -p 1 -v ./...
 
 # Run a linter (requires `golangci-lint`)
 lint:
