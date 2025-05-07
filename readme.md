@@ -15,6 +15,13 @@
 - 🛡️ CSRF protection using Gorilla CSRF
 - 📜 Swagger API documentation
 
+--- 
+
+## 📜 Api Documentation
+
+For a quick api reference, check out the documentation:
+[ Autentico API Documentation](https://eugenioenko.github.io/autentico/autentico-api.html)
+
 ---
 
 ## 🚀 Quick Start
