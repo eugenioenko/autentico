@@ -89,6 +89,11 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	_, err = db.Exec("PRAGMA busy_timeout = 5000;") // 5000ms timeout
+	if err != nil {
+		panic("Failed to set SQLite busy timeout: " + err.Error())
+	}
+
 	_, err = db.Exec(createTableSQL)
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
@@ -104,6 +109,11 @@ func InitTestDB(dbFilePath string) (*sql.DB, error) {
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 		return nil, err
+	}
+
+	_, err = db.Exec("PRAGMA busy_timeout = 5000;") // 5000ms timeout
+	if err != nil {
+		panic("Failed to set SQLite busy timeout: " + err.Error())
 	}
 
 	_, err = db.Exec(dropTableSQL)
