@@ -35,3 +35,6 @@ generate-docs:
 .PHONY: docs
 docs:
 	go run cmd/swagger.go
+
+docker-build:
+	docker build -t autentico:tag .
