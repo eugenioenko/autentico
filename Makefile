@@ -38,3 +38,6 @@ docs:
 
 docker-build:
 	docker build -t autentico:tag .
+
+docker-compose:
+	docker compose up -d
