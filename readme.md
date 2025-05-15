@@ -134,13 +134,24 @@ curl -X POST http://localhost:8080/users/create \
 
 ### Authorization Request
 
+```js
+const url = new URL("http://localhost:8080/oauth2/authorize");
+url.searchParams.set("response_type", "code");
+url.searchParams.set("redirect_uri", "https://your-client-app.com/callback");
+url.searchParams.set("scope", "openid profile email");
+url.searchParams.set("state", "xyz123");
+
+window.open(url.toString(), "_blank"); // Opens the auth request in a browser tab
+```
+
+You can also use `curl` to create the url to open in the browser manually for testing
 ```bash
-curl -G http://localhost:8080/oauth2/authorize \
+open "$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
   --data-urlencode "response_type=code" \
-  --data-urlencode "client_id=your-client-id" \
   --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
   --data-urlencode "scope=openid profile email" \
-  --data-urlencode "state=xyz123"
+  --data-urlencode "state=xyz123" \
+  http://localhost:8080/oauth2/authorize)"
 ```
 
 ### Token Exchange
@@ -150,8 +161,7 @@ curl -X POST http://localhost:8080/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "code=your-authorization-code" \
-  -d "redirect_uri=https://your-client-app.com/callback" \
-  -d "client_id=your-client-id"
+  -d "redirect_uri=https://your-client-app.com/callback"
 ```
 
 ---
