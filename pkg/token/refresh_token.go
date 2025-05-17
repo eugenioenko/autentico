@@ -34,7 +34,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
-	if sess.DeactivatedAt != nil {
+	if sess == nil || sess.DeactivatedAt != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
 		return nil, err
 	}
