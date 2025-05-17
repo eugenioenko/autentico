@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	authcode "autentico/pkg/auth_code"
 	"autentico/pkg/config"
 	"autentico/pkg/session"
 	"autentico/pkg/user"
@@ -60,35 +59,10 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	switch request.GrantType {
 	case "authorization_code":
-		err = ValidateTokenRequestAuthorizationCode(request)
+		usr, err = UserByAuthorizationCode(w, request)
 		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
-
-		code, err := authcode.AuthCodeByCode(request.Code)
-		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("%v", err))
-			return
-		}
-
-		if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has already been used")
-			return
-		}
-
-		err = authcode.MarkAuthCodeAsUsed(request.Code)
-		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to mark authorization code as used: %v", err))
-			return
-		}
-
-		usr, err = user.UserByID(code.UserID)
-		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
-			return
-		}
-
 	case "password":
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
@@ -103,28 +77,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "refresh_token":
-		err := ValidateTokenRequestRefresh(request)
+		usr, err = UserByRefreshToken(w, request)
 		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
-			return
-		}
-
-		authToken, err := DecodeRefreshToken(request.RefreshToken, config.Get().AuthRefreshTokenSecret)
-		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
-			return
-		}
-
-		if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Refresh token has expired")
-			return
-		}
-
-		// TODO: Check if refresh token has been revoked in the session
-
-		usr, err = user.UserByID(authToken.UserID)
-		if err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to retrieve user: %v", err))
 			return
 		}
 	default:
