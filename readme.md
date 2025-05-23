@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](/home/enko/Documents/autentico/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
 
-**Autentico is an OpenID Connect (OIDC) compliant authentication server built with Go, designed for developers seeking a lightweight, secure, and embeddable solution for modern identity management. It leverages SQLite for data persistence, ensuring easy integration and deployment.**
+**Auténtico is an OpenID Connect (OIDC) authentication server built with Go, designed for developers seeking a lightweight, secure, and embeddable solution for modern identity management. It leverages SQLite for data persistence, ensuring easy integration and deployment.**
 
 ---
 
