@@ -19,7 +19,7 @@
       :root {
         --color-primary: #2e5bff;
         --color-accent: #188060;
-        --color-danger: #d60b0b;
+        --color-danger: #be1111;
         --color-text: #0f0f0f;
         --color-inverse: #ffffff;
         --color-background: #f1f1f1;
@@ -31,7 +31,7 @@
         :root {
           --color-primary: #2e5bff;
           --color-accent: #188060;
-          --color-danger: #d60b0b;
+          --color-danger: #f52a2a;
           --color-text: #e7e7e7;
           --color-inverse: #e7e7e7;
           --color-background: #0f0f0f;
@@ -67,6 +67,7 @@
         width: 100%;
         align-items: center;
         justify-content: center;
+        padding: 30px;
       }
 
       form {
@@ -74,7 +75,8 @@
         padding: 30px;
         border-radius: var(--border-radius);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 300px;
+        max-width: 350px;
+        width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -174,18 +176,34 @@
             </g>
           </svg>
         </div>
-        {{ .csrfField }}
+        {{ if .Error }}
+        <div class="error">Authorization Error</div>
+        <div>{{ .Error }}</div>
+        {{else}} {{ .csrfField }}
         <input type="hidden" name="state" value="{{.State}}" />
         <input type="hidden" name="redirect" value="{{.Redirect}}" />
         <div class="control">
           <label for="username">Username</label>
-          <input type="text" id="username" name="username" required />
+          <input
+            type="text"
+            id="username"
+            name="username"
+            autocomplete="username"
+            required
+          />
         </div>
         <div class="control">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" required />
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          />
         </div>
         <button type="submit">Log In</button>
+        {{ end }}
       </form>
     </main>
     <footer></footer>

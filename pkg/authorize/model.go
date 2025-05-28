@@ -29,3 +29,9 @@ type AuthorizeErrorResponse struct {
 	Error            string `json:"error,omitempty"`
 	ErrorDescription string `json:"error_description,omitempty"`
 }
+
+type LoginFormData struct {
+	State       string
+	RedirectURI string
+	Error       string
+}

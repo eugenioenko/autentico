@@ -109,7 +109,7 @@ The `main.go` file initializes the configuration, database, and routes, and star
     # Or directly:
     # ./autentico
     ```
-    The server will start, by default, on `http://localhost:8080`.
+    The server will start, by default, on `http://localhost:8888`.
 
 ---
 
@@ -120,7 +120,7 @@ Application settings are managed in `pkg/config/config.go`. Key configuration op
 | **Setting**                       | **Description**                                                                   | **Default Value**         |
 | --------------------------------- | --------------------------------------------------------------------------------- | ------------------------- |
 | `AppDomain`                       | The domain name of the application.                                               | `localhost`               |
-| `AppPort`                         | The port on which the application runs.                                           | `8080`                    |
+| `AppPort`                         | The port on which the application runs.                                           | `8888`                    |
 | `AppOAuthPath`                    | The base path for OAuth2 endpoints (e.g., `/oauth2`).                             | `/oauth2`                 |
 | `DbFilePath`                      | The file path for the SQLite database.                                            | `./db/auth.db`            |
 | `AuthAccessTokenSecret`           | Secret key used to sign access tokens. **Change this in production!**             | `your-secret-here`        |
@@ -140,7 +140,7 @@ Application settings are managed in `pkg/config/config.go`. Key configuration op
 | `ValidationMaxPasswordLength`     | Maximum length for passwords.                                                     | `64`                      |
 | `ValidationUsernameIsEmail`       | If `true`, usernames must be valid email addresses.                               | `true`                    |
 | `ValidationEmailRequired`         | If `true`, email is required for user registration.                               | `false`                   |
-| `SwaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8888`                    |
+| `SwaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8000`                    |
 
 ---
 
@@ -159,8 +159,8 @@ Autentico provides comprehensive API documentation:
     ```bash
     make docs
     ```
-    This command starts a local server (default: `http://localhost:8888`) serving the Swagger UI.
-    - Access it at: [http://localhost:8888/swagger/index.html](http://localhost:8888/swagger/index.html)
+    This command starts a local server (default: `http://localhost:8000`) serving the Swagger UI.
+    - Access it at: [http://localhost:8000/swagger/index.html](http://localhost:8000/swagger/index.html)
     - The OpenAPI specification files (`swagger.json`, `swagger.yaml`) are located in the `/docs` directory.
 
 ---
@@ -219,7 +219,7 @@ Client registration is currently manual. You must add your client application's 
 Create a new user via the `/users/create` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/users/create \
+curl -X POST http://localhost:8888/users/create \
   -H "Content-Type: application/json" \
   -d '{"username": "user@example.com", "password": "SecurePassword123!", "email": "user@example.com"}'
 ```
@@ -231,7 +231,7 @@ Redirect the user to the `/oauth2/authorize` endpoint to start the login process
 **Using JavaScript:**
 
 ```javascript
-const authServerUrl = "http://localhost:8080/oauth2/authorize";
+const authServerUrl = "http://localhost:8888/oauth2/authorize";
 const params = new URLSearchParams({
   response_type: "code", // For Authorization Code Flow
   redirect_uri: "https://your-client-app.com/callback", // Must be in AuthAllowedRedirectURIs
@@ -255,7 +255,7 @@ EFFECTIVE_URL=$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
   --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
   --data-urlencode "scope=openid profile email" \
   --data-urlencode "state=xyz123abc" \
-  http://localhost:8080/oauth2/authorize)
+  http://localhost:8888/oauth2/authorize)
 
 echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 # Example for macOS: open "${EFFECTIVE_URL}"
@@ -266,7 +266,7 @@ echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 After successful authentication, the user is redirected back to your `redirect_uri` with an authorization `code`. Exchange this code for tokens at the `/oauth2/token` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST http://localhost:8888/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "code=your_received_authorization_code" \
