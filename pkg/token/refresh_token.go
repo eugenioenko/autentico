@@ -1,13 +1,14 @@
 package token
 
 import (
-	"autentico/pkg/config"
-	"autentico/pkg/session"
-	"autentico/pkg/user"
-	"autentico/pkg/utils"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {

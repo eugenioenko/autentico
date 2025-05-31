@@ -3,7 +3,7 @@ package utils
 import (
 	"net/http"
 
-	"autentico/pkg/model"
+	"github.com/eugenioenko/autentico/pkg/model"
 )
 
 func DummyRoute(w http.ResponseWriter, r *http.Request) {

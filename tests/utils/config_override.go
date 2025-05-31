@@ -1,8 +1,9 @@
 package testutils
 
 import (
-	"autentico/pkg/config"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 func WithConfigOverride(t *testing.T, override func()) {

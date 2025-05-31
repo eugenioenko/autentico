@@ -1,7 +1,7 @@
 package session
 
 import (
-	"autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func CreateSession(session Session) error {

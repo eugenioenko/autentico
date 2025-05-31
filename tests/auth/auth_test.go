@@ -1,15 +1,16 @@
 package auth_test
 
 import (
-	"autentico/pkg/config"
-	"autentico/pkg/session"
-	"autentico/pkg/token"
-	"autentico/pkg/user"
-	"autentico/pkg/userinfo"
-	testutils "autentico/tests/utils"
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userinfo"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

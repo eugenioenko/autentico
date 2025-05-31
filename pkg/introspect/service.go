@@ -1,10 +1,11 @@
 package introspect
 
 import (
-	"autentico/pkg/db"
-	"autentico/pkg/token"
 	"errors"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/token"
 )
 
 func IntrospectToken(tokenID string) (*token.Token, error) {

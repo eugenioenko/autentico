@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func UserByID(userID string) (*User, error) {

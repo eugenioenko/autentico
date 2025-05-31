@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/config"
 
 	"github.com/gorilla/csrf"
 )

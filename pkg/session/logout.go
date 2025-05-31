@@ -3,8 +3,8 @@ package session
 import (
 	"net/http"
 
-	"autentico/pkg/db"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleLogout godoc

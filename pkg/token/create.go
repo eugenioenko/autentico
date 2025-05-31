@@ -1,7 +1,7 @@
 package token
 
 import (
-	"autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db"
 
 	"github.com/rs/xid"
 )

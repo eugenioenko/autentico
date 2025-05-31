@@ -1,13 +1,14 @@
 package userinfo
 
 import (
-	"autentico/pkg/token"
-	"autentico/pkg/user"
-	testutils "autentico/tests/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -1,11 +1,12 @@
 package session
 
 import (
-	"autentico/pkg/db"
-	testutils "autentico/tests/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/db"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

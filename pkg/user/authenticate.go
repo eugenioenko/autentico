@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 // AuthenticateUser checks if the provided username and password match a user in the database.

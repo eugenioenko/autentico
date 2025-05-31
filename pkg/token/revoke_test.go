@@ -1,14 +1,15 @@
 package token_test
 
 import (
-	"autentico/pkg/db"
-	"autentico/pkg/token"
-	"autentico/pkg/user"
-	testutils "autentico/tests/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

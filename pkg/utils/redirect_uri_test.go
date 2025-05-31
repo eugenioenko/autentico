@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"autentico/pkg/config"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 )

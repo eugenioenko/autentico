@@ -1,4 +1,4 @@
-module autentico
+module github.com/eugenioenko/autentico
 
 go 1.23.0
 

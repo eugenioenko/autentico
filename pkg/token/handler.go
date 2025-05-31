@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"autentico/pkg/config"
-	"autentico/pkg/session"
-	"autentico/pkg/user"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleToken godoc

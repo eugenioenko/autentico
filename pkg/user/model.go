@@ -1,10 +1,11 @@
 package user
 
 import (
-	"autentico/pkg/config"
-	"autentico/pkg/model"
 	"fmt"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/model"
 
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"

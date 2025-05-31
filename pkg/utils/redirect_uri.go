@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"autentico/pkg/config"
 	"net/url"
 	"strings"
+
+	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 func IsValidRedirectURI(uri string) bool {

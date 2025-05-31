@@ -4,8 +4,8 @@ import (
 	"html/template"
 	"net/http"
 
-	"autentico/pkg/utils"
-	"autentico/view"
+	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/view"
 
 	"github.com/gorilla/csrf"
 )

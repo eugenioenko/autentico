@@ -1,8 +1,9 @@
 package user
 
 import (
-	"autentico/pkg/db"
 	"fmt"
+
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func DeleteUser(id string) error {

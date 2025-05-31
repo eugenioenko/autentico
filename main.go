@@ -4,17 +4,17 @@ import (
 	"log"
 	"net/http"
 
-	"autentico/pkg/authorize"
-	"autentico/pkg/config"
-	"autentico/pkg/db"
-	"autentico/pkg/introspect"
-	"autentico/pkg/login"
-	"autentico/pkg/middleware"
-	"autentico/pkg/session"
-	"autentico/pkg/token"
-	"autentico/pkg/user"
-	"autentico/pkg/userinfo"
-	"autentico/pkg/wellknown"
+	"github.com/eugenioenko/autentico/pkg/authorize"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/introspect"
+	"github.com/eugenioenko/autentico/pkg/login"
+	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userinfo"
+	"github.com/eugenioenko/autentico/pkg/wellknown"
 )
 
 // @title Autentico OIDC

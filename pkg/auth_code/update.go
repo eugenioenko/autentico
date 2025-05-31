@@ -1,7 +1,7 @@
 package authcode
 
 import (
-	"autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func MarkAuthCodeAsUsed(code string) error {
