@@ -2,6 +2,6 @@ services:
   autentico:
     build: .
     ports:
-      - "8080:8080"
+      - "8888:8888"
       - "443:443"
     restart: unless-stopped

@@ -1,13 +1,9 @@
 package authorize
 
 import (
-	"html/template"
 	"net/http"
 
 	"autentico/pkg/utils"
-	"autentico/view"
-
-	"github.com/gorilla/csrf"
 )
 
 // HandleAuthorize godoc
@@ -41,30 +37,27 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	err := ValidateAuthorizeRequest(request)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
+		RenderForm(w, r, LoginFormData{
+			State:       "",
+			RedirectURI: "",
+			Error:       err.Error(),
+		})
 		return
 	}
 
 	// Validate redirect_uri
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		RenderForm(w, r, LoginFormData{
+			State:       "",
+			RedirectURI: "",
+			Error:       "Invalid redirect_uri",
+		})
 		return
 	}
 
-	tmpl, err := template.New("login").Parse(view.LoginTemplate)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	data := map[string]any{
-		"State":          request.State,
-		"Redirect":       request.RedirectURI,
-		csrf.TemplateTag: csrf.TemplateField(r),
-	}
-
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
+	RenderForm(w, r, LoginFormData{
+		State:       request.State,
+		RedirectURI: request.RedirectURI,
+		Error:       "",
+	})
 }

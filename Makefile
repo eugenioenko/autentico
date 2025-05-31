@@ -12,6 +12,8 @@ build:
 run:
 	go run main.go
 
+start: run
+
 # Format code using gofmt
 fmt:
 	gofmt -w .

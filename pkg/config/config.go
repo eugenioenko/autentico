@@ -8,11 +8,11 @@ import (
 type Config struct {
 	// AppDomain is the domain name of the application (e.g., "localhost").
 	AppDomain string
-	// AppHost is the host address combining domain and port (e.g., "localhost:8080").
+	// AppHost is the host address combining domain and port (e.g., "localhost:8888").
 	AppHost string
-	// AppPort is the port on which the application runs (e.g., "8080").
+	// AppPort is the port on which the application runs (e.g., "8888").
 	AppPort string
-	// AppURL is the full URL of the application (e.g., "http://localhost:8080").
+	// AppURL is the full URL of the application (e.g., "http://localhost:8888").
 	AppURL string
 	// AppEnableCORS determines if Cross-Origin Resource Sharing (CORS) is enabled for the application.
 	AppEnableCORS bool
@@ -65,7 +65,7 @@ type Config struct {
 const (
 	appProtocol  = "http://"
 	appDomain    = "localhost"
-	appPort      = "8080"
+	appPort      = "8888"
 	appOAuthPath = "/oauth2"
 )
 
@@ -89,7 +89,7 @@ var defaultConfig = Config{
 	AuthCSRFProtectionSecretKey:     "your-secret-here",
 	AuthCSRFSecureCookie:            false,
 	AuthAllowedRedirectURIs:         []string{}, // When sets, restricts redirect uris to the list
-	SwaggerPort:                     "8888",
+	SwaggerPort:                     "8000",
 	ValidationMinUsernameLength:     4,
 	ValidationMaxUsernameLength:     64,
 	ValidationMinPasswordLength:     6,
