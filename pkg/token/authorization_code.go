@@ -1,12 +1,13 @@
 package token
 
 import (
-	authcode "autentico/pkg/auth_code"
-	"autentico/pkg/user"
-	"autentico/pkg/utils"
 	"fmt"
 	"net/http"
 	"time"
+
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user.User, error) {

@@ -1,10 +1,11 @@
 package main
 
 import (
-	_ "autentico/docs"
-	"autentico/pkg/config"
 	"log"
 	"net/http"
+
+	_ "github.com/eugenioenko/autentico/docs"
+	"github.com/eugenioenko/autentico/pkg/config"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )

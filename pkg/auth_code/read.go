@@ -1,10 +1,11 @@
 package authcode
 
 import (
-	"autentico/pkg/db"
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func AuthCodeByCode(code string) (*AuthCode, error) {

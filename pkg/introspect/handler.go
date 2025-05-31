@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"autentico/pkg/config"
-	"autentico/pkg/session"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleIntrospect godoc

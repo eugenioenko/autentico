@@ -1,9 +1,10 @@
 package user
 
 import (
-	"autentico/pkg/db"
 	"fmt"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/db"
 
 	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"

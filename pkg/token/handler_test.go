@@ -1,14 +1,15 @@
 package token
 
 import (
-	"autentico/pkg/config"
-	"autentico/pkg/user"
-	testutils "autentico/tests/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

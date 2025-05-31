@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	authcode "autentico/pkg/auth_code"
-	"autentico/pkg/config"
-	"autentico/pkg/user"
-	"autentico/pkg/utils"
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleLoginUser godoc

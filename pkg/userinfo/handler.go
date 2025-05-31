@@ -3,9 +3,9 @@ package userinfo
 import (
 	"net/http"
 
-	"autentico/pkg/introspect"
-	"autentico/pkg/user"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/introspect"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleUserInfo godoc

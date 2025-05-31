@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"autentico/pkg/model"
 	"encoding/json"
 	"net/http"
+
+	"github.com/eugenioenko/autentico/pkg/model"
 )
 
 func SuccessResponse[T any](w http.ResponseWriter, data T, statusCodes ...int) {

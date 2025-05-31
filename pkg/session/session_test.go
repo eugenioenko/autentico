@@ -1,9 +1,10 @@
 package session
 
 import (
-	testutils "autentico/tests/utils"
 	"testing"
 	"time"
+
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

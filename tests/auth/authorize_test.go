@@ -1,11 +1,12 @@
 package auth_test
 
 import (
-	"autentico/pkg/authorize"
-	testutils "autentico/tests/utils"
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/authorize"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

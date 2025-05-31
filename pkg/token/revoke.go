@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"autentico/pkg/db"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleRevoke godoc

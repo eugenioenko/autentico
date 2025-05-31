@@ -1,8 +1,9 @@
 package testutils
 
 import (
-	"autentico/pkg/db"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func WithTestDB(t *testing.T) {

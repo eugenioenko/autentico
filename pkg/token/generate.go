@@ -8,8 +8,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/rs/xid"
 
-	"autentico/pkg/config"
-	"autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
 )
 
 func GenerateTokens(user user.User) (*AuthToken, error) {

@@ -1,10 +1,11 @@
 package auth_test
 
 import (
-	"autentico/pkg/wellknown"
-	testutils "autentico/tests/utils"
 	"net/http"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/wellknown"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -1,10 +1,11 @@
 package token
 
 import (
-	"autentico/pkg/config"
-	"autentico/pkg/user"
 	"testing"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
 
 	"github.com/stretchr/testify/assert"
 )

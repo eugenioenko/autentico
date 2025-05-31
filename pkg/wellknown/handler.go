@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"autentico/pkg/config"
-	"autentico/pkg/model"
-	"autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/model"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // HandleWellKnownConfig handles the .well-known configuration endpoint
