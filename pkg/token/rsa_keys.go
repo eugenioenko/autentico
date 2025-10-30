@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"log"
 	"os"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -35,11 +36,15 @@ func init() {
 	// If not found, generate a new key pair
 	if privateKey == nil {
 		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err == nil {
-			privateKey = key
-			publicKey = &key.PublicKey
-			pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-			os.WriteFile(keyFile, pemBytes, 0600)
+		if err != nil {
+			log.Fatal(err)
+		}
+		privateKey = key
+		publicKey = &key.PublicKey
+		pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+		err = os.WriteFile(keyFile, pemBytes, 0600)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 }

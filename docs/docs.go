@@ -15,6 +15,29 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/.well-known/jwks.json": {
+            "get": {
+                "description": "Returns the JSON Web Key Set for verifying JWTs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Well-Known"
+                ],
+                "summary": "Get JWKS",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.JWKSResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/.well-known/openid-configuration": {
             "get": {
                 "description": "Returns the OpenID Connect Well-Known Configuration",
@@ -142,6 +165,18 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }
@@ -546,6 +581,46 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "model.JWK": {
+            "type": "object",
+            "properties": {
+                "alg": {
+                    "description": "Algorithm (e.g., RS256)",
+                    "type": "string"
+                },
+                "e": {
+                    "description": "Exponent (base64url-encoded)",
+                    "type": "string"
+                },
+                "kid": {
+                    "description": "Key ID",
+                    "type": "string"
+                },
+                "kty": {
+                    "description": "Key Type (e.g., RSA)",
+                    "type": "string"
+                },
+                "n": {
+                    "description": "Modulus (base64url-encoded)",
+                    "type": "string"
+                },
+                "use": {
+                    "description": "Public Key Use (e.g., sig)",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JWKSResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.JWK"
+                    }
                 }
             }
         },
