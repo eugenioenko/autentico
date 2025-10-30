@@ -1,660 +1,606 @@
 {
-    "swagger": "2.0",
-    "info": {
-        "description": "Authentication Service",
-        "title": "Autentico OIDC",
-        "contact": {},
-        "version": "1.0"
-    },
-    "host": "localhost:8080",
-    "basePath": "/",
-    "paths": {
-        "/.well-known/openid-configuration": {
-            "get": {
-                "description": "Returns the OpenID Connect Well-Known Configuration",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Well-Known"
-                ],
-                "summary": "Get Well-Known Configuration",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.WellKnownConfigResponse"
-                        }
-                    }
-                }
+  "swagger": "2.0",
+  "info": {
+    "description": "Authentication Service",
+    "title": "Autentico OIDC",
+    "contact": {},
+    "version": "1.0"
+  },
+  "host": "localhost:9999",
+  "basePath": "/",
+  "paths": {
+    "/.well-known/openid-configuration": {
+      "get": {
+        "description": "Returns the OpenID Connect Well-Known Configuration",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["Well-Known"],
+        "summary": "Get Well-Known Configuration",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/model.WellKnownConfigResponse"
             }
-        },
-        "/oauth2/authorize": {
-            "get": {
-                "description": "Handles the authorization request and displays the login page",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "authorize"
-                ],
-                "summary": "Authorize a client",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Response type",
-                        "name": "response_type",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Client ID",
-                        "name": "client_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Scope",
-                        "name": "scope",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "State",
-                        "name": "state",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "HTML login page",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/introspect": {
-            "post": {
-                "description": "Validates and retrieves metadata about a token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "introspect"
-                ],
-                "summary": "Introspect a token",
-                "parameters": [
-                    {
-                        "description": "Token introspection payload",
-                        "name": "token",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/introspect.IntrospectRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/introspect.IntrospectResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/login": {
-            "post": {
-                "description": "Authenticates a user and generates an authorization code",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Log in a user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Password",
-                        "name": "password",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "State",
-                        "name": "state",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Redirect to the provided URI with code and state",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/logout": {
-            "post": {
-                "description": "Terminates the user's session",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "session"
-                ],
-                "summary": "Log out a user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer access token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Session terminated successfully",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/revoke": {
-            "post": {
-                "description": "Revokes an access or refresh token",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "token"
-                ],
-                "summary": "Revoke a token",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Token to revoke",
-                        "name": "token",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Token revoked successfully",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/token": {
-            "post": {
-                "description": "Exchanges authorization code or credentials for tokens",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "token"
-                ],
-                "summary": "Token endpoint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Grant type",
-                        "name": "grant_type",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Authorization code",
-                        "name": "code",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Client ID",
-                        "name": "client_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Password",
-                        "name": "password",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/token.TokenResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/userinfo": {
-            "get": {
-                "description": "Retrieves user information based on the access token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "userinfo"
-                ],
-                "summary": "Get user information",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer access token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
-        "/users/create": {
-            "post": {
-                "description": "Registers a new user in the system",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Create a new user",
-                "parameters": [
-                    {
-                        "description": "User creation payload",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.UserCreateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
+          }
         }
+      }
     },
-    "definitions": {
-        "introspect.IntrospectRequest": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                }
+    "/oauth2/authorize": {
+      "get": {
+        "description": "Handles the authorization request and displays the login page",
+        "consumes": ["application/json"],
+        "produces": ["text/html"],
+        "tags": ["authorize"],
+        "summary": "Authorize a client",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Response type",
+            "name": "response_type",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Client ID",
+            "name": "client_id",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Redirect URI",
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Scope",
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "State",
+            "name": "state",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML login page",
+            "schema": {
+              "type": "string"
             }
-        },
-        "introspect.IntrospectResponse": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "description": "Whether the token is valid (true or false).",
-                    "type": "boolean"
-                },
-                "aud": {
-                    "description": "Intended audience for the token (e.g., the API).",
-                    "type": "string"
-                },
-                "client_id": {
-                    "description": "Client ID for which the token was issued.",
-                    "type": "string"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "error_description": {
-                    "type": "string"
-                },
-                "exp": {
-                    "description": "Expiration time (Unix timestamp).",
-                    "type": "integer"
-                },
-                "iat": {
-                    "description": "Issued-at time (Unix timestamp).",
-                    "type": "integer"
-                },
-                "jti": {
-                    "description": "Unique identifier for the token.",
-                    "type": "string"
-                },
-                "nbf": {
-                    "description": "Not-before time (Unix timestamp).",
-                    "type": "integer"
-                },
-                "scope": {
-                    "description": "Space-delimited list of scopes associated with the token.",
-                    "type": "string"
-                },
-                "sub": {
-                    "description": "The subject of the token (typically the user ID).",
-                    "type": "string"
-                },
-                "token_type": {
-                    "description": "The type of the token (usually \"bearer\").",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "The username of the authenticated user.",
-                    "type": "string"
-                }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
             }
-        },
-        "model.ApiError": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "message": {
-                    "type": "string"
-                }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
             }
-        },
-        "model.WellKnownConfigResponse": {
-            "type": "object",
-            "properties": {
-                "authorization_endpoint": {
-                    "type": "string"
-                },
-                "claims_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "end_session_endpoint": {
-                    "type": "string"
-                },
-                "id_token_signing_alg_values_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "issuer": {
-                    "type": "string"
-                },
-                "jwks_uri": {
-                    "type": "string"
-                },
-                "registration_endpoint": {
-                    "type": "string"
-                },
-                "response_types_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "scopes_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "subject_types_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "token_endpoint": {
-                    "type": "string"
-                },
-                "token_endpoint_auth_methods_supported": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "userinfo_endpoint": {
-                    "type": "string"
-                }
-            }
-        },
-        "token.TokenResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "expires_in": {
-                    "type": "integer"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "scope": {
-                    "type": "string"
-                },
-                "token_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.UserCreateRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "user.UserResponse": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
+          }
         }
+      }
+    },
+    "/oauth2/introspect": {
+      "post": {
+        "description": "Validates and retrieves metadata about a token",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["introspect"],
+        "summary": "Introspect a token",
+        "parameters": [
+          {
+            "description": "Token introspection payload",
+            "name": "token",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/introspect.IntrospectRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/introspect.IntrospectResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/login": {
+      "post": {
+        "description": "Authenticates a user and generates an authorization code",
+        "consumes": ["application/x-www-form-urlencoded"],
+        "produces": ["application/json"],
+        "tags": ["auth"],
+        "summary": "Log in a user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Username",
+            "name": "username",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Password",
+            "name": "password",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Redirect URI",
+            "name": "redirect",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "State",
+            "name": "state",
+            "in": "formData",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provided URI with code and state",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/logout": {
+      "post": {
+        "description": "Terminates the user's session",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["session"],
+        "summary": "Log out a user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Bearer access token",
+            "name": "Authorization",
+            "in": "header",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session terminated successfully",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/revoke": {
+      "post": {
+        "description": "Revokes an access or refresh token",
+        "consumes": ["application/x-www-form-urlencoded"],
+        "produces": ["application/json"],
+        "tags": ["token"],
+        "summary": "Revoke a token",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Token to revoke",
+            "name": "token",
+            "in": "formData",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token revoked successfully",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/token": {
+      "post": {
+        "description": "Exchanges authorization code or credentials for tokens",
+        "consumes": ["application/x-www-form-urlencoded"],
+        "produces": ["application/json"],
+        "tags": ["token"],
+        "summary": "Token endpoint",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Grant type",
+            "name": "grant_type",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Authorization code",
+            "name": "code",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Redirect URI",
+            "name": "redirect_uri",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Client ID",
+            "name": "client_id",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Username",
+            "name": "username",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Password",
+            "name": "password",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/token.TokenResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/userinfo": {
+      "get": {
+        "description": "Retrieves user information based on the access token",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["userinfo"],
+        "summary": "Get user information",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Bearer access token",
+            "name": "Authorization",
+            "in": "header",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/users/create": {
+      "post": {
+        "description": "Registers a new user in the system",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Create a new user",
+        "parameters": [
+          {
+            "description": "User creation payload",
+            "name": "user",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/user.UserCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/user.UserResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/model.ApiError"
+            }
+          }
+        }
+      }
     }
+  },
+  "definitions": {
+    "introspect.IntrospectRequest": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "introspect.IntrospectResponse": {
+      "type": "object",
+      "properties": {
+        "active": {
+          "description": "Whether the token is valid (true or false).",
+          "type": "boolean"
+        },
+        "aud": {
+          "description": "Intended audience for the token (e.g., the API).",
+          "type": "string"
+        },
+        "client_id": {
+          "description": "Client ID for which the token was issued.",
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "error_description": {
+          "type": "string"
+        },
+        "exp": {
+          "description": "Expiration time (Unix timestamp).",
+          "type": "integer"
+        },
+        "iat": {
+          "description": "Issued-at time (Unix timestamp).",
+          "type": "integer"
+        },
+        "jti": {
+          "description": "Unique identifier for the token.",
+          "type": "string"
+        },
+        "nbf": {
+          "description": "Not-before time (Unix timestamp).",
+          "type": "integer"
+        },
+        "scope": {
+          "description": "Space-delimited list of scopes associated with the token.",
+          "type": "string"
+        },
+        "sub": {
+          "description": "The subject of the token (typically the user ID).",
+          "type": "string"
+        },
+        "token_type": {
+          "description": "The type of the token (usually \"bearer\").",
+          "type": "string"
+        },
+        "username": {
+          "description": "The username of the authenticated user.",
+          "type": "string"
+        }
+      }
+    },
+    "model.ApiError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "model.WellKnownConfigResponse": {
+      "type": "object",
+      "properties": {
+        "authorization_endpoint": {
+          "type": "string"
+        },
+        "claims_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "end_session_endpoint": {
+          "type": "string"
+        },
+        "id_token_signing_alg_values_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "jwks_uri": {
+          "type": "string"
+        },
+        "registration_endpoint": {
+          "type": "string"
+        },
+        "response_types_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "scopes_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject_types_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "token_endpoint": {
+          "type": "string"
+        },
+        "token_endpoint_auth_methods_supported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "userinfo_endpoint": {
+          "type": "string"
+        }
+      }
+    },
+    "token.TokenResponse": {
+      "type": "object",
+      "properties": {
+        "access_token": {
+          "type": "string"
+        },
+        "expires_in": {
+          "type": "integer"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "token_type": {
+          "type": "string"
+        }
+      }
+    },
+    "user.UserCreateRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "user.UserResponse": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    }
+  }
 }

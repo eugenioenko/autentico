@@ -8,11 +8,11 @@ import (
 type Config struct {
 	// AppDomain is the domain name of the application (e.g., "localhost").
 	AppDomain string
-	// AppHost is the host address combining domain and port (e.g., "localhost:8080").
+	// AppHost is the host address combining domain and port (e.g., "localhost:9999").
 	AppHost string
-	// AppPort is the port on which the application runs (e.g., "8080").
+	// AppPort is the port on which the application runs (e.g., "9999").
 	AppPort string
-	// AppURL is the full URL of the application (e.g., "http://localhost:8080").
+	// AppURL is the full URL of the application (e.g., "http://localhost:9999").
 	AppURL string
 	// AppEnableCORS determines if Cross-Origin Resource Sharing (CORS) is enabled for the application.
 	AppEnableCORS bool
@@ -109,7 +109,7 @@ var defaultConfig = Config{
 	ValidationEmailRequired:         false,
 	AuthAccessTokenAudience: []string{
 		authDefaultClientID,
-		"http://localhost:8080",
+		"http://localhost:9999",
 	},
 	AuthRealmAccessRoles: []string{
 		"user",

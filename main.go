@@ -20,7 +20,7 @@ import (
 // @title Autentico OIDC
 // @version 1.0
 // @description Authentication Service
-// @host localhost:8080
+// @host localhost:9999
 // @BasePath /
 
 func main() {
