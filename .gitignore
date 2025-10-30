@@ -8,7 +8,7 @@
 *.out
 
 # Databases
-/db/*.db
+/db/
 # Go build artifacts
 /build/
 /bin/

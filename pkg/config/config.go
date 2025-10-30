@@ -46,6 +46,10 @@ type Config struct {
 	AuthCSRFSecureCookie bool
 	// AuthAllowedRedirectURIs is a list of allowed redirect URIs for OAuth2 flows.
 	AuthAllowedRedirectURIs []string
+	// AuthJwkCertKeyID is the key ID for the JSON Web Key (JWK) used in OIDC.
+	AuthJwkCertKeyID string
+	// AuthJwkCertFile is the file path to the certificate file for JWK.
+	AuthJwkCertFile string
 	// SwaggerPort is the port on which the Swagger documentation server runs.
 	SwaggerPort string
 	// ValidationMinUsernameLength is the minimum length for usernames.
@@ -60,13 +64,18 @@ type Config struct {
 	ValidationUsernameIsEmail bool
 	// ValidationEmailRequired determines if email is required for user registration.
 	ValidationEmailRequired bool
+	// AuthAccessTokenAudience is the audience claim for access tokens.
+	AuthAccessTokenAudience []string
+	// AuthRealmAccessRoles is the list of roles for realm_access claim in access tokens.
+	AuthRealmAccessRoles []string
 }
 
 const (
-	appProtocol  = "http://"
-	appDomain    = "localhost"
-	appPort      = "8080"
-	appOAuthPath = "/oauth2"
+	appProtocol         = "http://"
+	appDomain           = "localhost"
+	appPort             = "9999"
+	appOAuthPath        = "/oauth2"
+	authDefaultClientID = "el_autentico_!"
 )
 
 var defaultConfig = Config{
@@ -84,11 +93,13 @@ var defaultConfig = Config{
 	AuthRefreshTokenExpiration:      30 * 24 * time.Hour,
 	AuthRefreshTokenCookieName:      "autentico_refresh_token",
 	AuthRefreshTokenAsSecureCookie:  false,
-	AuthDefaultClientID:             "el_autentico_!",
+	AuthDefaultClientID:             authDefaultClientID,
 	AuthAuthorizationCodeExpiration: 10 * time.Minute,
 	AuthCSRFProtectionSecretKey:     "your-secret-here",
 	AuthCSRFSecureCookie:            false,
 	AuthAllowedRedirectURIs:         []string{}, // When sets, restricts redirect uris to the list
+	AuthJwkCertKeyID:                "autentico-key-1",
+	AuthJwkCertFile:                 "./db/jwk_key.pem",
 	SwaggerPort:                     "8888",
 	ValidationMinUsernameLength:     4,
 	ValidationMaxUsernameLength:     64,
@@ -96,6 +107,13 @@ var defaultConfig = Config{
 	ValidationMaxPasswordLength:     64,
 	ValidationUsernameIsEmail:       true,
 	ValidationEmailRequired:         false,
+	AuthAccessTokenAudience: []string{
+		authDefaultClientID,
+		"http://localhost:8080",
+	},
+	AuthRealmAccessRoles: []string{
+		"user",
+	},
 }
 
 var Values = defaultConfig

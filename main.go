@@ -35,11 +35,15 @@ func main() {
 
 	mux.HandleFunc("/users/create", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
+	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
+	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
+	mux.HandleFunc(oauth+"/protocol/openid-connect/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
+	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
 	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
 

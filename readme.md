@@ -11,24 +11,29 @@
 
 ## Table of Contents
 
-- [✨ Features](#-features)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🏗️ Architecture Overview](#️-architecture-overview)
-- [🚀 Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Running](#installation--running)
-- [⚙️ Configuration](#️-configuration)
-- [📜 API Documentation](#-api-documentation)
-- [🔐 Endpoints](#-endpoints)
-- [🧪 Supported Flows](#-supported-flows)
-- [🧑‍💻 Client Interaction Examples](#-client-interaction-examples)
-  - [Register a User](#register-a-user)
-  - [Authorization Request](#authorization-request)
-  - [Token Exchange](#token-exchange)
-- [🛡️ Security Considerations](#️-security-considerations)
-- [🧪 Testing](#-testing)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [🔐 Autentico OIDC](#-autentico-oidc)
+  - [Table of Contents](#table-of-contents)
+  - [✨ Features](#-features)
+  - [🛠️ Tech Stack](#️-tech-stack)
+  - [🏗️ Architecture Overview](#️-architecture-overview)
+  - [🚀 Getting Started](#-getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation \& Running](#installation--running)
+  - [⚙️ Configuration](#️-configuration)
+  - [📜 API Documentation](#-api-documentation)
+  - [🔐 Endpoints](#-endpoints)
+    - [OpenID Connect Endpoints](#openid-connect-endpoints)
+    - [Well-Known Configuration](#well-known-configuration)
+    - [User Management](#user-management)
+  - [🧪 Supported Flows](#-supported-flows)
+  - [🧑‍💻 Client Interaction Examples](#-client-interaction-examples)
+    - [Register a User](#register-a-user)
+    - [Authorization Request](#authorization-request)
+    - [Token Exchange](#token-exchange)
+  - [🛡️ Security Considerations](#️-security-considerations)
+  - [🧪 Testing](#-testing)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
 
 ---
 
@@ -103,7 +108,13 @@ The `main.go` file initializes the configuration, database, and routes, and star
     # go build autentico main.go
     ```
 
-3.  **Run the application:**
+3.  **Generate a private key certificate (optional for token signing):**
+
+    ```bash
+    openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
+    ```
+
+4.  **Run the application:**
     ```bash
     make run
     # Or directly:
