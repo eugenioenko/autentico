@@ -60,6 +60,8 @@ jobs:
           go-version: 1.23.0
       - name: Install dependencies
         run: go mod tidy
+      - name: Generate JWK keys
+        run: make generate-keys
       - name: Run tests
         run: go test -p 1 -v ./...
 
