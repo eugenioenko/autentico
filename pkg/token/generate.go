@@ -18,16 +18,31 @@ func GenerateTokens(user user.User) (*AuthToken, error) {
 	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()
 
 	accessClaims := jwt.MapClaims{
-		"sub":   user.ID,
-		"email": user.Email,
-		"sid":   sessionID,
-		"iat":   time.Now().Unix(),
-		"exp":   accessTokenExpiresAt.Unix(),
-		"aud":   config.Get().AuthDefaultClientID,
-		"iss":   config.Get().AppAuthIssuer,
+		"exp":       accessTokenExpiresAt.Unix(),
+		"iat":       time.Now().Unix(),
+		"auth_time": time.Now().Unix(),
+		"jti":       xid.New().String(),
+		"iss":       config.Get().AppAuthIssuer,
+		"aud":       config.Get().AuthAccessTokenAudience,
+		"sub":       user.ID,
+		"typ":       "Bearer",
+		"azp":       config.Get().AuthDefaultClientID,
+		"sid":       sessionID,
+		"acr":       "password",
+		"realm_access": map[string]interface{}{
+			"roles": config.Get().AuthRealmAccessRoles,
+		},
+		"scope":              "openid profile email",
+		"email_verified":     false,
+		"name":               user.Username,
+		"preferred_username": user.Username,
+		"given_name":         user.Username,
+		"family_name":        user.Username,
+		"email":              user.Email,
 	}
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	signedAccessToken, err := accessToken.SignedString([]byte(config.Get().AuthAccessTokenSecret))
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	signedAccessToken, err := accessToken.SignedString(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
 	}

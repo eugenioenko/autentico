@@ -15,8 +15,8 @@ func TestGetClientIP(t *testing.T) {
 		remoteAddr     string
 		expectedClient string
 	}{
-		{"With X-Forwarded-For", "192.168.1.1", "127.0.0.1:8080", "192.168.1.1"},
-		{"Without X-Forwarded-For", "", "127.0.0.1:8080", "127.0.0.1"},
+		{"With X-Forwarded-For", "192.168.1.1", "127.0.0.1:9999", "192.168.1.1"},
+		{"Without X-Forwarded-For", "", "127.0.0.1:9999", "127.0.0.1"},
 	}
 
 	for _, tt := range tests {

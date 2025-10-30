@@ -11,24 +11,29 @@
 
 ## Table of Contents
 
-- [✨ Features](#-features)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🏗️ Architecture Overview](#️-architecture-overview)
-- [🚀 Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Running](#installation--running)
-- [⚙️ Configuration](#️-configuration)
-- [📜 API Documentation](#-api-documentation)
-- [🔐 Endpoints](#-endpoints)
-- [🧪 Supported Flows](#-supported-flows)
-- [🧑‍💻 Client Interaction Examples](#-client-interaction-examples)
-  - [Register a User](#register-a-user)
-  - [Authorization Request](#authorization-request)
-  - [Token Exchange](#token-exchange)
-- [🛡️ Security Considerations](#️-security-considerations)
-- [🧪 Testing](#-testing)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [🔐 Autentico OIDC](#-autentico-oidc)
+  - [Table of Contents](#table-of-contents)
+  - [✨ Features](#-features)
+  - [🛠️ Tech Stack](#️-tech-stack)
+  - [🏗️ Architecture Overview](#️-architecture-overview)
+  - [🚀 Getting Started](#-getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation \& Running](#installation--running)
+  - [⚙️ Configuration](#️-configuration)
+  - [📜 API Documentation](#-api-documentation)
+  - [🔐 Endpoints](#-endpoints)
+    - [OpenID Connect Endpoints](#openid-connect-endpoints)
+    - [Well-Known Configuration](#well-known-configuration)
+    - [User Management](#user-management)
+  - [🧪 Supported Flows](#-supported-flows)
+  - [🧑‍💻 Client Interaction Examples](#-client-interaction-examples)
+    - [Register a User](#register-a-user)
+    - [Authorization Request](#authorization-request)
+    - [Token Exchange](#token-exchange)
+  - [🛡️ Security Considerations](#️-security-considerations)
+  - [🧪 Testing](#-testing)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
 
 ---
 
@@ -103,13 +108,20 @@ The `main.go` file initializes the configuration, database, and routes, and star
     # go build autentico main.go
     ```
 
-3.  **Run the application:**
+3.  **Generate a private key certificate (optional for token signing):**
+If certificate doesn't exist, the server will auto generate one
+
+    ```bash
+    openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
+    ```
+
+4.  **Run the application:**
     ```bash
     make run
     # Or directly:
     # ./autentico
     ```
-    The server will start, by default, on `http://localhost:8080`.
+    The server will start, by default, on `http://localhost:9999`.
 
 ---
 
@@ -120,7 +132,7 @@ Application settings are managed in `pkg/config/config.go`. Key configuration op
 | **Setting**                       | **Description**                                                                   | **Default Value**         |
 | --------------------------------- | --------------------------------------------------------------------------------- | ------------------------- |
 | `AppDomain`                       | The domain name of the application.                                               | `localhost`               |
-| `AppPort`                         | The port on which the application runs.                                           | `8080`                    |
+| `AppPort`                         | The port on which the application runs.                                           | `9999`                    |
 | `AppOAuthPath`                    | The base path for OAuth2 endpoints (e.g., `/oauth2`).                             | `/oauth2`                 |
 | `DbFilePath`                      | The file path for the SQLite database.                                            | `./db/auth.db`            |
 | `AuthAccessTokenSecret`           | Secret key used to sign access tokens. **Change this in production!**             | `your-secret-here`        |
@@ -219,7 +231,7 @@ Client registration is currently manual. You must add your client application's 
 Create a new user via the `/users/create` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/users/create \
+curl -X POST http://localhost:9999/users/create \
   -H "Content-Type: application/json" \
   -d '{"username": "user@example.com", "password": "SecurePassword123!", "email": "user@example.com"}'
 ```
@@ -231,7 +243,7 @@ Redirect the user to the `/oauth2/authorize` endpoint to start the login process
 **Using JavaScript:**
 
 ```javascript
-const authServerUrl = "http://localhost:8080/oauth2/authorize";
+const authServerUrl = "http://localhost:9999/oauth2/authorize";
 const params = new URLSearchParams({
   response_type: "code", // For Authorization Code Flow
   redirect_uri: "https://your-client-app.com/callback", // Must be in AuthAllowedRedirectURIs
@@ -255,7 +267,7 @@ EFFECTIVE_URL=$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
   --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
   --data-urlencode "scope=openid profile email" \
   --data-urlencode "state=xyz123abc" \
-  http://localhost:8080/oauth2/authorize)
+  http://localhost:9999/oauth2/authorize)
 
 echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 # Example for macOS: open "${EFFECTIVE_URL}"
@@ -266,7 +278,7 @@ echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 After successful authentication, the user is redirected back to your `redirect_uri` with an authorization `code`. Exchange this code for tokens at the `/oauth2/token` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST http://localhost:9999/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "code=your_received_authorization_code" \
