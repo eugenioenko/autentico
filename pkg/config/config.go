@@ -99,7 +99,7 @@ var defaultConfig = Config{
 	AuthCSRFSecureCookie:            false,
 	AuthAllowedRedirectURIs:         []string{}, // When sets, restricts redirect uris to the list
 	AuthJwkCertKeyID:                "autentico-key-1",
-	AuthJwkCertFile:                 "./db/jwk_key.pem",
+	AuthJwkCertFile:                 "./db/jwk_cert.pem",
 	SwaggerPort:                     "8888",
 	ValidationMinUsernameLength:     4,
 	ValidationMaxUsernameLength:     64,

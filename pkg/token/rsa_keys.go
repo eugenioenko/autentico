@@ -17,8 +17,12 @@ var (
 	publicKey  *rsa.PublicKey
 )
 
-func init() {
-	// Try to load from file,
+func LoadPrivateKey() {
+	if privateKey != nil {
+		return // Keys already loaded
+	}
+
+	// Try to load from file
 	keyFile := config.Get().AuthJwkCertFile
 	if _, err := os.Stat(keyFile); err == nil {
 		pemBytes, err := os.ReadFile(keyFile)
@@ -29,28 +33,33 @@ func init() {
 				if err == nil {
 					privateKey = key
 					publicKey = &key.PublicKey
+					return
 				}
 			}
 		}
 	}
 	// If not found, generate a new key pair
-	if privateKey == nil {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			log.Fatal(err)
-		}
-		privateKey = key
-		publicKey = &key.PublicKey
-		pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-		err = os.WriteFile(keyFile, pemBytes, 0600)
-		if err != nil {
-			log.Fatal(err)
-		}
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKey = key
+	publicKey = &key.PublicKey
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	err = os.WriteFile(keyFile, pemBytes, 0600)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
 func GetRSAPublicKey() *rsa.PublicKey {
+	LoadPrivateKey()
 	return publicKey
+}
+
+func GetRSAPrivateKey() *rsa.PrivateKey {
+	LoadPrivateKey()
+	return privateKey
 }
 
 func GetRSAPublicKeyJWK(kid string) map[string]string {

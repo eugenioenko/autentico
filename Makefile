@@ -25,6 +25,9 @@ test:
 lint:
 	golangci-lint run ./...
 
+# Generate RSA keys for JWK
+generate-keys:
+	openssl genpkey -algorithm RSA -out ./db/jwk_cert.pem -pkeyopt rsa_keygen_bits:2048
 
 # Generate swagger docs
 generate-docs:

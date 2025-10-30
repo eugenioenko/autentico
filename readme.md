@@ -112,7 +112,7 @@ The `main.go` file initializes the configuration, database, and routes, and star
 If certificate doesn't exist, the server will auto generate one
 
     ```bash
-    openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
+    make generate-keys
     ```
 
 4.  **Run the application:**

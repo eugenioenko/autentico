@@ -42,6 +42,7 @@ func GenerateTokens(user user.User) (*AuthToken, error) {
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	privateKey := GetRSAPrivateKey()
 	signedAccessToken, err := accessToken.SignedString(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
