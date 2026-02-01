@@ -52,6 +52,34 @@ definitions:
       message:
         type: string
     type: object
+  model.JWK:
+    properties:
+      alg:
+        description: Algorithm (e.g., RS256)
+        type: string
+      e:
+        description: Exponent (base64url-encoded)
+        type: string
+      kid:
+        description: Key ID
+        type: string
+      kty:
+        description: Key Type (e.g., RSA)
+        type: string
+      "n":
+        description: Modulus (base64url-encoded)
+        type: string
+      use:
+        description: Public Key Use (e.g., sig)
+        type: string
+    type: object
+  model.JWKSResponse:
+    properties:
+      keys:
+        items:
+          $ref: '#/definitions/model.JWK'
+        type: array
+    type: object
   model.WellKnownConfigResponse:
     properties:
       authorization_endpoint:
@@ -126,13 +154,28 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:8080
+host: localhost:9999
 info:
   contact: {}
   description: Authentication Service
   title: Autentico OIDC
   version: "1.0"
 paths:
+  /.well-known/jwks.json:
+    get:
+      consumes:
+      - application/json
+      description: Returns the JSON Web Key Set for verifying JWTs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.JWKSResponse'
+      summary: Get JWKS
+      tags:
+      - Well-Known
   /.well-known/openid-configuration:
     get:
       consumes:
@@ -217,6 +260,14 @@ paths:
             $ref: '#/definitions/introspect.IntrospectResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/model.ApiError'
         "500":

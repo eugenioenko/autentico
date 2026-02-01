@@ -126,7 +126,7 @@ The `main.go` file initializes the configuration, database, and routes, and star
     # Or directly:
     # ./autentico
     ```
-    The server will start, by default, on `http://localhost:8080`.
+    The server will start, by default, on `http://localhost:9999`.
 
 ---
 
@@ -332,7 +332,7 @@ curl -X POST http://localhost:8080/oauth2/register \
 Create a new user via the `/users/create` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/users/create \
+curl -X POST http://localhost:9999/users/create \
   -H "Content-Type: application/json" \
   -d '{"username": "user@example.com", "password": "SecurePassword123!", "email": "user@example.com"}'
 ```
@@ -344,7 +344,7 @@ Redirect the user to the `/oauth2/authorize` endpoint to start the login process
 **Using JavaScript:**
 
 ```javascript
-const authServerUrl = "http://localhost:8080/oauth2/authorize";
+const authServerUrl = "http://localhost:9999/oauth2/authorize";
 const params = new URLSearchParams({
   response_type: "code", // For Authorization Code Flow
   redirect_uri: "https://your-client-app.com/callback", // Must be in AuthAllowedRedirectURIs
@@ -368,7 +368,7 @@ EFFECTIVE_URL=$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
   --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
   --data-urlencode "scope=openid profile email" \
   --data-urlencode "state=xyz123abc" \
-  http://localhost:8080/oauth2/authorize)
+  http://localhost:9999/oauth2/authorize)
 
 echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 # Example for macOS: open "${EFFECTIVE_URL}"
@@ -404,7 +404,7 @@ curl -X POST http://localhost:8080/oauth2/token \
 **For Public Clients (no secret required):**
 
 ```bash
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST http://localhost:9999/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "code=your_received_authorization_code" \
