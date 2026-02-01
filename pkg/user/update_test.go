@@ -15,8 +15,8 @@ func TestUpdateUser(t *testing.T) {
 	user, err := CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
-	// Update the user's email
-	err = UpdateUser(user.ID, "newemail@example.com")
+	// Update the user's email and role
+	err = UpdateUser(user.ID, "newemail@example.com", user.Role)
 	assert.NoError(t, err)
 
 	// Verify the email was updated

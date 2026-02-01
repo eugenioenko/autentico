@@ -5,6 +5,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -29,6 +30,13 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	accessToken := utils.ExtractBearerToken(authHeader)
 	if accessToken == "" {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Invalid Authorization header")
+		return
+	}
+
+	// Validate the access token cryptographically
+	_, err := jwtutil.ValidateAccessToken(accessToken)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
 		return
 	}
 

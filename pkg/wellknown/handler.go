@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -24,6 +25,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		AuthorizationEndpoint: fmt.Sprintf("%s/authorize", config.AppAuthIssuer),
 		TokenEndpoint:         fmt.Sprintf("%s/token", config.AppAuthIssuer),
 		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", config.AppAuthIssuer),
+		RegistrationEndpoint:  fmt.Sprintf("%s/register", config.AppAuthIssuer),
 		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", config.AppURL),
 		ResponseTypesSupported: []string{
 			"code", "token", "id_token", "code token", "code id_token",
@@ -46,4 +48,29 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)
+}
+
+// HandleJWKS returns the JWKS (JSON Web Key Set) for OIDC clients
+// @Summary Get JWKS
+// @Description Returns the JSON Web Key Set for verifying JWTs
+// @Tags Well-Known
+// @Accept json
+// @Produce json
+// @Success 200 {object} model.JWKSResponse
+// @Router /.well-known/jwks.json [get]
+func HandleJWKS(w http.ResponseWriter, r *http.Request) {
+	kid := config.Get().AuthJwkCertKeyID
+	kMap := key.GetRSAPublicKeyJWK(kid)
+	jwk := model.JWK{
+		Kty: kMap["kty"],
+		Kid: kMap["kid"],
+		Use: kMap["use"],
+		Alg: kMap["alg"],
+		N:   kMap["n"],
+		E:   kMap["e"],
+	}
+	jwks := model.JWKSResponse{
+		Keys: []model.JWK{jwk},
+	}
+	utils.WriteApiResponse(w, jwks, http.StatusOK)
 }

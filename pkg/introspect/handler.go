@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -41,6 +42,13 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
 	if req.Token == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
+		return
+	}
+
+	// Validate the access token cryptographically
+	_, err = jwtutil.ValidateAccessToken(req.Token)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
 		return
 	}
 

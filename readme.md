@@ -1,9 +1,7 @@
-# 🔐 Autentico OIDC
 
-[![Go Version](https://img.shields.io/badge/Go-1.21-blue)](https://golang.org)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/eugenioenko/autentico/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue)](/home/enko/Documents/autentico/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
+# Autentico OIDC
+
+
 
 **Auténtico is an OpenID Connect (OIDC) authentication server built with Go, designed for developers seeking a lightweight, secure, and embeddable solution for modern identity management. It leverages SQLite for data persistence, ensuring easy integration and deployment.**
 
@@ -11,44 +9,48 @@
 
 ## Table of Contents
 
-- [✨ Features](#-features)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🏗️ Architecture Overview](#️-architecture-overview)
-- [🚀 Getting Started](#-getting-started)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture Overview](#architecture-overview)
+- [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation & Running](#installation--running)
-- [⚙️ Configuration](#️-configuration)
-- [📜 API Documentation](#-api-documentation)
-- [🔐 Endpoints](#-endpoints)
-- [🧪 Supported Flows](#-supported-flows)
-- [🧑‍💻 Client Interaction Examples](#-client-interaction-examples)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [Endpoints](#endpoints)
+- [Supported Flows](#supported-flows)
+- [Client Interaction Examples](#client-interaction-examples)
+  - [Register an OAuth2 Client](#register-an-oauth2-client-admin-only)
+  - [Register a Public Client](#register-a-public-client-spamobile)
   - [Register a User](#register-a-user)
   - [Authorization Request](#authorization-request)
   - [Token Exchange](#token-exchange)
-- [🛡️ Security Considerations](#️-security-considerations)
-- [🧪 Testing](#-testing)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [Security Considerations](#security-considerations)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## ✨ Features
+## Features
 
 Autentico provides a comprehensive suite of features for identity and access management:
 
 - **OIDC & OAuth 2.0 Compliance**: Adheres to industry-standard protocols for authentication and authorization.
 - **Authorization Code Flow**: Implements the recommended secure flow for web and mobile applications.
+- **Dynamic Client Registration**: Register and manage OAuth2 clients via REST API with support for confidential and public clients.
+- **Client Authentication**: Supports `client_secret_basic` (HTTP Basic Auth) and `client_secret_post` (form parameters) authentication methods.
 - **Refresh Token Support**: Allows clients to obtain new access tokens without re-authenticating the user.
 - **Token Introspection & Revocation**: Provides endpoints for validating and invalidating tokens (RFC 7009, RFC 7662).
 - **Secure Session Management**: Ensures robust handling of user sessions.
 - **Lightweight and Embeddable**: Built with Go and SQLite, making it easy to integrate into various environments.
 - **CSRF Protection**: Utilizes `gorilla/csrf` for protection against Cross-Site Request Forgery attacks on relevant endpoints.
-- **Modular Design**: Organized into logical packages for clear separation of concerns (e.g., `token`, `user`, `session`).
+- **Modular Design**: Organized into logical packages for clear separation of concerns (e.g., `token`, `user`, `session`, `client`).
 - **Comprehensive API Documentation**: Includes HTML API documentation and Swagger/OpenAPI specifications.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 Autentico is built with a focus on performance, security, and maintainability:
 
@@ -60,7 +62,7 @@ Autentico is built with a focus on performance, security, and maintainability:
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 Autentico follows a modular, layered architecture to promote separation of concerns and maintainability. Key components reside within the `pkg/` directory:
 
@@ -69,7 +71,8 @@ Autentico follows a modular, layered architecture to promote separation of conce
 - **`handler` (within feature packages like `authorize`, `token`, `userinfo`)**: Contains HTTP handlers responsible for request/response processing.
 - **`service` (within feature packages)**: Implements the core business logic for each feature.
 - **`model`**: Defines data structures and request/response DTOs.
-- **`middleware`**: Provides common HTTP middleware like logging, CORS, and CSRF protection.
+- **`middleware`**: Provides common HTTP middleware like logging, CORS, CSRF protection, and admin authentication.
+- **`client`**: Manages OAuth2 client registration, authentication, and validation.
 - **`session`**: Manages user session lifecycle and persistence.
 - **`token`**: Handles JWT generation, validation, introspection, and revocation.
 - **`user`**: Manages user creation, authentication, and data.
@@ -79,7 +82,7 @@ The `main.go` file initializes the configuration, database, and routes, and star
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -103,7 +106,21 @@ The `main.go` file initializes the configuration, database, and routes, and star
     # go build autentico main.go
     ```
 
-3.  **Run the application:**
+3.  **Generate a private key certificate (required for token signing):**
+
+    You can use the Makefile target:
+
+    ```bash
+    make generate-key
+    ```
+
+    Or run the original command directly:
+
+    ```bash
+    openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
+    ```
+
+4.  **Run the application:**
     ```bash
     make run
     # Or directly:
@@ -113,44 +130,69 @@ The `main.go` file initializes the configuration, database, and routes, and star
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Application settings are managed in `pkg/config/config.go`. Key configuration options include:
+Application settings are loaded from `autentico.json` at startup. Create this file in the project root directory to override default values. Only the fields you want to change need to be specified; all others will use defaults.
 
-| **Setting**                       | **Description**                                                                   | **Default Value**         |
-| --------------------------------- | --------------------------------------------------------------------------------- | ------------------------- |
-| `AppDomain`                       | The domain name of the application.                                               | `localhost`               |
-| `AppPort`                         | The port on which the application runs.                                           | `8080`                    |
-| `AppOAuthPath`                    | The base path for OAuth2 endpoints (e.g., `/oauth2`).                             | `/oauth2`                 |
-| `DbFilePath`                      | The file path for the SQLite database.                                            | `./db/auth.db`            |
-| `AuthAccessTokenSecret`           | Secret key used to sign access tokens. **Change this in production!**             | `your-secret-here`        |
-| `AuthAccessTokenExpiration`       | Duration for which access tokens are valid (e.g., `15m`, `1h`).                   | `15m`                     |
-| `AuthRefreshTokenSecret`          | Secret key used to sign refresh tokens. **Change this in production!**            | `your-secret-here`        |
-| `AuthRefreshTokenExpiration`      | Duration for which refresh tokens are valid (e.g., `7d`, `30d`).                  | `30d`                     |
-| `AuthRefreshTokenCookieName`      | Name of the cookie storing the refresh token.                                     | `autentico_refresh_token` |
-| `AuthRefreshTokenAsSecureCookie`  | If `true`, sets the Secure flag on the refresh token cookie (requires HTTPS).     | `false`                   |
-| `AuthDefaultClientID`             | Default client ID for the application if dynamic client registration is not used. | `el_autentico_!`          |
-| `AuthAuthorizationCodeExpiration` | Duration for which authorization codes are valid.                                 | `10m`                     |
-| `AuthAllowedRedirectURIs`         | A list of allowed redirect URIs for OAuth2 client flows.                          | `[]`                      |
-| `AuthCSRFProtectionSecretKey`     | 32-byte secret key for CSRF protection. **Generate and set this in production!**  | `your-secret-here`        |
-| `AuthCSRFSecureCookie`            | If `true`, sets the Secure flag on the CSRF cookie (requires HTTPS).              | `false`                   |
-| `ValidationMinUsernameLength`     | Minimum length for usernames.                                                     | `4`                       |
-| `ValidationMaxUsernameLength`     | Maximum length for usernames.                                                     | `64`                      |
-| `ValidationMinPasswordLength`     | Minimum length for passwords.                                                     | `6`                       |
-| `ValidationMaxPasswordLength`     | Maximum length for passwords.                                                     | `64`                      |
-| `ValidationUsernameIsEmail`       | If `true`, usernames must be valid email addresses.                               | `true`                    |
-| `ValidationEmailRequired`         | If `true`, email is required for user registration.                               | `false`                   |
-| `SwaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8888`                    |
+**Example `autentico.json`:**
+
+```json
+{
+  "appDomain": "myapp.example.com",
+  "appPort": "8080",
+  "appUrl": "https://myapp.example.com",
+  "authAccessTokenSecret": "your-secure-secret-here",
+  "authRefreshTokenSecret": "your-secure-refresh-secret",
+  "authCSRFProtectionSecretKey": "32-byte-csrf-secret-key-here!!",
+  "authRefreshTokenAsSecureCookie": true,
+  "authCSRFSecureCookie": true
+}
+```
+
+### Configuration Options
+
+| **JSON Field**                       | **Description**                                                                   | **Default Value**         |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ------------------------- |
+| `appDomain`                          | The domain name of the application.                                               | `localhost`               |
+| `appHost`                            | The host and port combination (e.g., `localhost:9999`).                           | `localhost:9999`          |
+| `appPort`                            | The port on which the application runs.                                           | `9999`                    |
+| `appUrl`                             | The full base URL of the application.                                             | `http://localhost:9999`   |
+| `appEnableCORS`                      | If `true`, enables CORS middleware.                                               | `true`                    |
+| `appOAuthPath`                       | The base path for OAuth2 endpoints (e.g., `/oauth2`).                             | `/oauth2`                 |
+| `appAuthIssuer`                      | The issuer URL for tokens.                                                        | `http://localhost:9999/oauth2` |
+| `dbFilePath`                         | The file path for the SQLite database.                                            | `./db/auth.db`            |
+| `authAccessTokenSecret`              | Secret key used to sign access tokens. **Change this in production!**             | `your-secret-here`        |
+| `authAccessTokenExpiration`          | Duration for which access tokens are valid (e.g., `15m`, `1h`).                   | `15m`                     |
+| `authRefreshTokenSecret`             | Secret key used to sign refresh tokens. **Change this in production!**            | `your-secret-here`        |
+| `authRefreshTokenExpiration`         | Duration for which refresh tokens are valid (e.g., `720h` for 30 days).           | `720h`                    |
+| `authRefreshTokenCookieName`         | Name of the cookie storing the refresh token.                                     | `autentico_refresh_token` |
+| `authRefreshTokenAsSecureCookie`     | If `true`, sets the Secure flag on the refresh token cookie (requires HTTPS).     | `false`                   |
+| `authDefaultClientID`                | Default client ID for the application if dynamic client registration is not used. | `el_autentico_!`          |
+| `authDefaultIssuer`                  | Default issuer override (empty uses `appAuthIssuer`).                             | `""`                      |
+| `authAuthorizationCodeExpiration`    | Duration for which authorization codes are valid.                                 | `10m`                     |
+| `authAllowedRedirectURIs`            | A list of allowed redirect URIs for OAuth2 client flows.                          | `[]`                      |
+| `authCSRFProtectionSecretKey`        | 32-byte secret key for CSRF protection. **Generate and set this in production!**  | `your-secret-here`        |
+| `authCSRFSecureCookie`               | If `true`, sets the Secure flag on the CSRF cookie (requires HTTPS).              | `false`                   |
+| `authJwkCertKeyID`                   | The key ID used in JWK (JSON Web Key) responses.                                  | `autentico-key-1`         |
+| `authPrivateKeyFile`                 | Path to the RSA private key PEM file for token signing.                           | `./db/private_key.pem`    |
+| `authAccessTokenAudience`            | List of audiences to include in access tokens.                                    | `["el_autentico_!"]`      |
+| `authRealmAccessRoles`               | List of realm access roles to include in tokens.                                  | `[]`                      |
+| `validationMinUsernameLength`        | Minimum length for usernames.                                                     | `4`                       |
+| `validationMaxUsernameLength`        | Maximum length for usernames.                                                     | `64`                      |
+| `validationMinPasswordLength`        | Minimum length for passwords.                                                     | `6`                       |
+| `validationMaxPasswordLength`        | Maximum length for passwords.                                                     | `64`                      |
+| `validationUsernameIsEmail`          | If `true`, usernames must be valid email addresses.                               | `true`                    |
+| `validationEmailRequired`            | If `true`, email is required for user registration.                               | `false`                   |
+| `swaggerPort`                        | Port on which the Swagger documentation server runs.                              | `8888`                    |
 
 ---
 
-## 📜 API Documentation
+## API Documentation
 
 Autentico provides comprehensive API documentation:
 
 1.  **Static HTML Documentation**:
     A pre-generated, detailed HTML API reference is available.
-
     - [Autentico API Documentation (GitHub Pages)](https://eugenioenko.github.io/autentico/autentico-api.html)
     - You can also find this at `/docs/autentico-api.html` in the repository.
 
@@ -165,7 +207,7 @@ Autentico provides comprehensive API documentation:
 
 ---
 
-## 🔐 Endpoints
+## Endpoints
 
 ### OpenID Connect Endpoints
 
@@ -194,9 +236,24 @@ All OAuth/OIDC endpoints are prefixed by `AppOAuthPath` (default: `/oauth2`).
 - **Create User**: `POST /users/create`
   - Registers a new user in the system.
 
+### Client Registration (Admin Only)
+
+All client registration endpoints require admin authentication via Bearer token.
+
+- **Register Client**: `POST /oauth2/register`
+  - Registers a new OAuth2 client application.
+- **List Clients**: `GET /oauth2/register`
+  - Lists all registered clients.
+- **Get Client**: `GET /oauth2/register/{client_id}`
+  - Retrieves information about a specific client.
+- **Update Client**: `PUT /oauth2/register/{client_id}`
+  - Updates a client's configuration.
+- **Delete Client**: `DELETE /oauth2/register/{client_id}`
+  - Deactivates a client (soft delete).
+
 ---
 
-## 🧪 Supported Flows
+## Supported Flows
 
 Autentico currently supports the following OAuth 2.0 grant types:
 
@@ -210,9 +267,65 @@ Autentico currently supports the following OAuth 2.0 grant types:
 
 ---
 
-## 🧑‍💻 Client Interaction Examples
+## Client Interaction Examples
 
-Client registration is currently manual. You must add your client application's redirect URI(s) to the `AuthAllowedRedirectURIs` list in the configuration (`pkg/config/config.go`).
+Autentico supports dynamic client registration via the `/oauth2/register` API. Admin users can register new OAuth2 clients, which are then validated during authorization and token flows.
+
+### Register an OAuth2 Client (Admin Only)
+
+Register a new client application. This requires an admin user's access token:
+
+```bash
+# First, obtain an admin access token (admin user must exist)
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&username=admin@example.com&password=AdminPassword123!" \
+  | jq -r '.access_token')
+
+# Register a new confidential client
+curl -X POST http://localhost:8080/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "My Application",
+    "redirect_uris": ["https://myapp.com/callback", "http://localhost:3000/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "client_type": "confidential",
+    "token_endpoint_auth_method": "client_secret_basic"
+  }'
+```
+
+**Response:**
+```json
+{
+  "client_id": "abc123xyz...",
+  "client_secret": "generated_secret_shown_once",
+  "client_secret_expires_at": 0,
+  "client_name": "My Application",
+  "client_type": "confidential",
+  "redirect_uris": ["https://myapp.com/callback", "http://localhost:3000/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "token_endpoint_auth_method": "client_secret_basic"
+}
+```
+
+> **Important**: The `client_secret` is only shown once during registration. Store it securely.
+
+### Register a Public Client (SPA/Mobile)
+
+For single-page applications or mobile apps that cannot securely store secrets:
+
+```bash
+curl -X POST http://localhost:8080/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "My SPA",
+    "redirect_uris": ["http://localhost:3000/callback"],
+    "grant_types": ["authorization_code"],
+    "client_type": "public"
+  }'
+```
 
 ### Register a User
 
@@ -263,7 +376,32 @@ echo "Open this URL in your browser: ${EFFECTIVE_URL}"
 
 ### Token Exchange
 
-After successful authentication, the user is redirected back to your `redirect_uri` with an authorization `code`. Exchange this code for tokens at the `/oauth2/token` endpoint:
+After successful authentication, the user is redirected back to your `redirect_uri` with an authorization `code`. Exchange this code for tokens at the `/oauth2/token` endpoint.
+
+**Using HTTP Basic Auth (client_secret_basic - Recommended):**
+
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -u "your_client_id:your_client_secret" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=your_received_authorization_code" \
+  -d "redirect_uri=https://your-client-app.com/callback"
+```
+
+**Using Form Parameters (client_secret_post):**
+
+```bash
+curl -X POST http://localhost:8080/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=your_received_authorization_code" \
+  -d "redirect_uri=https://your-client-app.com/callback" \
+  -d "client_id=your_client_id" \
+  -d "client_secret=your_client_secret"
+```
+
+**For Public Clients (no secret required):**
 
 ```bash
 curl -X POST http://localhost:8080/oauth2/token \
@@ -278,14 +416,15 @@ A successful response will contain `access_token`, `id_token`, `refresh_token`, 
 
 ---
 
-## 🛡️ Security Considerations
+## Security Considerations
 
 Security is a primary concern for an authentication server. Autentico incorporates several security practices:
 
 - **HTTPS**: Always deploy Autentico behind a reverse proxy configured with HTTPS in production environments to protect data in transit.
 - **Secure Cookies**: Configure `AuthRefreshTokenAsSecureCookie` and `AuthCSRFSecureCookie` to `true` when using HTTPS. This ensures these cookies are only transmitted over secure connections.
 - **CSRF Protection**: `gorilla/csrf` is used for endpoints susceptible to CSRF attacks (e.g., login form submissions). Ensure `AuthCSRFProtectionSecretKey` is a strong, unique 32-byte key.
-- **Redirect URI Validation**: Autentico strictly validates `redirect_uri` parameters against a pre-configured whitelist (`AuthAllowedRedirectURIs`) to prevent open redirector vulnerabilities.
+- **Redirect URI Validation**: Autentico strictly validates `redirect_uri` parameters against registered client redirect URIs (or the pre-configured whitelist `AuthAllowedRedirectURIs` for backward compatibility) to prevent open redirector vulnerabilities.
+- **Client Authentication**: Confidential clients must authenticate using their client secret via HTTP Basic Auth or form parameters. Client secrets are stored securely using bcrypt hashing.
 - **Strong Secret Keys**: Ensure all configured secrets (`AuthAccessTokenSecret`, `AuthRefreshTokenSecret`, `AuthCSRFProtectionSecretKey`) are cryptographically strong and kept confidential.
 - **Input Validation**: User inputs (usernames, passwords) are validated according to configured length and format rules.
 - **Regular Dependency Updates**: Keep Go and all third-party libraries updated to patch known vulnerabilities.
@@ -293,7 +432,7 @@ Security is a primary concern for an authentication server. Autentico incorporat
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Autentico includes a suite of unit and integration tests to ensure code quality and correctness. The `testify` library is used for assertions and mocking.
 
@@ -309,7 +448,8 @@ Tests cover critical functionalities such as:
 
 - Token generation, validation, and revocation.
 - User authentication and creation.
-- OIDC endpoint behavior (e.g., `/authorize`, `/token`, `/userinfo`).
+- OAuth2 client registration, authentication, and validation.
+- OIDC endpoint behavior (e.g., `/authorize`, `/token`, `/userinfo`, `/register`).
 - Session management.
 - Database interactions.
 
@@ -317,7 +457,7 @@ The `tests/` directory contains end-to-end style tests, while package-specific t
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome and appreciated! Please follow these general guidelines:
 
@@ -333,6 +473,6 @@ Please open an issue to discuss significant changes or new features before start
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License. See the `LICENSE` file in the repository for the full license text.

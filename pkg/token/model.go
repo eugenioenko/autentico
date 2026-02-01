@@ -50,16 +50,6 @@ func (r *RefreshTokenClaims) Valid() error {
 	return nil
 }
 
-type AccessTokenClaims struct {
-	UserID    string `json:"sub"`   // The ID of the user associated with the access token
-	Email     string `json:"email"` // The email of the user associated with the access token
-	SessionID string `json:"sid"`   // The session ID for which the access token is issued
-	IssuedAt  int64  `json:"iat"`   // The timestamp when the access token was issued
-	ExpiresAt int64  `json:"exp"`   // The timestamp when the access token will expire
-	Audience  string `json:"aud"`   // The audience for which the access token is intended
-	Issuer    string `json:"iss"`   // The issuer of the access token
-}
-
 func ValidateTokenRequest(input TokenRequest) error {
 	return validation.ValidateStruct(&input,
 		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password")),

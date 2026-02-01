@@ -177,6 +177,7 @@
         {{ .csrfField }}
         <input type="hidden" name="state" value="{{.State}}" />
         <input type="hidden" name="redirect" value="{{.Redirect}}" />
+        <input type="hidden" name="client_id" value="{{.ClientID}}" />
         <div class="control">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" required />

@@ -42,6 +42,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		Password: r.FormValue("password"),
 		Redirect: r.FormValue("redirect"),
 		State:    r.FormValue("state"),
+		ClientID: r.FormValue("client_id"),
 	}
 
 	err = ValidateLoginRequest(request)
@@ -71,6 +72,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	code := authcode.AuthCode{
 		Code:        authCode,
 		UserID:      usr.ID,
+		ClientID:    request.ClientID,
 		RedirectURI: request.Redirect,
 		Scope:       "read write", // TODO set this scope correctly
 		ExpiresAt:   time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),

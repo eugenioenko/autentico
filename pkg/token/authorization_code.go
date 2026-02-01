@@ -25,7 +25,13 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 
 	if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has already been used")
-		return nil, err
+		return nil, fmt.Errorf("authorization code is invalid or has already been used")
+	}
+
+	// Validate that client_id matches the one used when the code was issued
+	if code.ClientID != "" && code.ClientID != request.ClientID {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Client ID mismatch")
+		return nil, fmt.Errorf("client ID mismatch")
 	}
 
 	err = authcode.MarkAuthCodeAsUsed(request.Code)
