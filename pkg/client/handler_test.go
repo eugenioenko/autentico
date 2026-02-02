@@ -283,3 +283,82 @@ func TestExtractClientIDFromPath(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleRegisterInvalidRedirectURI(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	reqBody := ClientCreateRequest{
+		ClientName:   "Test App",
+		RedirectURIs: []string{"not-a-valid-uri"},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	HandleRegister(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect URI")
+}
+
+func TestHandleUpdateClientNotFound(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	reqBody := ClientUpdateRequest{
+		ClientName: "Updated Name",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/oauth2/register/nonexistent", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	HandleUpdateClient(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestHandleDeleteClientNotFound(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodDelete, "/oauth2/register/nonexistent", nil)
+	rr := httptest.NewRecorder()
+
+	HandleDeleteClient(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestHandleListClientsEmpty(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+
+	HandleListClients(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// Should return empty array, not null
+	var response []*ClientInfoResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Empty(t, response)
+}

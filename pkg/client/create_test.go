@@ -3,16 +3,12 @@ package client
 import (
 	"testing"
 
-	"github.com/eugenioenko/autentico/pkg/db"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
 
 	request := ClientCreateRequest{
 		ClientName:   "Test App",
@@ -33,11 +29,7 @@ func TestCreateClient(t *testing.T) {
 }
 
 func TestCreatePublicClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
 
 	request := ClientCreateRequest{
 		ClientName:   "Public App",
@@ -52,4 +44,24 @@ func TestCreatePublicClient(t *testing.T) {
 	assert.Equal(t, "Public App", response.ClientName)
 	assert.Equal(t, "public", response.ClientType)
 	assert.Equal(t, "none", response.TokenEndpointAuthMethod)
+}
+
+func TestCreateClient_Defaults(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Only provide required fields
+	request := ClientCreateRequest{
+		ClientName:   "Minimal App",
+		RedirectURIs: []string{"http://localhost/callback"},
+	}
+
+	response, err := CreateClient(request)
+	assert.NoError(t, err)
+
+	// Check defaults are applied
+	assert.Equal(t, "confidential", response.ClientType)
+	assert.Equal(t, []string{"authorization_code"}, response.GrantTypes)
+	assert.Equal(t, []string{"code"}, response.ResponseTypes)
+	assert.Equal(t, "openid profile email", response.Scopes)
+	assert.Equal(t, "client_secret_basic", response.TokenEndpointAuthMethod)
 }

@@ -29,3 +29,11 @@ func TestMarkAuthCodeAsUsed(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, used)
 }
+
+func TestMarkAuthCodeAsUsed_NonExistentCode(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Marking a non-existent code does not return an error (SQL behavior)
+	err := MarkAuthCodeAsUsed("non-existent-code")
+	assert.NoError(t, err)
+}
