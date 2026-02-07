@@ -101,3 +101,52 @@ func TestHandleUserInfoInvalidToken(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
+
+func TestHandleUserInfoInvalidAuthFormat(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid Authorization header")
+}
+
+func TestHandleUserInfoTokenNotInDB(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Generate a valid JWT but don't store it in the tokens table
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
+	`, userID, "testuser", "test@example.com", "hashedpassword")
+	assert.NoError(t, err)
+
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.Get().AppAuthIssuer,
+		"aud":   config.Get().AuthAccessTokenAudience,
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid profile email",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+signedToken)
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid or expired token")
+}

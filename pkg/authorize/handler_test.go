@@ -64,6 +64,21 @@ func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
+func TestHandleAuthorize_RedirectURINotInAllowedList(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://notallowed.com/callback&state=xyz123", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
+}
+
 func TestHandleAuthorize_InactiveClient(t *testing.T) {
 	testutils.WithTestDB(t)
 

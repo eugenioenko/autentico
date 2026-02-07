@@ -362,3 +362,219 @@ func TestHandleListClientsEmpty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, response)
 }
+
+func TestHandleGetClient_InvalidMethod(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/register/some-id", nil)
+	rr := httptest.NewRecorder()
+	HandleGetClient(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleGetClient_MissingClientID(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleGetClient(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Client ID is required")
+}
+
+func TestHandleUpdateClient_InvalidMethod(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/register/some-id", nil)
+	rr := httptest.NewRecorder()
+	HandleUpdateClient(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleUpdateClient_MissingClientID(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodPut, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleUpdateClient(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Client ID is required")
+}
+
+func TestHandleUpdateClient_InvalidJSON(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodPut, "/oauth2/register/some-id", bytes.NewReader([]byte("not json")))
+	rr := httptest.NewRecorder()
+	HandleUpdateClient(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid JSON payload")
+}
+
+func TestHandleUpdateClient_InvalidRedirectURIs(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Test App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+	})
+	assert.NoError(t, err)
+
+	reqBody := ClientUpdateRequest{
+		ClientName:   "Updated",
+		RedirectURIs: []string{"not-a-valid-uri"},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/oauth2/register/"+created.ClientID, bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandleUpdateClient(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect URI")
+}
+
+func TestHandleDeleteClient_InvalidMethod(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/register/some-id", nil)
+	rr := httptest.NewRecorder()
+	HandleDeleteClient(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleDeleteClient_MissingClientID(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodDelete, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleDeleteClient(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Client ID is required")
+}
+
+func TestHandleListClients_InvalidMethod(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleListClients(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleClientEndpoint_MethodNotAllowed_Collection(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodDelete, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleClientEndpoint(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleClientEndpoint_MethodNotAllowed_Individual(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodPatch, "/oauth2/register/some-id", nil)
+	rr := httptest.NewRecorder()
+	HandleClientEndpoint(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleClientEndpoint_PUT(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Test App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+	})
+	assert.NoError(t, err)
+
+	reqBody := ClientUpdateRequest{
+		ClientName: "Updated via Endpoint",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPut, "/oauth2/register/"+created.ClientID, bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandleClientEndpoint(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleClientEndpoint_DELETE(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Test App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+	})
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, "/oauth2/register/"+created.ClientID, nil)
+	rr := httptest.NewRecorder()
+	HandleClientEndpoint(rr, req)
+	assert.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func TestHandleClientEndpoint_ListClients(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/register", nil)
+	rr := httptest.NewRecorder()
+	HandleClientEndpoint(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}

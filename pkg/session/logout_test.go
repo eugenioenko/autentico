@@ -100,3 +100,16 @@ func TestHandleLogoutInvalidToken(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Invalid or expired token")
 }
+
+func TestHandleLogoutInvalidAuthFormat(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
+	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+	rr := httptest.NewRecorder()
+
+	HandleLogout(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid Authorization header")
+}

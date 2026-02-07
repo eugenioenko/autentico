@@ -21,3 +21,11 @@ func TestUserByID(t *testing.T) {
 	assert.Equal(t, "testuser", readUser.Username)
 	assert.Equal(t, "testuser@example.com", readUser.Email)
 }
+
+func TestUserByID_NotFound(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := UserByID("nonexistent-id")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user not found")
+}
