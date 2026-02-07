@@ -101,7 +101,7 @@ func InitConfig(path string) error {
 	cfg := defaultConfig
 	f, err := os.Open(path)
 	if err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		dec := json.NewDecoder(f)
 		// decode into a map to allow partial override
 		var overrides map[string]interface{}

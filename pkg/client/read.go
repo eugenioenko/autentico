@@ -107,7 +107,7 @@ func ListClients() ([]*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var clients []*Client
 	for rows.Next() {
