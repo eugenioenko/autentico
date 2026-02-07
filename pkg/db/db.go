@@ -74,6 +74,17 @@ var createTableSQL = `
     FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS idp_sessions (
+		id TEXT PRIMARY KEY,                                -- Unique session ID (cryptographic random)
+		user_id TEXT NOT NULL,                              -- The authenticated user
+		user_agent TEXT,                                    -- Browser/device info
+		ip_address TEXT,                                    -- Client IP address
+		last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last time session was used for auto-login
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,      -- When the session was created
+		deactivated_at DATETIME,                            -- When the session was invalidated
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE TABLE IF NOT EXISTS clients (
 		id TEXT PRIMARY KEY,                                          -- Internal unique ID
 		client_id TEXT UNIQUE NOT NULL,                               -- Public client identifier
@@ -96,6 +107,7 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS sessions;
 		DROP TABLE IF EXISTS tokens;
 		DROP TABLE IF EXISTS auth_codes;
+		DROP TABLE IF EXISTS idp_sessions;
 		DROP TABLE IF EXISTS clients;
 	`
 

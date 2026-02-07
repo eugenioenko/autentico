@@ -30,5 +30,6 @@
   "authAccessTokenAudience": [
     "el_autentico_!"
   ],
-  "authRealmAccessRoles": []
+  "authRealmAccessRoles": [],
+  "authSsoSessionIdleTimeout": "1h"
 }

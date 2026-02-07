@@ -1,10 +1,15 @@
 package authorize
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 
@@ -74,6 +79,37 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 			if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
 				utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_response_type", "Response type not allowed for this client")
 				return
+			}
+		}
+	}
+
+	// Check for valid IdP session (auto-login)
+	cfg := config.Get()
+	if cfg.AuthSsoSessionIdleTimeout > 0 {
+		sessionID := idpsession.ReadCookie(r)
+		if sessionID != "" {
+			session, err := idpsession.IdpSessionByID(sessionID)
+			if err == nil && time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout {
+				// Valid IdP session — auto-login
+				_ = idpsession.UpdateLastActivity(session.ID)
+
+				code, err := authcode.GenerateSecureCode()
+				if err == nil {
+					ac := authcode.AuthCode{
+						Code:        code,
+						UserID:      session.UserID,
+						ClientID:    request.ClientID,
+						RedirectURI: request.RedirectURI,
+						Scope:       "read write",
+						ExpiresAt:   time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+						Used:        false,
+					}
+					if authcode.CreateAuthCode(ac) == nil {
+						redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
+						http.Redirect(w, r, redirectURL, http.StatusFound)
+						return
+					}
+				}
 			}
 		}
 	}

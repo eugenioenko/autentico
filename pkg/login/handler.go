@@ -7,6 +7,7 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -61,6 +62,22 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("login failed. %v", err))
 		return
+	}
+
+	// Create IdP session if authSsoSessionIdleTimeout is enabled
+	if config.Get().AuthSsoSessionIdleTimeout > 0 {
+		sessionID, err := authcode.GenerateSecureCode()
+		if err == nil {
+			session := idpsession.IdpSession{
+				ID:        sessionID,
+				UserID:    usr.ID,
+				UserAgent: r.UserAgent(),
+				IPAddress: utils.GetClientIP(r),
+			}
+			if idpsession.CreateIdpSession(session) == nil {
+				idpsession.SetCookie(w, sessionID)
+			}
+		}
 	}
 
 	authCode, err := authcode.GenerateSecureCode()
