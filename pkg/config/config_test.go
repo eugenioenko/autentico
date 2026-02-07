@@ -106,11 +106,11 @@ func TestInitConfig_SsoSessionIdleTimeout(t *testing.T) {
 	content := []byte(`{"authSsoSessionIdleTimeout": "1h"}`)
 	tmpFile, err := os.CreateTemp("", "autentico-test-*.json")
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	_, err = tmpFile.Write(content)
 	assert.NoError(t, err)
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	err = InitConfig(tmpFile.Name())
 	assert.NoError(t, err)
