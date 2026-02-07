@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 
@@ -45,10 +46,36 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate redirect_uri
+	// Validate redirect_uri format
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
+	}
+
+	// If client_id is provided, validate against registered clients
+	var registeredClient *client.Client
+	if request.ClientID != "" {
+		registeredClient, err = client.ClientByClientID(request.ClientID)
+		if err != nil {
+			// Client not found - for backward compatibility, allow if no clients registered
+			// This maintains existing behavior for deployments without registered clients
+		} else {
+			// Client found - validate redirect_uri and response_type
+			if !registeredClient.IsActive {
+				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
+				return
+			}
+
+			if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
+				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
+				return
+			}
+
+			if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
+				utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_response_type", "Response type not allowed for this client")
+				return
+			}
+		}
 	}
 
 	tmpl, err := template.New("login").Parse(view.LoginTemplate)
@@ -60,6 +87,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"State":          request.State,
 		"Redirect":       request.RedirectURI,
+		"ClientID":       request.ClientID,
 		csrf.TemplateTag: csrf.TemplateField(r),
 	}
 

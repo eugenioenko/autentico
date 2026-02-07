@@ -9,6 +9,7 @@ import (
 	"github.com/rs/xid"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
@@ -42,7 +43,7 @@ func GenerateTokens(user user.User) (*AuthToken, error) {
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
-	signedAccessToken, err := accessToken.SignedString(privateKey)
+	signedAccessToken, err := accessToken.SignedString(key.GetPrivateKey())
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
 	}

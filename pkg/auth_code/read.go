@@ -10,14 +10,16 @@ import (
 
 func AuthCodeByCode(code string) (*AuthCode, error) {
 	query := `
-        SELECT code, user_id, redirect_uri, scope, expires_at, used, created_at
+        SELECT code, user_id, client_id, redirect_uri, scope, expires_at, used, created_at
         FROM auth_codes
         WHERE code = ?;
     `
 	var authCode AuthCode
+	var clientID sql.NullString
 	err := db.GetDB().QueryRow(query, code).Scan(
 		&authCode.Code,
 		&authCode.UserID,
+		&clientID,
 		&authCode.RedirectURI,
 		&authCode.Scope,
 		&authCode.ExpiresAt,
@@ -30,6 +32,10 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 			return nil, fmt.Errorf("authorization code not found")
 		}
 		return nil, err // Other errors
+	}
+
+	if clientID.Valid {
+		authCode.ClientID = clientID.String
 	}
 
 	return &authCode, nil

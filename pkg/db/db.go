@@ -65,12 +65,29 @@ var createTableSQL = `
 	CREATE TABLE IF NOT EXISTS auth_codes (
     code TEXT PRIMARY KEY,                    -- The actual authorization code
     user_id TEXT NOT NULL,                    -- The authenticated user
+    client_id TEXT,                           -- The client that requested the code
     redirect_uri TEXT NOT NULL,               -- Must match the one used in the initial request
     scope TEXT,                               -- Scopes associated with this code
     expires_at DATETIME NOT NULL,             -- Expiration time (typically short-lived)
     used BOOLEAN DEFAULT FALSE,               -- To prevent reuse
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS clients (
+		id TEXT PRIMARY KEY,                                          -- Internal unique ID
+		client_id TEXT UNIQUE NOT NULL,                               -- Public client identifier
+		client_secret TEXT,                                           -- Hashed secret (NULL for public clients)
+		client_name TEXT NOT NULL,                                    -- Human-readable name
+		client_type TEXT NOT NULL DEFAULT 'confidential',             -- 'confidential' or 'public'
+		redirect_uris TEXT NOT NULL,                                  -- JSON array of allowed redirect URIs
+		grant_types TEXT NOT NULL DEFAULT '["authorization_code"]',   -- JSON array of allowed grant types
+		response_types TEXT NOT NULL DEFAULT '["code"]',              -- JSON array of allowed response types
+		scopes TEXT NOT NULL DEFAULT 'openid profile email',          -- Space-separated allowed scopes
+		token_endpoint_auth_method TEXT NOT NULL DEFAULT 'client_secret_basic', -- Authentication method
+		is_active BOOLEAN DEFAULT TRUE,                               -- Whether client is active
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,                -- Creation timestamp
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP                 -- Last update timestamp
 	);
 `
 
@@ -79,6 +96,7 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS sessions;
 		DROP TABLE IF EXISTS tokens;
 		DROP TABLE IF EXISTS auth_codes;
+		DROP TABLE IF EXISTS clients;
 	`
 
 func InitDB(dbFilePath string) (*sql.DB, error) {

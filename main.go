@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/authorize"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -24,6 +25,11 @@ import (
 // @BasePath /
 
 func main() {
+
+	if err := config.InitConfig("autentico.json"); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
 	_, err := db.InitDB(config.Get().DbFilePath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -33,7 +39,7 @@ func main() {
 	oauth := config.Get().AppOAuthPath
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/users/create", user.HandleCreateUser)
+	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
@@ -46,6 +52,10 @@ func main() {
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
 	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
+
+	// Client registration endpoints (admin only)
+	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
+	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 
 	port := config.Get().AppPort
 	log.Printf("Autentico started at http://localhost:%s", port)

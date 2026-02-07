@@ -10,7 +10,7 @@ import (
 func UserByID(userID string) (*User, error) {
 	var user User
 	query := `
-		SELECT id, username, password, email, created_at
+		SELECT id, username, password, email, role, created_at
 		FROM users WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, userID)
@@ -19,6 +19,7 @@ func UserByID(userID string) (*User, error) {
 		&user.Username,
 		&user.Password,
 		&user.Email,
+		&user.Role,
 		&user.CreatedAt,
 	)
 	if err != nil {

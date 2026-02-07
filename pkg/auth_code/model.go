@@ -5,6 +5,7 @@ import "time"
 type AuthCode struct {
 	Code        string
 	UserID      string
+	ClientID    string
 	RedirectURI string
 	Scope       string
 	ExpiresAt   time.Time

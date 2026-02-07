@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -31,12 +32,18 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err := jwtutil.ValidateAccessToken(accessToken)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
+		return
+	}
+
 	query := `
 		UPDATE sessions
 		SET deactivated_at = CURRENT_TIMESTAMP
 		WHERE access_token = ?;
 	`
-	_, err := db.GetDB().Exec(query, accessToken)
+	_, err = db.GetDB().Exec(query, accessToken)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to terminate session")
 		return

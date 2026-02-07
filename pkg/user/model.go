@@ -17,6 +17,7 @@ type User struct {
 	Password  string
 	Email     string
 	CreatedAt time.Time
+	Role      string
 }
 
 type UserResponse struct {
@@ -24,6 +25,7 @@ type UserResponse struct {
 	Username  string
 	Email     string
 	CreatedAt time.Time
+	Role      string
 }
 
 // ApiUserResponse is used for Swagger documentation
@@ -36,6 +38,7 @@ type UserCreateRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Email    string `json:"email,omitempty"`
+	Role     string `json:"role,omitempty"` // optional role assignment
 }
 
 func ValidateUserCreateRequest(input UserCreateRequest) error {

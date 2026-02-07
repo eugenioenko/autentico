@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -39,11 +40,22 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract client credentials from Basic Auth or form params
+	var clientID, clientSecret string
+	if user, pass, ok := r.BasicAuth(); ok {
+		clientID = user
+		clientSecret = pass
+	} else {
+		clientID = r.FormValue("client_id")
+		clientSecret = r.FormValue("client_secret")
+	}
+
 	request := TokenRequest{
 		GrantType:    r.FormValue("grant_type"),
 		Code:         r.FormValue("code"),
 		RedirectURI:  r.FormValue("redirect_uri"),
-		ClientID:     r.FormValue("client_id"),
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 		Username:     r.FormValue("username"),
 		Password:     r.FormValue("password"),
 		RefreshToken: r.FormValue("refresh_token"),
@@ -53,6 +65,22 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 		return
+	}
+
+	// Authenticate client if client_id is provided
+	var authenticatedClient *client.Client
+	if request.ClientID != "" {
+		authenticatedClient, err = client.AuthenticateClientFromRequest(r)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
+			return
+		}
+
+		// If client was found, validate grant type
+		if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
+			return
+		}
 	}
 
 	var usr *user.User

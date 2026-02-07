@@ -1,119 +1,85 @@
 package config
 
 import (
-	"fmt"
+	"encoding/json"
+	"os"
 	"time"
 )
 
 type Config struct {
-	// AppDomain is the domain name of the application (e.g., "localhost").
-	AppDomain string
-	// AppHost is the host address combining domain and port (e.g., "localhost:9999").
-	AppHost string
-	// AppPort is the port on which the application runs (e.g., "9999").
-	AppPort string
-	// AppURL is the full URL of the application (e.g., "http://localhost:9999").
-	AppURL string
-	// AppEnableCORS determines if Cross-Origin Resource Sharing (CORS) is enabled for the application.
-	AppEnableCORS bool
-	// AppOAuthPath is the base path for OAuth2 endpoints (e.g., "/oauth2").
-	AppOAuthPath string
-	// AppAuthIssuer is the issuer URL for authentication tokens.
-	AppAuthIssuer string
-	// DbFilePath is the file path for the SQLite database.
-	DbFilePath string
-	// AuthAccessTokenSecret is the secret key used to sign access tokens.
-	AuthAccessTokenSecret string
-	// AuthAccessTokenExpiration is the duration for which access tokens are valid.
-	AuthAccessTokenExpiration time.Duration
-	// AuthRefreshTokenSecret is the secret key used to sign refresh tokens.
-	AuthRefreshTokenSecret string
-	// AuthRefreshTokenExpiration is the duration for which refresh tokens are valid.
-	AuthRefreshTokenExpiration time.Duration
-	// AuthRefreshTokenCookieName is the name of the cookie storing the refresh token.
-	AuthRefreshTokenCookieName string
-	// AuthRefreshTokenAsSecureCookie determines if the refresh token cookie is secure.
-	AuthRefreshTokenAsSecureCookie bool
-	// AuthDefaultClientID is the default client ID for the application.
-	AuthDefaultClientID string
-	// AuthDefaultIssuer is the default issuer for authentication.
-	AuthDefaultIssuer string
-	// AuthAuthorizationCodeExpiration is the duration for which authorization codes are valid.
-	AuthAuthorizationCodeExpiration time.Duration
-	// AuthCSRFProtectionSecretKey is the secret key used for CSRF protection.
-	AuthCSRFProtectionSecretKey string
-	// AuthCSRFSecureCookie determines if the CSRF cookie is secure.
-	AuthCSRFSecureCookie bool
-	// AuthAllowedRedirectURIs is a list of allowed redirect URIs for OAuth2 flows.
-	AuthAllowedRedirectURIs []string
-	// AuthJwkCertKeyID is the key ID for the JSON Web Key (JWK) used in OIDC.
-	AuthJwkCertKeyID string
-	// AuthJwkCertFile is the file path to the certificate file for JWK.
-	AuthJwkCertFile string
-	// SwaggerPort is the port on which the Swagger documentation server runs.
-	SwaggerPort string
-	// ValidationMinUsernameLength is the minimum length for usernames.
-	ValidationMinUsernameLength int
-	// ValidationMaxUsernameLength is the maximum length for usernames.
-	ValidationMaxUsernameLength int
-	// ValidationMinPasswordLength is the minimum length for passwords.
-	ValidationMinPasswordLength int
-	// ValidationMaxPasswordLength is the maximum length for passwords.
-	ValidationMaxPasswordLength int
-	// ValidationUsernameIsEmail determines if usernames must be valid email addresses.
-	ValidationUsernameIsEmail bool
-	// ValidationEmailRequired determines if email is required for user registration.
-	ValidationEmailRequired bool
-	// AuthAccessTokenAudience is the audience claim for access tokens.
-	AuthAccessTokenAudience []string
-	// AuthRealmAccessRoles is the list of roles for realm_access claim in access tokens.
-	AuthRealmAccessRoles []string
+	AppDomain                          string        `json:"appDomain"`
+	AppHost                            string        `json:"appHost"`
+	AppPort                            string        `json:"appPort"`
+	AppURL                             string        `json:"appUrl"`
+	AppEnableCORS                      bool          `json:"appEnableCORS"`
+	AppOAuthPath                       string        `json:"appOAuthPath"`
+	AppAuthIssuer                      string        `json:"appAuthIssuer"`
+	DbFilePath                         string        `json:"dbFilePath"`
+	AuthAccessTokenSecret              string        `json:"authAccessTokenSecret"`
+	AuthAccessTokenExpiration          time.Duration `json:"-"`
+	AuthAccessTokenExpirationStr       string        `json:"authAccessTokenExpiration"`
+	AuthRefreshTokenSecret             string        `json:"authRefreshTokenSecret"`
+	AuthRefreshTokenExpiration         time.Duration `json:"-"`
+	AuthRefreshTokenExpirationStr      string        `json:"authRefreshTokenExpiration"`
+	AuthRefreshTokenCookieName         string        `json:"authRefreshTokenCookieName"`
+	AuthRefreshTokenAsSecureCookie     bool          `json:"authRefreshTokenAsSecureCookie"`
+	AuthDefaultClientID                string        `json:"authDefaultClientID"`
+	AuthDefaultIssuer                  string        `json:"authDefaultIssuer"`
+	AuthAuthorizationCodeExpiration    time.Duration `json:"-"`
+	AuthAuthorizationCodeExpirationStr string        `json:"authAuthorizationCodeExpiration"`
+	AuthCSRFProtectionSecretKey        string        `json:"authCSRFProtectionSecretKey"`
+	AuthCSRFSecureCookie               bool          `json:"authCSRFSecureCookie"`
+	AuthAllowedRedirectURIs            []string      `json:"authAllowedRedirectURIs"`
+	AuthJwkCertKeyID                   string        `json:"authJwkCertKeyID"`
+	AuthPrivateKeyFile                 string        `json:"authPrivateKeyFile"`
+	SwaggerPort                        string        `json:"swaggerPort"`
+	ValidationMinUsernameLength        int           `json:"validationMinUsernameLength"`
+	ValidationMaxUsernameLength        int           `json:"validationMaxUsernameLength"`
+	ValidationMinPasswordLength        int           `json:"validationMinPasswordLength"`
+	ValidationMaxPasswordLength        int           `json:"validationMaxPasswordLength"`
+	ValidationUsernameIsEmail          bool          `json:"validationUsernameIsEmail"`
+	ValidationEmailRequired            bool          `json:"validationEmailRequired"`
+	AuthAccessTokenAudience            []string      `json:"authAccessTokenAudience"`
+	AuthRealmAccessRoles               []string      `json:"authRealmAccessRoles"`
 }
 
-const (
-	appProtocol         = "http://"
-	appDomain           = "localhost"
-	appPort             = "9999"
-	appOAuthPath        = "/oauth2"
-	authDefaultClientID = "el_autentico_!"
-)
-
 var defaultConfig = Config{
-	AppDomain:                       appDomain,
-	AppHost:                         fmt.Sprintf("%s:%s", appDomain, appPort),
-	AppPort:                         appPort,
-	AppURL:                          fmt.Sprintf("%s%s:%s", appProtocol, appDomain, appPort),
-	AppEnableCORS:                   true,
-	AppOAuthPath:                    appOAuthPath,
-	AppAuthIssuer:                   fmt.Sprintf("%s%s:%s%s", appProtocol, appDomain, appPort, appOAuthPath),
-	DbFilePath:                      "./db/auth.db",
-	AuthAccessTokenSecret:           "your-secret-here",
-	AuthAccessTokenExpiration:       15 * time.Minute,
-	AuthRefreshTokenSecret:          "your-secret-here",
-	AuthRefreshTokenExpiration:      30 * 24 * time.Hour,
-	AuthRefreshTokenCookieName:      "autentico_refresh_token",
-	AuthRefreshTokenAsSecureCookie:  false,
-	AuthDefaultClientID:             authDefaultClientID,
-	AuthAuthorizationCodeExpiration: 10 * time.Minute,
-	AuthCSRFProtectionSecretKey:     "your-secret-here",
-	AuthCSRFSecureCookie:            false,
-	AuthAllowedRedirectURIs:         []string{}, // When sets, restricts redirect uris to the list
-	AuthJwkCertKeyID:                "autentico-key-1",
-	AuthJwkCertFile:                 "./db/jwk_key.pem",
-	SwaggerPort:                     "8888",
-	ValidationMinUsernameLength:     4,
-	ValidationMaxUsernameLength:     64,
-	ValidationMinPasswordLength:     6,
-	ValidationMaxPasswordLength:     64,
-	ValidationUsernameIsEmail:       true,
-	ValidationEmailRequired:         false,
+	AppDomain:                          "localhost",
+	AppHost:                            "localhost:9999",
+	AppPort:                            "9999",
+	AppURL:                             "http://localhost:9999",
+	AppEnableCORS:                      true,
+	AppOAuthPath:                       "/oauth2",
+	AppAuthIssuer:                      "http://localhost:9999/oauth2",
+	DbFilePath:                         "./db/auth.db",
+	AuthAccessTokenSecret:              "your-secret-here",
+	AuthAccessTokenExpiration:          15 * time.Minute,
+	AuthAccessTokenExpirationStr:       "15m",
+	AuthRefreshTokenSecret:             "your-secret-here",
+	AuthRefreshTokenExpiration:         30 * 24 * time.Hour,
+	AuthRefreshTokenExpirationStr:      "720h",
+	AuthRefreshTokenCookieName:         "autentico_refresh_token",
+	AuthRefreshTokenAsSecureCookie:     false,
+	AuthDefaultClientID:                "el_autentico_!",
+	AuthDefaultIssuer:                  "",
+	AuthAuthorizationCodeExpiration:    10 * time.Minute,
+	AuthAuthorizationCodeExpirationStr: "10m",
+	AuthCSRFProtectionSecretKey:        "your-secret-here",
+	AuthCSRFSecureCookie:               false,
+	AuthAllowedRedirectURIs:            []string{},
+	AuthJwkCertKeyID:                   "autentico-key-1",
+	AuthPrivateKeyFile:                 "./db/private_key.pem",
+	SwaggerPort:                        "8888",
+	ValidationMinUsernameLength:        4,
+	ValidationMaxUsernameLength:        64,
+	ValidationMinPasswordLength:        6,
+	ValidationMaxPasswordLength:        64,
+	ValidationUsernameIsEmail:          true,
+	ValidationEmailRequired:            false,
 	AuthAccessTokenAudience: []string{
-		authDefaultClientID,
-		"http://localhost:9999",
+		"el_autentico_!",
 	},
-	AuthRealmAccessRoles: []string{
-		"user",
-	},
+	AuthRealmAccessRoles: []string{},
 }
 
 var Values = defaultConfig
@@ -122,6 +88,37 @@ func Get() *Config {
 	return &Values
 }
 
+// InitConfig loads config from autentico.json and sets Values
+func InitConfig(path string) error {
+	cfg := defaultConfig
+	f, err := os.Open(path)
+	if err == nil {
+		defer f.Close()
+		dec := json.NewDecoder(f)
+		// decode into a map to allow partial override
+		var overrides map[string]interface{}
+		if err := dec.Decode(&overrides); err == nil {
+			// re-marshal and unmarshal into cfg to override only provided fields
+			b, _ := json.Marshal(overrides)
+			json.Unmarshal(b, &cfg)
+		}
+	}
+	// Parse durations from string fields
+	parseDuration := func(s string, fallback time.Duration) time.Duration {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return fallback
+		}
+		return d
+	}
+	cfg.AuthAccessTokenExpiration = parseDuration(cfg.AuthAccessTokenExpirationStr, defaultConfig.AuthAccessTokenExpiration)
+	cfg.AuthRefreshTokenExpiration = parseDuration(cfg.AuthRefreshTokenExpirationStr, defaultConfig.AuthRefreshTokenExpiration)
+	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
+	Values = cfg
+	return nil
+}
+
+// GetOriginal returns the default config for test override purposes
 func GetOriginal() Config {
 	return defaultConfig
 }

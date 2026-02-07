@@ -41,3 +41,6 @@ docker-build:
 
 docker-compose:
 	docker compose up -d
+
+generate-key:
+	openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
