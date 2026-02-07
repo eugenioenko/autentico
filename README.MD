@@ -1,9 +1,7 @@
 
-# Autentico OIDC
+# Autentico - OIDC Identity Provider
 
-
-
-**Auténtico is an OpenID Connect (OIDC) authentication server built with Go, designed for developers seeking a lightweight, secure, and embeddable solution for modern identity management. It leverages SQLite for data persistence, ensuring easy integration and deployment.**
+**Auténtico is a lightweight OpenID Connect (OIDC) Identity Provider (IdP) built with Go. It provides standards-compliant authentication and identity management for your applications, issuing and managing identity tokens, access tokens, and user sessions. Auténtico uses SQLite for persistence, making it easy to deploy as a standalone IdP without external database dependencies.**
 
 ---
 
@@ -18,7 +16,7 @@
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
 - [Endpoints](#endpoints)
-- [Supported Flows](#supported-flows)
+- [Supported Grant Types](#supported-grant-types)
 - [Client Interaction Examples](#client-interaction-examples)
   - [Register an OAuth2 Client](#register-an-oauth2-client-admin-only)
   - [Register a Public Client](#register-a-public-client-spamobile)
@@ -34,51 +32,53 @@
 
 ## Features
 
-Autentico provides a comprehensive suite of features for identity and access management:
+Autentico provides a full-featured OIDC Identity Provider with the following capabilities:
 
-- **OIDC & OAuth 2.0 Compliance**: Adheres to industry-standard protocols for authentication and authorization.
+- **OIDC Discovery**: Publishes `/.well-known/openid-configuration` so relying parties can auto-discover endpoints, supported scopes, and signing keys.
+- **ID Token Issuance**: Issues RS256-signed ID tokens containing standard OIDC claims (`sub`, `iss`, `aud`, `exp`, `iat`, `nonce`).
+- **UserInfo Endpoint**: Serves authenticated identity claims via `/oauth2/userinfo` per the OIDC Core specification.
+- **JWK Set Endpoint**: Exposes public signing keys at `/oauth2/certs` for token verification by relying parties.
 - **Authorization Code Flow**: Implements the recommended secure flow for web and mobile applications.
-- **Dynamic Client Registration**: Register and manage OAuth2 clients via REST API with support for confidential and public clients.
+- **Dynamic Client Registration**: Register and manage OAuth2 clients (relying parties) via REST API with support for confidential and public client types.
 - **Client Authentication**: Supports `client_secret_basic` (HTTP Basic Auth) and `client_secret_post` (form parameters) authentication methods.
-- **Refresh Token Support**: Allows clients to obtain new access tokens without re-authenticating the user.
+- **Refresh Token Support**: Allows relying parties to obtain new access tokens without re-authenticating the user.
 - **Token Introspection & Revocation**: Provides endpoints for validating and invalidating tokens (RFC 7009, RFC 7662).
-- **Secure Session Management**: Ensures robust handling of user sessions.
-- **Lightweight and Embeddable**: Built with Go and SQLite, making it easy to integrate into various environments.
+- **Session Management**: Manages user sessions with configurable idle timeouts and logout support.
+- **Lightweight & Self-Contained**: Single binary with embedded SQLite — no external database or infrastructure required.
 - **CSRF Protection**: Utilizes `gorilla/csrf` for protection against Cross-Site Request Forgery attacks on relevant endpoints.
-- **Modular Design**: Organized into logical packages for clear separation of concerns (e.g., `token`, `user`, `session`, `client`).
-- **Comprehensive API Documentation**: Includes HTML API documentation and Swagger/OpenAPI specifications.
 
 ---
 
 ## Tech Stack
 
-Autentico is built with a focus on performance, security, and maintainability:
-
-- **Go (Golang)**: Chosen for its performance, concurrency features, and suitability for building robust backend services. The standard library and strong type system contribute to a reliable codebase.
-- **SQLite**: Selected as the database backend for its simplicity, embeddability, and ease of setup. Ideal for single-server deployments or applications where a full-fledged database server is an overkill.
-- **Gorilla Toolkit**: Specifically `gorilla/csrf` for CSRF protection, known for their robustness and wide adoption in the Go community.
-- **Testify**: Used for assertions and mocking in unit and integration tests, facilitating comprehensive test coverage.
-- **Swagger/OpenAPI**: For API design, documentation, and generation, ensuring clear and usable API contracts.
+- **Go (Golang)**: Single-binary deployment with strong performance and type safety.
+- **SQLite**: Embedded database — no external database server required.
+- **RS256 (RSA) JWT Signing**: Industry-standard asymmetric signing for ID and access tokens.
+- **Gorilla Toolkit**: CSRF protection middleware.
+- **Testify**: Test assertions and mocking.
+- **Swagger/OpenAPI**: Interactive API documentation.
 
 ---
 
 ## Architecture Overview
 
-Autentico follows a modular, layered architecture to promote separation of concerns and maintainability. Key components reside within the `pkg/` directory:
+Autentico is structured as a modular Go application. Each package in `pkg/` encapsulates a distinct area of IdP functionality:
 
-- **`config`**: Manages application configuration, loaded at startup.
-- **`db`**: Handles database interactions, abstracting SQLite operations.
-- **`handler` (within feature packages like `authorize`, `token`, `userinfo`)**: Contains HTTP handlers responsible for request/response processing.
-- **`service` (within feature packages)**: Implements the core business logic for each feature.
-- **`model`**: Defines data structures and request/response DTOs.
-- **`middleware`**: Provides common HTTP middleware like logging, CORS, CSRF protection, and admin authentication.
-- **`client`**: Manages OAuth2 client registration, authentication, and validation.
-- **`session`**: Manages user session lifecycle and persistence.
-- **`token`**: Handles JWT generation, validation, introspection, and revocation.
-- **`user`**: Manages user creation, authentication, and data.
-- **`wellknown`**: Serves the OIDC discovery document.
+| Package | IdP Role |
+|---------|----------|
+| `pkg/authorize` | Handles the OIDC authorization endpoint — renders the login page and initiates the auth flow |
+| `pkg/login` | Processes user authentication and issues authorization codes |
+| `pkg/token` | Token endpoint — issues ID tokens, access tokens, and refresh tokens; handles introspection and revocation |
+| `pkg/wellknown` | Serves the OIDC discovery document (`/.well-known/openid-configuration`) |
+| `pkg/key` | RSA key management and JWK Set generation for token verification |
+| `pkg/client` | OAuth2 client (relying party) registration and management |
+| `pkg/user` | User identity storage and credential management |
+| `pkg/session` | User session lifecycle, idle timeouts, and logout |
+| `pkg/middleware` | HTTP middleware (CORS, CSRF, logging, authentication) |
+| `pkg/config` | Application configuration |
+| `pkg/db` | SQLite database initialization and schema |
 
-The `main.go` file initializes the configuration, database, and routes, and starts the HTTP server. Static assets like the login page are served from the `view/` directory.
+The `main.go` file initializes the configuration, database, and routes, and starts the HTTP server. The login page is served from the `view/` directory.
 
 ---
 
@@ -209,67 +209,52 @@ Autentico provides comprehensive API documentation:
 
 ## Endpoints
 
-### OpenID Connect Endpoints
+### OIDC Discovery & Identity
 
-All OAuth/OIDC endpoints are prefixed by `AppOAuthPath` (default: `/oauth2`).
-
-- **Authorization**: `GET /oauth2/authorize`
-  - Initiates the OIDC authentication and authorization flow.
-- **Token**: `POST /oauth2/token`
-  - Exchanges an authorization code (or refresh token) for an access token (and optionally a new refresh token).
-- **User Info**: `GET /oauth2/userinfo`
-  - Retrieves claims about the authenticated user. Requires a valid access token.
-- **Token Revocation**: `POST /oauth2/revoke` (RFC 7009)
-  - Revokes an access token or refresh token.
-- **Token Introspection**: `POST /oauth2/introspect` (RFC 7662)
-  - Checks the validity and metadata of an access token or refresh token.
-- **Logout**: `POST /oauth2/logout`
-  - Logs out the user by invalidating their session.
-
-### Well-Known Configuration
-
-- **OIDC Discovery**: `GET /.well-known/openid-configuration`
-  - Provides metadata about the OIDC provider's configuration, allowing clients to dynamically discover endpoints and capabilities.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/.well-known/openid-configuration` | GET | OIDC discovery document — relying parties use this to auto-configure |
+| `/oauth2/certs` | GET | JWK Set — public keys for verifying tokens issued by this IdP |
+| `/oauth2/authorize` | GET | Authorization endpoint — initiates the authentication flow |
+| `/oauth2/token` | POST | Token endpoint — issues ID tokens, access tokens, and refresh tokens |
+| `/oauth2/userinfo` | GET | UserInfo endpoint — returns identity claims for the authenticated user |
+| `/oauth2/introspect` | POST | Token introspection (RFC 7662) |
+| `/oauth2/revoke` | POST | Token revocation (RFC 7009) |
+| `/oauth2/logout` | POST | Ends the user session |
 
 ### User Management
 
-- **Create User**: `POST /users/create`
-  - Registers a new user in the system.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/users/create` | POST | Register a new user identity |
 
 ### Client Registration (Admin Only)
 
-All client registration endpoints require admin authentication via Bearer token.
+Relying parties (OAuth2 clients) are managed via these endpoints. All require admin authentication.
 
-- **Register Client**: `POST /oauth2/register`
-  - Registers a new OAuth2 client application.
-- **List Clients**: `GET /oauth2/register`
-  - Lists all registered clients.
-- **Get Client**: `GET /oauth2/register/{client_id}`
-  - Retrieves information about a specific client.
-- **Update Client**: `PUT /oauth2/register/{client_id}`
-  - Updates a client's configuration.
-- **Delete Client**: `DELETE /oauth2/register/{client_id}`
-  - Deactivates a client (soft delete).
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/oauth2/register` | POST | Register a new relying party |
+| `/oauth2/register` | GET | List all registered relying parties |
+| `/oauth2/register/{client_id}` | GET | Get a specific relying party |
+| `/oauth2/register/{client_id}` | PUT | Update a relying party's configuration |
+| `/oauth2/register/{client_id}` | DELETE | Deactivate a relying party (soft delete) |
 
 ---
 
-## Supported Flows
+## Supported Grant Types
 
-Autentico currently supports the following OAuth 2.0 grant types:
+Autentico supports the following OAuth 2.0 / OIDC grant types:
 
-- **Authorization Code Flow**:
-  - The primary and most secure flow for web applications and native/mobile apps.
-- **Resource Owner Password Credentials Flow**:
-  - Allows exchanging a user's credentials directly for an access token.
-  - **Note**: This flow is generally discouraged for new applications due to security risks but is provided for legacy compatibility or specific trusted client scenarios.
-- **Refresh Token Grant**:
-  - Used to obtain a new access token using a refresh token.
+- **Authorization Code** — The recommended flow for web and native applications. The IdP authenticates the user, issues an authorization code, and the relying party exchanges it for ID + access tokens.
+- **Resource Owner Password Credentials** — Direct credential exchange. Provided for trusted or legacy clients; not recommended for new applications.
+- **Refresh Token** — Obtain new access tokens without re-authenticating the user.
 
 ---
 
 ## Client Interaction Examples
 
-Autentico supports dynamic client registration via the `/oauth2/register` API. Admin users can register new OAuth2 clients, which are then validated during authorization and token flows.
+Autentico supports dynamic client registration via the `/oauth2/register` API. Admin users can register relying parties (OAuth2 clients), which are then validated during authorization and token flows.
 
 ### Register an OAuth2 Client (Admin Only)
 
@@ -418,42 +403,27 @@ A successful response will contain `access_token`, `id_token`, `refresh_token`, 
 
 ## Security Considerations
 
-Security is a primary concern for an authentication server. Autentico incorporates several security practices:
+As an Identity Provider, Autentico is a critical trust boundary. The following practices apply:
 
-- **HTTPS**: Always deploy Autentico behind a reverse proxy configured with HTTPS in production environments to protect data in transit.
-- **Secure Cookies**: Configure `AuthRefreshTokenAsSecureCookie` and `AuthCSRFSecureCookie` to `true` when using HTTPS. This ensures these cookies are only transmitted over secure connections.
-- **CSRF Protection**: `gorilla/csrf` is used for endpoints susceptible to CSRF attacks (e.g., login form submissions). Ensure `AuthCSRFProtectionSecretKey` is a strong, unique 32-byte key.
-- **Redirect URI Validation**: Autentico strictly validates `redirect_uri` parameters against registered client redirect URIs (or the pre-configured whitelist `AuthAllowedRedirectURIs` for backward compatibility) to prevent open redirector vulnerabilities.
-- **Client Authentication**: Confidential clients must authenticate using their client secret via HTTP Basic Auth or form parameters. Client secrets are stored securely using bcrypt hashing.
-- **Strong Secret Keys**: Ensure all configured secrets (`AuthAccessTokenSecret`, `AuthRefreshTokenSecret`, `AuthCSRFProtectionSecretKey`) are cryptographically strong and kept confidential.
-- **Input Validation**: User inputs (usernames, passwords) are validated according to configured length and format rules.
-- **Regular Dependency Updates**: Keep Go and all third-party libraries updated to patch known vulnerabilities.
-- **Principle of Least Privilege**: Tokens should be requested with the minimum necessary scopes.
+- **HTTPS**: Always deploy behind a reverse proxy with TLS in production. An IdP must never serve tokens over plaintext.
+- **Secure Cookies**: Set `AuthRefreshTokenAsSecureCookie` and `AuthCSRFSecureCookie` to `true` when using HTTPS.
+- **CSRF Protection**: `gorilla/csrf` protects interactive endpoints (login form). Use a strong, unique 32-byte `AuthCSRFProtectionSecretKey`.
+- **Redirect URI Validation**: Strictly validates `redirect_uri` against registered client URIs to prevent open redirector attacks.
+- **Client Authentication**: Confidential relying parties authenticate via client secret (HTTP Basic Auth or form parameters). Secrets are bcrypt-hashed at rest.
+- **Strong Secret Keys**: All configured secrets (`AuthAccessTokenSecret`, `AuthRefreshTokenSecret`, `AuthCSRFProtectionSecretKey`) must be cryptographically strong.
+- **RS256 Token Signing**: Tokens are signed with RSA private keys. Only the IdP holds the private key; relying parties verify using the public JWK Set.
+- **Input Validation**: Usernames and passwords are validated according to configured length and format rules.
 
 ---
 
 ## Testing
 
-Autentico includes a suite of unit and integration tests to ensure code quality and correctness. The `testify` library is used for assertions and mocking.
-
-**Run the test suite:**
-
 ```bash
 make test
-# Or directly using Go:
-# go test ./...
+# Or: go test -p 1 -v ./...
 ```
 
-Tests cover critical functionalities such as:
-
-- Token generation, validation, and revocation.
-- User authentication and creation.
-- OAuth2 client registration, authentication, and validation.
-- OIDC endpoint behavior (e.g., `/authorize`, `/token`, `/userinfo`, `/register`).
-- Session management.
-- Database interactions.
-
-The `tests/` directory contains end-to-end style tests, while package-specific tests reside alongside the source code (e.g., `pkg/token/create_test.go`).
+Tests cover IdP-critical functionality: token issuance and validation, authorization code flow, client registration and authentication, user identity management, session lifecycle, and OIDC endpoint behavior.
 
 ---
 
