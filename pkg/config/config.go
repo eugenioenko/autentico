@@ -41,6 +41,10 @@ type Config struct {
 	ValidationEmailRequired            bool          `json:"validationEmailRequired"`
 	AuthAccessTokenAudience            []string      `json:"authAccessTokenAudience"`
 	AuthRealmAccessRoles               []string      `json:"authRealmAccessRoles"`
+	AuthSsoSessionIdleTimeout          time.Duration `json:"-"`
+	AuthSsoSessionIdleTimeoutStr       string        `json:"authSsoSessionIdleTimeout"`
+	AuthIdpSessionCookieName           string        `json:"authIdpSessionCookieName"`
+	AuthIdpSessionSecureCookie         bool          `json:"authIdpSessionSecureCookie"`
 }
 
 var defaultConfig = Config{
@@ -79,7 +83,11 @@ var defaultConfig = Config{
 	AuthAccessTokenAudience: []string{
 		"el_autentico_!",
 	},
-	AuthRealmAccessRoles: []string{},
+	AuthRealmAccessRoles:       []string{},
+	AuthSsoSessionIdleTimeout:      0,
+	AuthSsoSessionIdleTimeoutStr:   "0",
+	AuthIdpSessionCookieName:   "autentico_idp_session",
+	AuthIdpSessionSecureCookie: false,
 }
 
 var Values = defaultConfig
@@ -114,6 +122,7 @@ func InitConfig(path string) error {
 	cfg.AuthAccessTokenExpiration = parseDuration(cfg.AuthAccessTokenExpirationStr, defaultConfig.AuthAccessTokenExpiration)
 	cfg.AuthRefreshTokenExpiration = parseDuration(cfg.AuthRefreshTokenExpirationStr, defaultConfig.AuthRefreshTokenExpiration)
 	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
+	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
 	Values = cfg
 	return nil
 }

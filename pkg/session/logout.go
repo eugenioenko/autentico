@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -47,6 +48,13 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to terminate session")
 		return
+	}
+
+	// Deactivate IdP session and clear cookie if present
+	idpSessionID := idpsession.ReadCookie(r)
+	if idpSessionID != "" {
+		_ = idpsession.DeactivateIdpSession(idpSessionID)
+		idpsession.ClearCookie(w)
 	}
 
 	utils.SuccessResponse(w, "ok", http.StatusOK)
