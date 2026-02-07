@@ -11,8 +11,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
-	"github.com/rs/xid"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
 )

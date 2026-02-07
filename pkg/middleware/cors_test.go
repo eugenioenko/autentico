@@ -11,7 +11,7 @@ import (
 func TestCORSMiddleware(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	wrapped := CORSMiddleware(handler)
@@ -30,7 +30,7 @@ func TestCORSMiddleware(t *testing.T) {
 func TestCORSMiddlewareOptionsRequest(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Should not be called"))
+		_, _ = w.Write([]byte("Should not be called"))
 	})
 
 	wrapped := CORSMiddleware(handler)

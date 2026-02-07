@@ -83,11 +83,11 @@ var defaultConfig = Config{
 	AuthAccessTokenAudience: []string{
 		"el_autentico_!",
 	},
-	AuthRealmAccessRoles:       []string{},
-	AuthSsoSessionIdleTimeout:      0,
-	AuthSsoSessionIdleTimeoutStr:   "0",
-	AuthIdpSessionCookieName:   "autentico_idp_session",
-	AuthIdpSessionSecureCookie: false,
+	AuthRealmAccessRoles:         []string{},
+	AuthSsoSessionIdleTimeout:    0,
+	AuthSsoSessionIdleTimeoutStr: "0",
+	AuthIdpSessionCookieName:     "autentico_idp_session",
+	AuthIdpSessionSecureCookie:   false,
 }
 
 var Values = defaultConfig
@@ -101,14 +101,14 @@ func InitConfig(path string) error {
 	cfg := defaultConfig
 	f, err := os.Open(path)
 	if err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		dec := json.NewDecoder(f)
 		// decode into a map to allow partial override
 		var overrides map[string]interface{}
 		if err := dec.Decode(&overrides); err == nil {
 			// re-marshal and unmarshal into cfg to override only provided fields
 			b, _ := json.Marshal(overrides)
-			json.Unmarshal(b, &cfg)
+			_ = json.Unmarshal(b, &cfg)
 		}
 	}
 	// Parse durations from string fields
