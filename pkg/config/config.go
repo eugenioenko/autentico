@@ -83,11 +83,11 @@ var defaultConfig = Config{
 	AuthAccessTokenAudience: []string{
 		"el_autentico_!",
 	},
-	AuthRealmAccessRoles:       []string{},
-	AuthSsoSessionIdleTimeout:      0,
-	AuthSsoSessionIdleTimeoutStr:   "0",
-	AuthIdpSessionCookieName:   "autentico_idp_session",
-	AuthIdpSessionSecureCookie: false,
+	AuthRealmAccessRoles:         []string{},
+	AuthSsoSessionIdleTimeout:    0,
+	AuthSsoSessionIdleTimeoutStr: "0",
+	AuthIdpSessionCookieName:     "autentico_idp_session",
+	AuthIdpSessionSecureCookie:   false,
 }
 
 var Values = defaultConfig

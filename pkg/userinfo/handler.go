@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/introspect"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 

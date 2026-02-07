@@ -31,5 +31,7 @@
     "el_autentico_!"
   ],
   "authRealmAccessRoles": [],
-  "authSsoSessionIdleTimeout": "1h"
+  "authSsoSessionIdleTimeout": "1h",
+  "authIdpSessionCookieName": "autentico_idp_session",
+  "authIdpSessionSecureCookie": false
 }
