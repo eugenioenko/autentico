@@ -43,3 +43,45 @@ func TestSessionByID(t *testing.T) {
 	assert.WithinDuration(t, testSession.CreatedAt, retrievedSession.CreatedAt, time.Second)
 	assert.WithinDuration(t, testSession.ExpiresAt, retrievedSession.ExpiresAt, time.Second)
 }
+
+func TestSessionByID_NotFound(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	result, err := SessionByID("nonexistent-session")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "session not found")
+}
+
+func TestSessionByAccessToken(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	testSession := Session{
+		ID:           "token-session-id",
+		UserID:       "test-user-id",
+		AccessToken:  "find-by-this-token",
+		RefreshToken: "test-refresh-token",
+		UserAgent:    "test-user-agent",
+		IPAddress:    "127.0.0.1",
+		Location:     "test-location",
+		ExpiresAt:    time.Now().Add(24 * time.Hour),
+	}
+
+	err := CreateSession(testSession)
+	assert.NoError(t, err)
+
+	result, err := SessionByAccessToken("find-by-this-token")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "token-session-id", result.ID)
+	assert.Equal(t, "test-user-id", result.UserID)
+}
+
+func TestSessionByAccessToken_NotFound(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	result, err := SessionByAccessToken("nonexistent-token")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "session not found")
+}
