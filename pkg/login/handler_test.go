@@ -42,6 +42,144 @@ func TestHandleLoginUser(t *testing.T) {
 	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
+func TestHandleLoginUser_NonPostMethod(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/login", nil)
+	rr := httptest.NewRecorder()
+
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Only POST method is allowed")
+}
+
+func TestHandleLoginUser_ValidationError(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Missing username (too short)
+	form := url.Values{}
+	form.Add("username", "ab")
+	form.Add("password", "password123")
+	form.Add("redirect", "http://localhost/callback")
+	form.Add("state", "xyz123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_request")
+}
+
+func TestHandleLoginUser_InvalidRedirectURI(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
+	})
+
+	form := url.Values{}
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+	form.Add("redirect", "http://notallowed.com/callback")
+	form.Add("state", "xyz123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
+}
+
+func TestHandleLoginUser_WrongCredentials(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("username", "testuser")
+	form.Add("password", "wrongpassword")
+	form.Add("redirect", "http://localhost/callback")
+	form.Add("state", "xyz123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "login failed")
+}
+
+func TestHandleLoginUser_NonExistentUser(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Add("username", "nonexistent")
+	form.Add("password", "password123")
+	form.Add("redirect", "http://localhost/callback")
+	form.Add("state", "xyz123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "login failed")
+}
+
+func TestValidateLoginRequest_InvalidPassword(t *testing.T) {
+	err := ValidateLoginRequest(LoginRequest{
+		Username: "testuser",
+		Password: "ab",
+		Redirect: "http://localhost/callback",
+		State:    "xyz123",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password is invalid")
+}
+
+func TestValidateLoginRequest_InvalidRedirect(t *testing.T) {
+	err := ValidateLoginRequest(LoginRequest{
+		Username: "testuser",
+		Password: "password123",
+		Redirect: "",
+		State:    "xyz123",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "redirect URI is invalid")
+}
+
+func TestValidateLoginRequest_MissingState(t *testing.T) {
+	err := ValidateLoginRequest(LoginRequest{
+		Username: "testuser",
+		Password: "password123",
+		Redirect: "http://localhost/callback",
+		State:    "",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "state is invalid")
+}
+
+func TestValidateLoginRequest_Valid(t *testing.T) {
+	err := ValidateLoginRequest(LoginRequest{
+		Username: "testuser",
+		Password: "password123",
+		Redirect: "http://localhost/callback",
+		State:    "xyz123",
+	})
+	assert.NoError(t, err)
+}
+
 func TestHandleLoginUser_SetsIdpSessionCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

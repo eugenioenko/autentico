@@ -135,6 +135,76 @@ func TestAdminAuthMiddlewareNonAdminUser(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Admin access required")
 }
 
+func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	userID := xid.New().String()
+
+	// Generate a token with wrong audience
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.Get().AppAuthIssuer,
+		"aud":   []string{"wrong-audience"},
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	token, err := accessToken.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rr, req)
+
+	// ValidateAccessToken already checks audience, so this returns 401
+	assert.True(t, rr.Code == http.StatusUnauthorized || rr.Code == http.StatusForbidden)
+}
+
+func TestAdminAuthMiddlewareUserNotFound(t *testing.T) {
+	_, err := db.InitTestDB("../../db/test.db")
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	// Generate a valid token for a non-existent user
+	userID := xid.New().String()
+	token, err := generateTestAccessToken(userID)
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "User not found")
+}
+
 func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
 	_, err := db.InitTestDB("../../db/test.db")
 	if err != nil {
