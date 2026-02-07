@@ -38,7 +38,7 @@ func initKeys() {
 			privateKey = key
 			publicKey = &key.PublicKey
 			pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-			os.WriteFile(keyFile, pemBytes, 0600)
+			_ = os.WriteFile(keyFile, pemBytes, 0600)
 		}
 	}
 }

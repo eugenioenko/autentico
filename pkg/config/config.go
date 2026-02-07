@@ -108,7 +108,7 @@ func InitConfig(path string) error {
 		if err := dec.Decode(&overrides); err == nil {
 			// re-marshal and unmarshal into cfg to override only provided fields
 			b, _ := json.Marshal(overrides)
-			json.Unmarshal(b, &cfg)
+			_ = json.Unmarshal(b, &cfg)
 		}
 	}
 	// Parse durations from string fields

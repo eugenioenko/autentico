@@ -18,7 +18,6 @@ autentico
 /dist/
 
 # Go modules
-/go.sum
 /vendor/
 
 # IDE/editor settings
