@@ -10,7 +10,7 @@ import (
 func SessionByID(sessionID string) (*Session, error) {
 	var session Session
 	query := `
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at
+		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at
 		FROM sessions WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, sessionID)
@@ -24,6 +24,7 @@ func SessionByID(sessionID string) (*Session, error) {
 		&session.Location,
 		&session.CreatedAt,
 		&session.ExpiresAt,
+		&session.DeactivatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -38,7 +39,7 @@ func SessionByID(sessionID string) (*Session, error) {
 func SessionByAccessToken(accessToken string) (*Session, error) {
 	var session Session
 	query := `
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at
+		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at
 		FROM sessions
 		WHERE access_token = ?
 	`
@@ -53,6 +54,7 @@ func SessionByAccessToken(accessToken string) (*Session, error) {
 		&session.Location,
 		&session.CreatedAt,
 		&session.ExpiresAt,
+		&session.DeactivatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
