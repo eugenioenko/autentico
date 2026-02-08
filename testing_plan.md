@@ -19,18 +19,28 @@ Provides `StartTestServer(t *testing.T) *TestServer`. The `TestServer` struct wr
 - `Server *httptest.Server` — the actual test server
 - `Client *http.Client` — configured with `http.CookieJar` and `CheckRedirect` set to not follow redirects (so tests can inspect 302 responses)
 - `BaseURL string` — e.g., `http://127.0.0.1:<port>`
-- `Close()` — shuts down the server and DB
+- `Close()` — shuts down the server and cleans database tables
 
 The function should:
-1. Call `db.InitTestDB()` with a unique temp path per test (use `t.TempDir()`)
+1. Call `db.InitTestDB(":memory:")` to use fast in-memory SQLite database
 2. Register all routes on `http.NewServeMux{}` exactly as `main.go` does, including CSRF middleware on `/oauth2/authorize` and `/oauth2/login`, `AdminAuthMiddleware` on `/oauth2/register`, and `LoggingMiddleware` wrapper
 3. Override `config.Values` to point at the test server URL (issuer, host, etc.)
 4. Start `httptest.NewServer(combinedMiddleware(mux))`
-5. Register `t.Cleanup` to close server and DB
+5. Register `t.Cleanup` to clean database tables (not close DB) and shutdown server
 
 Additional helpers:
 - `NewClientNoRedirect()` — returns a client that does NOT follow redirects
 - `GetCSRFToken(authorizePageBody string) string` — parses the CSRF token from the rendered login HTML
+- `CleanupTestDB()` — efficiently clears all tables using `DELETE FROM` statements for test isolation
+
+**Database Strategy:**
+Uses in-memory SQLite database (`:memory:`) for maximum speed. Between tests, tables are cleaned using `DELETE FROM` rather than recreating the entire database. This approach is:
+- **Much faster** than file-based databases
+- **Resource efficient** with single database instance
+- **Parallel-safe** when properly implemented
+- **Industry standard** for integration testing
+
+**Note:** The existing `tests/utils/test_db.go` should also be updated to use in-memory database and table cleanup for consistency across all test types.
 
 **`tests/utils/test_helpers.go`**
 
@@ -332,7 +342,7 @@ Higher-level helpers reused across E2E tests:
 
 ## Implementation Notes
 
-1. **Test DB Isolation:** E2E tests must use `t.TempDir()` for the SQLite DB path rather than the shared `../../db/test.db`, since multiple test server instances could conflict. Unit tests within `pkg/` continue using `WithTestDB(t)` with `-p 1`.
+1. **Test DB Isolation:** E2E tests use in-memory SQLite database (`:memory:`) for maximum performance. Database tables are cleaned between tests using `DELETE FROM` statements rather than recreating database files. This approach is faster, more resource-efficient, and eliminates file system cleanup concerns. Unit tests within `pkg/` continue using `WithTestDB(t)` and can be run in parallel with `-p` flag.
 
 2. **CSRF in E2E Tests:** gorilla/csrf requires both a cookie (set on GET response) and a form field token. The E2E client must use a `CookieJar` so the CSRF cookie persists across GET /authorize → POST /login.
 
