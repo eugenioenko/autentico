@@ -146,14 +146,3 @@ func getCSRFToken(body string) string {
 	return matches[1]
 }
 
-// cleanTables clears all data from database tables for test isolation.
-func cleanTables() {
-	database := db.GetDB()
-	if database == nil {
-		return
-	}
-	tables := []string{"auth_codes", "tokens", "sessions", "idp_sessions", "clients", "users"}
-	for _, table := range tables {
-		_, _ = database.Exec("DELETE FROM " + table)
-	}
-}

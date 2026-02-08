@@ -11,7 +11,6 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +23,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 	// 1. Create user
 	usr := createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	// 2-5. Perform authorization code flow (authorize → login → get code)
+	// 2-5. Perform authorization code flow (authorize -> login -> get code)
 	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state")
 
 	// 6. Exchange code for tokens
@@ -36,7 +35,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer tokenResp.Body.Close()
+	defer func() { _ = tokenResp.Body.Close() }()
 
 	body, err := io.ReadAll(tokenResp.Body)
 	require.NoError(t, err)
@@ -60,7 +59,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 
 	userinfoResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer userinfoResp.Body.Close()
+	defer func() { _ = userinfoResp.Body.Close() }()
 
 	body, err = io.ReadAll(userinfoResp.Body)
 	require.NoError(t, err)
@@ -112,7 +111,7 @@ func TestAuthorizationCodeFlow_WithRegisteredClient(t *testing.T) {
 
 	tokenResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer tokenResp.Body.Close()
+	defer func() { _ = tokenResp.Body.Close() }()
 
 	body, err := io.ReadAll(tokenResp.Body)
 	require.NoError(t, err)
@@ -158,7 +157,7 @@ func TestAuthorizationCodeFlow_PublicClient(t *testing.T) {
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer tokenResp.Body.Close()
+	defer func() { _ = tokenResp.Body.Close() }()
 
 	body, err := io.ReadAll(tokenResp.Body)
 	require.NoError(t, err)
@@ -189,7 +188,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
@@ -214,7 +213,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err)
-	defer loginResp.Body.Close()
+	defer func() { _ = loginResp.Body.Close() }()
 
 	require.Equal(t, http.StatusFound, loginResp.StatusCode)
 
@@ -236,7 +235,7 @@ func TestAuthorizationCodeFlow_CodeReuse(t *testing.T) {
 	// Get an authorization code
 	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state1")
 
-	// First exchange — should succeed
+	// First exchange -- should succeed
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
@@ -245,15 +244,15 @@ func TestAuthorizationCodeFlow_CodeReuse(t *testing.T) {
 
 	resp1, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp1.Body.Close()
+	defer func() { _ = resp1.Body.Close() }()
 
 	body1, _ := io.ReadAll(resp1.Body)
 	require.Equal(t, http.StatusOK, resp1.StatusCode, "first exchange should succeed: %s", string(body1))
 
-	// Second exchange with same code — should fail
+	// Second exchange with same code -- should fail
 	resp2, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	body2, _ := io.ReadAll(resp2.Body)
 	assert.Equal(t, http.StatusBadRequest, resp2.StatusCode, "code reuse should fail")
@@ -292,7 +291,7 @@ func TestAuthorizationCodeFlow_CodeExpiry(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "expired code should be rejected: %s", string(body))
@@ -321,7 +320,7 @@ func TestAuthorizationCodeFlow_RedirectMismatch(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "redirect mismatch should be rejected: %s", string(body))
@@ -347,7 +346,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// POST /oauth2/login with a forged CSRF token (but valid Referer and CSRF cookie)
 	form := url.Values{}
@@ -365,7 +364,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err)
-	defer loginResp.Body.Close()
+	defer func() { _ = loginResp.Body.Close() }()
 
 	assert.Equal(t, http.StatusForbidden, loginResp.StatusCode, "invalid CSRF token should be rejected with 403")
 
@@ -380,38 +379,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 
 	loginResp2, err := client2.PostForm(ts.BaseURL+"/oauth2/login", form2)
 	require.NoError(t, err)
-	defer loginResp2.Body.Close()
+	defer func() { _ = loginResp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusForbidden, loginResp2.StatusCode, "missing CSRF token should be rejected with 403")
 }
-
-// exchangeCodeForTokens is a helper to exchange an authorization code for tokens.
-func exchangeCodeForTokens(t *testing.T, ts *TestServer, code, redirectURI, clientID string) (*token.TokenResponse, int, []byte) {
-	t.Helper()
-
-	form := url.Values{}
-	form.Set("grant_type", "authorization_code")
-	form.Set("code", code)
-	form.Set("redirect_uri", redirectURI)
-	form.Set("client_id", clientID)
-
-	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, body
-	}
-
-	var tokens token.TokenResponse
-	err = json.Unmarshal(body, &tokens)
-	require.NoError(t, err)
-
-	return &tokens, resp.StatusCode, body
-}
-
-// Ensure db import is used — cleanTables references it but these tests also use it directly.
-var _ = db.GetDB

@@ -48,7 +48,7 @@ func obtainTokensViaPasswordGrant(t *testing.T, ts *TestServer, username, passwo
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err, "failed to post password grant")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "failed to read token response body")
@@ -75,7 +75,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err, "failed to GET /oauth2/authorize")
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "failed to read authorize response")
@@ -101,7 +101,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err, "failed to POST /oauth2/login")
-	defer loginResp.Body.Close()
+	defer func() { _ = loginResp.Body.Close() }()
 
 	require.Equal(t, http.StatusFound, loginResp.StatusCode, "login should redirect with 302")
 
@@ -135,7 +135,7 @@ func createTestClient(t *testing.T, ts *TestServer, adminToken string, reqBody i
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)

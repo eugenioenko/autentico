@@ -31,7 +31,7 @@ func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired token should be rejected by userinfo")
 }
@@ -52,7 +52,7 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired token should be rejected by introspect")
 }
@@ -68,7 +68,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	form.Set("token", tokens.AccessToken)
 	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
 	require.NoError(t, err)
-	revokeResp.Body.Close()
+	defer func() { _ = revokeResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, revokeResp.StatusCode)
 
 	// Call userinfo with revoked token
@@ -78,7 +78,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token should be rejected by userinfo")
 }
@@ -94,7 +94,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	form.Set("token", tokens.AccessToken)
 	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
 	require.NoError(t, err)
-	revokeResp.Body.Close()
+	defer func() { _ = revokeResp.Body.Close() }()
 
 	// Introspect the revoked token
 	body, _ := json.Marshal(map[string]string{"token": tokens.AccessToken})
@@ -104,7 +104,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token should be rejected by introspect")
 }
@@ -120,7 +120,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	form.Set("token", tokens.AccessToken)
 	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
 	require.NoError(t, err)
-	revokeResp.Body.Close()
+	defer func() { _ = revokeResp.Body.Close() }()
 
 	// Attempt refresh with the revoked token's refresh_token
 	refreshForm := url.Values{}
@@ -129,7 +129,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token's refresh should be rejected: %s", string(body))
@@ -148,7 +148,7 @@ func TestRefreshToken_RotationBehavior(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -168,7 +168,7 @@ func TestRefreshToken_RotationBehavior(t *testing.T) {
 
 	userinfoResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer userinfoResp.Body.Close()
+	defer func() { _ = userinfoResp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, userinfoResp.StatusCode, "new access token should work at userinfo")
 }
@@ -189,7 +189,7 @@ func TestRefreshToken_ExpiredRefresh(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired refresh token should be rejected")
 }
@@ -203,7 +203,7 @@ func TestRefreshToken_InvalidRefreshToken(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "invalid refresh token should be rejected")
 }
@@ -221,7 +221,7 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 
 	logoutResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	logoutResp.Body.Close()
+	defer func() { _ = logoutResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
 	// Attempt refresh — session is deactivated, should be rejected
@@ -231,7 +231,7 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "refresh after logout should be rejected: %s", string(body))

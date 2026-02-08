@@ -18,7 +18,7 @@ func TestServerStarts(t *testing.T) {
 
 	resp, err := ts.Client.Get(ts.BaseURL + "/.well-known/openid-configuration")
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -41,7 +41,7 @@ func TestServerJWKS(t *testing.T) {
 
 	resp, err := ts.Client.Get(ts.BaseURL + "/.well-known/jwks.json")
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -75,7 +75,7 @@ func TestServerAuthorizeRendersLoginPage(t *testing.T) {
 
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
