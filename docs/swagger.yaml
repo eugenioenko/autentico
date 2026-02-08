@@ -1,5 +1,107 @@
 basePath: /
 definitions:
+  client.ClientCreateRequest:
+    properties:
+      client_name:
+        type: string
+      client_type:
+        type: string
+      grant_types:
+        items:
+          type: string
+        type: array
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      response_types:
+        items:
+          type: string
+        type: array
+      scopes:
+        type: string
+      token_endpoint_auth_method:
+        type: string
+    type: object
+  client.ClientInfoResponse:
+    properties:
+      client_id:
+        type: string
+      client_name:
+        type: string
+      client_type:
+        type: string
+      grant_types:
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      response_types:
+        items:
+          type: string
+        type: array
+      scopes:
+        type: string
+      token_endpoint_auth_method:
+        type: string
+    type: object
+  client.ClientResponse:
+    properties:
+      client_id:
+        type: string
+      client_name:
+        type: string
+      client_secret:
+        type: string
+      client_secret_expires_at:
+        type: integer
+      client_type:
+        type: string
+      grant_types:
+        items:
+          type: string
+        type: array
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      response_types:
+        items:
+          type: string
+        type: array
+      scopes:
+        type: string
+      token_endpoint_auth_method:
+        type: string
+    type: object
+  client.ClientUpdateRequest:
+    properties:
+      client_name:
+        type: string
+      grant_types:
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      response_types:
+        items:
+          type: string
+        type: array
+      scopes:
+        type: string
+      token_endpoint_auth_method:
+        type: string
+    type: object
   introspect.IntrospectRequest:
     properties:
       token:
@@ -50,6 +152,13 @@ definitions:
       code:
         type: integer
       message:
+        type: string
+    type: object
+  model.AuthErrorResponse:
+    properties:
+      error:
+        type: string
+      error_description:
         type: string
     type: object
   model.JWK:
@@ -140,6 +249,9 @@ definitions:
         type: string
       password:
         type: string
+      role:
+        description: optional role assignment
+        type: string
       username:
         type: string
     type: object
@@ -150,6 +262,8 @@ definitions:
       email:
         type: string
       id:
+        type: string
+      role:
         type: string
       username:
         type: string
@@ -350,6 +464,141 @@ paths:
       summary: Log out a user
       tags:
       - session
+  /oauth2/register:
+    get:
+      consumes:
+      - application/json
+      description: Lists all registered clients (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/client.ClientInfoResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: List all clients
+      tags:
+      - client
+    post:
+      consumes:
+      - application/json
+      description: Registers a new OAuth2/OIDC client (admin only)
+      parameters:
+      - description: Client registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/client.ClientCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/client.ClientResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Register a new OAuth2 client
+      tags:
+      - client
+  /oauth2/register/{client_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deactivates (soft deletes) a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Deactivate a client
+      tags:
+      - client
+    get:
+      consumes:
+      - application/json
+      description: Retrieves information about a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.ClientInfoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Get client information
+      tags:
+      - client
+    put:
+      consumes:
+      - application/json
+      description: Updates a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      - description: Client update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/client.ClientUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.ClientInfoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Update client information
+      tags:
+      - client
   /oauth2/revoke:
     post:
       consumes:

@@ -29,7 +29,7 @@ lint:
 # Generate swagger docs
 generate-docs:
 	swag init
-	npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/autentico-api.html
+	npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 
 # Run swagger
 .PHONY: docs

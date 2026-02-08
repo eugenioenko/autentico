@@ -299,6 +299,210 @@ const docTemplate = `{
                 }
             }
         },
+        "/oauth2/register": {
+            "get": {
+                "description": "Lists all registered clients (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client"
+                ],
+                "summary": "List all clients",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/client.ClientInfoResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Registers a new OAuth2/OIDC client (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client"
+                ],
+                "summary": "Register a new OAuth2 client",
+                "parameters": [
+                    {
+                        "description": "Client registration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/client.ClientCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/client.ClientResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/register/{client_id}": {
+            "get": {
+                "description": "Retrieves information about a registered client (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client"
+                ],
+                "summary": "Get client information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.ClientInfoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates a registered client (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client"
+                ],
+                "summary": "Update client information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Client update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/client.ClientUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.ClientInfoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deactivates (soft deletes) a registered client (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client"
+                ],
+                "summary": "Deactivate a client",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/revoke": {
             "post": {
                 "description": "Revokes an access or refresh token",
@@ -510,6 +714,161 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "client.ClientCreateRequest": {
+            "type": "object",
+            "properties": {
+                "client_name": {
+                    "type": "string"
+                },
+                "client_type": {
+                    "type": "string"
+                },
+                "grant_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "response_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "token_endpoint_auth_method": {
+                    "type": "string"
+                }
+            }
+        },
+        "client.ClientInfoResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "client_name": {
+                    "type": "string"
+                },
+                "client_type": {
+                    "type": "string"
+                },
+                "grant_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "response_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "token_endpoint_auth_method": {
+                    "type": "string"
+                }
+            }
+        },
+        "client.ClientResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "client_name": {
+                    "type": "string"
+                },
+                "client_secret": {
+                    "type": "string"
+                },
+                "client_secret_expires_at": {
+                    "type": "integer"
+                },
+                "client_type": {
+                    "type": "string"
+                },
+                "grant_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "response_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "token_endpoint_auth_method": {
+                    "type": "string"
+                }
+            }
+        },
+        "client.ClientUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "client_name": {
+                    "type": "string"
+                },
+                "grant_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "response_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "token_endpoint_auth_method": {
+                    "type": "string"
+                }
+            }
+        },
         "introspect.IntrospectRequest": {
             "type": "object",
             "properties": {
@@ -580,6 +939,17 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AuthErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "error_description": {
                     "type": "string"
                 }
             }
@@ -715,6 +1085,10 @@ const docTemplate = `{
                 "password": {
                     "type": "string"
                 },
+                "role": {
+                    "description": "optional role assignment",
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -730,6 +1104,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 },
                 "username": {
