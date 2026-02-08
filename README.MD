@@ -207,8 +207,8 @@ Autentico provides comprehensive API documentation:
 
 1.  **Static HTML Documentation**:
     A pre-generated, detailed HTML API reference is available.
-    - [Autentico API Documentation (GitHub Pages)](https://eugenioenko.github.io/autentico/autentico-api.html)
-    - You can also find this at `/docs/autentico-api.html` in the repository.
+    - [Autentico API Documentation (GitHub Pages)](https://eugenioenko.github.io/autentico/index.html)
+    - You can also find this at `/docs/index.html` in the repository.
 
 2.  **Swagger UI / OpenAPI Specification**:
     To explore the API interactively using Swagger UI:
