@@ -701,6 +701,51 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 	assert.NotEmpty(t, revokedAt)
 }
 
+func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+		config.Values.AuthRefreshTokenExpiration = 1 * time.Second
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	// Get tokens with short-lived refresh token
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+
+	// Wait for refresh token to expire
+	time.Sleep(2 * time.Second)
+
+	// Attempt refresh with expired refresh token
+	form2 := url.Values{}
+	form2.Add("grant_type", "refresh_token")
+	form2.Add("refresh_token", tokenResp.RefreshToken)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr2 := httptest.NewRecorder()
+
+	HandleToken(rr2, req2)
+
+	assert.Equal(t, http.StatusUnauthorized, rr2.Code)
+	assert.Contains(t, rr2.Body.String(), "invalid_grant")
+}
+
 func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

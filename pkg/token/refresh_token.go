@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -37,7 +38,15 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 
 	if sess == nil || sess.DeactivatedAt != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
-		return nil, err
+		return nil, fmt.Errorf("session has been deactivated")
+	}
+
+	// Check if the token has been revoked
+	var revokedAt *time.Time
+	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
+	if err == nil && revokedAt != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Token has been revoked")
+		return nil, fmt.Errorf("token has been revoked")
 	}
 
 	usr, err := user.UserByID(authToken.UserID)

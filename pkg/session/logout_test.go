@@ -10,6 +10,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/rs/xid"
@@ -112,4 +113,103 @@ func TestHandleLogoutInvalidAuthFormat(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Invalid Authorization header")
+}
+
+func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	})
+
+	// Create user
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
+	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
+	assert.NoError(t, err)
+
+	// Generate token and create session
+	accessToken, sessionID, err := generateTestAccessToken(userID)
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+
+	// Create an IdP session
+	idpSessionID := xid.New().String()
+	err = idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID:        idpSessionID,
+		UserID:    userID,
+		UserAgent: "test-agent",
+		IPAddress: "127.0.0.1",
+	})
+	assert.NoError(t, err)
+
+	// Build request with IdP session cookie and auth header
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.AddCookie(&http.Cookie{
+		Name:  config.Get().AuthIdpSessionCookieName,
+		Value: idpSessionID,
+	})
+	rr := httptest.NewRecorder()
+
+	HandleLogout(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Verify IdP session cookie is cleared
+	cookies := rr.Result().Cookies()
+	var clearedCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == config.Get().AuthIdpSessionCookieName {
+			clearedCookie = c
+			break
+		}
+	}
+	assert.NotNil(t, clearedCookie, "should set a clear-cookie header for IdP session")
+	assert.True(t, clearedCookie.MaxAge < 0, "cookie MaxAge should be negative to clear it")
+
+	// Verify IdP session is deactivated in DB
+	_, err = idpsession.IdpSessionByID(idpSessionID)
+	assert.Error(t, err, "deactivated IdP session should not be found")
+}
+
+func TestHandleLogout_NoIdpSession(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Create user
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
+	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
+	assert.NoError(t, err)
+
+	// Generate token and create session
+	accessToken, sessionID, err := generateTestAccessToken(userID)
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+
+	// Logout without IdP session cookie
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	rr := httptest.NewRecorder()
+
+	HandleLogout(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Verify session is deactivated
+	var deactivatedAt sql.NullTime
+	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
+	assert.NoError(t, err)
+	assert.True(t, deactivatedAt.Valid, "session should be deactivated")
 }

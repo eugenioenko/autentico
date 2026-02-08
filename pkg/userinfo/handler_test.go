@@ -47,6 +47,15 @@ func generateTestTokens(userID string) (string, error) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
 		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid profile email", "password")
+	if err != nil {
+		return "", err
+	}
+
+	// Create session so the session deactivation check passes
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, signedToken, "", "", "", "", time.Now(), accessTokenExpiresAt)
 
 	return signedToken, err
 }
