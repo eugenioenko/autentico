@@ -1,8 +1,11 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
@@ -25,6 +28,10 @@ import (
 // @BasePath /
 
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "create-admin" {
+		createAdmin(os.Args[2:])
+		return
+	}
 
 	if err := config.InitConfig("autentico.json"); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -67,4 +74,45 @@ func main() {
 	}
 	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
 	log.Fatal(http.ListenAndServe(":"+port, combinedMiddleware(mux)))
+}
+
+func createAdmin(args []string) {
+	fs := flag.NewFlagSet("create-admin", flag.ExitOnError)
+	email := fs.String("email", "", "Admin email address (required)")
+	password := fs.String("password", "", "Admin password (required)")
+
+	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
+
+	if *email == "" || *password == "" {
+		fmt.Fprintln(os.Stderr, "Usage: autentico create-admin --email=<email> --password=<password>")
+		os.Exit(1)
+	}
+
+	if err := config.InitConfig("autentico.json"); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	cfg := config.Get()
+	if len(*password) < cfg.ValidationMinPasswordLength {
+		fmt.Fprintf(os.Stderr, "Error: password must be at least %d characters\n", cfg.ValidationMinPasswordLength)
+		os.Exit(1)
+	}
+
+	if _, err := db.InitDB(cfg.DbFilePath); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.CloseDB()
+
+	resp, err := user.CreateUser(*email, *password, *email)
+	if err != nil {
+		log.Fatalf("Failed to create user: %v", err)
+	}
+
+	if err := user.UpdateUser(resp.ID, *email, "admin"); err != nil {
+		log.Fatalf("Failed to set admin role: %v", err)
+	}
+
+	fmt.Printf("Admin user created successfully (ID: %s)\n", resp.ID)
 }
