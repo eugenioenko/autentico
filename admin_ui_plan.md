@@ -10,6 +10,8 @@ React 18 + Vite, Ant Design 5, React Router v6, TanStack Query v5, Axios, TypeSc
 ## Deployment
 Vite builds to `admin-ui/dist/` → copied to `pkg/admin/dist/` → Go `//go:embed` serves at `/admin/`
 
+## UI guide 
+Use base Ant Design theme so that it can be modified later. While implementing components, use as little as possible of custom css styles. Prioritize usage of Ant Design layout components like divider, space, etc
 ---
 
 ## Phase 1: Project Scaffolding

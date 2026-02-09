@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -63,6 +64,9 @@ func main() {
 	// Client registration endpoints (admin only)
 	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
+
+	// Admin UI
+	mux.Handle("/admin/", admin.Handler())
 
 	port := config.Get().AppPort
 	log.Printf("Autentico started at http://localhost:%s", port)

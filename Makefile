@@ -36,6 +36,15 @@ generate-docs:
 docs:
 	go run cmd/swagger.go
 
+# Build admin UI and copy to pkg/admin/dist
+admin-ui-build:
+	cd admin-ui && pnpm install && pnpm run build
+	rm -rf pkg/admin/dist
+	cp -r admin-ui/dist pkg/admin/dist
+
+# Build everything (admin UI + Go binary)
+build-all: admin-ui-build build
+
 docker-build:
 	docker build -t autentico:tag .
 

@@ -1,4 +1,14 @@
-# Build stage
+# Node build stage
+FROM node:20-alpine AS node-builder
+
+WORKDIR /app/admin-ui
+RUN npm install -g pnpm
+COPY admin-ui/package.json admin-ui/pnpm-lock.yaml* ./
+RUN pnpm install
+COPY admin-ui/ .
+RUN pnpm run build
+
+# Go build stage
 FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
@@ -7,6 +17,7 @@ RUN apk add --no-cache git make
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=node-builder /app/admin-ui/dist ./pkg/admin/dist/
 RUN make build
 
 # Final stage

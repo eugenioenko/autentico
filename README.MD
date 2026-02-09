@@ -28,6 +28,7 @@
   - [Authorization Request](#authorization-request)
   - [Token Exchange](#token-exchange)
 - [Security Considerations](#security-considerations)
+- [Admin UI](#admin-ui)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -431,6 +432,40 @@ As an Identity Provider, Autentico is a critical trust boundary. The following p
 - **Strong Secret Keys**: All configured secrets (`AuthAccessTokenSecret`, `AuthRefreshTokenSecret`, `AuthCSRFProtectionSecretKey`) must be cryptographically strong.
 - **RS256 Token Signing**: Tokens are signed with RSA private keys. Only the IdP holds the private key; relying parties verify using the public JWK Set.
 - **Input Validation**: Usernames and passwords are validated according to configured length and format rules.
+
+---
+
+## Admin UI
+
+Autentico includes a built-in admin dashboard served at `/admin/`. It requires an admin user account to log in.
+
+### Building the Admin UI
+
+The admin UI is a React application embedded into the Go binary at build time. To build it:
+
+```bash
+# Build the admin UI and copy it into the Go embed directory
+make admin-ui-build
+
+# Or build everything (admin UI + Go binary) in one step
+make build-all
+```
+
+After building, the admin UI is available at `http://localhost:9999/admin/` when the server is running.
+
+### Development Mode
+
+For frontend development with hot-reload:
+
+```bash
+# Start the Go server
+make run
+
+# In another terminal, start the Vite dev server
+cd admin-ui && pnpm dev
+```
+
+The dev server runs at `http://localhost:5173/admin/` and proxies API requests to the Go server on port 9999.
 
 ---
 
