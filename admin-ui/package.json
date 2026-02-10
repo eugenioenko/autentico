@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-types": "swagger2openapi ../docs/swagger.json -o /tmp/openapi3.json && openapi-typescript /tmp/openapi3.json -o src/types/api.d.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
@@ -22,6 +23,8 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "openapi-typescript": "^7.12.0",
+    "swagger2openapi": "^7.0.8",
     "typescript": "~5.6.2",
     "vite": "^6.0.0"
   }

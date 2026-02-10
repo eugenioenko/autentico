@@ -1,4 +1,3 @@
-export interface AuthError {
-  error: string;
-  error_description: string;
-}
+import type { components } from "./api";
+
+export type AuthError = components["schemas"]["model.AuthErrorResponse"];
