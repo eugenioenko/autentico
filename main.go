@@ -70,6 +70,9 @@ func main() {
 	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 
+	// Admin API endpoints
+	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
+
 	// Admin UI
 	mux.Handle("/admin/", admin.Handler())
 
