@@ -4,8 +4,8 @@ APP_NAME=autentico
 # Default target
 all: build
 
-# Build the Go binary
-build:
+# Build admin UI + Go binary
+build: admin-ui-build
 	go build -o $(APP_NAME) main.go
 
 # Run the application
@@ -42,8 +42,6 @@ admin-ui-build:
 	rm -rf pkg/admin/dist
 	cp -r admin-ui/dist pkg/admin/dist
 
-# Build everything (admin UI + Go binary)
-build-all: admin-ui-build build
 
 docker-build:
 	docker build -t autentico:tag .

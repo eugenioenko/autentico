@@ -10,6 +10,39 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// CreateClientWithID creates a new OAuth2 client with a specific client_id.
+// Used for well-known clients like the admin UI.
+func CreateClientWithID(clientID string, request ClientCreateRequest) error {
+	request.ClientType = "public"
+	request.TokenEndpointAuthMethod = "none"
+	if request.Scopes == "" {
+		request.Scopes = "openid profile email"
+	}
+	if len(request.GrantTypes) == 0 {
+		request.GrantTypes = []string{"authorization_code"}
+	}
+	if len(request.ResponseTypes) == 0 {
+		request.ResponseTypes = []string{"code"}
+	}
+
+	redirectURIsJSON, _ := json.Marshal(request.RedirectURIs)
+	grantTypesJSON, _ := json.Marshal(request.GrantTypes)
+	responseTypesJSON, _ := json.Marshal(request.ResponseTypes)
+
+	now := time.Now().UTC()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (
+			id, client_id, client_secret, client_name, client_type,
+			redirect_uris, grant_types, response_types, scopes,
+			token_endpoint_auth_method, is_active, created_at, updated_at
+		) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		xid.New().String(), clientID, request.ClientName, request.ClientType,
+		string(redirectURIsJSON), string(grantTypesJSON), string(responseTypesJSON),
+		request.Scopes, request.TokenEndpointAuthMethod, true, now, now,
+	)
+	return err
+}
+
 // CreateClient creates a new OAuth2 client in the database
 // Returns the client response with the plain text secret (shown only once)
 func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {

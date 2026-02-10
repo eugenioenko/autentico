@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/oauth2": "http://localhost:9999",
-      "/admin/api": "http://localhost:9999",
+      "/.well-known": "http://localhost:9999",
     },
   },
 });

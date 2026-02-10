@@ -34,6 +34,11 @@ func main() {
 		return
 	}
 
+	if len(os.Args) >= 2 && os.Args[1] == "create-admin-client" {
+		createAdminClient()
+		return
+	}
+
 	if err := config.InitConfig("autentico.json"); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -119,4 +124,43 @@ func createAdmin(args []string) {
 	}
 
 	fmt.Printf("Admin user created successfully (ID: %s)\n", resp.ID)
+}
+
+func createAdminClient() {
+	if err := config.InitConfig("autentico.json"); err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	cfg := config.Get()
+	if _, err := db.InitDB(cfg.DbFilePath); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.CloseDB()
+
+	const adminClientName = "Autentico Admin UI"
+	const adminClientID = "autentico-admin"
+
+	// Check if admin client already exists
+	existing, err := client.ClientByName(adminClientName)
+	if err == nil && existing != nil {
+		fmt.Printf("Admin UI client already exists (client_id: %s)\n", existing.ClientID)
+		return
+	}
+
+	redirectURI := cfg.AppURL + "/admin/callback"
+	err = client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
+		ClientName:              adminClientName,
+		RedirectURIs:            []string{redirectURI},
+		GrantTypes:              []string{"authorization_code", "refresh_token"},
+		ResponseTypes:           []string{"code"},
+		ClientType:              "public",
+		TokenEndpointAuthMethod: "none",
+	})
+	if err != nil {
+		log.Fatalf("Failed to create admin client: %v", err)
+	}
+
+	fmt.Printf("Admin UI client created successfully\n")
+	fmt.Printf("  client_id:    %s\n", adminClientID)
+	fmt.Printf("  redirect_uri: %s\n", redirectURI)
 }

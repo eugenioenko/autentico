@@ -26,6 +26,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		TokenEndpoint:         fmt.Sprintf("%s/token", config.AppAuthIssuer),
 		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", config.AppAuthIssuer),
 		RegistrationEndpoint:  fmt.Sprintf("%s/register", config.AppAuthIssuer),
+		EndSessionEndpoint:    fmt.Sprintf("%s/logout", config.AppAuthIssuer),
 		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", config.AppURL),
 		ResponseTypesSupported: []string{
 			"code", "token", "id_token", "code token", "code id_token",
