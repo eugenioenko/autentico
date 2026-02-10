@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Typography,
   Table,
@@ -25,8 +26,16 @@ import ClientDetail from "../components/clients/ClientDetail";
 export default function ClientsPage() {
   const { data: clients, isLoading, error } = useClients();
   const deleteClient = useDeleteClient();
+  const location = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
+
+  useEffect(() => {
+    if ((location.state as { create?: boolean })?.create) {
+      setCreateOpen(true);
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
   const [editClient, setEditClient] = useState<ClientInfoResponse | null>(null);
   const [detailClient, setDetailClient] =
     useState<ClientInfoResponse | null>(null);

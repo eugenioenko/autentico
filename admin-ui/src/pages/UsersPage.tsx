@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Typography,
   Table,
@@ -23,9 +24,17 @@ import UserEditForm from "../components/users/UserEditForm";
 export default function UsersPage() {
   const { data: users, isLoading, error } = useUsers();
   const deleteUser = useDeleteUser();
+  const location = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponse | null>(null);
+
+  useEffect(() => {
+    if ((location.state as { create?: boolean })?.create) {
+      setCreateOpen(true);
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   const handleDelete = async (id: string) => {
     try {
