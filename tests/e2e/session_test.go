@@ -234,6 +234,58 @@ func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 	assert.True(t, strings.Contains(string(body), "<form"), "should render login form")
 }
 
+func TestAdminSessionDeactivation_BlocksFurtherRequests(t *testing.T) {
+	ts := startTestServer(t)
+
+	// Create an admin user and get their access token
+	_, adminToken := createTestAdmin(t, ts, "admin@test.com", "password123", "admin@test.com")
+
+	// List sessions via admin API — should succeed
+	req, err := http.NewRequest("GET", ts.BaseURL+"/admin/api/sessions", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode, "admin should be able to list sessions")
+
+	// Parse response to get the admin's session ID
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	var listResp struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	err = json.Unmarshal(body, &listResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, listResp.Data, "should have at least one session")
+	sessionID := listResp.Data[0].ID
+
+	// Deactivate the admin's own session
+	deactivateReq, err := http.NewRequest("DELETE", ts.BaseURL+"/admin/api/sessions?id="+sessionID, nil)
+	require.NoError(t, err)
+	deactivateReq.Header.Set("Authorization", "Bearer "+adminToken)
+
+	deactivateResp, err := ts.Client.Do(deactivateReq)
+	require.NoError(t, err)
+	defer func() { _ = deactivateResp.Body.Close() }()
+	require.Equal(t, http.StatusOK, deactivateResp.StatusCode, "deactivation should succeed")
+
+	// Now try to list sessions again — should be rejected (session deactivated)
+	req2, err := http.NewRequest("GET", ts.BaseURL+"/admin/api/sessions", nil)
+	require.NoError(t, err)
+	req2.Header.Set("Authorization", "Bearer "+adminToken)
+
+	resp2, err := ts.Client.Do(req2)
+	require.NoError(t, err)
+	defer func() { _ = resp2.Body.Close() }()
+
+	assert.Equal(t, http.StatusUnauthorized, resp2.StatusCode, "admin request should be rejected after session deactivation")
+}
+
 // extractJSONField is a helper to extract a string field from JSON bytes.
 func extractJSONField(t *testing.T, data []byte, field string) string {
 	t.Helper()

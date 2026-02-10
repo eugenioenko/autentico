@@ -223,6 +223,14 @@ func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
 	token, err := generateTestAccessToken(userID)
 	assert.NoError(t, err)
 
+	// Create a session for this token so the session check passes
+	sessionID := xid.New().String()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
+	`, sessionID, userID, token, "", "", "", "")
+	assert.NoError(t, err)
+
 	handlerCalled := false
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true
