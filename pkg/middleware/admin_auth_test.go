@@ -34,7 +34,7 @@ func generateTestAccessToken(userID string) (string, error) {
 }
 
 func TestAdminAuthMiddlewareMissingAuth(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestAdminAuthMiddlewareMissingAuth(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareInvalidFormat(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestAdminAuthMiddlewareInvalidFormat(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareInvalidToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestAdminAuthMiddlewareInvalidToken(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareNonAdminUser(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestAdminAuthMiddlewareNonAdminUser(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareUserNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestAdminAuthMiddlewareUserNotFound(t *testing.T) {
 }
 
 func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}

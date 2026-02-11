@@ -23,7 +23,7 @@ Provides `StartTestServer(t *testing.T) *TestServer`. The `TestServer` struct wr
 
 The function should:
 
-1. Call `db.InitTestDB(":memory:")` to use fast in-memory SQLite database
+1. Call `db.InitTestDB()` to use fast in-memory SQLite database
 2. Register all routes on `http.NewServeMux{}` exactly as `main.go` does, including CSRF middleware on `/oauth2/authorize` and `/oauth2/login`, `AdminAuthMiddleware` on `/oauth2/register`, and `LoggingMiddleware` wrapper
 3. Override `config.Values` to point at the test server URL (issuer, host, etc.)
 4. Start `httptest.NewServer(combinedMiddleware(mux))`

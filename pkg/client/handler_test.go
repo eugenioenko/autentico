@@ -12,7 +12,7 @@ import (
 )
 
 func TestHandleRegister(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestHandleRegister(t *testing.T) {
 }
 
 func TestHandleRegisterInvalidMethod(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestHandleRegisterInvalidMethod(t *testing.T) {
 }
 
 func TestHandleRegisterInvalidJSON(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestHandleRegisterInvalidJSON(t *testing.T) {
 }
 
 func TestHandleRegisterMissingFields(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestHandleRegisterMissingFields(t *testing.T) {
 }
 
 func TestHandleGetClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestHandleGetClient(t *testing.T) {
 }
 
 func TestHandleGetClientNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestHandleGetClientNotFound(t *testing.T) {
 }
 
 func TestHandleUpdateClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestHandleUpdateClient(t *testing.T) {
 }
 
 func TestHandleDeleteClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestHandleDeleteClient(t *testing.T) {
 }
 
 func TestHandleListClients(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestHandleListClients(t *testing.T) {
 }
 
 func TestHandleClientEndpoint(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestExtractClientIDFromPath(t *testing.T) {
 }
 
 func TestHandleRegisterInvalidRedirectURI(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestHandleRegisterInvalidRedirectURI(t *testing.T) {
 }
 
 func TestHandleUpdateClientNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -329,7 +329,7 @@ func TestHandleUpdateClientNotFound(t *testing.T) {
 }
 
 func TestHandleDeleteClientNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -344,7 +344,7 @@ func TestHandleDeleteClientNotFound(t *testing.T) {
 }
 
 func TestHandleListClientsEmpty(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestHandleListClientsEmpty(t *testing.T) {
 }
 
 func TestHandleGetClient_InvalidMethod(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestHandleGetClient_InvalidMethod(t *testing.T) {
 }
 
 func TestHandleGetClient_MissingClientID(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestHandleGetClient_MissingClientID(t *testing.T) {
 }
 
 func TestHandleUpdateClient_InvalidMethod(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -404,7 +404,7 @@ func TestHandleUpdateClient_InvalidMethod(t *testing.T) {
 }
 
 func TestHandleUpdateClient_MissingClientID(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestHandleUpdateClient_MissingClientID(t *testing.T) {
 }
 
 func TestHandleUpdateClient_InvalidJSON(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -432,7 +432,7 @@ func TestHandleUpdateClient_InvalidJSON(t *testing.T) {
 }
 
 func TestHandleUpdateClient_InvalidRedirectURIs(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -458,7 +458,7 @@ func TestHandleUpdateClient_InvalidRedirectURIs(t *testing.T) {
 }
 
 func TestHandleDeleteClient_InvalidMethod(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -471,7 +471,7 @@ func TestHandleDeleteClient_InvalidMethod(t *testing.T) {
 }
 
 func TestHandleDeleteClient_MissingClientID(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -485,7 +485,7 @@ func TestHandleDeleteClient_MissingClientID(t *testing.T) {
 }
 
 func TestHandleListClients_InvalidMethod(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -498,7 +498,7 @@ func TestHandleListClients_InvalidMethod(t *testing.T) {
 }
 
 func TestHandleClientEndpoint_MethodNotAllowed_Collection(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -511,7 +511,7 @@ func TestHandleClientEndpoint_MethodNotAllowed_Collection(t *testing.T) {
 }
 
 func TestHandleClientEndpoint_MethodNotAllowed_Individual(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -524,7 +524,7 @@ func TestHandleClientEndpoint_MethodNotAllowed_Individual(t *testing.T) {
 }
 
 func TestHandleClientEndpoint_PUT(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -548,7 +548,7 @@ func TestHandleClientEndpoint_PUT(t *testing.T) {
 }
 
 func TestHandleClientEndpoint_DELETE(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -567,7 +567,7 @@ func TestHandleClientEndpoint_DELETE(t *testing.T) {
 }
 
 func TestHandleClientEndpoint_ListClients(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}

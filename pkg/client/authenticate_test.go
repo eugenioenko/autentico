@@ -11,7 +11,7 @@ import (
 )
 
 func TestAuthenticateClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestAuthenticateClient(t *testing.T) {
 }
 
 func TestAuthenticatePublicClient(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestAuthenticatePublicClient(t *testing.T) {
 }
 
 func TestIsValidRedirectURI(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestIsValidRedirectURI(t *testing.T) {
 }
 
 func TestIsGrantTypeAllowed(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}

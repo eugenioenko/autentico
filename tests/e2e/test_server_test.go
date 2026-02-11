@@ -37,7 +37,7 @@ func startTestServer(t *testing.T) *TestServer {
 	t.Helper()
 
 	// Initialize in-memory database
-	_, err := db.InitTestDB(":memory:")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -151,4 +151,3 @@ func getCSRFToken(body string) string {
 	}
 	return matches[1]
 }
-

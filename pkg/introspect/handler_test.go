@@ -61,7 +61,7 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 }
 
 func TestHandleIntrospectEmptyBody(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestHandleIntrospectEmptyBody(t *testing.T) {
 }
 
 func TestHandleIntrospectInvalidJSON(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestHandleIntrospectInvalidJSON(t *testing.T) {
 }
 
 func TestHandleIntrospectMissingToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestHandleIntrospectMissingToken(t *testing.T) {
 }
 
 func TestHandleIntrospectInvalidToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestHandleIntrospectInvalidToken(t *testing.T) {
 }
 
 func TestHandleIntrospectValidToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestHandleIntrospectValidToken(t *testing.T) {
 }
 
 func TestIntrospectToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestIntrospectToken(t *testing.T) {
 }
 
 func TestIntrospectTokenNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestIntrospectTokenNotFound(t *testing.T) {
 }
 
 func TestHandleIntrospectNilBody(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestHandleIntrospectNilBody(t *testing.T) {
 }
 
 func TestHandleIntrospectTokenNotInDB(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 }
 
 func TestHandleIntrospectTokenNoSession(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 }
 
 func TestIntrospectTokenRevoked(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
