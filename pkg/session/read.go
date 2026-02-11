@@ -16,7 +16,7 @@ func ListSessions() ([]*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanSessions(rows)
 }
 
@@ -29,7 +29,7 @@ func ListSessionsByUser(userID string) ([]*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions by user: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanSessions(rows)
 }
 

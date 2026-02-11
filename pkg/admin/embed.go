@@ -31,7 +31,7 @@ func Handler() http.Handler {
 		if path != "/" {
 			trimmed := strings.TrimPrefix(path, "/")
 			if f, err := sub.Open(trimmed); err == nil {
-				f.Close()
+				_ = f.Close()
 				// File exists — serve it directly
 				http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
 				return
