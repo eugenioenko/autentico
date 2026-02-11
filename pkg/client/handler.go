@@ -20,6 +20,7 @@ import (
 // @Failure 401 {object} model.AuthErrorResponse
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /oauth2/register [post]
+// @Router /admin/api/clients [post]
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
@@ -61,6 +62,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} ClientInfoResponse
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [get]
+// @Router /admin/api/clients/{client_id} [get]
 func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only GET method is allowed")
@@ -94,6 +96,7 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} model.AuthErrorResponse
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [put]
+// @Router /admin/api/clients/{client_id} [put]
 func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only PUT method is allowed")
@@ -147,6 +150,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 // @Success 204 "No Content"
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [delete]
+// @Router /admin/api/clients/{client_id} [delete]
 func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only DELETE method is allowed")
@@ -181,6 +185,7 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} ClientInfoResponse
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /oauth2/register [get]
+// @Router /admin/api/clients [get]
 func HandleListClients(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only GET method is allowed")
@@ -250,8 +255,8 @@ func extractClientIDFromPath(path string) string {
 
 	lastPart := parts[len(parts)-1]
 
-	// If the last part is "register", there's no client_id
-	if lastPart == "register" {
+	// If the last part is the collection endpoint name, there's no client_id
+	if lastPart == "register" || lastPart == "clients" {
 		return ""
 	}
 

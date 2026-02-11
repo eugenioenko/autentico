@@ -4,6 +4,10 @@ APP_NAME=autentico
 # Default target
 all: build
 
+# Build Go binary
+build-go: 
+	go build -o $(APP_NAME) main.go
+
 # Build admin UI + Go binary
 build: admin-ui-build
 	go build -o $(APP_NAME) main.go

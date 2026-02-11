@@ -6,7 +6,7 @@ import type {
   ClientInfoResponse,
 } from "../types/client";
 
-const BASE = "/oauth2/register";
+const BASE = "/admin/api/clients";
 
 export async function listClients(): Promise<ClientInfoResponse[]> {
   const { data } = await apiClient.get<ClientInfoResponse[]>(BASE);

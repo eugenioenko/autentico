@@ -257,7 +257,7 @@ definitions:
     type: object
   user.UserResponse:
     properties:
-      createdAt:
+      created_at:
         type: string
       email:
         type: string
@@ -305,6 +305,141 @@ paths:
       summary: Get Well-Known Configuration
       tags:
       - Well-Known
+  /admin/api/clients:
+    get:
+      consumes:
+      - application/json
+      description: Lists all registered clients (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/client.ClientInfoResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: List all clients
+      tags:
+      - client
+    post:
+      consumes:
+      - application/json
+      description: Registers a new OAuth2/OIDC client (admin only)
+      parameters:
+      - description: Client registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/client.ClientCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/client.ClientResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Register a new OAuth2 client
+      tags:
+      - client
+  /admin/api/clients/{client_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deactivates (soft deletes) a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Deactivate a client
+      tags:
+      - client
+    get:
+      consumes:
+      - application/json
+      description: Retrieves information about a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.ClientInfoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Get client information
+      tags:
+      - client
+    put:
+      consumes:
+      - application/json
+      description: Updates a registered client (admin only)
+      parameters:
+      - description: Client ID
+        in: path
+        name: client_id
+        required: true
+        type: string
+      - description: Client update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/client.ClientUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.ClientInfoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Update client information
+      tags:
+      - client
   /oauth2/authorize:
     get:
       consumes:

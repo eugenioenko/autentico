@@ -175,7 +175,7 @@ Application settings are loaded from `autentico.json` at startup. Create this fi
 | `appEnableCORS`                   | If `true`, enables CORS middleware.                                               | `true`                         |
 | `appOAuthPath`                    | The base path for OAuth2 endpoints (e.g., `/oauth2`).                             | `/oauth2`                      |
 | `appAuthIssuer`                   | The issuer URL for tokens.                                                        | `http://localhost:9999/oauth2` |
-| `dbFilePath`                      | The file path for the SQLite database.                                            | `./db/auth.db`                 |
+| `dbFilePath`                      | The file path for the SQLite database.                                            | `./db/autentico.db`                 |
 | `authAccessTokenSecret`           | Secret key used to sign access tokens. **Change this in production!**             | `your-secret-here`             |
 | `authAccessTokenExpiration`       | Duration for which access tokens are valid (e.g., `15m`, `1h`).                   | `15m`                          |
 | `authRefreshTokenSecret`          | Secret key used to sign refresh tokens. **Change this in production!**            | `your-secret-here`             |
