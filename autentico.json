@@ -1,5 +1,5 @@
 {
-  "dbFilePath": "./db/auth.db",
+  "dbFilePath": "./db/autentico.db",
   "appDomain": "localhost",
   "appHost": "localhost:9999",
   "appPort": "9999",
