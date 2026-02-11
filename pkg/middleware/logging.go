@@ -20,15 +20,11 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		slog.Info("HTTP Request Log",
-			"details", map[string]interface{}{
-				"method":      r.Method,
-				"url":         r.URL.String(),
-				"remote_addr": r.RemoteAddr,
-				"status":      ww.statusCode,
-				"duration_ms": duration.Milliseconds(),
-				"timestamp":   start.Format(time.RFC3339),
-			},
+		slog.Info("request",
+			"method", r.Method,
+			"url", r.URL.String(),
+			"status", ww.statusCode,
+			"duration_ms", duration.Milliseconds(),
 		)
 	})
 }
