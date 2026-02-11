@@ -15,7 +15,7 @@ import (
 )
 
 func TestAuthAudienceMiddlewareMissingAuth(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestAuthAudienceMiddlewareMissingAuth(t *testing.T) {
 }
 
 func TestAuthAudienceMiddlewareInvalidFormat(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestAuthAudienceMiddlewareInvalidFormat(t *testing.T) {
 }
 
 func TestAuthAudienceMiddlewareInvalidToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestAuthAudienceMiddlewareInvalidToken(t *testing.T) {
 }
 
 func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
 }
 
 func TestAuthAudienceMiddlewareValidToken(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}

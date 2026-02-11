@@ -7,7 +7,7 @@ import (
 )
 
 func TestInitDB(t *testing.T) {
-	result, err := InitDB("../../db/test.db")
+	result, err := InitDB(":memory:")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	t.Cleanup(func() {
@@ -16,7 +16,7 @@ func TestInitDB(t *testing.T) {
 }
 
 func TestInitTestDB(t *testing.T) {
-	result, err := InitTestDB("../../db/test.db")
+	result, err := InitTestDB()
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	t.Cleanup(func() {
@@ -25,7 +25,7 @@ func TestInitTestDB(t *testing.T) {
 }
 
 func TestGetDB(t *testing.T) {
-	_, err := InitTestDB("../../db/test.db")
+	_, err := InitTestDB()
 	assert.NoError(t, err)
 	t.Cleanup(func() {
 		CloseDB()
@@ -37,7 +37,7 @@ func TestGetDB(t *testing.T) {
 }
 
 func TestCloseDB(t *testing.T) {
-	_, err := InitTestDB("../../db/test.db")
+	_, err := InitTestDB()
 	assert.NoError(t, err)
 
 	CloseDB()

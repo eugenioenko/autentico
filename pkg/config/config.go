@@ -55,7 +55,7 @@ var defaultConfig = Config{
 	AppEnableCORS:                      true,
 	AppOAuthPath:                       "/oauth2",
 	AppAuthIssuer:                      "http://localhost:9999/oauth2",
-	DbFilePath:                         "./db/auth.db",
+	DbFilePath:                         "./db/autentico.db",
 	AuthAccessTokenSecret:              "your-secret-here",
 	AuthAccessTokenExpiration:          15 * time.Minute,
 	AuthAccessTokenExpirationStr:       "15m",

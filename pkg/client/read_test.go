@@ -9,7 +9,7 @@ import (
 )
 
 func TestClientByClientID(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestClientByClientID(t *testing.T) {
 }
 
 func TestClientByClientIDNotFound(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestClientByClientIDNotFound(t *testing.T) {
 }
 
 func TestListClients(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}

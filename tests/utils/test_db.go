@@ -7,7 +7,7 @@ import (
 )
 
 func WithTestDB(t *testing.T) {
-	_, err := db.InitTestDB("../../db/test.db")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fail()
 	}

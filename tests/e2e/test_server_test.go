@@ -37,7 +37,7 @@ func startTestServer(t *testing.T) *TestServer {
 	t.Helper()
 
 	// Initialize in-memory database
-	_, err := db.InitTestDB(":memory:")
+	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
@@ -99,6 +99,8 @@ func startTestServer(t *testing.T) *TestServer {
 
 	// Admin API routes
 	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
+	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
+	mux.Handle("/admin/api/clients/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle("/admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleSessionAdminEndpoint)))
 
 	// Apply logging middleware and start server
@@ -149,4 +151,3 @@ func getCSRFToken(body string) string {
 	}
 	return matches[1]
 }
-

@@ -3,8 +3,6 @@ package db
 import (
 	"database/sql"
 	"log"
-	"os"
-	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -135,12 +133,8 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func InitTestDB(dbFilePath string) (*sql.DB, error) {
-	if dbFilePath != ":memory:" {
-		if err := os.MkdirAll(filepath.Dir(dbFilePath), 0750); err != nil {
-			return nil, err
-		}
-	}
+func InitTestDB() (*sql.DB, error) {
+	dbFilePath := ":memory:"
 	var err error
 	db, err = sql.Open("sqlite", dbFilePath)
 	if err != nil {
