@@ -24,7 +24,7 @@ var createTableSQL = `
 		password_last_changed DATETIME DEFAULT CURRENT_TIMESTAMP, -- When password was last updated
 		is_email_verified BOOLEAN DEFAULT FALSE, -- Whether email is verified
 		email_verification_token TEXT,           -- Store token used for email verification
-		email_verification_expires_at DATETIME   -- Expiration time of the verification token
+		email_verification_expires_at DATETIME,  -- Expiration time of the verification token
 		deactivated_at DATETIME DEFAULT NULL,    -- If account is deactivated, store timestamp
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Account creation timestamp
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp

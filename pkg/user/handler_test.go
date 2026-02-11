@@ -343,18 +343,10 @@ func TestHandleUpdateUser_InvalidBody(t *testing.T) {
 
 func TestHandleUpdateUser_ValidationError(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.ValidationMinUsernameLength = 3
-		config.Values.ValidationMaxUsernameLength = 50
-		config.Values.ValidationMinPasswordLength = 6
-		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-	})
 
 	token, _ := setupAuthenticatedUser(t)
-	body, _ := json.Marshal(UserCreateRequest{
-		Username: "ab",
-		Password: "password123",
+	body, _ := json.Marshal(UserUpdateRequest{
+		Email: "not-an-email",
 	})
 	req := httptest.NewRequest(http.MethodPut, "/users?id=test", bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -365,28 +357,18 @@ func TestHandleUpdateUser_ValidationError(t *testing.T) {
 
 func TestHandleUpdateUser_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.ValidationMinUsernameLength = 3
-		config.Values.ValidationMaxUsernameLength = 50
-		config.Values.ValidationMinPasswordLength = 6
-		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-		config.Values.ValidationEmailRequired = false
-	})
 
 	token, userID := setupAuthenticatedUser(t)
-	body, _ := json.Marshal(UserCreateRequest{
-		Username: "updateduser",
-		Password: "password123",
-		Email:    "updated@example.com",
-		Role:     "user",
+	body, _ := json.Marshal(UserUpdateRequest{
+		Email: "updated@example.com",
+		Role:  "user",
 	})
 	req := httptest.NewRequest(http.MethodPut, "/users?id="+userID, bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	rr := httptest.NewRecorder()
 	HandleUpdateUser(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "updated")
+	assert.Contains(t, rr.Body.String(), "updated@example.com")
 }
 
 // --- HandleDeleteUser tests ---
@@ -417,7 +399,7 @@ func TestHandleDeleteUser_Success(t *testing.T) {
 
 	token, _ := setupAuthenticatedUser(t)
 
-	// Create a user to delete
+	// Create a user to deactivate
 	targetUserID := xid.New().String()
 	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
@@ -431,7 +413,10 @@ func TestHandleDeleteUser_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "deleted")
 
-	// Verify user is gone
-	_, err = UserByID(targetUserID)
-	assert.Error(t, err)
+	// User should still exist (soft delete) but have deactivated_at set
+	var deactivatedAt *string
+	row := db.GetDB().QueryRow(`SELECT deactivated_at FROM users WHERE id = ?`, targetUserID)
+	err = row.Scan(&deactivatedAt)
+	assert.NoError(t, err)
+	assert.NotNil(t, deactivatedAt)
 }

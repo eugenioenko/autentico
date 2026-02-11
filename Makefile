@@ -4,8 +4,8 @@ APP_NAME=autentico
 # Default target
 all: build
 
-# Build the Go binary
-build:
+# Build admin UI + Go binary
+build: admin-ui-build
 	go build -o $(APP_NAME) main.go
 
 # Run the application
@@ -35,6 +35,13 @@ generate-docs:
 .PHONY: docs
 docs:
 	go run cmd/swagger.go
+
+# Build admin UI and copy to pkg/admin/dist
+admin-ui-build:
+	cd admin-ui && pnpm install && pnpm run build
+	rm -rf pkg/admin/dist
+	cp -r admin-ui/dist pkg/admin/dist
+
 
 docker-build:
 	docker build -t autentico:tag .

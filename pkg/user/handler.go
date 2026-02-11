@@ -114,22 +114,33 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
 	}
-	var req UserCreateRequest
+	var req UserUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
-	if err := ValidateUserCreateRequest(req); err != nil {
+	if err := ValidateUserUpdateRequest(req); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	// Update email and role (expand as needed)
 	err = UpdateUser(id, req.Email, req.Role)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	utils.SuccessResponse(w, map[string]string{"result": "updated"}, http.StatusOK)
+	result, err := UserByID(id)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	resp := UserResponse{
+		ID:        result.ID,
+		Username:  result.Username,
+		Email:     result.Email,
+		CreatedAt: result.CreatedAt,
+		Role:      result.Role,
+	}
+	utils.SuccessResponse(w, resp, http.StatusOK)
 }
 
 // HandleDeleteUser handles DELETE /user/{id}
@@ -150,4 +161,52 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"result": "deleted"}, http.StatusOK)
+}
+
+// HandleListUsers handles GET /admin/api/users - lists all active users
+func HandleListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := ListUsers()
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	var response []UserResponse
+	for _, u := range users {
+		response = append(response, UserResponse{
+			ID:        u.ID,
+			Username:  u.Username,
+			Email:     u.Email,
+			CreatedAt: u.CreatedAt,
+			Role:      u.Role,
+		})
+	}
+
+	if response == nil {
+		response = []UserResponse{}
+	}
+
+	utils.SuccessResponse(w, response, http.StatusOK)
+}
+
+// HandleUserAdminEndpoint is the combined handler for /admin/api/users
+// Routes requests based on HTTP method
+func HandleUserAdminEndpoint(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		id := r.URL.Query().Get("id")
+		if id != "" {
+			HandleGetUser(w, r)
+		} else {
+			HandleListUsers(w, r)
+		}
+	case http.MethodPost:
+		HandleCreateUser(w, r)
+	case http.MethodPut:
+		HandleUpdateUser(w, r)
+	case http.MethodDelete:
+		HandleDeleteUser(w, r)
+	default:
+		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
+	}
 }

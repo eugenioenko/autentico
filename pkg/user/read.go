@@ -7,6 +7,28 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+func ListUsers() ([]*User, error) {
+	query := `
+		SELECT id, username, password, email, role, created_at
+		FROM users WHERE deactivated_at IS NULL
+	`
+	rows, err := db.GetDB().Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []*User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.Role, &u.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, &u)
+	}
+	return users, rows.Err()
+}
+
 func UserByID(userID string) (*User, error) {
 	var user User
 	query := `

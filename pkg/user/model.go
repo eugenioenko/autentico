@@ -21,11 +21,11 @@ type User struct {
 }
 
 type UserResponse struct {
-	ID        string
-	Username  string
-	Email     string
-	CreatedAt time.Time
-	Role      string
+	ID        string    `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	Role      string    `json:"role"`
 }
 
 // ApiUserResponse is used for Swagger documentation
@@ -39,6 +39,25 @@ type UserCreateRequest struct {
 	Password string `json:"password"`
 	Email    string `json:"email,omitempty"`
 	Role     string `json:"role,omitempty"` // optional role assignment
+}
+
+type UserUpdateRequest struct {
+	Email string `json:"email,omitempty"`
+	Role  string `json:"role,omitempty"`
+}
+
+func ValidateUserUpdateRequest(input UserUpdateRequest) error {
+	if input.Email != "" {
+		if err := validation.Validate(input.Email, is.Email); err != nil {
+			return fmt.Errorf("email is invalid: %w", err)
+		}
+	}
+	if input.Role != "" {
+		if err := validation.Validate(input.Role, validation.In("user", "admin")); err != nil {
+			return fmt.Errorf("role is invalid: %w", err)
+		}
+	}
+	return nil
 }
 
 func ValidateUserCreateRequest(input UserCreateRequest) error {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -47,6 +48,13 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 
 		if usr.Role != "admin" {
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Admin access required")
+			return
+		}
+
+		// Check if the session associated with this token is still active
+		sess, err := session.SessionByAccessToken(tokenString)
+		if err != nil || sess == nil || sess.DeactivatedAt != nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Session has been deactivated")
 			return
 		}
 

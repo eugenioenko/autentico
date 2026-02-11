@@ -92,6 +92,48 @@ func ClientByClientID(clientID string) (*Client, error) {
 	return &client, nil
 }
 
+// ClientByName retrieves an active client by its client_name
+func ClientByName(name string) (*Client, error) {
+	query := `
+		SELECT id, client_id, client_secret, client_name, client_type,
+			redirect_uris, grant_types, response_types, scopes,
+			token_endpoint_auth_method, is_active, created_at, updated_at
+		FROM clients
+		WHERE client_name = ? AND is_active = TRUE
+	`
+
+	var c Client
+	var clientSecret sql.NullString
+	err := db.GetDB().QueryRow(query, name).Scan(
+		&c.ID,
+		&c.ClientID,
+		&clientSecret,
+		&c.ClientName,
+		&c.ClientType,
+		&c.RedirectURIs,
+		&c.GrantTypes,
+		&c.ResponseTypes,
+		&c.Scopes,
+		&c.TokenEndpointAuthMethod,
+		&c.IsActive,
+		&c.CreatedAt,
+		&c.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("client not found")
+		}
+		return nil, err
+	}
+
+	if clientSecret.Valid {
+		c.ClientSecret = clientSecret.String
+	}
+
+	return &c, nil
+}
+
 // ListClients retrieves all active clients
 func ListClients() ([]*Client, error) {
 	query := `

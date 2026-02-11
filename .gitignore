@@ -38,6 +38,10 @@ Thumbs.db
 # Test output
 coverage.out
 
+# Admin UI
+admin-ui/node_modules/
+pkg/admin/dist/
+
 # Local environment/config
 .env
 .env.*
