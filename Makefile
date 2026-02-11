@@ -14,7 +14,7 @@ build: admin-ui-build
 
 # Run the application
 run:
-	go run main.go
+	go run main.go start
 
 # Format code using gofmt
 fmt:

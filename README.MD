@@ -125,21 +125,21 @@ The `main.go` file initializes the configuration, database, and routes, and star
     openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
     ```
 
-4.  **Create the first admin user:**
+4.  **Initialize the admin user and admin client:**
 
-    On a fresh install there are no users. Use the `create-admin` command to bootstrap the first admin:
+    On a fresh install there are no users. Use the `init` command to bootstrap the admin user and the Admin UI client:
 
     ```bash
-    ./autentico create-admin --email="admin@example.com" --password="YourSecurePassword"
+    ./autentico init --email="admin@example.com" --password="YourSecurePassword"
     ```
 
-    This admin account can then be used to register OAuth2 clients via `/oauth2/register` and create additional users via `/user`.
+    This creates an admin account and the Admin UI client. The admin account can then be used to register OAuth2 clients via `/oauth2/register` and create additional users via `/user`.
 
 5.  **Run the application:**
     ```bash
     make run
     # Or directly:
-    # ./autentico
+    # ./autentico start
     ```
     The server will start, by default, on `http://localhost:9999`.
 
