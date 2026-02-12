@@ -100,7 +100,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 						UserID:      session.UserID,
 						ClientID:    request.ClientID,
 						RedirectURI: request.RedirectURI,
-						Scope:       "read write",
+						Scope:       request.Scope,
+						Nonce:       request.Nonce,
 						ExpiresAt:   time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 						Used:        false,
 					}
@@ -124,6 +125,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"State":          request.State,
 		"Redirect":       request.RedirectURI,
 		"ClientID":       request.ClientID,
+		"Scope":          request.Scope,
+		"Nonce":          request.Nonce,
 		csrf.TemplateTag: csrf.TemplateField(r),
 	}
 

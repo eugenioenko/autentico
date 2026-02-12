@@ -1269,6 +1269,9 @@ const docTemplate = `{
                 "expires_in": {
                     "type": "integer"
                 },
+                "id_token": {
+                    "type": "string"
+                },
                 "refresh_token": {
                     "type": "string"
                 },

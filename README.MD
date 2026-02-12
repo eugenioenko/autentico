@@ -1,7 +1,7 @@
 # Autentico - OIDC Identity Provider
 
 [![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-336-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-347-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -380,6 +380,7 @@ const params = new URLSearchParams({
   redirect_uri: "https://your-client-app.com/callback", // Must be in AuthAllowedRedirectURIs
   scope: "openid profile email", // Standard OIDC scopes
   state: "callback_state", // Recommended
+  nonce: crypto.randomUUID(), // Recommended: included in id_token for replay protection
 });
 
 window.location.href = `${authServerUrl}?${params.toString()}`;
@@ -398,6 +399,7 @@ EFFECTIVE_URL=$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
   --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
   --data-urlencode "scope=openid profile email" \
   --data-urlencode "state=xyz123abc" \
+  --data-urlencode "nonce=$(uuidgen)" \
   http://localhost:9999/oauth2/authorize)
 
 echo "Open this URL in your browser: ${EFFECTIVE_URL}"
@@ -590,12 +592,12 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 
 ## Testing
 
-Autentico maintains comprehensive test coverage with **336+ test functions** across unit, integration, and end-to-end tests.
+Autentico maintains comprehensive test coverage with **347+ test functions** across unit, integration, and end-to-end tests.
 
 ### Test Coverage
 
 ![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)
-![Test Count](https://img.shields.io/badge/tests-336-blue.svg)
+![Test Count](https://img.shields.io/badge/tests-347-blue.svg)
 ![Packages Tested](https://img.shields.io/badge/packages-15-lightgrey.svg)
 
 | Package          | Coverage | Test Count | Focus Area               |

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -84,13 +85,18 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var usr *user.User
+	var codeNonce string
+	var codeScope string
 
 	switch request.GrantType {
 	case "authorization_code":
-		usr, err = UserByAuthorizationCode(w, request)
+		var code *authcode.AuthCode
+		usr, code, err = UserByAuthorizationCode(w, request)
 		if err != nil {
 			return
 		}
+		codeNonce = code.Nonce
+		codeScope = code.Scope
 	case "password":
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
@@ -103,6 +109,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
+		codeScope = "openid profile email"
 
 	case "refresh_token":
 		usr, err = UserByRefreshToken(w, request)
@@ -133,8 +140,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		RefreshTokenExpiresAt: authToken.RefreshExpiresAt,
 		AccessTokenExpiresAt:  authToken.AccessExpiresAt,
 		IssuedAt:              time.Now().UTC(),
-		Scope:                 "read write",
-		GrantType:             request.GrantType, // Use the correct grant type
+		Scope:                 codeScope,
+		GrantType:             request.GrantType,
 	})
 
 	if err != nil {
@@ -162,7 +169,17 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: authToken.RefreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(config.Get().AuthAccessTokenExpiration / time.Second),
-		Scope:        "read write",
+		Scope:        codeScope,
+	}
+
+	// Generate ID token when "openid" scope is requested
+	if containsScope(codeScope, "openid") {
+		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID)
+		if idErr != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("ID token generation failed: %v", idErr))
+			return
+		}
+		response.IDToken = idToken
 	}
 
 	// send the refresh token as secure cookie
