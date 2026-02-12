@@ -69,6 +69,8 @@ var createTableSQL = `
     redirect_uri TEXT NOT NULL,               -- Must match the one used in the initial request
     scope TEXT,                               -- Scopes associated with this code
     nonce TEXT NOT NULL DEFAULT '',            -- OIDC nonce for ID token replay protection
+    code_challenge TEXT NOT NULL DEFAULT '',   -- PKCE code challenge
+    code_challenge_method TEXT NOT NULL DEFAULT '', -- PKCE method (S256 or plain)
     expires_at DATETIME NOT NULL,             -- Expiration time (typically short-lived)
     used BOOLEAN DEFAULT FALSE,               -- To prevent reuse
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -10,7 +10,9 @@ import (
 
 func AuthCodeByCode(code string) (*AuthCode, error) {
 	query := `
-        SELECT code, user_id, client_id, redirect_uri, scope, nonce, expires_at, used, created_at
+        SELECT code, user_id, client_id, redirect_uri, scope, nonce,
+               code_challenge, code_challenge_method,
+               expires_at, used, created_at
         FROM auth_codes
         WHERE code = ?;
     `
@@ -23,6 +25,8 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 		&authCode.RedirectURI,
 		&authCode.Scope,
 		&authCode.Nonce,
+		&authCode.CodeChallenge,
+		&authCode.CodeChallengeMethod,
 		&authCode.ExpiresAt,
 		&authCode.Used,
 		&authCode.CreatedAt,

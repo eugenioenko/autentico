@@ -1,7 +1,7 @@
 # Autentico - OIDC Identity Provider
 
 [![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-347-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-358-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -45,7 +45,7 @@ Autentico provides a full-featured OIDC Identity Provider with the following cap
 - **ID Token Issuance**: Issues RS256-signed ID tokens containing standard OIDC claims (`sub`, `iss`, `aud`, `exp`, `iat`, `nonce`).
 - **UserInfo Endpoint**: Serves authenticated identity claims via `/oauth2/userinfo` per the OIDC Core specification.
 - **JWK Set Endpoint**: Exposes public signing keys at `/oauth2/certs` for token verification by relying parties.
-- **Authorization Code Flow**: Implements the recommended secure flow for web and mobile applications.
+- **Authorization Code Flow with PKCE**: Implements the recommended secure flow for web and mobile applications, with Proof Key for Code Exchange (RFC 7636) support for public clients.
 - **Dynamic Client Registration**: Register and manage OAuth2 clients (relying parties) via REST API with support for confidential and public client types.
 - **Client Authentication**: Supports `client_secret_basic` (HTTP Basic Auth) and `client_secret_post` (form parameters) authentication methods.
 - **Refresh Token Support**: Allows relying parties to obtain new access tokens without re-authenticating the user.
@@ -287,7 +287,7 @@ Relying parties (OAuth2 clients) are managed via these endpoints. All require ad
 
 Autentico supports the following OAuth 2.0 / OIDC grant types:
 
-- **Authorization Code** — The recommended flow for web and native applications. The IdP authenticates the user, issues an authorization code, and the relying party exchanges it for ID + access tokens.
+- **Authorization Code (with PKCE)** — The recommended flow for web and native applications. The IdP authenticates the user, issues an authorization code, and the relying party exchanges it for ID + access tokens. PKCE (RFC 7636) is supported for public clients using S256 or plain challenge methods.
 - **Resource Owner Password Credentials** — Direct credential exchange. Provided for trusted or legacy clients; not recommended for new applications.
 - **Refresh Token** — Obtain new access tokens without re-authenticating the user.
 
@@ -371,16 +371,39 @@ curl -X POST http://localhost:9999/users/create \
 
 Redirect the user to the `/oauth2/authorize` endpoint to start the login process.
 
-**Using JavaScript:**
+**Using JavaScript (with PKCE):**
 
 ```javascript
+// Generate PKCE code_verifier and code_challenge
+function generateCodeVerifier() {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+const codeVerifier = generateCodeVerifier();
+const codeChallenge = await generateCodeChallenge(codeVerifier);
+// Store codeVerifier for the token exchange step
+sessionStorage.setItem("code_verifier", codeVerifier);
+
 const authServerUrl = "http://localhost:9999/oauth2/authorize";
 const params = new URLSearchParams({
-  response_type: "code", // For Authorization Code Flow
-  redirect_uri: "https://your-client-app.com/callback", // Must be in AuthAllowedRedirectURIs
-  scope: "openid profile email", // Standard OIDC scopes
-  state: "callback_state", // Recommended
-  nonce: crypto.randomUUID(), // Recommended: included in id_token for replay protection
+  response_type: "code",
+  redirect_uri: "https://your-client-app.com/callback",
+  scope: "openid profile email",
+  state: "callback_state",
+  nonce: crypto.randomUUID(),
+  code_challenge: codeChallenge,
+  code_challenge_method: "S256",
 });
 
 window.location.href = `${authServerUrl}?${params.toString()}`;
@@ -433,7 +456,7 @@ curl -X POST http://localhost:9999/oauth2/token \
   -d "client_secret=your_client_secret"
 ```
 
-**For Public Clients (no secret required):**
+**For Public Clients with PKCE (recommended):**
 
 ```bash
 curl -X POST http://localhost:9999/oauth2/token \
@@ -441,7 +464,8 @@ curl -X POST http://localhost:9999/oauth2/token \
   -d "grant_type=authorization_code" \
   -d "code=your_received_authorization_code" \
   -d "redirect_uri=https://your-client-app.com/callback" \
-  -d "client_id=your_client_id"
+  -d "client_id=your_client_id" \
+  -d "code_verifier=your_stored_code_verifier"
 ```
 
 A successful response will contain `access_token`, `id_token`, `refresh_token`, `token_type`, and `expires_in`.
@@ -592,12 +616,12 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 
 ## Testing
 
-Autentico maintains comprehensive test coverage with **347+ test functions** across unit, integration, and end-to-end tests.
+Autentico maintains comprehensive test coverage with **358+ test functions** across unit, integration, and end-to-end tests.
 
 ### Test Coverage
 
 ![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)
-![Test Count](https://img.shields.io/badge/tests-347-blue.svg)
+![Test Count](https://img.shields.io/badge/tests-358-blue.svg)
 ![Packages Tested](https://img.shields.io/badge/packages-15-lightgrey.svg)
 
 | Package          | Coverage | Test Count | Focus Area               |

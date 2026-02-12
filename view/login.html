@@ -180,6 +180,8 @@
         <input type="hidden" name="client_id" value="{{.ClientID}}" />
         <input type="hidden" name="scope" value="{{.Scope}}" />
         <input type="hidden" name="nonce" value="{{.Nonce}}" />
+        <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
+        <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
         <div class="control">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" required />

@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -400,6 +402,106 @@ func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
 
 	assert.NotEmpty(t, tokens.AccessToken)
 	assert.Empty(t, tokens.IDToken, "id_token should NOT be present without openid scope")
+}
+
+func TestAuthorizationCodeFlow_PKCE_S256(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Generate PKCE values
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	h := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
+
+	// Perform authorization code flow with PKCE
+	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "S256")
+
+	// Exchange code for tokens with code_verifier
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", codeVerifier)
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "PKCE token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.NotEmpty(t, tokens.IDToken, "id_token should be present with openid scope")
+}
+
+func TestAuthorizationCodeFlow_PKCE_WrongVerifier(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	h := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
+
+	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "S256")
+
+	// Exchange code with WRONG code_verifier
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", "wrong-verifier-that-does-not-match")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, tokenResp.StatusCode, "wrong verifier should fail: %s", string(body))
+
+	var errResp map[string]interface{}
+	_ = json.Unmarshal(body, &errResp)
+	assert.Equal(t, "invalid_grant", errResp["error"])
+}
+
+func TestAuthorizationCodeFlow_PKCE_MissingVerifier(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	h := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
+
+	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "S256")
+
+	// Exchange code WITHOUT code_verifier
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	// No code_verifier!
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, tokenResp.StatusCode, "missing verifier should fail: %s", string(body))
 }
 
 func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {

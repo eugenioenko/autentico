@@ -57,6 +57,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		RedirectURI:  r.FormValue("redirect_uri"),
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
+		CodeVerifier: r.FormValue("code_verifier"),
 		Username:     r.FormValue("username"),
 		Password:     r.FormValue("password"),
 		RefreshToken: r.FormValue("refresh_token"),
