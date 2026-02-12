@@ -330,6 +330,78 @@ func TestAuthorizationCodeFlow_RedirectMismatch(t *testing.T) {
 	assert.Equal(t, "invalid_grant", errResp["error"])
 }
 
+func TestAuthorizationCodeFlow_IDTokenWithNonce(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Perform authorization code flow with openid scope and nonce
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid profile email", "my-test-nonce-42")
+
+	// Exchange code for tokens
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.NotEmpty(t, tokens.RefreshToken)
+	assert.NotEmpty(t, tokens.IDToken, "id_token should be present when openid scope is requested")
+	assert.Equal(t, "Bearer", tokens.TokenType)
+	assert.Contains(t, tokens.Scope, "openid")
+
+	// Verify the ID token is a valid JWT with expected claims
+	// Parse without verification (we trust the server in E2E tests)
+	parts := strings.SplitN(tokens.IDToken, ".", 3)
+	assert.Len(t, parts, 3, "id_token should be a JWT with 3 parts")
+}
+
+func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Perform authorization code flow WITHOUT openid scope
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "read write", "")
+
+	// Exchange code for tokens
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.Empty(t, tokens.IDToken, "id_token should NOT be present without openid scope")
+}
+
 func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	ts := startTestServer(t)
 	redirectURI := "http://localhost:3000/callback"

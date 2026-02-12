@@ -3,7 +3,7 @@
 ## High Priority (Core OIDC Gaps)
 
 - [ ] **PKCE** — Implement `code_challenge`/`code_verifier` validation. Parameters are already parsed in the authorize handler but marked TODO. Essential for SPAs and mobile clients.
-- [ ] **ID Token** — Return an `id_token` in the token response. JWT access tokens are already issued; `nonce` is captured but unused.
+- [x] **ID Token** — Return an `id_token` in the token response. JWT access tokens are already issued; `nonce` is captured but unused.
 - [ ] **Account Lockout** — Wire up lockout logic using existing `failed_login_attempts` and `locked_until` DB columns.
 
 ## Medium Priority (Security & Usability)

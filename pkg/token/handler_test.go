@@ -773,3 +773,121 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
+
+func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	// Create auth code with openid scope and nonce
+	code := authcode.AuthCode{
+		Code:        "test-auth-code-idtoken",
+		UserID:      usr.ID,
+		ClientID:    "",
+		RedirectURI: "http://localhost/callback",
+		Scope:       "openid profile email",
+		Nonce:       "test-nonce-xyz",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+		Used:        false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "test-auth-code-idtoken")
+	form.Add("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, tokenResp.AccessToken)
+	assert.NotEmpty(t, tokenResp.IDToken, "id_token should be present when openid scope is requested")
+	assert.Equal(t, "openid profile email", tokenResp.Scope)
+}
+
+func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	// Create auth code WITHOUT openid scope
+	code := authcode.AuthCode{
+		Code:        "test-auth-code-no-openid",
+		UserID:      usr.ID,
+		ClientID:    "",
+		RedirectURI: "http://localhost/callback",
+		Scope:       "read write",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+		Used:        false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "test-auth-code-no-openid")
+	form.Add("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, tokenResp.AccessToken)
+	assert.Empty(t, tokenResp.IDToken, "id_token should NOT be present without openid scope")
+}
+
+func TestHandleToken_PasswordGrant_ReturnsIDToken(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+
+	// Password grant defaults to "openid profile email" scope, so id_token should be present
+	assert.NotEmpty(t, tokenResp.IDToken, "id_token should be present for password grant")
+}

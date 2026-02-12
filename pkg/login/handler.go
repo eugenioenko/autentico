@@ -44,6 +44,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		Redirect: r.FormValue("redirect"),
 		State:    r.FormValue("state"),
 		ClientID: r.FormValue("client_id"),
+		Scope:    r.FormValue("scope"),
+		Nonce:    r.FormValue("nonce"),
 	}
 
 	err = ValidateLoginRequest(request)
@@ -91,7 +93,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		UserID:      usr.ID,
 		ClientID:    request.ClientID,
 		RedirectURI: request.Redirect,
-		Scope:       "read write", // TODO set this scope correctly
+		Scope:       request.Scope,
+		Nonce:       request.Nonce,
 		ExpiresAt:   time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
 		Used:        false,
 	}

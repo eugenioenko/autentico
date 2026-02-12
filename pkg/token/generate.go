@@ -3,6 +3,7 @@ package token
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -71,6 +72,65 @@ func GenerateTokens(user user.User) (*AuthToken, error) {
 	}
 
 	return result, nil
+}
+
+// GenerateIDToken creates an OIDC ID token JWT signed with RS256.
+// The nonce parameter is included in the token if non-empty (for authorization code flow replay protection).
+// The scope parameter controls which claims are included (e.g. "profile" adds name claims, "email" adds email claims).
+func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string) (string, error) {
+	now := time.Now()
+	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
+
+	claims := jwt.MapClaims{
+		"iss":       config.Get().AppAuthIssuer,
+		"sub":       user.ID,
+		"aud":       clientID,
+		"exp":       idTokenExpiresAt.Unix(),
+		"iat":       now.Unix(),
+		"auth_time": now.Unix(),
+		"sid":       sessionID,
+	}
+
+	if nonce != "" {
+		claims["nonce"] = nonce
+	}
+
+	if clientID != "" && clientID != config.Get().AuthDefaultClientID {
+		claims["azp"] = clientID
+	}
+
+	// Include profile claims when "profile" or "openid" scope is present
+	if containsScope(scope, "profile") || containsScope(scope, "openid") {
+		claims["name"] = user.Username
+		claims["preferred_username"] = user.Username
+	}
+
+	// Include email claims when "email" or "openid" scope is present
+	if containsScope(scope, "email") || containsScope(scope, "openid") {
+		claims["email"] = user.Email
+		claims["email_verified"] = false
+	}
+
+	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	idToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+
+	signedIDToken, err := idToken.SignedString(key.GetPrivateKey())
+	if err != nil {
+		return "", fmt.Errorf("could not sign id token: %v", err)
+	}
+
+	return signedIDToken, nil
+}
+
+// containsScope checks if a space-separated scope string contains a specific scope value.
+func containsScope(scopeStr string, target string) bool {
+	scopes := strings.Split(scopeStr, " ")
+	for _, s := range scopes {
+		if s == target {
+			return true
+		}
+	}
+	return false
 }
 
 func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {

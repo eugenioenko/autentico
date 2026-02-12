@@ -15,6 +15,8 @@ type LoginRequest struct {
 	State    string `json:"state"`
 	Redirect string `json:"redirect"`
 	ClientID string `json:"client_id"`
+	Scope    string `json:"scope"`
+	Nonce    string `json:"nonce"`
 }
 
 func ValidateLoginRequest(input LoginRequest) error {

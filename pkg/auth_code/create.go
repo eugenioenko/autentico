@@ -7,9 +7,9 @@ import (
 func CreateAuthCode(code AuthCode) error {
 	query := `
 		INSERT INTO auth_codes (
-			code, user_id, client_id, redirect_uri, scope,
+			code, user_id, client_id, redirect_uri, scope, nonce,
 			expires_at, used, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 	_, err := db.GetDB().Exec(query,
 		code.Code,
@@ -17,6 +17,7 @@ func CreateAuthCode(code AuthCode) error {
 		code.ClientID,
 		code.RedirectURI,
 		code.Scope,
+		code.Nonce,
 		code.ExpiresAt,
 		code.Used,
 		code.CreatedAt,
