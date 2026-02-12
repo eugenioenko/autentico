@@ -40,9 +40,9 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		RedirectURI:         q.Get("redirect_uri"),
 		Scope:               q.Get("scope"),
 		State:               q.Get("state"),
-		Nonce:               q.Get("nonce"),                 // TODO
-		CodeChallenge:       q.Get("code_challenge"),        // TODO
-		CodeChallengeMethod: q.Get("code_challenge_method"), // TODO
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
 	}
 
 	err := ValidateAuthorizeRequest(request)
@@ -96,14 +96,16 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 				code, err := authcode.GenerateSecureCode()
 				if err == nil {
 					ac := authcode.AuthCode{
-						Code:        code,
-						UserID:      session.UserID,
-						ClientID:    request.ClientID,
-						RedirectURI: request.RedirectURI,
-						Scope:       request.Scope,
-						Nonce:       request.Nonce,
-						ExpiresAt:   time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-						Used:        false,
+						Code:                code,
+						UserID:              session.UserID,
+						ClientID:            request.ClientID,
+						RedirectURI:         request.RedirectURI,
+						Scope:               request.Scope,
+						Nonce:               request.Nonce,
+						CodeChallenge:       request.CodeChallenge,
+						CodeChallengeMethod: request.CodeChallengeMethod,
+						ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+						Used:                false,
 					}
 					if authcode.CreateAuthCode(ac) == nil {
 						redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
@@ -122,12 +124,14 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"State":          request.State,
-		"Redirect":       request.RedirectURI,
-		"ClientID":       request.ClientID,
-		"Scope":          request.Scope,
-		"Nonce":          request.Nonce,
-		csrf.TemplateTag: csrf.TemplateField(r),
+		"State":               request.State,
+		"Redirect":            request.RedirectURI,
+		"ClientID":            request.ClientID,
+		"Scope":               request.Scope,
+		"Nonce":               request.Nonce,
+		"CodeChallenge":       request.CodeChallenge,
+		"CodeChallengeMethod": request.CodeChallengeMethod,
+		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
 
 	err = tmpl.Execute(w, data)

@@ -39,13 +39,15 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := LoginRequest{
-		Username: r.FormValue("username"),
-		Password: r.FormValue("password"),
-		Redirect: r.FormValue("redirect"),
-		State:    r.FormValue("state"),
-		ClientID: r.FormValue("client_id"),
-		Scope:    r.FormValue("scope"),
-		Nonce:    r.FormValue("nonce"),
+		Username:            r.FormValue("username"),
+		Password:            r.FormValue("password"),
+		Redirect:            r.FormValue("redirect"),
+		State:               r.FormValue("state"),
+		ClientID:            r.FormValue("client_id"),
+		Scope:               r.FormValue("scope"),
+		Nonce:               r.FormValue("nonce"),
+		CodeChallenge:       r.FormValue("code_challenge"),
+		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 	}
 
 	err = ValidateLoginRequest(request)
@@ -89,14 +91,16 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := authcode.AuthCode{
-		Code:        authCode,
-		UserID:      usr.ID,
-		ClientID:    request.ClientID,
-		RedirectURI: request.Redirect,
-		Scope:       request.Scope,
-		Nonce:       request.Nonce,
-		ExpiresAt:   time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
-		Used:        false,
+		Code:                authCode,
+		UserID:              usr.ID,
+		ClientID:            request.ClientID,
+		RedirectURI:         request.Redirect,
+		Scope:               request.Scope,
+		Nonce:               request.Nonce,
+		CodeChallenge:       request.CodeChallenge,
+		CodeChallengeMethod: request.CodeChallengeMethod,
+		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
+		Used:                false,
 	}
 
 	err = authcode.CreateAuthCode(code)

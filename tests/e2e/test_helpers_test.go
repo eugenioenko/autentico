@@ -185,6 +185,78 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	return code
 }
 
+// performAuthorizationCodeFlowWithPKCE drives the full authorize -> login -> extract code chain
+// with PKCE parameters (code_challenge and code_challenge_method).
+func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID, redirectURI, username, password, state, scope, nonce, codeChallenge, codeChallengeMethod string) string {
+	t.Helper()
+
+	params := url.Values{
+		"response_type": {"code"},
+		"client_id":     {clientID},
+		"redirect_uri":  {redirectURI},
+		"state":         {state},
+	}
+	if scope != "" {
+		params.Set("scope", scope)
+	}
+	if nonce != "" {
+		params.Set("nonce", nonce)
+	}
+	if codeChallenge != "" {
+		params.Set("code_challenge", codeChallenge)
+	}
+	if codeChallengeMethod != "" {
+		params.Set("code_challenge_method", codeChallengeMethod)
+	}
+
+	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + params.Encode()
+
+	resp, err := ts.Client.Get(authorizeURL)
+	require.NoError(t, err, "failed to GET /oauth2/authorize")
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "failed to read authorize response")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
+
+	csrfToken := getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+
+	form := url.Values{}
+	form.Set("username", username)
+	form.Set("password", password)
+	form.Set("redirect", redirectURI)
+	form.Set("state", state)
+	form.Set("client_id", clientID)
+	form.Set("scope", scope)
+	form.Set("nonce", nonce)
+	form.Set("code_challenge", codeChallenge)
+	form.Set("code_challenge_method", codeChallengeMethod)
+	form.Set("gorilla.csrf.Token", csrfToken)
+
+	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
+	require.NoError(t, err, "failed to create login request")
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+
+	loginResp, err := ts.Client.Do(loginReq)
+	require.NoError(t, err, "failed to POST /oauth2/login")
+	defer func() { _ = loginResp.Body.Close() }()
+
+	require.Equal(t, http.StatusFound, loginResp.StatusCode, "login should redirect with 302")
+
+	location := loginResp.Header.Get("Location")
+	require.NotEmpty(t, location, "missing Location header in login redirect")
+
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err, "failed to parse redirect URL")
+
+	code := redirectURL.Query().Get("code")
+	require.NotEmpty(t, code, "authorization code not found in redirect URL")
+
+	return code
+}
+
 // createTestClient creates an OAuth2 client via the admin API endpoint.
 func createTestClient(t *testing.T, ts *TestServer, adminToken string, reqBody interface{}) map[string]interface{} {
 	t.Helper()

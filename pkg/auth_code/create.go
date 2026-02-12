@@ -8,8 +8,9 @@ func CreateAuthCode(code AuthCode) error {
 	query := `
 		INSERT INTO auth_codes (
 			code, user_id, client_id, redirect_uri, scope, nonce,
+			code_challenge, code_challenge_method,
 			expires_at, used, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
 	_, err := db.GetDB().Exec(query,
 		code.Code,
@@ -18,6 +19,8 @@ func CreateAuthCode(code AuthCode) error {
 		code.RedirectURI,
 		code.Scope,
 		code.Nonce,
+		code.CodeChallenge,
+		code.CodeChallengeMethod,
 		code.ExpiresAt,
 		code.Used,
 		code.CreatedAt,

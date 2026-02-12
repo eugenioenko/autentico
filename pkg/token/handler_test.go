@@ -1,6 +1,8 @@
 package token
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -890,4 +892,190 @@ func TestHandleToken_PasswordGrant_ReturnsIDToken(t *testing.T) {
 
 	// Password grant defaults to "openid profile email" scope, so id_token should be present
 	assert.NotEmpty(t, tokenResp.IDToken, "id_token should be present for password grant")
+}
+
+func TestVerifyCodeChallenge_S256(t *testing.T) {
+	// code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	// SHA256 of that, base64url-encoded = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	// (This is the RFC 7636 example)
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+
+	assert.True(t, verifyCodeChallenge(challenge, "S256", verifier))
+	assert.False(t, verifyCodeChallenge(challenge, "S256", "wrong-verifier"))
+}
+
+func TestVerifyCodeChallenge_Plain(t *testing.T) {
+	verifier := "my-plain-verifier"
+	challenge := "my-plain-verifier"
+
+	assert.True(t, verifyCodeChallenge(challenge, "plain", verifier))
+	assert.False(t, verifyCodeChallenge(challenge, "plain", "wrong"))
+}
+
+func TestVerifyCodeChallenge_DefaultsToS256(t *testing.T) {
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+
+	// Empty method should default to S256
+	assert.True(t, verifyCodeChallenge(challenge, "", verifier))
+}
+
+func TestVerifyCodeChallenge_UnsupportedMethod(t *testing.T) {
+	assert.False(t, verifyCodeChallenge("challenge", "unsupported", "verifier"))
+}
+
+func pkceS256Challenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := pkceS256Challenge(verifier)
+
+	code := authcode.AuthCode{
+		Code:                "pkce-test-code",
+		UserID:              usr.ID,
+		RedirectURI:         "http://localhost/callback",
+		Scope:               "openid",
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: "S256",
+		ExpiresAt:           time.Now().Add(10 * time.Minute),
+		Used:                false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "pkce-test-code")
+	form.Add("redirect_uri", "http://localhost/callback")
+	form.Add("code_verifier", verifier)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "access_token")
+}
+
+func TestHandleToken_AuthorizationCodeGrant_PKCE_MissingVerifier(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	code := authcode.AuthCode{
+		Code:                "pkce-missing-verifier",
+		UserID:              usr.ID,
+		RedirectURI:         "http://localhost/callback",
+		Scope:               "openid",
+		CodeChallenge:       "some-challenge",
+		CodeChallengeMethod: "S256",
+		ExpiresAt:           time.Now().Add(10 * time.Minute),
+		Used:                false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "pkce-missing-verifier")
+	form.Add("redirect_uri", "http://localhost/callback")
+	// No code_verifier!
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "code_verifier is required")
+}
+
+func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	verifier := "correct-verifier-value-here-1234567890abcdef"
+	challenge := pkceS256Challenge(verifier)
+
+	code := authcode.AuthCode{
+		Code:                "pkce-wrong-verifier",
+		UserID:              usr.ID,
+		RedirectURI:         "http://localhost/callback",
+		Scope:               "openid",
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: "S256",
+		ExpiresAt:           time.Now().Add(10 * time.Minute),
+		Used:                false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "pkce-wrong-verifier")
+	form.Add("redirect_uri", "http://localhost/callback")
+	form.Add("code_verifier", "wrong-verifier-value")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "PKCE verification failed")
+}
+
+func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	// Auth code without PKCE should still work
+	code := authcode.AuthCode{
+		Code:        "no-pkce-code",
+		UserID:      usr.ID,
+		RedirectURI: "http://localhost/callback",
+		Scope:       "read write",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+		Used:        false,
+	}
+	err = authcode.CreateAuthCode(code)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "no-pkce-code")
+	form.Add("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "access_token")
 }

@@ -10,13 +10,15 @@ import (
 )
 
 type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	State    string `json:"state"`
-	Redirect string `json:"redirect"`
-	ClientID string `json:"client_id"`
-	Scope    string `json:"scope"`
-	Nonce    string `json:"nonce"`
+	Username            string `json:"username"`
+	Password            string `json:"password"`
+	State               string `json:"state"`
+	Redirect            string `json:"redirect"`
+	ClientID            string `json:"client_id"`
+	Scope               string `json:"scope"`
+	Nonce               string `json:"nonce"`
+	CodeChallenge       string `json:"code_challenge"`
+	CodeChallengeMethod string `json:"code_challenge_method"`
 }
 
 func ValidateLoginRequest(input LoginRequest) error {
