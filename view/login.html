@@ -3,23 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Autentico Login</title>
+    <title>{{.ThemeTitle}}</title>
+    {{if .ThemeFontUrl}}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="{{.ThemeFontUrl}}" rel="stylesheet" />
+    {{end}}
     <style>
       :root {
+        /* Typography */
         --font-size: 16px;
-        --border-radius: 2px;
+        --font-family: {{.ThemeFontFamily}};
+        --h1-font-size: 2rem;
+
+        /* Layout */
+        --border-radius: 4px;
+        --form-width: 380px;
+        --form-padding: 30px;
+        --form-gap: 1rem;
+        --form-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+        /* Logo */
+        --logo-size: 96px;
+        --logo-padding: 1rem;
+
+        /* Elements */
+        --input-padding: 10px 20px;
+        --button-padding: 10px 20px;
+        --label-padding: 0 0 4px 0;
       }
 
       :root {
+        /* Colors - Light Mode */
         --color-primary: #2e5bff;
         --color-accent: #188060;
-        --color-danger: #d60b0b;
+        --color-danger: #ff4848;
         --color-text: #0f0f0f;
         --color-inverse: #ffffff;
         --color-background: #f1f1f1;
@@ -29,6 +47,7 @@
 
       @media (prefers-color-scheme: dark) {
         :root {
+          /* Colors - Dark Mode */
           --color-primary: #2e5bff;
           --color-accent: #188060;
           --color-danger: #d60b0b;
@@ -42,6 +61,10 @@
     </style>
 
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       html,
       body {
         margin: 0;
@@ -54,7 +77,7 @@
         align-items: center;
         justify-content: center;
         min-height: 100dvh;
-        font-family: "Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-family: var(--font-family);
         font-weight: 300;
         background-color: var(--color-background);
         font-size: var(--font-size);
@@ -71,38 +94,38 @@
 
       form {
         background-color: var(--color-card);
-        padding: 30px;
+        padding: var(--form-padding);
         border-radius: var(--border-radius);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 300px;
+        box-shadow: var(--form-shadow);
+        width: var(--form-width);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: var(--form-gap);
       }
 
       h1 {
-        font-size: 2rem;
+        font-size: var(--h1-font-size);
         font-weight: bold;
         margin: 0;
       }
 
       label {
-        padding-bottom: 4px;
+        padding: var(--label-padding-bottom);
         display: block;
       }
 
       input[type="text"],
       input[type="password"] {
         width: 100%;
-        padding: 10px;
+        padding: var(--input-padding);
         border-radius: var(--border-radius);
         border: 1px solid var(--color-border);
       }
 
       button {
         width: 100%;
-        padding: 10px;
+        padding: var(--button-padding);
         background-color: var(--color-primary);
         color: var(--color-inverse);
         border: none;
@@ -110,7 +133,7 @@
         cursor: pointer;
         font-weight: bold;
         font-size: 1rem;
-        margin-top: 16px;
+        margin-top: 1rem;
       }
 
       button:hover {
@@ -118,21 +141,24 @@
       }
 
       .logo {
-        width: 96px;
-        height: 96px;
+        width: var(--logo-size);
+        height: var(--logo-size);
         display: flex;
         justify-content: center;
         align-items: center;
         border-radius: 9999px;
         background-color: var(--color-inverse);
         border: 1px solid var(--color-border);
-        margin: 16px 0 32px 0;
-        padding: 16px;
+        padding: var(--logo-padding);
       }
 
-      .logo > svg {
+      .logo > svg,
+      .logo > img {
         fill: var(--color-primary);
+        max-width: 100%;
+        max-height: 100%;
       }
+
       .control {
         width: 100%;
       }
@@ -140,16 +166,19 @@
       .error {
         color: var(--color-danger);
       }
-
-      * {
-        box-sizing: border-box;
-      }
     </style>
+
+    {{if .ThemeCssResolved}}
+    <style>{{.ThemeCssResolved}}</style>
+    {{end}}
   </head>
   <body id="autentico">
     <main>
       <form method="POST" action="/oauth2/login">
         <div class="logo">
+          {{if .ThemeLogoUrl}}
+          <img src="{{.ThemeLogoUrl}}" alt="Logo" />
+          {{else}}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -173,7 +202,9 @@
               </g>
             </g>
           </svg>
+          {{end}}
         </div>
+        <h1>{{.ThemeTitle}}</h1>
         {{ .csrfField }}
         <input type="hidden" name="state" value="{{.State}}" />
         <input type="hidden" name="redirect" value="{{.Redirect}}" />
@@ -190,6 +221,9 @@
           <label for="password">Password</label>
           <input type="password" id="password" name="password" required />
         </div>
+        {{if .Error}}
+           <div class="error" role="alert">{{.Error}}</div>
+        {{end}}
         <button type="submit">Log In</button>
       </form>
     </main>

@@ -35,5 +35,8 @@
   "authIdpSessionCookieName": "autentico_idp_session",
   "authIdpSessionSecureCookie": false,
   "authAccountLockoutMaxAttempts": 5,
-  "authAccountLockoutDuration": "15m"
+  "authAccountLockoutDuration": "15m",
+  "theme": {
+    "themeTitle": "Autentico"
+  }
 }

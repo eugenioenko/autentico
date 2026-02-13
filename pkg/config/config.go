@@ -2,9 +2,19 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
+
+type ThemeConfig struct {
+	CssFile    string `json:"themeCssFile"`
+	CssInline  string `json:"themeCssInline"`
+	LogoUrl    string `json:"themeLogoUrl"`
+	Title      string `json:"themeTitle"`
+	FontUrl    string `json:"themeFontUrl"`
+	FontFamily string `json:"themeFontFamily"`
+}
 
 type Config struct {
 	AppDomain                          string        `json:"appDomain"`
@@ -48,6 +58,8 @@ type Config struct {
 	AuthAccountLockoutMaxAttempts      int           `json:"authAccountLockoutMaxAttempts"`
 	AuthAccountLockoutDuration         time.Duration `json:"-"`
 	AuthAccountLockoutDurationStr      string        `json:"authAccountLockoutDuration"`
+	Theme                              ThemeConfig   `json:"theme"`
+	ThemeCssResolved                   string        `json:"-"`
 }
 
 var defaultConfig = Config{
@@ -94,6 +106,11 @@ var defaultConfig = Config{
 	AuthAccountLockoutMaxAttempts:   5,
 	AuthAccountLockoutDuration:      15 * time.Minute,
 	AuthAccountLockoutDurationStr:   "15m",
+	Theme: ThemeConfig{
+		Title:      "Autentico",
+		FontUrl:    "https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;700&display=swap",
+		FontFamily: `"Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif`,
+	},
 }
 
 var Values = defaultConfig
@@ -130,6 +147,20 @@ func InitConfig(path string) error {
 	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
 	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
 	cfg.AuthAccountLockoutDuration = parseDuration(cfg.AuthAccountLockoutDurationStr, defaultConfig.AuthAccountLockoutDuration)
+
+	// Resolve theme CSS: file first, inline overrides
+	if cfg.Theme.CssFile != "" {
+		cssBytes, err := os.ReadFile(cfg.Theme.CssFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not read theme CSS file %q: %v\n", cfg.Theme.CssFile, err)
+		} else {
+			cfg.ThemeCssResolved = string(cssBytes)
+		}
+	}
+	if cfg.Theme.CssInline != "" {
+		cfg.ThemeCssResolved = cfg.Theme.CssInline
+	}
+
 	Values = cfg
 	return nil
 }
