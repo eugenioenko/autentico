@@ -92,14 +92,7 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", err.Error())
 		return
 	}
-	resp := UserResponse{
-		ID:        result.ID,
-		Username:  result.Username,
-		Email:     result.Email,
-		CreatedAt: result.CreatedAt,
-		Role:      result.Role,
-	}
-	utils.SuccessResponse(w, resp, http.StatusOK)
+	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
 
 // HandleUpdateUser handles PUT /user/{id} (update user)
@@ -133,14 +126,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	resp := UserResponse{
-		ID:        result.ID,
-		Username:  result.Username,
-		Email:     result.Email,
-		CreatedAt: result.CreatedAt,
-		Role:      result.Role,
-	}
-	utils.SuccessResponse(w, resp, http.StatusOK)
+	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
 
 // HandleDeleteUser handles DELETE /user/{id}
@@ -173,13 +159,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	var response []UserResponse
 	for _, u := range users {
-		response = append(response, UserResponse{
-			ID:        u.ID,
-			Username:  u.Username,
-			Email:     u.Email,
-			CreatedAt: u.CreatedAt,
-			Role:      u.Role,
-		})
+		response = append(response, u.ToResponse())
 	}
 
 	if response == nil {
@@ -187,6 +167,30 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SuccessResponse(w, response, http.StatusOK)
+}
+
+// HandleUnlockUser handles POST /admin/api/users/unlock?id=...
+func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		return
+	}
+	err := UnlockUser(id)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	result, err := UserByID(id)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
 
 // HandleUserAdminEndpoint is the combined handler for /admin/api/users

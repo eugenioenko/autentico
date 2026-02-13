@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { Drawer, Form, Input, Select, Button, Space, message } from "antd";
 import { useUpdateUser } from "../../hooks/useUsers";
-import type { UserResponse, UserUpdateRequest } from "../../types/user";
+import type { UserResponseExt, UserUpdateRequest } from "../../types/user";
 
 interface UserEditFormProps {
   open: boolean;
-  user: UserResponse | null;
+  user: UserResponseExt | null;
   onClose: () => void;
 }
 
