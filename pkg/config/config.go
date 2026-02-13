@@ -8,12 +8,10 @@ import (
 )
 
 type ThemeConfig struct {
-	CssFile    string `json:"themeCssFile"`
-	CssInline  string `json:"themeCssInline"`
-	LogoUrl    string `json:"themeLogoUrl"`
-	Title      string `json:"themeTitle"`
-	FontUrl    string `json:"themeFontUrl"`
-	FontFamily string `json:"themeFontFamily"`
+	CssFile   string `json:"themeCssFile"`
+	CssInline string `json:"themeCssInline"`
+	LogoUrl   string `json:"themeLogoUrl"`
+	Title     string `json:"themeTitle"`
 }
 
 type Config struct {
@@ -107,9 +105,7 @@ var defaultConfig = Config{
 	AuthAccountLockoutDuration:      15 * time.Minute,
 	AuthAccountLockoutDurationStr:   "15m",
 	Theme: ThemeConfig{
-		Title:      "Autentico",
-		FontUrl:    "https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;700&display=swap",
-		FontFamily: `"Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif`,
+		Title: "Autentico",
 	},
 }
 

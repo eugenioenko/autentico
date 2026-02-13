@@ -234,14 +234,12 @@ The login page can be customized via the `theme` object in `autentico.json`.
 
 **Theme Options:**
 
-| Field              | Description                                                    | Default                                                              |
-|--------------------|----------------------------------------------------------------|----------------------------------------------------------------------|
-| `themeTitle`       | Page title shown in browser tab                                | `Autentico Login`                                                    |
-| `themeLogoUrl`     | URL to a logo image (replaces default SVG)                     | _(default SVG logo)_                                                 |
-| `themeFontUrl`     | URL to load a web font (e.g., Google Fonts)                    | Fira Sans from Google Fonts                                          |
-| `themeFontFamily`  | CSS `font-family` value                                        | `"Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif`       |
-| `themeCssFile`     | Path to an external CSS file (read once at startup)            | _(none)_                                                             |
-| `themeCssInline`   | Inline CSS string (overrides `themeCssFile` if both are set)   | _(none)_                                                             |
+| Field              | Description                                                    | Default              |
+|--------------------|----------------------------------------------------------------|----------------------|
+| `themeTitle`       | Page title shown in browser tab                                | `Autentico`          |
+| `themeLogoUrl`     | URL to a logo image (replaces default SVG)                     | _(default SVG logo)_ |
+| `themeCssFile`     | Path to an external CSS file (read once at startup)            | _(none)_             |
+| `themeCssInline`   | Inline CSS string (overrides `themeCssFile` if both are set)   | _(none)_             |
 
 **Example configuration:**
 
@@ -250,9 +248,19 @@ The login page can be customized via the `theme` object in `autentico.json`.
   "theme": {
     "themeTitle": "My App Login",
     "themeLogoUrl": "https://example.com/logo.png",
-    "themeFontUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap",
-    "themeFontFamily": "\"Inter\", sans-serif",
     "themeCssFile": "/etc/autentico/custom-theme.css"
+  }
+}
+```
+
+Custom fonts can be loaded via `@import` in your CSS.
+You can also customize theme directly with `themeCssInline`:
+
+```json
+{
+  "theme": {
+    "themeTitle": "My App Login",
+    "themeCssInline": "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap'); :root { --font-family: 'Inter', sans-serif; }"
   }
 }
 ```
@@ -265,7 +273,7 @@ Override these in your custom CSS file or `themeCssInline`:
 :root {
   /* Typography */
   --font-size: 16px;
-  --font-family: "Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* Colors - Light Mode */
   --color-primary: #2e5bff;
