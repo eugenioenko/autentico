@@ -114,8 +114,10 @@ func TestHandleLoginUser_WrongCredentials(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Contains(t, rr.Body.String(), "login failed")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	location := rr.Header().Get("Location")
+	assert.Contains(t, location, "/oauth2/authorize")
+	assert.Contains(t, location, "error=")
 }
 
 func TestHandleLoginUser_NonExistentUser(t *testing.T) {
@@ -133,8 +135,10 @@ func TestHandleLoginUser_NonExistentUser(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Contains(t, rr.Body.String(), "login failed")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	location := rr.Header().Get("Location")
+	assert.Contains(t, location, "/oauth2/authorize")
+	assert.Contains(t, location, "error=")
 }
 
 func TestValidateLoginRequest_InvalidPassword(t *testing.T) {
