@@ -132,6 +132,11 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"ThemeTitle":          cfg.Theme.Title,
+		"ThemeFontUrl":        cfg.Theme.FontUrl,
+		"ThemeFontFamily":     template.CSS(cfg.Theme.FontFamily),
+		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
+		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 	}
 
 	err = tmpl.Execute(w, data)

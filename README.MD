@@ -228,6 +228,90 @@ Application settings are loaded from `autentico.json` at startup. Create this fi
 | `authAccountLockoutDuration`      | Duration of account lockout after max failed attempts (e.g., `15m`, `1h`).        | `15m`                          |
 | `swaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8888`                         |
 
+### Login Page Theming
+
+The login page can be customized via the `theme` object in `autentico.json`.
+
+**Theme Options:**
+
+| Field              | Description                                                    | Default                                                              |
+|--------------------|----------------------------------------------------------------|----------------------------------------------------------------------|
+| `themeTitle`       | Page title shown in browser tab                                | `Autentico Login`                                                    |
+| `themeLogoUrl`     | URL to a logo image (replaces default SVG)                     | _(default SVG logo)_                                                 |
+| `themeFontUrl`     | URL to load a web font (e.g., Google Fonts)                    | Fira Sans from Google Fonts                                          |
+| `themeFontFamily`  | CSS `font-family` value                                        | `"Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif`       |
+| `themeCssFile`     | Path to an external CSS file (read once at startup)            | _(none)_                                                             |
+| `themeCssInline`   | Inline CSS string (overrides `themeCssFile` if both are set)   | _(none)_                                                             |
+
+**Example configuration:**
+
+```json
+{
+  "theme": {
+    "themeTitle": "My App Login",
+    "themeLogoUrl": "https://example.com/logo.png",
+    "themeFontUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap",
+    "themeFontFamily": "\"Inter\", sans-serif",
+    "themeCssFile": "/etc/autentico/custom-theme.css"
+  }
+}
+```
+
+**Available CSS Variables:**
+
+Override these in your custom CSS file or `themeCssInline`:
+
+```css
+:root {
+  /* Typography */
+  --font-size: 16px;
+  --font-family: "Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Colors - Light Mode */
+  --color-primary: #2e5bff;
+  --color-accent: #188060;
+  --color-danger: #ff4848;
+  --color-text: #0f0f0f;
+  --color-inverse: #ffffff;
+  --color-background: #f1f1f1;
+  --color-card: #ffffff;
+  --color-border: #696969;
+
+  /* Layout */
+  --border-radius: 2px;
+  --form-width: 380px;
+  --form-padding: 30px;
+  --form-gap: 16px;
+  --form-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  /* Logo */
+  --logo-size: 96px;
+  --logo-margin: 16px 0 32px 0;
+  --logo-padding: 16px;
+
+  /* Elements */
+  --input-padding: 10px;
+  --button-padding: 10px;
+  --button-margin-top: 16px;
+  --h1-font-size: 2rem;
+  --label-padding-bottom: 4px;
+}
+
+/* Dark mode: override color variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #2e5bff;
+    --color-accent: #188060;
+    --color-danger: #d60b0b;
+    --color-text: #e7e7e7;
+    --color-inverse: #e7e7e7;
+    --color-background: #0f0f0f;
+    --color-card: #1e1f22;
+    --color-border: #cccccc;
+  }
+}
+```
+
 ---
 
 ## API Documentation
