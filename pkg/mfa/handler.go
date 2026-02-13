@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -38,12 +39,12 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 
 	challenge, err := MfaChallengeByID(challengeID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid or expired challenge")
+		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
 		return
 	}
 
 	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Challenge has expired")
+		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
 		return
 	}
 
@@ -102,12 +103,12 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	challenge, err := MfaChallengeByID(challengeID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid or expired challenge")
+		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
 		return
 	}
 
 	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Challenge has expired")
+		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
 		return
 	}
 
@@ -258,4 +259,31 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	}
 
 	_ = tmpl.Execute(w, data)
+}
+
+func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {
+	cfg := config.Get()
+	params := url.Values{}
+	params.Set("response_type", "code")
+	params.Set("error", errorMsg)
+
+	if challenge != nil {
+		var loginState LoginState
+		if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err == nil {
+			params.Set("client_id", loginState.ClientID)
+			params.Set("redirect_uri", loginState.Redirect)
+			params.Set("state", loginState.State)
+			params.Set("scope", loginState.Scope)
+			if loginState.Nonce != "" {
+				params.Set("nonce", loginState.Nonce)
+			}
+			if loginState.CodeChallenge != "" {
+				params.Set("code_challenge", loginState.CodeChallenge)
+				params.Set("code_challenge_method", loginState.CodeChallengeMethod)
+			}
+		}
+	}
+
+	redirectURL := cfg.AppOAuthPath + "/authorize?" + params.Encode()
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
