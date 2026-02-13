@@ -45,6 +45,9 @@ type Config struct {
 	AuthSsoSessionIdleTimeoutStr       string        `json:"authSsoSessionIdleTimeout"`
 	AuthIdpSessionCookieName           string        `json:"authIdpSessionCookieName"`
 	AuthIdpSessionSecureCookie         bool          `json:"authIdpSessionSecureCookie"`
+	AuthAccountLockoutMaxAttempts      int           `json:"authAccountLockoutMaxAttempts"`
+	AuthAccountLockoutDuration         time.Duration `json:"-"`
+	AuthAccountLockoutDurationStr      string        `json:"authAccountLockoutDuration"`
 }
 
 var defaultConfig = Config{
@@ -86,8 +89,11 @@ var defaultConfig = Config{
 	AuthRealmAccessRoles:         []string{},
 	AuthSsoSessionIdleTimeout:    0,
 	AuthSsoSessionIdleTimeoutStr: "0",
-	AuthIdpSessionCookieName:     "autentico_idp_session",
-	AuthIdpSessionSecureCookie:   false,
+	AuthIdpSessionCookieName:        "autentico_idp_session",
+	AuthIdpSessionSecureCookie:      false,
+	AuthAccountLockoutMaxAttempts:   5,
+	AuthAccountLockoutDuration:      15 * time.Minute,
+	AuthAccountLockoutDurationStr:   "15m",
 }
 
 var Values = defaultConfig
@@ -123,6 +129,7 @@ func InitConfig(path string) error {
 	cfg.AuthRefreshTokenExpiration = parseDuration(cfg.AuthRefreshTokenExpirationStr, defaultConfig.AuthRefreshTokenExpiration)
 	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
 	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
+	cfg.AuthAccountLockoutDuration = parseDuration(cfg.AuthAccountLockoutDurationStr, defaultConfig.AuthAccountLockoutDuration)
 	Values = cfg
 	return nil
 }

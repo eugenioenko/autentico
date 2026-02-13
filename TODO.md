@@ -4,7 +4,7 @@
 
 - [x] **PKCE** — Implement `code_challenge`/`code_verifier` validation (RFC 7636). Supports S256 and plain methods.
 - [x] **ID Token** — Return an `id_token` in the token response. JWT access tokens are already issued; `nonce` is captured but unused.
-- [ ] **Account Lockout** — Wire up lockout logic using existing `failed_login_attempts` and `locked_until` DB columns.
+- [x] **Account Lockout** — Wire up lockout logic using existing `failed_login_attempts` and `locked_until` DB columns.
 
 ## Medium Priority (Security & Usability)
 

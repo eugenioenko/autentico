@@ -9,6 +9,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  unlockUser,
 } from "../api/users";
 import type { UserCreateRequest, UserUpdateRequest } from "../types/user";
 
@@ -54,6 +55,16 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+    },
+  });
+}
+
+export function useUnlockUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => unlockUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USERS_KEY });
     },

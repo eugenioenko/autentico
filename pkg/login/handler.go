@@ -1,6 +1,7 @@
 package login
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -64,6 +65,10 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
+		if errors.Is(err, user.ErrAccountLocked) {
+			utils.WriteErrorResponse(w, http.StatusForbidden, "account_locked", err.Error())
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("login failed. %v", err))
 		return
 	}

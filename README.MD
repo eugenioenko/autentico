@@ -224,6 +224,8 @@ Application settings are loaded from `autentico.json` at startup. Create this fi
 | `validationMaxPasswordLength`     | Maximum length for passwords.                                                     | `64`                           |
 | `validationUsernameIsEmail`       | If `true`, usernames must be valid email addresses.                               | `true`                         |
 | `validationEmailRequired`         | If `true`, email is required for user registration.                               | `false`                        |
+| `authAccountLockoutMaxAttempts`   | Number of failed login attempts before account is locked. Set to `0` to disable.  | `5`                            |
+| `authAccountLockoutDuration`      | Duration of account lockout after max failed attempts (e.g., `15m`, `1h`).        | `15m`                          |
 | `swaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8888`                         |
 
 ---

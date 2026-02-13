@@ -12,20 +12,36 @@ import (
 )
 
 type User struct {
-	ID        string
-	Username  string
-	Password  string
-	Email     string
-	CreatedAt time.Time
-	Role      string
+	ID                  string
+	Username            string
+	Password            string
+	Email               string
+	CreatedAt           time.Time
+	Role                string
+	FailedLoginAttempts int
+	LockedUntil         *time.Time
 }
 
 type UserResponse struct {
-	ID        string    `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	Role      string    `json:"role"`
+	ID                  string     `json:"id"`
+	Username            string     `json:"username"`
+	Email               string     `json:"email"`
+	CreatedAt           time.Time  `json:"created_at"`
+	Role                string     `json:"role"`
+	FailedLoginAttempts int        `json:"failed_login_attempts"`
+	LockedUntil         *time.Time `json:"locked_until,omitempty"`
+}
+
+func (u *User) ToResponse() UserResponse {
+	return UserResponse{
+		ID:                  u.ID,
+		Username:            u.Username,
+		Email:               u.Email,
+		CreatedAt:           u.CreatedAt,
+		Role:                u.Role,
+		FailedLoginAttempts: u.FailedLoginAttempts,
+		LockedUntil:         u.LockedUntil,
+	}
 }
 
 // ApiUserResponse is used for Swagger documentation
