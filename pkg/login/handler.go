@@ -1,6 +1,7 @@
 package login
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -71,6 +73,60 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			loginError = "Account is temporarily locked due to too many failed login attempts"
 		}
 		redirectToLogin(w, r, request, loginError)
+		return
+	}
+
+	// MFA check: if enabled globally, redirect to MFA verification
+	cfg := config.Get()
+	if cfg.MfaEnabled {
+		method := cfg.MfaMethod
+		// If method is "both", prefer TOTP if user is enrolled, otherwise email
+		if method == "both" {
+			if usr.TotpVerified {
+				method = "totp"
+			} else {
+				method = "email"
+			}
+		}
+		// For TOTP method with unenrolled user, force enrollment
+		// For email method, always proceed (no per-user setup needed)
+
+		loginState := mfa.LoginState{
+			Redirect:            request.Redirect,
+			State:               request.State,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+		}
+		stateJSON, err := json.Marshal(loginState)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to serialize login state")
+			return
+		}
+
+		challengeID, err := authcode.GenerateSecureCode()
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate challenge ID")
+			return
+		}
+
+		challenge := mfa.MfaChallenge{
+			ID:         challengeID,
+			UserID:     usr.ID,
+			Method:     method,
+			LoginState: string(stateJSON),
+			ExpiresAt:  time.Now().Add(5 * time.Minute),
+		}
+
+		if err := mfa.CreateMfaChallenge(challenge); err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create MFA challenge")
+			return
+		}
+
+		mfaURL := cfg.AppOAuthPath + "/mfa?challenge_id=" + challengeID
+		http.Redirect(w, r, mfaURL, http.StatusFound)
 		return
 	}
 

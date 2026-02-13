@@ -15,6 +15,15 @@ func UpdateUser(id, newEmail, newRole string) error {
 	return nil
 }
 
+func SaveTotpSecret(userID, secret string) error {
+	query := `UPDATE users SET totp_secret = ?, totp_verified = TRUE, two_factor_enabled = TRUE WHERE id = ?`
+	_, err := db.GetDB().Exec(query, secret, userID)
+	if err != nil {
+		return fmt.Errorf("failed to save TOTP secret: %v", err)
+	}
+	return nil
+}
+
 func UnlockUser(id string) error {
 	query := `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
 	result, err := db.GetDB().Exec(query, id)

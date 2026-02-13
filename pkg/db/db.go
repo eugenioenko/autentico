@@ -16,6 +16,8 @@ var createTableSQL = `
 		password TEXT NOT NULL,                  -- Hashed password
 		role TEXT NOT NULL DEFAULT 'user',       -- User role (e.g., 'admin', 'user', 'moderator')
 		two_factor_enabled BOOLEAN DEFAULT FALSE, -- If 2FA is enabled
+		totp_secret TEXT NOT NULL DEFAULT '',      -- TOTP secret (base32 encoded)
+		totp_verified BOOLEAN DEFAULT FALSE,       -- Whether user has completed TOTP enrollment
 		last_login DATETIME,                     -- Timestamp of last successful login
 		failed_login_attempts INTEGER DEFAULT 0, -- Failed login attempt counter
 		locked_until DATETIME,                   -- If account is locked, store unlock time
@@ -88,6 +90,18 @@ var createTableSQL = `
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS mfa_challenges (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		method TEXT NOT NULL,
+		code TEXT NOT NULL DEFAULT '',
+		login_state TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL,
+		used BOOLEAN DEFAULT FALSE,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE TABLE IF NOT EXISTS clients (
 		id TEXT PRIMARY KEY,                                          -- Internal unique ID
 		client_id TEXT UNIQUE NOT NULL,                               -- Public client identifier
@@ -111,6 +125,7 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS tokens;
 		DROP TABLE IF EXISTS auth_codes;
 		DROP TABLE IF EXISTS idp_sessions;
+		DROP TABLE IF EXISTS mfa_challenges;
 		DROP TABLE IF EXISTS clients;
 	`
 

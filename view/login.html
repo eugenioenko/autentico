@@ -106,7 +106,7 @@
       }
 
       label {
-        padding: var(--label-padding-bottom);
+        padding: var(--label-padding);
         display: block;
       }
 
@@ -208,9 +208,6 @@
         <input type="hidden" name="nonce" value="{{.Nonce}}" />
         <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
         <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
-        {{if .Error}}
-        <div class="error" role="alert">{{.Error}}</div>
-        {{end}}
         <div class="control">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" required />

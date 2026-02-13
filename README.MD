@@ -227,6 +227,61 @@ Application settings are loaded from `autentico.json` at startup. Create this fi
 | `authAccountLockoutMaxAttempts`   | Number of failed login attempts before account is locked. Set to `0` to disable.  | `5`                            |
 | `authAccountLockoutDuration`      | Duration of account lockout after max failed attempts (e.g., `15m`, `1h`).        | `15m`                          |
 | `swaggerPort`                     | Port on which the Swagger documentation server runs.                              | `8888`                         |
+| `mfaEnabled`                      | If `true`, enables multi-factor authentication for all users.                     | `false`                        |
+| `mfaMethod`                       | MFA method to use: `"totp"`, `"email"`, or `"both"`.                              | `"totp"`                       |
+| `smtpHost`                        | SMTP server hostname (required for email MFA).                                    | `""`                           |
+| `smtpPort`                        | SMTP server port.                                                                 | `"587"`                        |
+| `smtpUsername`                     | SMTP authentication username.                                                     | `""`                           |
+| `smtpPassword`                    | SMTP authentication password.                                                     | `""`                           |
+| `smtpFrom`                        | Sender email address for MFA emails.                                              | `""`                           |
+
+### Multi-Factor Authentication (MFA)
+
+Autentico supports MFA with two methods:
+
+- **TOTP** — Time-based one-time passwords via authenticator apps (Google Authenticator, Authy, etc.)
+- **Email** — One-time codes sent via email (requires SMTP configuration)
+
+When `mfaEnabled` is `true`, all users are required to complete MFA after password authentication. For TOTP, users who haven't enrolled yet will be shown a QR code to scan with their authenticator app on their next login.
+
+**Example configuration (TOTP only):**
+
+```json
+{
+  "mfaEnabled": true,
+  "mfaMethod": "totp"
+}
+```
+
+**Example configuration (Email OTP):**
+
+```json
+{
+  "mfaEnabled": true,
+  "mfaMethod": "email",
+  "smtpHost": "smtp.example.com",
+  "smtpPort": "587",
+  "smtpUsername": "noreply@example.com",
+  "smtpPassword": "your-smtp-password",
+  "smtpFrom": "noreply@example.com"
+}
+```
+
+**Example configuration (Both — TOTP preferred, email fallback):**
+
+```json
+{
+  "mfaEnabled": true,
+  "mfaMethod": "both",
+  "smtpHost": "smtp.example.com",
+  "smtpPort": "587",
+  "smtpUsername": "noreply@example.com",
+  "smtpPassword": "your-smtp-password",
+  "smtpFrom": "noreply@example.com"
+}
+```
+
+When `mfaMethod` is `"both"`, users who have enrolled in TOTP will use their authenticator app. Users who haven't enrolled will receive an email code instead.
 
 ### Login Page Theming
 

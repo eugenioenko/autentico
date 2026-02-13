@@ -20,6 +20,8 @@ type User struct {
 	Role                string
 	FailedLoginAttempts int
 	LockedUntil         *time.Time
+	TotpSecret          string
+	TotpVerified        bool
 }
 
 type UserResponse struct {
