@@ -36,6 +36,13 @@
   "authIdpSessionSecureCookie": false,
   "authAccountLockoutMaxAttempts": 5,
   "authAccountLockoutDuration": "15m",
+  "mfaEnabled": false,
+  "mfaMethod": "totp",
+  "smtpHost": "",
+  "smtpPort": "587",
+  "smtpUsername": "",
+  "smtpPassword": "",
+  "smtpFrom": "",
   "theme": {
     "themeTitle": "Autentico"
   }
