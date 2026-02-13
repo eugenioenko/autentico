@@ -249,7 +249,7 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	data := map[string]any{
 		"ChallengeID":    challenge.ID,
 		"TotpSecret":     secret,
-		"QRCodeDataURI":  qrDataURI,
+		"QRCodeDataURI":  template.URL(qrDataURI),
 		"Error":          errorMsg,
 		csrf.TemplateTag: csrf.TemplateField(r),
 		"ThemeTitle":     cfg.Theme.Title,
