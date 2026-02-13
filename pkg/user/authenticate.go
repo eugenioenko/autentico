@@ -21,7 +21,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	var user User
 	var lockedUntil *time.Time
 	query := `
-		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until
+		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified
 		FROM users WHERE username = ?
 	`
 	row := db.GetDB().QueryRow(query, username)
@@ -34,6 +34,8 @@ func AuthenticateUser(username, password string) (*User, error) {
 		&user.Role,
 		&user.FailedLoginAttempts,
 		&lockedUntil,
+		&user.TotpSecret,
+		&user.TotpVerified,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

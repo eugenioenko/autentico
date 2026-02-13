@@ -8,7 +8,7 @@
 
 ## Medium Priority (Security & Usability)
 
-- [ ] **MFA/TOTP** — Implement two-factor authentication. `two_factor_enabled` column exists in the users table.
+- [x] **MFA/TOTP** — Implement two-factor authentication with TOTP and email OTP support.
 - [ ] **Email Verification** — Implement verification flow using existing `email_verification_token` and `email_verification_expires_at` DB columns.
 - [ ] **Password Reset** — Add forgot-password / reset flow.
 - [ ] **Consent Screen** — Show users what scopes a client is requesting before granting access.
