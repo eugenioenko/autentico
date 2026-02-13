@@ -4,16 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{.ThemeTitle}}</title>
-    {{if .ThemeFontUrl}}
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="{{.ThemeFontUrl}}" rel="stylesheet" />
-    {{end}}
     <style>
       :root {
         /* Typography */
         --font-size: 16px;
-        --font-family: {{.ThemeFontFamily}};
+        --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         --h1-font-size: 2rem;
 
         /* Layout */
