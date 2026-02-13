@@ -33,5 +33,7 @@
   "authRealmAccessRoles": [],
   "authSsoSessionIdleTimeout": "1h",
   "authIdpSessionCookieName": "autentico_idp_session",
-  "authIdpSessionSecureCookie": false
+  "authIdpSessionSecureCookie": false,
+  "authAccountLockoutMaxAttempts": 5,
+  "authAccountLockoutDuration": "15m"
 }
