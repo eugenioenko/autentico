@@ -131,6 +131,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"Nonce":               request.Nonce,
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
+		"Error":               q.Get("error"),
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
 

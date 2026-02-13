@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -65,11 +66,11 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
+		loginError := "Invalid username or password"
 		if errors.Is(err, user.ErrAccountLocked) {
-			utils.WriteErrorResponse(w, http.StatusForbidden, "account_locked", err.Error())
-			return
+			loginError = "Account is temporarily locked due to too many failed login attempts"
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("login failed. %v", err))
+		redirectToLogin(w, r, request, loginError)
 		return
 	}
 
@@ -115,5 +116,26 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.Redirect, code.Code, request.State)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+// redirectToLogin redirects back to the authorize endpoint with an error message,
+// preserving all original OAuth parameters so the login form is re-rendered.
+func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, loginError string) {
+	params := url.Values{}
+	params.Set("response_type", "code")
+	params.Set("client_id", req.ClientID)
+	params.Set("redirect_uri", req.Redirect)
+	params.Set("state", req.State)
+	params.Set("scope", req.Scope)
+	params.Set("error", loginError)
+	if req.Nonce != "" {
+		params.Set("nonce", req.Nonce)
+	}
+	if req.CodeChallenge != "" {
+		params.Set("code_challenge", req.CodeChallenge)
+		params.Set("code_challenge_method", req.CodeChallengeMethod)
+	}
+	redirectURL := config.Get().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
