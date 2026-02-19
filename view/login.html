@@ -6,191 +6,232 @@
     <title>{{.ThemeTitle}}</title>
     <style>
       :root {
-        /* Typography */
-        --font-size: 16px;
         --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        --h1-font-size: 2rem;
-
-        /* Layout */
-        --border-radius: 4px;
-        --form-width: 380px;
-        --form-padding: 30px;
-        --form-gap: 1rem;
-        --form-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-
-        /* Logo */
-        --logo-size: 96px;
-        --logo-padding: 1rem;
-
-        /* Elements */
-        --input-padding: 10px 20px;
-        --button-padding: 10px 20px;
-        --label-padding: 0 0 4px 0;
-      }
-
-      :root {
-        /* Colors - Light Mode */
         --color-primary: #2e5bff;
+        --color-primary-dark: #1a3fd4;
         --color-accent: #188060;
-        --color-danger: #ff4848;
-        --color-text: #0f0f0f;
+        --color-danger: #dc2626;
+        --color-text: #111827;
+        --color-text-muted: #6b7280;
         --color-inverse: #ffffff;
-        --color-background: #f1f1f1;
+        --color-background: #f3f4f6;
         --color-card: #ffffff;
-        --color-border: #696969;
+        --color-border: #d1d5db;
+        --color-focus: rgba(46, 91, 255, 0.18);
+        --radius: 8px;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          /* Colors - Dark Mode */
-          --color-primary: #2e5bff;
-          --color-accent: #188060;
-          --color-danger: #d60b0b;
-          --color-text: #e7e7e7;
-          --color-inverse: #e7e7e7;
-          --color-background: #0f0f0f;
-          --color-card: #1e1f22;
-          --color-border: #cccccc;
+          --color-primary: #4f7bff;
+          --color-primary-dark: #2e5bff;
+          --color-danger: #f87171;
+          --color-text: #f1f5f9;
+          --color-text-muted: #94a3b8;
+          --color-background: #0f1117;
+          --color-card: #1a1d27;
+          --color-border: #2a2d3e;
+          --color-focus: rgba(79, 123, 255, 0.22);
         }
       }
-    </style>
 
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
+        min-height: 100dvh;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100dvh;
         font-family: var(--font-family);
-        font-weight: 300;
-        background-color: var(--color-background);
-        font-size: var(--font-size);
+        font-size: 15px;
         color: var(--color-text);
+        background: var(--color-background);
       }
 
-      main {
-        flex-grow: 1;
+      /* Brand panel — horizontal strip on mobile, left column on desktop */
+      .brand {
+        background: linear-gradient(145deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+        color: #fff;
         display: flex;
-        width: 100%;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.75rem;
+        flex-shrink: 0;
+      }
+
+      .brand-tagline { display: none; }
+
+      @media (min-width: 800px) {
+        body { flex-direction: row; }
+        .brand {
+          width: 400px;
+          min-height: 100dvh;
+          flex-direction: column;
+          justify-content: center;
+          gap: 1.25rem;
+          padding: 3rem 2.5rem;
+        }
+        .brand-tagline {
+          display: block;
+          font-size: 0.95rem;
+          opacity: 0.72;
+          line-height: 1.65;
+          text-align: center;
+          max-width: 260px;
+        }
+      }
+
+      .brand-logo {
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 50%;
+        display: flex;
         align-items: center;
         justify-content: center;
+        padding: 0.6rem;
+        flex-shrink: 0;
+      }
+
+      @media (min-width: 800px) {
+        .brand-logo { width: 72px; height: 72px; padding: 1rem; }
+      }
+
+      .brand-logo svg, .brand-logo img {
+        width: 100%;
+        height: 100%;
+        fill: #fff;
+        object-fit: contain;
+      }
+
+      .brand h1 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+
+      @media (min-width: 800px) {
+        .brand h1 { font-size: 1.6rem; letter-spacing: -0.5px; }
+      }
+
+      /* Form panel */
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2.5rem 1.5rem;
+        background: var(--color-card);
       }
 
       form {
-        background-color: var(--color-card);
-        padding: var(--form-padding);
-        border-radius: var(--border-radius);
-        box-shadow: var(--form-shadow);
-        width: var(--form-width);
+        width: 100%;
+        max-width: 360px;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: var(--form-gap);
+        gap: 1.1rem;
       }
 
-      h1 {
-        font-size: var(--h1-font-size);
-        font-weight: bold;
-        margin: 0;
+      .form-header { margin-bottom: 0.25rem; }
+
+      .form-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.4px;
       }
+
+      .form-header p {
+        margin-top: 0.35rem;
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+      }
+
+      .field { display: flex; flex-direction: column; gap: 0.35rem; }
 
       label {
-        padding: var(--label-padding);
-        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-text);
       }
 
       input[type="text"],
       input[type="password"] {
         width: 100%;
-        padding: var(--input-padding);
-        border-radius: var(--border-radius);
-        border: 1px solid var(--color-border);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.95rem;
+        font-family: inherit;
+        color: var(--color-text);
+        background: var(--color-background);
+        border: 1.5px solid var(--color-border);
+        border-radius: var(--radius);
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
       }
 
-      button {
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-focus);
+      }
+
+      .btn {
         width: 100%;
-        padding: var(--button-padding);
-        background-color: var(--color-primary);
-        color: var(--color-inverse);
+        padding: 0.7rem 1rem;
+        font-size: 0.95rem;
+        font-family: inherit;
+        font-weight: 600;
+        border-radius: var(--radius);
         border: none;
-        border-radius: var(--border-radius);
         cursor: pointer;
-        font-weight: bold;
-        font-size: 1rem;
-        margin-top: 1rem;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
       }
 
-      button:hover {
-        background-color: var(--color-accent);
+      .btn-primary {
+        background: var(--color-primary);
+        color: #fff;
+        margin-top: 0.25rem;
       }
 
-      .logo {
-        width: var(--logo-size);
-        height: var(--logo-size);
+      .btn-primary:hover {
+        background: var(--color-primary-dark);
+        box-shadow: 0 4px 12px rgba(46, 91, 255, 0.35);
+      }
+
+      .btn-primary:active { transform: translateY(1px); box-shadow: none; }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--color-text);
+        border: 1.5px solid var(--color-border);
         display: flex;
-        justify-content: center;
         align-items: center;
-        border-radius: 9999px;
-        background-color: var(--color-inverse);
-        border: 1px solid var(--color-border);
-        padding: var(--logo-padding);
+        justify-content: center;
+        gap: 0.5rem;
       }
 
-      .logo > svg,
-      .logo > img {
-        fill: var(--color-primary);
-        max-width: 100%;
-        max-height: 100%;
+      .btn-secondary:hover { background: var(--color-background); }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
       }
 
-      .control {
-        width: 100%;
+      .divider::before, .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--color-border);
       }
 
       .error {
+        font-size: 0.875rem;
         color: var(--color-danger);
-      }
-
-      .divider {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--color-border);
-        font-size: 0.85rem;
-      }
-
-      .divider::before,
-      .divider::after {
-        content: "";
-        flex: 1;
-        border-top: 1px solid var(--color-border);
-      }
-
-      button.passkey-btn {
-        background-color: var(--color-card);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-top: 0;
-      }
-
-      button.passkey-btn:hover {
-        background-color: var(--color-background);
+        padding: 0.6rem 0.875rem;
+        background: rgba(220, 38, 38, 0.08);
+        border-radius: var(--radius);
+        border-left: 3px solid var(--color-danger);
       }
     </style>
 
@@ -199,38 +240,31 @@
     {{end}}
   </head>
   <body id="autentico">
+    <aside class="brand">
+      <div class="brand-logo">
+        {{if .ThemeLogoUrl}}
+        <img src="{{.ThemeLogoUrl}}" alt="Logo" />
+        {{else}}
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 59.807 59.807" xml:space="preserve">
+          <g><g>
+            <path d="M52.851,18.505c-1.103,7.352-11.396,8.822-11.396,6.433c0-2.39,0.735-16.176-3.125-17.278c-3.861-1.103-2.39-6.801-4.411-7.352c-1.522-0.416-3.254-0.314-4.015-0.24c-0.761-0.075-2.492-0.177-4.015,0.239c-2.022,0.551-0.551,6.25-4.411,7.352c-3.861,1.104-3.125,14.889-3.125,17.278c0,2.389-10.294,0.919-11.397-6.433C5.853,11.152-3.338,28.981,5.669,36.15c8.159,6.494,21.75,6.502,24.234,6.445c2.484,0.057,16.076,0.049,24.235-6.445C63.145,28.982,53.955,11.153,52.851,18.505z M21.844,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.618-1.378,1.378-1.378c0.761,0,1.378,0.618,1.378,1.378S22.605,22.596,21.844,22.596z M26.807,23.698c-0.761,0-1.378-0.618-1.378-1.378c0-0.761,0.618-1.378,1.378-1.378c0.761,0,1.378,0.618,1.378,1.378C28.186,23.082,27.569,23.698,26.807,23.698z M33.424,23.698c-0.761,0-1.378-0.618-1.378-1.378c0-0.761,0.618-1.378,1.378-1.378c0.762,0,1.378,0.618,1.378,1.378C34.803,23.082,34.186,23.698,33.424,23.698z M38.388,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.617-1.378,1.378-1.378s1.377,0.618,1.377,1.378S39.149,22.596,38.388,22.596z"/>
+            <path d="M34.084,47.818c0,0-2.487-0.301-3.181,3.18c-1.33,6.679,2.299,4.654,2.299,4.654c3.65-2.312,7.634,1.038,11.324,3.435c3.691,2.396,1.12-1.943,1.12-1.943C39.707,47.788,34.084,47.818,34.084,47.818z"/>
+            <path d="M25.723,47.818c0,0-5.623-0.03-11.564,9.325c0,0-2.571,4.338,1.12,1.943c3.69-2.396,7.675-5.746,11.325-3.435c0,0,3.629,2.024,2.299-4.654C28.21,47.517,25.723,47.818,25.723,47.818z"/>
+          </g></g>
+        </svg>
+        {{end}}
+      </div>
+      <h1>{{.ThemeTitle}}</h1>
+      <p class="brand-tagline">Secure identity provider.<br>Sign in to access your applications.</p>
+    </aside>
+
     <main>
       <form method="POST" action="/oauth2/login">
-        <div class="logo">
-          {{if .ThemeLogoUrl}}
-          <img src="{{.ThemeLogoUrl}}" alt="Logo" />
-          {{else}}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            xmlns:xlink="http://www.w3.org/1999/xlink"
-            version="1.1"
-            width="800px"
-            height="800px"
-            viewBox="0 0 59.807 59.807"
-            xml:space="preserve"
-          >
-            <g>
-              <g>
-                <path
-                  d="M52.851,18.505c-1.103,7.352-11.396,8.822-11.396,6.433c0-2.39,0.735-16.176-3.125-17.278    c-3.861-1.103-2.39-6.801-4.411-7.352c-1.522-0.416-3.254-0.314-4.015-0.24c-0.761-0.075-2.492-0.177-4.015,0.239    c-2.022,0.551-0.551,6.25-4.411,7.352c-3.861,1.104-3.125,14.889-3.125,17.278c0,2.389-10.294,0.919-11.397-6.433    C5.853,11.152-3.338,28.981,5.669,36.15c8.159,6.494,21.75,6.502,24.234,6.445c2.484,0.057,16.076,0.049,24.235-6.445    C63.145,28.982,53.955,11.153,52.851,18.505z M21.844,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.618-1.378,1.378-1.378    c0.761,0,1.378,0.618,1.378,1.378S22.605,22.596,21.844,22.596z M26.807,23.698c-0.761,0-1.378-0.618-1.378-1.378    c0-0.761,0.618-1.378,1.378-1.378c0.761,0,1.378,0.618,1.378,1.378C28.186,23.082,27.569,23.698,26.807,23.698z M33.424,23.698    c-0.761,0-1.378-0.618-1.378-1.378c0-0.761,0.618-1.378,1.378-1.378c0.762,0,1.378,0.618,1.378,1.378    C34.803,23.082,34.186,23.698,33.424,23.698z M38.388,22.596c-0.762,0-1.378-0.618-1.378-1.378s0.617-1.378,1.378-1.378    s1.377,0.618,1.377,1.378S39.149,22.596,38.388,22.596z"
-                />
-                <path
-                  d="M34.084,47.818c0,0-2.487-0.301-3.181,3.18c-1.33,6.679,2.299,4.654,2.299,4.654c3.65-2.312,7.634,1.038,11.324,3.435    c3.691,2.396,1.12-1.943,1.12-1.943C39.707,47.788,34.084,47.818,34.084,47.818z"
-                />
-                <path
-                  d="M25.723,47.818c0,0-5.623-0.03-11.564,9.325c0,0-2.571,4.338,1.12,1.943c3.69-2.396,7.675-5.746,11.325-3.435    c0,0,3.629,2.024,2.299-4.654C28.21,47.517,25.723,47.818,25.723,47.818z"
-                />
-              </g>
-            </g>
-          </svg>
-          {{end}}
+        <div class="form-header">
+          <h2>Welcome back</h2>
+          <p>Sign in to {{.ThemeTitle}}</p>
         </div>
-        <h1>{{.ThemeTitle}}</h1>
+
         {{ .csrfField }}
         <input type="hidden" name="state" value="{{.State}}" />
         <input type="hidden" name="redirect" value="{{.Redirect}}" />
@@ -239,126 +273,131 @@
         <input type="hidden" name="nonce" value="{{.Nonce}}" />
         <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
         <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
-        <div class="control">
+
+        <div class="field">
           <label for="username">Username</label>
           <input type="text" id="username" name="username" required autocomplete="username" />
         </div>
+
         {{if ne .AuthMode "passkey_only"}}
-        <div class="control">
+        <div class="field">
           <label for="password">Password</label>
           <input type="password" id="password" name="password" {{if ne .AuthMode "password_and_passkey"}}required{{end}} autocomplete="current-password" />
         </div>
         {{end}}
+
         {{if .Error}}
-           <div class="error" role="alert" id="login-error">{{.Error}}</div>
+        <div class="error" role="alert" id="login-error">{{.Error}}</div>
         {{else}}
-           <div class="error" role="alert" id="login-error" style="display:none"></div>
+        <div class="error" role="alert" id="login-error" style="display:none"></div>
         {{end}}
+
         {{if ne .AuthMode "passkey_only"}}
-        <button type="submit">Log In</button>
+        <button type="submit" class="btn btn-primary">Sign in</button>
         {{end}}
+
         {{if ne .AuthMode "password"}}
         {{if eq .AuthMode "password_and_passkey"}}
         <div class="divider">or</div>
         {{end}}
-        <button type="button" class="passkey-btn" onclick="startPasskeyLogin()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" class="btn btn-secondary" onclick="startPasskeyLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="8" cy="8" r="5"/><path d="m13 13 9 9"/><path d="M13 13l-1.5-1.5"/><path d="m16 16 2-2"/><path d="m19 13 2-2"/>
           </svg>
           Sign in with passkey
         </button>
         {{end}}
       </form>
-      <script>
-        function b64urlToBuffer(b) {
-          const base64 = b.replace(/-/g, '+').replace(/_/g, '/');
-          const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-          return Uint8Array.from(atob(padded), c => c.charCodeAt(0)).buffer;
-        }
-        function bufferToB64url(buf) {
-          return btoa(String.fromCharCode(...new Uint8Array(buf)))
-            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-        }
-        function showPasskeyError(msg) {
-          const el = document.getElementById('login-error');
-          el.textContent = msg;
-          el.style.display = '';
-        }
-        async function startPasskeyLogin() {
-          const username = document.getElementById('username').value.trim();
-          if (!username) { showPasskeyError('Please enter your username first.'); return; }
-          const params = new URLSearchParams({
-            username,
-            redirect: document.querySelector('[name=redirect]').value,
-            state: document.querySelector('[name=state]').value,
-            client_id: document.querySelector('[name=client_id]').value,
-            scope: document.querySelector('[name=scope]').value,
-            nonce: document.querySelector('[name=nonce]').value,
-            code_challenge: document.querySelector('[name=code_challenge]').value,
-            code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
-          });
-          try {
-            const beginResp = await fetch('/oauth2/passkey/login/begin?' + params.toString());
-            const data = await beginResp.json();
-            if (!beginResp.ok) { showPasskeyError(data.error || 'Passkey login failed'); return; }
-            if (data.type === 'authentication') {
-              await doPasskeyAuth(data);
-            } else if (data.type === 'registration') {
-              await doPasskeyRegister(data);
-            }
-          } catch (e) { showPasskeyError('Passkey error: ' + e.message); }
-        }
-        async function doPasskeyAuth(data) {
-          const opts = data.options.publicKey;
-          opts.challenge = b64urlToBuffer(opts.challenge);
-          if (opts.allowCredentials) {
-            opts.allowCredentials = opts.allowCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
-          }
-          let cred;
-          try { cred = await navigator.credentials.get({ publicKey: opts }); }
-          catch (e) { showPasskeyError('Passkey cancelled or not available.'); return; }
-          const body = {
-            id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
-            response: {
-              clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
-              authenticatorData: bufferToB64url(cred.response.authenticatorData),
-              signature: bufferToB64url(cred.response.signature),
-              userHandle: cred.response.userHandle ? bufferToB64url(cred.response.userHandle) : null,
-            }
-          };
-          const finishResp = await fetch('/oauth2/passkey/login/finish?challenge_id=' + data.challenge_id, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-          });
-          const result = await finishResp.json();
-          if (!finishResp.ok) { showPasskeyError(result.error || 'Authentication failed'); return; }
-          window.location.href = result.redirect;
-        }
-        async function doPasskeyRegister(data) {
-          const opts = data.options.publicKey;
-          opts.challenge = b64urlToBuffer(opts.challenge);
-          opts.user.id = b64urlToBuffer(opts.user.id);
-          if (opts.excludeCredentials) {
-            opts.excludeCredentials = opts.excludeCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
-          }
-          let cred;
-          try { cred = await navigator.credentials.create({ publicKey: opts }); }
-          catch (e) { showPasskeyError('Passkey registration cancelled or not available.'); return; }
-          const body = {
-            id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
-            response: {
-              clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
-              attestationObject: bufferToB64url(cred.response.attestationObject),
-            }
-          };
-          const finishResp = await fetch('/oauth2/passkey/register/finish?challenge_id=' + data.challenge_id, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-          });
-          const result = await finishResp.json();
-          if (!finishResp.ok) { showPasskeyError(result.error || 'Registration failed'); return; }
-          window.location.href = result.redirect;
-        }
-      </script>
     </main>
-    <footer></footer>
+
+    <script>
+      function b64urlToBuffer(b) {
+        const base64 = b.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+        return Uint8Array.from(atob(padded), c => c.charCodeAt(0)).buffer;
+      }
+      function bufferToB64url(buf) {
+        return btoa(String.fromCharCode(...new Uint8Array(buf)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      }
+      function showPasskeyError(msg) {
+        const el = document.getElementById('login-error');
+        el.textContent = msg;
+        el.style.display = '';
+      }
+      async function startPasskeyLogin() {
+        const username = document.getElementById('username').value.trim();
+        if (!username) { showPasskeyError('Please enter your username first.'); return; }
+        const params = new URLSearchParams({
+          username,
+          redirect: document.querySelector('[name=redirect]').value,
+          state: document.querySelector('[name=state]').value,
+          client_id: document.querySelector('[name=client_id]').value,
+          scope: document.querySelector('[name=scope]').value,
+          nonce: document.querySelector('[name=nonce]').value,
+          code_challenge: document.querySelector('[name=code_challenge]').value,
+          code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+        });
+        try {
+          const beginResp = await fetch('/oauth2/passkey/login/begin?' + params.toString());
+          const data = await beginResp.json();
+          if (!beginResp.ok) { showPasskeyError(data.error || 'Passkey login failed'); return; }
+          if (data.type === 'authentication') {
+            await doPasskeyAuth(data);
+          } else if (data.type === 'registration') {
+            await doPasskeyRegister(data);
+          }
+        } catch (e) { showPasskeyError('Passkey error: ' + e.message); }
+      }
+      async function doPasskeyAuth(data) {
+        const opts = data.options.publicKey;
+        opts.challenge = b64urlToBuffer(opts.challenge);
+        if (opts.allowCredentials) {
+          opts.allowCredentials = opts.allowCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+        }
+        let cred;
+        try { cred = await navigator.credentials.get({ publicKey: opts }); }
+        catch (e) { showPasskeyError('Passkey cancelled or not available.'); return; }
+        const body = {
+          id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
+          response: {
+            clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
+            authenticatorData: bufferToB64url(cred.response.authenticatorData),
+            signature: bufferToB64url(cred.response.signature),
+            userHandle: cred.response.userHandle ? bufferToB64url(cred.response.userHandle) : null,
+          }
+        };
+        const finishResp = await fetch('/oauth2/passkey/login/finish?challenge_id=' + data.challenge_id, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const result = await finishResp.json();
+        if (!finishResp.ok) { showPasskeyError(result.error || 'Authentication failed'); return; }
+        window.location.href = result.redirect;
+      }
+      async function doPasskeyRegister(data) {
+        const opts = data.options.publicKey;
+        opts.challenge = b64urlToBuffer(opts.challenge);
+        opts.user.id = b64urlToBuffer(opts.user.id);
+        if (opts.excludeCredentials) {
+          opts.excludeCredentials = opts.excludeCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+        }
+        let cred;
+        try { cred = await navigator.credentials.create({ publicKey: opts }); }
+        catch (e) { showPasskeyError('Passkey registration cancelled or not available.'); return; }
+        const body = {
+          id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
+          response: {
+            clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
+            attestationObject: bufferToB64url(cred.response.attestationObject),
+          }
+        };
+        const finishResp = await fetch('/oauth2/passkey/register/finish?challenge_id=' + data.challenge_id, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const result = await finishResp.json();
+        if (!finishResp.ok) { showPasskeyError(result.error || 'Registration failed'); return; }
+        window.location.href = result.redirect;
+      }
+    </script>
   </body>
 </html>
