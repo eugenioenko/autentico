@@ -54,6 +54,11 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 	}
 
+	if config.Get().AuthMode == "passkey_only" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Password login is disabled; use passkey authentication")
+		return
+	}
+
 	err = ValidateLoginRequest(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("user credentials error. %v", err))

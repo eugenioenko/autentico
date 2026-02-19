@@ -102,6 +102,28 @@ var createTableSQL = `
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS passkey_challenges (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		challenge_data TEXT NOT NULL,
+		type TEXT NOT NULL,
+		login_state TEXT NOT NULL DEFAULT '',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL,
+		used BOOLEAN DEFAULT FALSE,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS passkey_credentials (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		name TEXT NOT NULL DEFAULT '',
+		credential TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_used_at DATETIME,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE TABLE IF NOT EXISTS clients (
 		id TEXT PRIMARY KEY,                                          -- Internal unique ID
 		client_id TEXT UNIQUE NOT NULL,                               -- Public client identifier
@@ -126,6 +148,8 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS auth_codes;
 		DROP TABLE IF EXISTS idp_sessions;
 		DROP TABLE IF EXISTS mfa_challenges;
+		DROP TABLE IF EXISTS passkey_challenges;
+		DROP TABLE IF EXISTS passkey_credentials;
 		DROP TABLE IF EXISTS clients;
 	`
 

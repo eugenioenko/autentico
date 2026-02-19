@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/login"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -43,6 +44,9 @@ func RunStart(c *cli.Context) error {
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
 	mux.Handle(oauth+"/mfa", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
+	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
+	mux.HandleFunc("POST "+oauth+"/passkey/login/finish", passkey.HandleLoginFinish)
+	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)

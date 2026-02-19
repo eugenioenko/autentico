@@ -56,6 +56,8 @@ type Config struct {
 	AuthAccountLockoutMaxAttempts      int           `json:"authAccountLockoutMaxAttempts"`
 	AuthAccountLockoutDuration         time.Duration `json:"-"`
 	AuthAccountLockoutDurationStr      string        `json:"authAccountLockoutDuration"`
+	AuthMode                           string        `json:"auth_mode"`
+	PasskeyRPName                      string        `json:"passkey_rp_name"`
 	MfaEnabled                         bool          `json:"mfaEnabled"`
 	MfaMethod                          string        `json:"mfaMethod"`
 	SmtpHost                           string        `json:"smtpHost"`
@@ -111,6 +113,8 @@ var defaultConfig = Config{
 	AuthAccountLockoutMaxAttempts:   5,
 	AuthAccountLockoutDuration:      15 * time.Minute,
 	AuthAccountLockoutDurationStr:   "15m",
+	AuthMode:      "password",
+	PasskeyRPName: "Autentico",
 	MfaEnabled: false,
 	MfaMethod:  "totp",
 	SmtpPort:   "587",

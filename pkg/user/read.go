@@ -29,6 +29,34 @@ func ListUsers() ([]*User, error) {
 	return users, rows.Err()
 }
 
+func UserByUsername(username string) (*User, error) {
+	var user User
+	query := `
+		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified
+		FROM users WHERE username = ? AND deactivated_at IS NULL
+	`
+	row := db.GetDB().QueryRow(query, username)
+	err := row.Scan(
+		&user.ID,
+		&user.Username,
+		&user.Password,
+		&user.Email,
+		&user.Role,
+		&user.CreatedAt,
+		&user.FailedLoginAttempts,
+		&user.LockedUntil,
+		&user.TotpSecret,
+		&user.TotpVerified,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	return &user, nil
+}
+
 func UserByID(userID string) (*User, error) {
 	var user User
 	query := `

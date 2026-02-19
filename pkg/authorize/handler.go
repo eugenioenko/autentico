@@ -132,6 +132,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
 		"Error":               q.Get("error"),
+		"AuthMode":            cfg.AuthMode,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":       cfg.Theme.Title,
 		"ThemeLogoUrl":     cfg.Theme.LogoUrl,

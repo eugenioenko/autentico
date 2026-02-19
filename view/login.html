@@ -161,6 +161,37 @@
       .error {
         color: var(--color-danger);
       }
+
+      .divider {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-border);
+        font-size: 0.85rem;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        border-top: 1px solid var(--color-border);
+      }
+
+      button.passkey-btn {
+        background-color: var(--color-card);
+        color: var(--color-text);
+        border: 1px solid var(--color-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 0;
+      }
+
+      button.passkey-btn:hover {
+        background-color: var(--color-background);
+      }
     </style>
 
     {{if .ThemeCssResolved}}
@@ -210,17 +241,123 @@
         <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
         <div class="control">
           <label for="username">Username</label>
-          <input type="text" id="username" name="username" required />
+          <input type="text" id="username" name="username" required autocomplete="username" />
         </div>
+        {{if ne .AuthMode "passkey_only"}}
         <div class="control">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" required />
+          <input type="password" id="password" name="password" {{if ne .AuthMode "password_and_passkey"}}required{{end}} autocomplete="current-password" />
         </div>
-        {{if .Error}}
-           <div class="error" role="alert">{{.Error}}</div>
         {{end}}
+        {{if .Error}}
+           <div class="error" role="alert" id="login-error">{{.Error}}</div>
+        {{else}}
+           <div class="error" role="alert" id="login-error" style="display:none"></div>
+        {{end}}
+        {{if ne .AuthMode "passkey_only"}}
         <button type="submit">Log In</button>
+        {{end}}
+        {{if ne .AuthMode "password"}}
+        {{if eq .AuthMode "password_and_passkey"}}
+        <div class="divider">or</div>
+        {{end}}
+        <button type="button" class="passkey-btn" onclick="startPasskeyLogin()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="5"/><path d="m13 13 9 9"/><path d="M13 13l-1.5-1.5"/><path d="m16 16 2-2"/><path d="m19 13 2-2"/>
+          </svg>
+          Sign in with passkey
+        </button>
+        {{end}}
       </form>
+      <script>
+        function b64urlToBuffer(b) {
+          const base64 = b.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+          return Uint8Array.from(atob(padded), c => c.charCodeAt(0)).buffer;
+        }
+        function bufferToB64url(buf) {
+          return btoa(String.fromCharCode(...new Uint8Array(buf)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+        function showPasskeyError(msg) {
+          const el = document.getElementById('login-error');
+          el.textContent = msg;
+          el.style.display = '';
+        }
+        async function startPasskeyLogin() {
+          const username = document.getElementById('username').value.trim();
+          if (!username) { showPasskeyError('Please enter your username first.'); return; }
+          const params = new URLSearchParams({
+            username,
+            redirect: document.querySelector('[name=redirect]').value,
+            state: document.querySelector('[name=state]').value,
+            client_id: document.querySelector('[name=client_id]').value,
+            scope: document.querySelector('[name=scope]').value,
+            nonce: document.querySelector('[name=nonce]').value,
+            code_challenge: document.querySelector('[name=code_challenge]').value,
+            code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+          });
+          try {
+            const beginResp = await fetch('/oauth2/passkey/login/begin?' + params.toString());
+            const data = await beginResp.json();
+            if (!beginResp.ok) { showPasskeyError(data.error || 'Passkey login failed'); return; }
+            if (data.type === 'authentication') {
+              await doPasskeyAuth(data);
+            } else if (data.type === 'registration') {
+              await doPasskeyRegister(data);
+            }
+          } catch (e) { showPasskeyError('Passkey error: ' + e.message); }
+        }
+        async function doPasskeyAuth(data) {
+          const opts = data.options.publicKey;
+          opts.challenge = b64urlToBuffer(opts.challenge);
+          if (opts.allowCredentials) {
+            opts.allowCredentials = opts.allowCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+          }
+          let cred;
+          try { cred = await navigator.credentials.get({ publicKey: opts }); }
+          catch (e) { showPasskeyError('Passkey cancelled or not available.'); return; }
+          const body = {
+            id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
+            response: {
+              clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
+              authenticatorData: bufferToB64url(cred.response.authenticatorData),
+              signature: bufferToB64url(cred.response.signature),
+              userHandle: cred.response.userHandle ? bufferToB64url(cred.response.userHandle) : null,
+            }
+          };
+          const finishResp = await fetch('/oauth2/passkey/login/finish?challenge_id=' + data.challenge_id, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          const result = await finishResp.json();
+          if (!finishResp.ok) { showPasskeyError(result.error || 'Authentication failed'); return; }
+          window.location.href = result.redirect;
+        }
+        async function doPasskeyRegister(data) {
+          const opts = data.options.publicKey;
+          opts.challenge = b64urlToBuffer(opts.challenge);
+          opts.user.id = b64urlToBuffer(opts.user.id);
+          if (opts.excludeCredentials) {
+            opts.excludeCredentials = opts.excludeCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+          }
+          let cred;
+          try { cred = await navigator.credentials.create({ publicKey: opts }); }
+          catch (e) { showPasskeyError('Passkey registration cancelled or not available.'); return; }
+          const body = {
+            id: cred.id, rawId: bufferToB64url(cred.rawId), type: cred.type,
+            response: {
+              clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
+              attestationObject: bufferToB64url(cred.response.attestationObject),
+            }
+          };
+          const finishResp = await fetch('/oauth2/passkey/register/finish?challenge_id=' + data.challenge_id, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          const result = await finishResp.json();
+          if (!finishResp.ok) { showPasskeyError(result.error || 'Registration failed'); return; }
+          window.location.href = result.redirect;
+        }
+      </script>
     </main>
     <footer></footer>
   </body>
