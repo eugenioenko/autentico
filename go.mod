@@ -7,6 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
+	github.com/go-webauthn/webauthn v0.15.0
 	github.com/gorilla/csrf v1.7.3
 	github.com/pquerna/otp v1.5.0
 	github.com/rs/xid v1.6.0
@@ -32,7 +33,6 @@ require (
 	github.com/go-openapi/spec v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
-	github.com/go-webauthn/webauthn v0.15.0 // indirect
 	github.com/go-webauthn/x v0.1.26 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/go-tpm v0.9.6 // indirect
