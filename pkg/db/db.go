@@ -102,6 +102,16 @@ var createTableSQL = `
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS trusted_devices (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		device_name TEXT NOT NULL DEFAULT '',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE TABLE IF NOT EXISTS passkey_challenges (
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL,
@@ -148,6 +158,7 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS auth_codes;
 		DROP TABLE IF EXISTS idp_sessions;
 		DROP TABLE IF EXISTS mfa_challenges;
+		DROP TABLE IF EXISTS trusted_devices;
 		DROP TABLE IF EXISTS passkey_challenges;
 		DROP TABLE IF EXISTS passkey_credentials;
 		DROP TABLE IF EXISTS clients;

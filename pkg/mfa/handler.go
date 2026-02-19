@@ -12,6 +12,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -156,6 +157,26 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	_ = MarkChallengeUsed(challenge.ID)
 
+	// Save trusted device if requested
+	if cfg.TrustDeviceEnabled && r.FormValue("trust_device") == "on" {
+		deviceID, genErr := authcode.GenerateSecureCode()
+		if genErr == nil {
+			ua := r.UserAgent()
+			if len(ua) > 200 {
+				ua = ua[:200]
+			}
+			dev := trusteddevice.TrustedDevice{
+				ID:         deviceID,
+				UserID:     usr.ID,
+				DeviceName: ua,
+				ExpiresAt:  time.Now().Add(cfg.TrustDeviceExpiration),
+			}
+			if trusteddevice.CreateTrustedDevice(dev) == nil {
+				trusteddevice.SetCookie(w, deviceID, cfg.TrustDeviceExpiration)
+			}
+		}
+	}
+
 	// Restore login state and complete the OAuth flow
 	var loginState LoginState
 	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
@@ -215,13 +236,15 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	}
 
 	data := map[string]any{
-		"ChallengeID":    challenge.ID,
-		"Method":         challenge.Method,
-		"Error":          errorMsg,
-		csrf.TemplateTag: csrf.TemplateField(r),
-		"ThemeTitle":     cfg.Theme.Title,
-		"ThemeLogoUrl":   cfg.Theme.LogoUrl,
+		"ChallengeID":      challenge.ID,
+		"Method":           challenge.Method,
+		"Error":            errorMsg,
+		csrf.TemplateTag:   csrf.TemplateField(r),
+		"ThemeTitle":       cfg.Theme.Title,
+		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
 		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
+		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
 	}
 
 	_ = tmpl.Execute(w, data)

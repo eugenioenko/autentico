@@ -58,6 +58,9 @@ type Config struct {
 	AuthAccountLockoutDurationStr      string        `json:"authAccountLockoutDuration"`
 	AuthMode                           string        `json:"auth_mode"`
 	PasskeyRPName                      string        `json:"passkey_rp_name"`
+	TrustDeviceEnabled                 bool          `json:"trust_device_enabled"`
+	TrustDeviceExpiration              time.Duration `json:"-"`
+	TrustDeviceExpirationStr           string        `json:"trust_device_expiration"`
 	MfaEnabled                         bool          `json:"mfaEnabled"`
 	MfaMethod                          string        `json:"mfaMethod"`
 	SmtpHost                           string        `json:"smtpHost"`
@@ -115,6 +118,9 @@ var defaultConfig = Config{
 	AuthAccountLockoutDurationStr:   "15m",
 	AuthMode:      "password",
 	PasskeyRPName: "Autentico",
+	TrustDeviceEnabled:       false,
+	TrustDeviceExpiration:    30 * 24 * time.Hour,
+	TrustDeviceExpirationStr: "720h",
 	MfaEnabled: false,
 	MfaMethod:  "totp",
 	SmtpPort:   "587",
@@ -157,6 +163,7 @@ func InitConfig(path string) error {
 	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
 	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
 	cfg.AuthAccountLockoutDuration = parseDuration(cfg.AuthAccountLockoutDurationStr, defaultConfig.AuthAccountLockoutDuration)
+	cfg.TrustDeviceExpiration = parseDuration(cfg.TrustDeviceExpirationStr, defaultConfig.TrustDeviceExpiration)
 
 	// Resolve theme CSS: file first, inline overrides
 	if cfg.Theme.CssFile != "" {
