@@ -1,13 +1,18 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/authorize"
+	"github.com/eugenioenko/autentico/pkg/cleanup"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -69,6 +74,11 @@ func RunStart(c *cli.Context) error {
 
 	// Admin UI
 	mux.Handle("/admin/", admin.Handler())
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	cleanup.Start(ctx, cfg.CleanupInterval, cfg.CleanupRetention)
 
 	port := cfg.AppPort
 	baseURL := fmt.Sprintf("http://localhost:%s", port)
