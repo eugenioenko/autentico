@@ -23,3 +23,13 @@ func DeactivateIdpSession(sessionID string) error {
 	_, err := db.GetDB().Exec(query, sessionID)
 	return err
 }
+
+func DeactivateAllForUser(userID string) error {
+	query := `
+		UPDATE idp_sessions
+		SET deactivated_at = CURRENT_TIMESTAMP
+		WHERE user_id = ? AND deactivated_at IS NULL;
+	`
+	_, err := db.GetDB().Exec(query, userID)
+	return err
+}

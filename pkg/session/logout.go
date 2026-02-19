@@ -33,7 +33,7 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := jwtutil.ValidateAccessToken(accessToken)
+	claims, err := jwtutil.ValidateAccessToken(accessToken)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
 		return
@@ -50,12 +50,11 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Deactivate IdP session and clear cookie if present
-	idpSessionID := idpsession.ReadCookie(r)
-	if idpSessionID != "" {
-		_ = idpsession.DeactivateIdpSession(idpSessionID)
-		idpsession.ClearCookie(w)
-	}
+	// Deactivate all IdP sessions for this user so SSO auto-login is revoked.
+	// This covers both browser-initiated logout (cookie present) and
+	// server-side logout (no cookie, but user ID is in the token claims).
+	_ = idpsession.DeactivateAllForUser(claims.UserID)
+	idpsession.ClearCookie(w)
 
 	utils.SuccessResponse(w, "ok", http.StatusOK)
 }
