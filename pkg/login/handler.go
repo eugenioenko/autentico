@@ -12,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -83,7 +84,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	// MFA check: if enabled globally, redirect to MFA verification
 	cfg := config.Get()
-	if cfg.MfaEnabled {
+	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
+	if cfg.MfaEnabled && !skipMfa {
 		method := cfg.MfaMethod
 		// If method is "both", prefer TOTP if user is enrolled, otherwise email
 		if method == "both" {

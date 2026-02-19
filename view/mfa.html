@@ -161,6 +161,18 @@
           .error {
             color: var(--color-danger);
           }
+
+          .trust-device {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+
+          .trust-device label {
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+          }
         </style>
     
     {{if .ThemeCssResolved}}
@@ -210,6 +222,12 @@
           <label for="code">Code</label>
           <input type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" />
         </div>
+        {{if .TrustDeviceEnabled}}
+        <div class="control trust-device">
+          <input type="checkbox" id="trust_device" name="trust_device" />
+          <label for="trust_device">Trust this device for {{.TrustDeviceDays}} days</label>
+        </div>
+        {{end}}
         <button type="submit">Verify</button>
       </form>
     </main>
