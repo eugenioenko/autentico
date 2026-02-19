@@ -178,6 +178,53 @@ func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
 	assert.Error(t, err, "deactivated IdP session should not be found")
 }
 
+// TestHandleLogout_RevokesIdpSessionWithoutCookie covers the bug where a server-side
+// logout (Bearer token only, no browser cookie) left the IdP session active, allowing
+// the user to be silently re-authenticated on the next authorize request.
+func TestHandleLogout_RevokesIdpSessionWithoutCookie(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Create user
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
+	`, userID, "logoutuser2", "logout2@example.com", "hashedpassword")
+	assert.NoError(t, err)
+
+	// Generate token and create session
+	accessToken, sessionID, err := generateTestAccessToken(userID)
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+
+	// Create an active IdP session in the DB
+	idpSessionID := xid.New().String()
+	err = idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID:        idpSessionID,
+		UserID:    userID,
+		UserAgent: "test-agent",
+		IPAddress: "127.0.0.1",
+	})
+	assert.NoError(t, err)
+
+	// Logout without sending the IdP session cookie (simulates server-side logout)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	rr := httptest.NewRecorder()
+
+	HandleLogout(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// IdP session must be deactivated even though no cookie was present
+	_, err = idpsession.IdpSessionByID(idpSessionID)
+	assert.Error(t, err, "IdP session should be deactivated even when no cookie is sent")
+}
+
 func TestHandleLogout_NoIdpSession(t *testing.T) {
 	testutils.WithTestDB(t)
 
