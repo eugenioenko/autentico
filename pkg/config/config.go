@@ -61,6 +61,10 @@ type Config struct {
 	TrustDeviceEnabled                 bool          `json:"trust_device_enabled"`
 	TrustDeviceExpiration              time.Duration `json:"-"`
 	TrustDeviceExpirationStr           string        `json:"trust_device_expiration"`
+	CleanupInterval                    time.Duration `json:"-"`
+	CleanupIntervalStr                 string        `json:"cleanup_interval"`
+	CleanupRetention                   time.Duration `json:"-"`
+	CleanupRetentionStr                string        `json:"cleanup_retention"`
 	MfaEnabled                         bool          `json:"mfaEnabled"`
 	MfaMethod                          string        `json:"mfaMethod"`
 	SmtpHost                           string        `json:"smtpHost"`
@@ -121,6 +125,10 @@ var defaultConfig = Config{
 	TrustDeviceEnabled:       false,
 	TrustDeviceExpiration:    30 * 24 * time.Hour,
 	TrustDeviceExpirationStr: "720h",
+	CleanupInterval:          6 * time.Hour,
+	CleanupIntervalStr:       "6h",
+	CleanupRetention:         24 * time.Hour,
+	CleanupRetentionStr:      "24h",
 	MfaEnabled: false,
 	MfaMethod:  "totp",
 	SmtpPort:   "587",
@@ -164,6 +172,8 @@ func InitConfig(path string) error {
 	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
 	cfg.AuthAccountLockoutDuration = parseDuration(cfg.AuthAccountLockoutDurationStr, defaultConfig.AuthAccountLockoutDuration)
 	cfg.TrustDeviceExpiration = parseDuration(cfg.TrustDeviceExpirationStr, defaultConfig.TrustDeviceExpiration)
+	cfg.CleanupInterval = parseDuration(cfg.CleanupIntervalStr, defaultConfig.CleanupInterval)
+	cfg.CleanupRetention = parseDuration(cfg.CleanupRetentionStr, defaultConfig.CleanupRetention)
 
 	// Resolve theme CSS: file first, inline overrides
 	if cfg.Theme.CssFile != "" {

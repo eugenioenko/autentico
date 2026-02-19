@@ -40,6 +40,8 @@
   "passkey_rp_name": "Autentico",
   "trust_device_enabled": false,
   "trust_device_expiration": "720h",
+  "cleanup_interval": "6h",
+  "cleanup_retention": "24h",
   "mfaEnabled": true,
   "mfaMethod": "totp",
   "smtpHost": "",
