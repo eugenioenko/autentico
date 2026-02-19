@@ -36,6 +36,8 @@
   "authIdpSessionSecureCookie": false,
   "authAccountLockoutMaxAttempts": 5,
   "authAccountLockoutDuration": "15m",
+  "auth_mode": "password",
+  "passkey_rp_name": "Autentico",
   "mfaEnabled": true,
   "mfaMethod": "totp",
   "smtpHost": "",
