@@ -87,6 +87,10 @@ func RunStart(c *cli.Context) error {
 	fmt.Println()
 	fmt.Printf("  Server:    %s\n", baseURL)
 	fmt.Printf("  Admin UI:  %s/admin/\n", baseURL)
+	fmt.Printf("  WellKnown: %s/.well-known/openid-configuration\n", baseURL)
+	fmt.Printf("  JWKS:      %s/.well-known/jwks.json\n", baseURL)
+	fmt.Printf("  Authorize: %s%s/authorize\n", baseURL, oauth)
+	fmt.Printf("  Token:     %s%s/token\n", baseURL, oauth)
 	fmt.Println()
 	middlewareList := []func(http.Handler) http.Handler{
 		middleware.LoggingMiddleware,
@@ -95,5 +99,19 @@ func RunStart(c *cli.Context) error {
 		middlewareList = append(middlewareList, middleware.CORSMiddleware)
 	}
 	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
-	return http.ListenAndServe(":"+port, combinedMiddleware(mux))
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: combinedMiddleware(mux),
+	}
+
+	go func() {
+		<-ctx.Done()
+		srv.Shutdown(context.Background())
+	}()
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
