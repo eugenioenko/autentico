@@ -70,8 +70,10 @@ func TestHandleLoginUser_ValidationError(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Validation errors redirect back to the login form instead of returning JSON
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/authorize")
+	assert.Contains(t, rr.Header().Get("Location"), "error=")
 }
 
 func TestHandleLoginUser_InvalidRedirectURI(t *testing.T) {
@@ -164,14 +166,14 @@ func TestValidateLoginRequest_InvalidRedirect(t *testing.T) {
 }
 
 func TestValidateLoginRequest_MissingState(t *testing.T) {
+	// state is optional per OAuth2 spec (RECOMMENDED but not REQUIRED)
 	err := ValidateLoginRequest(LoginRequest{
 		Username: "testuser",
 		Password: "password123",
 		Redirect: "http://localhost/callback",
 		State:    "",
 	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "state is invalid")
+	assert.NoError(t, err)
 }
 
 func TestValidateLoginRequest_Valid(t *testing.T) {

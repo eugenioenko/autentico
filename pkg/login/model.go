@@ -56,13 +56,5 @@ func ValidateLoginRequest(input LoginRequest) error {
 		return fmt.Errorf("redirect URI is invalid: %w", err)
 	}
 
-	err = validation.Validate(
-		input.State,
-		validation.Required,
-	)
-	if err != nil {
-		return fmt.Errorf("state is invalid: %w", err)
-	}
-
 	return nil
 }

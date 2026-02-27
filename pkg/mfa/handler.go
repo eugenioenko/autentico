@@ -229,25 +229,25 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string) {
-	tmpl, err := template.New("mfa").Parse(view.MfaTemplate)
+	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	data := map[string]any{
-		"ChallengeID":      challenge.ID,
-		"Method":           challenge.Method,
-		"Error":            errorMsg,
-		csrf.TemplateTag:   csrf.TemplateField(r),
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+		"ChallengeID":        challenge.ID,
+		"Method":             challenge.Method,
+		"Error":              errorMsg,
+		csrf.TemplateTag:     csrf.TemplateField(r),
+		"ThemeTitle":         cfg.Theme.Title,
+		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
+		"ThemeCssResolved":   template.CSS(cfg.ThemeCssResolved),
 		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
 		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
 	}
 
-	_ = tmpl.Execute(w, data)
+	_ = tmpl.ExecuteTemplate(w, "layout", data)
 }
 
 func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, usr *user.User, cfg *config.Config, errorMsg string) {
@@ -264,24 +264,24 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	}
 	qrDataURI := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
 
-	tmpl, err := template.New("mfa_enroll").Parse(view.MfaEnrollTemplate)
+	tmpl, err := view.ParseTemplate("mfa_enroll")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	data := map[string]any{
-		"ChallengeID":    challenge.ID,
-		"TotpSecret":     secret,
-		"QRCodeDataURI":  template.URL(qrDataURI),
-		"Error":          errorMsg,
-		csrf.TemplateTag: csrf.TemplateField(r),
-		"ThemeTitle":     cfg.Theme.Title,
-		"ThemeLogoUrl":   cfg.Theme.LogoUrl,
+		"ChallengeID":      challenge.ID,
+		"TotpSecret":       secret,
+		"QRCodeDataURI":    template.URL(qrDataURI),
+		"Error":            errorMsg,
+		csrf.TemplateTag:   csrf.TemplateField(r),
+		"ThemeTitle":       cfg.Theme.Title,
+		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
 		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
 	}
 
-	_ = tmpl.Execute(w, data)
+	_ = tmpl.ExecuteTemplate(w, "layout", data)
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {

@@ -252,10 +252,7 @@ func TestInactiveClient_Rejected(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "inactive client should be rejected at /authorize: %s", string(body))
-
-	var errResp map[string]interface{}
-	_ = json.Unmarshal(body, &errResp)
-	assert.Equal(t, "invalid_client", errResp["error"])
+	assert.Contains(t, string(body), "Client is inactive")
 }
 
 func TestClient_GrantTypeRestriction(t *testing.T) {
@@ -328,10 +325,7 @@ func TestClient_RedirectURIEnforcement(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "disallowed redirect_uri should be rejected: %s", string(body))
-
-	var errResp map[string]interface{}
-	_ = json.Unmarshal(body, &errResp)
-	assert.Equal(t, "invalid_request", errResp["error"])
+	assert.Contains(t, string(body), "Redirect URI not allowed for this client")
 }
 
 func TestClient_ResponseTypeRestriction(t *testing.T) {
@@ -364,8 +358,5 @@ func TestClient_ResponseTypeRestriction(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "disallowed response_type should be rejected: %s", string(body))
-
-	var errResp map[string]interface{}
-	_ = json.Unmarshal(body, &errResp)
-	assert.Equal(t, "unsupported_response_type", errResp["error"])
+	assert.Contains(t, string(body), "Response type not allowed for this client")
 }
