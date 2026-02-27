@@ -4,30 +4,29 @@ import {
   useState,
   useCallback,
   useEffect,
-  useRef,
   type ReactNode,
 } from "react";
 import { UserManager, type User } from "oidc-client-ts";
 import apiClient from "../api/client";
 import { setUserManager } from "../api/client";
 
-const AUTHORITY = window.location.origin + "/oauth2";
 const CLIENT_ID = "autentico-admin";
 const REDIRECT_URI = window.location.origin + "/admin/callback";
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  startLogin: () => Promise<void>;
+  startLogin: (extraQueryParams?: Record<string, string>) => Promise<void>;
   handleCallback: () => Promise<void>;
   logout: () => Promise<void>;
+  oauthPath: string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function createUserManager() {
+function createUserManager(authority: string) {
   return new UserManager({
-    authority: AUTHORITY,
+    authority: authority,
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
@@ -38,40 +37,59 @@ function createUserManager() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const userManagerRef = useRef(createUserManager());
+  const [userManager, setMgr] = useState<UserManager | null>(null);
+  const [oauthPath, setOauthPath] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const mgr = userManagerRef.current;
-    setUserManager(mgr);
-    mgr.getUser().then((u) => {
-      if (u && !u.expired) {
-        setUser(u);
-        setIsAuthenticated(true);
-      }
-      setInitialized(true);
-    });
+    fetch("/admin/api/onboarding")
+      .then((r) => r.json())
+      .then((data: { onboarded: boolean; oauth_path: string }) => {
+        const authority = window.location.origin + data.oauth_path;
+        const mgr = createUserManager(authority);
+        setMgr(mgr);
+        setOauthPath(data.oauth_path);
+        setUserManager(mgr);
+        return mgr.getUser();
+      })
+      .then((u) => {
+        if (u && !u.expired) {
+          setUser(u);
+          setIsAuthenticated(true);
+        }
+        setInitialized(true);
+      })
+      .catch(() => {
+        // Fallback to default /oauth2 if onboarding check fails
+        const authority = window.location.origin + "/oauth2";
+        const mgr = createUserManager(authority);
+        setMgr(mgr);
+        setOauthPath("/oauth2");
+        setUserManager(mgr);
+        setInitialized(true);
+      });
   }, []);
 
-  const startLogin = useCallback(async () => {
-    await userManagerRef.current.signinRedirect();
-  }, []);
+  const startLogin = useCallback(async (extraQueryParams?: Record<string, string>) => {
+    if (userManager) await userManager.signinRedirect({ extraQueryParams });
+  }, [userManager]);
 
   const handleCallback = useCallback(async () => {
-    const u = await userManagerRef.current.signinCallback();
+    if (!userManager) return;
+    const u = await userManager.signinCallback();
     if (!u) {
       throw new Error("Sign-in failed: no user returned");
     }
 
     // Verify admin access
     try {
-      await apiClient.get("/oauth2/register", {
+      await apiClient.get(oauthPath + "/register", {
         headers: { Authorization: `Bearer ${u.access_token}` },
       });
     } catch (err: unknown) {
-      await userManagerRef.current.removeUser();
+      await userManager.removeUser();
       const status =
         err && typeof err === "object" && "response" in err
           ? (err as { response?: { status?: number } }).response?.status
@@ -84,23 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(u);
     setIsAuthenticated(true);
-  }, []);
+  }, [userManager, oauthPath]);
 
   const logout = useCallback(async () => {
-    const currentUser = await userManagerRef.current.getUser();
+    if (!userManager) return;
+    const currentUser = await userManager.getUser();
     if (currentUser?.access_token) {
       try {
-        await apiClient.post("/oauth2/logout", null, {
+        await apiClient.post(oauthPath + "/logout", null, {
           headers: { Authorization: `Bearer ${currentUser.access_token}` },
         });
       } catch {
         // Ignore logout errors
       }
     }
-    await userManagerRef.current.removeUser();
+    await userManager.removeUser();
     setUser(null);
     setIsAuthenticated(false);
-  }, []);
+  }, [userManager, oauthPath]);
 
   if (!initialized) {
     return null;
@@ -108,7 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, user, startLogin, handleCallback, logout }}
+      value={{
+        isAuthenticated,
+        user,
+        startLogin,
+        handleCallback,
+        logout,
+        oauthPath,
+      }}
     >
       {children}
     </AuthContext.Provider>

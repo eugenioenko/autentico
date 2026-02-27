@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -48,6 +49,17 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	err := ValidateAuthorizeRequest(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
+		return
+	}
+
+	// Support prompt=signup to automatically go to the signup/onboarding page while preserving OIDC state
+	if q.Get("prompt") == "signup" {
+		target := "/signup"
+		if !appsettings.IsOnboarded() {
+			target = "/onboard"
+		}
+		destURL := config.GetBootstrap().AppOAuthPath + target + "?" + q.Encode()
+		http.Redirect(w, r, destURL, http.StatusFound)
 		return
 	}
 
@@ -132,7 +144,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 
 	data := map[string]any{
 		"State":               request.State,
-		"Redirect":            request.RedirectURI,
+		"RedirectURI":         request.RedirectURI,
 		"ClientID":            request.ClientID,
 		"Scope":               request.Scope,
 		"Nonce":               request.Nonce,

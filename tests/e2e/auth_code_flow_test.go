@@ -203,7 +203,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	form := url.Values{}
 	form.Set("username", "user@test.com")
 	form.Set("password", "password123")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", expectedState)
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", csrfToken)
@@ -526,7 +526,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	form := url.Values{}
 	form.Set("username", "user@test.com")
 	form.Set("password", "password123")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "state1")
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", "invalid-forged-csrf-token")
@@ -547,7 +547,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	form2 := url.Values{}
 	form2.Set("username", "user@test.com")
 	form2.Set("password", "password123")
-	form2.Set("redirect", redirectURI)
+	form2.Set("redirect_uri", redirectURI)
 	form2.Set("state", "state1")
 	form2.Set("client_id", "test-client")
 

@@ -44,7 +44,7 @@ func TestCreatePasskeyChallenge(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "authentication",
-		LoginState:    `{"redirect":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
+		LoginState:    `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 		Used:          false,
 	}
@@ -120,7 +120,7 @@ func TestPasskeyChallengeByID(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{"redirect":"http://localhost/cb","state":"abc","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
+		LoginState:    `{"redirect_uri":"http://localhost/cb","state":"abc","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 		Used:          false,
 	}

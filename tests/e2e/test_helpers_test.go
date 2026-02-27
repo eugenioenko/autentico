@@ -88,7 +88,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", clientID)
 	form.Set("gorilla.csrf.Token", csrfToken)
@@ -154,7 +154,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", clientID)
 	form.Set("scope", scope)
@@ -224,7 +224,7 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", clientID)
 	form.Set("scope", scope)
@@ -262,7 +262,7 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 
 	// Step 1: GET /oauth2/signup to obtain a CSRF token
 	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect":  {redirectURI},
+		"redirect_uri":  {redirectURI},
 		"state":     {state},
 		"client_id": {"test-client"},
 	}.Encode()
@@ -283,7 +283,7 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	form.Set("username", username)
 	form.Set("password", password)
 	form.Set("confirm_password", password)
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", csrfToken)

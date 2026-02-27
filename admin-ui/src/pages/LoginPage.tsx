@@ -17,16 +17,10 @@ export default function LoginPage() {
 
     fetch("/admin/api/onboarding")
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: { onboarded: boolean; oauth_path: string }) => {
         if (!data.onboarded) {
-          // First time setup — redirect to signup to create the admin account
-          const params = new URLSearchParams({
-            client_id: "autentico-admin",
-            redirect_uri: window.location.origin + "/admin/callback",
-            state: "onboarding",
-            response_type: "code",
-          });
-          window.location.href = "/oauth2/signup?" + params.toString();
+          // First time setup — start OIDC flow with prompt=signup
+          startLogin({ prompt: "signup" });
         } else {
           setOnboardingChecked(true);
           startLogin();

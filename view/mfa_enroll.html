@@ -42,7 +42,7 @@
 {{end}}
 
 {{define "content"}}
-<form method="POST" action="/oauth2/mfa">
+<form method="POST" action="{{authURL "/mfa"}}">
   <h1>Setup Authenticator</h1>
   <p>Scan the QR code with your authenticator app, then enter the code below to verify.</p>
   {{ .csrfField }}

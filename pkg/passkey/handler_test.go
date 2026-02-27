@@ -106,7 +106,7 @@ func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 	_, username := setupPasskeyTestUser(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -132,7 +132,7 @@ func TestHandleLoginBegin_WithCreds(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -154,7 +154,7 @@ func TestHandleLoginBegin_PasskeyOnly_CreatesChallenge(t *testing.T) {
 	_, username := setupPasskeyTestUser(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)

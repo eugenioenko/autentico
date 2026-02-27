@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/login"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/onboarding"
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
@@ -64,9 +65,15 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
+	mux.Handle(oauth+"/authorize/", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle(oauth+"/login/", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
 	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
+	mux.Handle(oauth+"/signup/", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
+	mux.Handle(oauth+"/onboard", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
+	mux.Handle(oauth+"/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
 	mux.Handle(oauth+"/mfa", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
+	mux.Handle(oauth+"/mfa/", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/login/finish", passkey.HandleLoginFinish)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
@@ -105,6 +112,12 @@ func RunStart(_ *cli.Context) error {
 	fmt.Println()
 	fmt.Println("  Autentico OIDC Identity Provider")
 	fmt.Println()
+
+	if !appsettings.IsOnboarded() {
+		fmt.Printf("  ONBOARDING: %s/admin/\n", baseURL)
+		fmt.Println()
+	}
+
 	fmt.Printf("  Server:    %s\n", baseURL)
 	fmt.Printf("  Admin UI:  %s/admin/\n", baseURL)
 	fmt.Printf("  WellKnown: %s/.well-known/openid-configuration\n", baseURL)

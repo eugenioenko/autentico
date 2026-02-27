@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"log/slog"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -29,14 +31,25 @@ func initKeys() {
 		slog.Warn("AUTENTICO_PRIVATE_KEY is set but could not be decoded — falling back to ephemeral key")
 	}
 
-	// No stable key configured: generate an ephemeral key and warn.
-	slog.Warn("AUTENTICO_PRIVATE_KEY is not set. Using an ephemeral RSA key — all tokens will be invalidated on restart. Run 'autentico init' to generate a stable key.")
+	// No stable key configured: generate an ephemeral key and warn (unless in tests).
+	if !isTesting() {
+		slog.Warn("AUTENTICO_PRIVATE_KEY is not set. Using an ephemeral RSA key — all tokens will be invalidated on restart. Run 'autentico init' to generate a stable key.")
+	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic("key: failed to generate RSA key: " + err.Error())
 	}
 	privateKey = key
 	publicKey = &key.PublicKey
+}
+
+func isTesting() bool {
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "-test.") {
+			return true
+		}
+	}
+	return false
 }
 
 // decodeBase64PEM decodes a base64-encoded PEM block into an RSA private key.

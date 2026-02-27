@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -16,7 +17,10 @@ func HandleOnboarding(w http.ResponseWriter, r *http.Request) {
 	}
 	onboarded := IsOnboarded()
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]bool{"onboarded": onboarded})
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"onboarded":  onboarded,
+		"oauth_path": config.GetBootstrap().AppOAuthPath,
+	})
 }
 
 // HandleSettings is an admin-protected endpoint for reading and updating settings.
