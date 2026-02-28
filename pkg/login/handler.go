@@ -46,7 +46,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	request := LoginRequest{
 		Username:            r.FormValue("username"),
 		Password:            r.FormValue("password"),
-		Redirect:            r.FormValue("redirect"),
+		RedirectURI:         r.FormValue("redirect_uri"),
 		State:               r.FormValue("state"),
 		ClientID:            r.FormValue("client_id"),
 		Scope:               r.FormValue("scope"),
@@ -61,7 +61,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate redirect_uri first so we know whether we can redirect errors back to the form
-	if !utils.IsValidRedirectURI(request.Redirect) {
+	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
 	}
@@ -99,7 +99,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		// For email method, always proceed (no per-user setup needed)
 
 		loginState := mfa.LoginState{
-			Redirect:            request.Redirect,
+			RedirectURI:            request.RedirectURI,
 			State:               request.State,
 			ClientID:            request.ClientID,
 			Scope:               request.Scope,
@@ -132,7 +132,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		mfaURL := cfg.AppOAuthPath + "/mfa?challenge_id=" + challengeID
+		mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
 		http.Redirect(w, r, mfaURL, http.StatusFound)
 		return
 	}
@@ -163,7 +163,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		Code:                authCode,
 		UserID:              usr.ID,
 		ClientID:            request.ClientID,
-		RedirectURI:         request.Redirect,
+		RedirectURI:         request.RedirectURI,
 		Scope:               request.Scope,
 		Nonce:               request.Nonce,
 		CodeChallenge:       request.CodeChallenge,
@@ -178,7 +178,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.Redirect, code.Code, request.State)
+	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, code.Code, request.State)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -188,7 +188,7 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("client_id", req.ClientID)
-	params.Set("redirect_uri", req.Redirect)
+	params.Set("redirect_uri", req.RedirectURI)
 	params.Set("state", req.State)
 	params.Set("scope", req.Scope)
 	params.Set("error", loginError)
@@ -199,6 +199,6 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 		params.Set("code_challenge", req.CodeChallenge)
 		params.Set("code_challenge_method", req.CodeChallengeMethod)
 	}
-	redirectURL := config.Get().AppOAuthPath + "/authorize?" + params.Encode()
+	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }

@@ -210,7 +210,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		Code:                authorizationCode,
 		UserID:              usr.ID,
 		ClientID:            loginState.ClientID,
-		RedirectURI:         loginState.Redirect,
+		RedirectURI:         loginState.RedirectURI,
 		Scope:               loginState.Scope,
 		Nonce:               loginState.Nonce,
 		CodeChallenge:       loginState.CodeChallenge,
@@ -224,7 +224,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", loginState.Redirect, ac.Code, loginState.State)
+	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -285,7 +285,6 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {
-	cfg := config.Get()
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("error", errorMsg)
@@ -294,7 +293,7 @@ func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge 
 		var loginState LoginState
 		if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err == nil {
 			params.Set("client_id", loginState.ClientID)
-			params.Set("redirect_uri", loginState.Redirect)
+			params.Set("redirect_uri", loginState.RedirectURI)
 			params.Set("state", loginState.State)
 			params.Set("scope", loginState.Scope)
 			if loginState.Nonce != "" {
@@ -307,6 +306,6 @@ func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge 
 		}
 	}
 
-	redirectURL := cfg.AppOAuthPath + "/authorize?" + params.Encode()
+	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }

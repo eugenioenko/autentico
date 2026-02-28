@@ -13,7 +13,7 @@ type LoginRequest struct {
 	Username            string `json:"username"`
 	Password            string `json:"password"`
 	State               string `json:"state"`
-	Redirect            string `json:"redirect"`
+	RedirectURI         string `json:"redirect_uri"`
 	ClientID            string `json:"client_id"`
 	Scope               string `json:"scope"`
 	Nonce               string `json:"nonce"`
@@ -48,7 +48,7 @@ func ValidateLoginRequest(input LoginRequest) error {
 	}
 
 	err = validation.Validate(
-		input.Redirect,
+		input.RedirectURI,
 		validation.Required,
 		is.URL,
 	)

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -16,117 +15,74 @@ func TestGet(t *testing.T) {
 
 func TestGetOriginal(t *testing.T) {
 	original := GetOriginal()
-	assert.Equal(t, "localhost", original.AppDomain)
-	assert.Equal(t, "9999", original.AppPort)
 	assert.Equal(t, 15*time.Minute, original.AuthAccessTokenExpiration)
-}
-
-func TestInitConfig_FileNotFound(t *testing.T) {
-	// Save and restore
-	saved := Values
-
-	err := InitConfig("nonexistent.json")
-	assert.NoError(t, err) // no error, just uses defaults
-
-	// Should have default values
-	assert.Equal(t, "localhost", Values.AppDomain)
-	assert.Equal(t, 15*time.Minute, Values.AuthAccessTokenExpiration)
-
-	Values = saved
-}
-
-func TestInitConfig_ValidFile(t *testing.T) {
-	saved := Values
-
-	// Create a temp config file
-	content := []byte(`{"appPort": "8080", "authAccessTokenExpiration": "30m"}`)
-	tmpFile, err := os.CreateTemp("", "autentico-test-*.json")
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-
-	_, err = tmpFile.Write(content)
-	assert.NoError(t, err)
-	_ = tmpFile.Close()
-
-	err = InitConfig(tmpFile.Name())
-	assert.NoError(t, err)
-
-	assert.Equal(t, "8080", Values.AppPort)
-	assert.Equal(t, 30*time.Minute, Values.AuthAccessTokenExpiration)
-
-	Values = saved
-}
-
-func TestInitConfig_InvalidDuration(t *testing.T) {
-	saved := Values
-
-	content := []byte(`{"authAccessTokenExpiration": "invalid"}`)
-	tmpFile, err := os.CreateTemp("", "autentico-test-*.json")
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-
-	_, err = tmpFile.Write(content)
-	assert.NoError(t, err)
-	_ = tmpFile.Close()
-
-	err = InitConfig(tmpFile.Name())
-	assert.NoError(t, err)
-
-	// Should fall back to default
-	assert.Equal(t, 15*time.Minute, Values.AuthAccessTokenExpiration)
-
-	Values = saved
-}
-
-func TestInitConfig_PartialOverride(t *testing.T) {
-	saved := Values
-
-	content := []byte(`{"appDomain": "example.com"}`)
-	tmpFile, err := os.CreateTemp("", "autentico-test-*.json")
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-
-	_, err = tmpFile.Write(content)
-	assert.NoError(t, err)
-	_ = tmpFile.Close()
-
-	err = InitConfig(tmpFile.Name())
-	assert.NoError(t, err)
-
-	assert.Equal(t, "example.com", Values.AppDomain)
-	// Other values should remain defaults
-	assert.Equal(t, "9999", Values.AppPort)
-
-	Values = saved
-}
-
-func TestInitConfig_SsoSessionIdleTimeout(t *testing.T) {
-	saved := Values
-
-	content := []byte(`{"authSsoSessionIdleTimeout": "1h"}`)
-	tmpFile, err := os.CreateTemp("", "autentico-test-*.json")
-	assert.NoError(t, err)
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-
-	_, err = tmpFile.Write(content)
-	assert.NoError(t, err)
-	_ = tmpFile.Close()
-
-	err = InitConfig(tmpFile.Name())
-	assert.NoError(t, err)
-
-	assert.Equal(t, time.Hour, Values.AuthSsoSessionIdleTimeout)
-
-	Values = saved
+	assert.Equal(t, false, original.AuthAllowSelfSignup)
+	assert.Equal(t, "password", original.AuthMode)
 }
 
 func TestDefaultConfig(t *testing.T) {
-	assert.Equal(t, "localhost", defaultConfig.AppDomain)
-	assert.Equal(t, "localhost:9999", defaultConfig.AppHost)
-	assert.Equal(t, "9999", defaultConfig.AppPort)
-	assert.Equal(t, false, defaultConfig.AuthCSRFSecureCookie)
-	assert.Equal(t, "autentico_idp_session", defaultConfig.AuthIdpSessionCookieName)
-	assert.Equal(t, false, defaultConfig.AuthIdpSessionSecureCookie)
+	assert.Equal(t, false, defaultConfig.TrustDeviceEnabled)
+	assert.Equal(t, false, defaultConfig.MfaEnabled)
 	assert.Equal(t, time.Duration(0), defaultConfig.AuthSsoSessionIdleTimeout)
 	assert.Equal(t, "0", defaultConfig.AuthSsoSessionIdleTimeoutStr)
+	assert.Equal(t, 15*time.Minute, defaultConfig.AuthAccessTokenExpiration)
+}
+
+func TestInitBootstrap_Defaults(t *testing.T) {
+	saved := Bootstrap
+	t.Cleanup(func() { Bootstrap = saved })
+
+	InitBootstrap()
+
+	assert.Equal(t, "http://localhost:9999", Bootstrap.AppURL)
+	assert.Equal(t, "/oauth2", Bootstrap.AppOAuthPath)
+	assert.Equal(t, "localhost", Bootstrap.AppDomain)
+	assert.Equal(t, "localhost:9999", Bootstrap.AppHost)
+	assert.Equal(t, "9999", Bootstrap.AppPort)
+	assert.Equal(t, "http://localhost:9999/oauth2", Bootstrap.AppAuthIssuer)
+	assert.Equal(t, "autentico-key-1", Bootstrap.AuthJwkCertKeyID)
+	assert.Equal(t, "autentico_idp_session", Bootstrap.AuthIdpSessionCookieName)
+	assert.Equal(t, false, Bootstrap.AuthIdpSessionSecureCookie)
+	assert.Equal(t, false, Bootstrap.AuthCSRFSecureCookie)
+}
+
+func TestInitBootstrap_EnvOverride(t *testing.T) {
+	saved := Bootstrap
+	t.Cleanup(func() { Bootstrap = saved })
+
+	t.Setenv("AUTENTICO_APP_URL", "https://example.com")
+	t.Setenv("AUTENTICO_APP_OAUTH_PATH", "/auth")
+
+	InitBootstrap()
+
+	assert.Equal(t, "https://example.com", Bootstrap.AppURL)
+	assert.Equal(t, "/auth", Bootstrap.AppOAuthPath)
+	assert.Equal(t, "example.com", Bootstrap.AppDomain)
+	assert.Equal(t, "https://example.com/auth", Bootstrap.AppAuthIssuer)
+	assert.Equal(t, "443", Bootstrap.AppPort)
+}
+
+func TestParseDuration(t *testing.T) {
+	assert.Equal(t, 15*time.Minute, ParseDuration("15m", time.Hour))
+	assert.Equal(t, time.Hour, ParseDuration("invalid", time.Hour))
+	assert.Equal(t, time.Hour, ParseDuration("", time.Hour))
+}
+
+func TestGetForClient_NoOverrides(t *testing.T) {
+	saved := Values
+	t.Cleanup(func() { Values = saved })
+	Values.AuthAccessTokenExpiration = 30 * time.Minute
+
+	cfg := GetForClient(ClientOverrides{})
+	assert.Equal(t, 30*time.Minute, cfg.AuthAccessTokenExpiration)
+}
+
+func TestGetForClient_WithOverrides(t *testing.T) {
+	saved := Values
+	t.Cleanup(func() { Values = saved })
+	Values.AuthAccessTokenExpiration = 30 * time.Minute
+
+	exp := "1h"
+	cfg := GetForClient(ClientOverrides{AccessTokenExpiration: &exp})
+	assert.Equal(t, time.Hour, cfg.AuthAccessTokenExpiration)
 }

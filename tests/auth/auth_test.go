@@ -32,7 +32,7 @@ func TestLoginWithCredentials(t *testing.T) {
 func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
@@ -53,7 +53,7 @@ func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthRefreshTokenAsSecureCookie = true
+		config.Bootstrap.AuthRefreshTokenAsSecureCookie = true
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
@@ -75,7 +75,7 @@ func TestRevokeToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
-	authToken, _ := token.GenerateTokens(*authUser, "")
+	authToken, _ := token.GenerateTokens(*authUser, "", config.Get())
 	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
@@ -114,7 +114,7 @@ func TestUserInfoEndpoint(t *testing.T) {
 func TestTokenEndpointRefresh(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
@@ -146,7 +146,7 @@ func TestLogoutEndpoint(t *testing.T) {
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
 
-	authToken, _ := token.GenerateTokens(*authUser, "")
+	authToken, _ := token.GenerateTokens(*authUser, "", config.Get())
 	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,

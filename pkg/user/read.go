@@ -85,3 +85,10 @@ func UserByID(userID string) (*User, error) {
 
 	return &user, nil
 }
+
+// CountUsers returns the total number of users in the database.
+func CountUsers() (int, error) {
+	var count int
+	err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	return count, err
+}

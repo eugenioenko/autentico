@@ -1,12 +1,43 @@
 package config
 
 import (
-	"encoding/json"
-	"fmt"
+	"net/url"
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
+// BootstrapConfig holds immutable infrastructure settings loaded from environment
+// variables at startup. AppDomain, AppHost, AppPort, and AppAuthIssuer are derived
+// from AppURL and AppOAuthPath — they are not read from env vars directly.
+type BootstrapConfig struct {
+	DbFilePath    string
+	AppURL        string // AUTENTICO_APP_URL
+	AppOAuthPath  string // AUTENTICO_APP_OAUTH_PATH
+	AppEnableCORS bool   // AUTENTICO_APP_ENABLE_CORS
+	// Derived from AppURL — not set by env vars
+	AppDomain     string
+	AppHost       string
+	AppPort       string
+	AppAuthIssuer string
+	// Secrets and cookies
+	AuthAccessTokenSecret          string
+	AuthRefreshTokenSecret         string
+	AuthCSRFProtectionSecretKey    string
+	AuthCSRFSecureCookie           bool
+	AuthJwkCertKeyID               string
+	AuthRefreshTokenCookieName     string
+	AuthRefreshTokenAsSecureCookie bool
+	AuthIdpSessionCookieName       string
+	AuthIdpSessionSecureCookie     bool
+	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
+	PrivateKeyBase64 string
+	SwaggerPort      string
+}
+
+// ThemeConfig holds theme-related display settings.
 type ThemeConfig struct {
 	CssFile   string `json:"themeCssFile"`
 	CssInline string `json:"themeCssInline"`
@@ -14,185 +45,234 @@ type ThemeConfig struct {
 	Title     string `json:"themeTitle"`
 }
 
+// Config holds soft settings loaded from the settings DB table. These can be
+// updated at runtime via the admin-ui without restarting the server.
 type Config struct {
-	AppDomain                          string        `json:"appDomain"`
-	AppHost                            string        `json:"appHost"`
-	AppPort                            string        `json:"appPort"`
-	AppURL                             string        `json:"appUrl"`
-	AppEnableCORS                      bool          `json:"appEnableCORS"`
-	AppOAuthPath                       string        `json:"appOAuthPath"`
-	AppAuthIssuer                      string        `json:"appAuthIssuer"`
-	DbFilePath                         string        `json:"dbFilePath"`
-	AuthAccessTokenSecret              string        `json:"authAccessTokenSecret"`
-	AuthAccessTokenExpiration          time.Duration `json:"-"`
-	AuthAccessTokenExpirationStr       string        `json:"authAccessTokenExpiration"`
-	AuthRefreshTokenSecret             string        `json:"authRefreshTokenSecret"`
-	AuthRefreshTokenExpiration         time.Duration `json:"-"`
-	AuthRefreshTokenExpirationStr      string        `json:"authRefreshTokenExpiration"`
-	AuthRefreshTokenCookieName         string        `json:"authRefreshTokenCookieName"`
-	AuthRefreshTokenAsSecureCookie     bool          `json:"authRefreshTokenAsSecureCookie"`
-	AuthDefaultClientID                string        `json:"authDefaultClientID"`
-	AuthDefaultIssuer                  string        `json:"authDefaultIssuer"`
-	AuthAuthorizationCodeExpiration    time.Duration `json:"-"`
-	AuthAuthorizationCodeExpirationStr string        `json:"authAuthorizationCodeExpiration"`
-	AuthCSRFProtectionSecretKey        string        `json:"authCSRFProtectionSecretKey"`
-	AuthCSRFSecureCookie               bool          `json:"authCSRFSecureCookie"`
-	AuthAllowedRedirectURIs            []string      `json:"authAllowedRedirectURIs"`
-	AuthJwkCertKeyID                   string        `json:"authJwkCertKeyID"`
-	AuthPrivateKeyFile                 string        `json:"authPrivateKeyFile"`
-	SwaggerPort                        string        `json:"swaggerPort"`
-	ValidationMinUsernameLength        int           `json:"validationMinUsernameLength"`
-	ValidationMaxUsernameLength        int           `json:"validationMaxUsernameLength"`
-	ValidationMinPasswordLength        int           `json:"validationMinPasswordLength"`
-	ValidationMaxPasswordLength        int           `json:"validationMaxPasswordLength"`
-	ValidationUsernameIsEmail          bool          `json:"validationUsernameIsEmail"`
-	ValidationEmailRequired            bool          `json:"validationEmailRequired"`
-	AuthAccessTokenAudience            []string      `json:"authAccessTokenAudience"`
-	AuthAllowSelfSignup                bool          `json:"authAllowSelfSignup"`
-	AuthSsoSessionIdleTimeout          time.Duration `json:"-"`
-	AuthSsoSessionIdleTimeoutStr       string        `json:"authSsoSessionIdleTimeout"`
-	AuthIdpSessionCookieName           string        `json:"authIdpSessionCookieName"`
-	AuthIdpSessionSecureCookie         bool          `json:"authIdpSessionSecureCookie"`
-	AuthAccountLockoutMaxAttempts      int           `json:"authAccountLockoutMaxAttempts"`
-	AuthAccountLockoutDuration         time.Duration `json:"-"`
-	AuthAccountLockoutDurationStr      string        `json:"authAccountLockoutDuration"`
-	AuthMode                           string        `json:"auth_mode"`
-	PasskeyRPName                      string        `json:"passkey_rp_name"`
-	TrustDeviceEnabled                 bool          `json:"trust_device_enabled"`
-	TrustDeviceExpiration              time.Duration `json:"-"`
-	TrustDeviceExpirationStr           string        `json:"trust_device_expiration"`
-	CleanupInterval                    time.Duration `json:"-"`
-	CleanupIntervalStr                 string        `json:"cleanup_interval"`
-	CleanupRetention                   time.Duration `json:"-"`
-	CleanupRetentionStr                string        `json:"cleanup_retention"`
-	MfaEnabled                         bool          `json:"mfaEnabled"`
-	MfaMethod                          string        `json:"mfaMethod"`
-	SmtpHost                           string        `json:"smtpHost"`
-	SmtpPort                           string        `json:"smtpPort"`
-	SmtpUsername                        string        `json:"smtpUsername"`
-	SmtpPassword                        string        `json:"smtpPassword"`
-	SmtpFrom                           string        `json:"smtpFrom"`
-	Theme                              ThemeConfig   `json:"theme"`
-	ThemeCssResolved                   string        `json:"-"`
+	AuthAccessTokenExpiration          time.Duration
+	AuthAccessTokenExpirationStr       string
+	AuthRefreshTokenExpiration         time.Duration
+	AuthRefreshTokenExpirationStr      string
+	AuthAuthorizationCodeExpiration    time.Duration
+	AuthAuthorizationCodeExpirationStr string
+	AuthAccessTokenAudience            []string
+	AuthAllowSelfSignup                bool
+	AuthSsoSessionIdleTimeout          time.Duration
+	AuthSsoSessionIdleTimeoutStr       string
+	AuthAccountLockoutMaxAttempts      int
+	AuthAccountLockoutDuration         time.Duration
+	AuthAccountLockoutDurationStr      string
+	AuthMode                           string
+	PasskeyRPName                      string
+	TrustDeviceEnabled                 bool
+	TrustDeviceExpiration              time.Duration
+	TrustDeviceExpirationStr           string
+	CleanupInterval                    time.Duration
+	CleanupIntervalStr                 string
+	CleanupRetention                   time.Duration
+	CleanupRetentionStr                string
+	MfaEnabled                         bool
+	MfaMethod                          string
+	SmtpHost                           string
+	SmtpPort                           string
+	SmtpUsername                       string
+	SmtpPassword                       string
+	SmtpFrom                           string
+	ValidationMinUsernameLength        int
+	ValidationMaxUsernameLength        int
+	ValidationMinPasswordLength        int
+	ValidationMaxPasswordLength        int
+	ValidationUsernameIsEmail          bool
+	ValidationEmailRequired            bool
+	Theme                              ThemeConfig
+	ThemeCssResolved                   string
 }
 
 var defaultConfig = Config{
-	AppDomain:                          "localhost",
-	AppHost:                            "localhost:9999",
-	AppPort:                            "9999",
-	AppURL:                             "http://localhost:9999",
-	AppEnableCORS:                      true,
-	AppOAuthPath:                       "/oauth2",
-	AppAuthIssuer:                      "http://localhost:9999/oauth2",
-	DbFilePath:                         "./db/autentico.db",
-	AuthAccessTokenSecret:              "your-secret-here",
 	AuthAccessTokenExpiration:          15 * time.Minute,
 	AuthAccessTokenExpirationStr:       "15m",
-	AuthRefreshTokenSecret:             "your-secret-here",
 	AuthRefreshTokenExpiration:         30 * 24 * time.Hour,
 	AuthRefreshTokenExpirationStr:      "720h",
-	AuthRefreshTokenCookieName:         "autentico_refresh_token",
-	AuthRefreshTokenAsSecureCookie:     false,
-	AuthDefaultClientID:                "el_autentico_!",
-	AuthDefaultIssuer:                  "",
 	AuthAuthorizationCodeExpiration:    10 * time.Minute,
 	AuthAuthorizationCodeExpirationStr: "10m",
-	AuthCSRFProtectionSecretKey:        "your-secret-here",
-	AuthCSRFSecureCookie:               false,
-	AuthAllowedRedirectURIs:            []string{},
-	AuthJwkCertKeyID:                   "autentico-key-1",
-	AuthPrivateKeyFile:                 "./db/private_key.pem",
-	SwaggerPort:                        "8888",
+	AuthAccessTokenAudience:            []string{},
+	AuthAllowSelfSignup:                false,
+	AuthSsoSessionIdleTimeout:          0,
+	AuthSsoSessionIdleTimeoutStr:       "0",
+	AuthAccountLockoutMaxAttempts:      5,
+	AuthAccountLockoutDuration:         15 * time.Minute,
+	AuthAccountLockoutDurationStr:      "15m",
+	AuthMode:                           "password",
+	PasskeyRPName:                      "Autentico",
+	TrustDeviceEnabled:                 false,
+	TrustDeviceExpiration:              30 * 24 * time.Hour,
+	TrustDeviceExpirationStr:           "720h",
+	CleanupInterval:                    6 * time.Hour,
+	CleanupIntervalStr:                 "6h",
+	CleanupRetention:                   24 * time.Hour,
+	CleanupRetentionStr:                "24h",
+	MfaEnabled:                         false,
+	MfaMethod:                          "totp",
+	SmtpPort:                           "587",
 	ValidationMinUsernameLength:        4,
 	ValidationMaxUsernameLength:        64,
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
-	ValidationUsernameIsEmail:          true,
+	ValidationUsernameIsEmail:          false,
 	ValidationEmailRequired:            false,
-	AuthAccessTokenAudience: []string{
-		"el_autentico_!",
-	},
-	AuthAllowSelfSignup:  false,
-	AuthSsoSessionIdleTimeout:    0,
-	AuthSsoSessionIdleTimeoutStr: "0",
-	AuthIdpSessionCookieName:        "autentico_idp_session",
-	AuthIdpSessionSecureCookie:      false,
-	AuthAccountLockoutMaxAttempts:   5,
-	AuthAccountLockoutDuration:      15 * time.Minute,
-	AuthAccountLockoutDurationStr:   "15m",
-	AuthMode:      "password",
-	PasskeyRPName: "Autentico",
-	TrustDeviceEnabled:       false,
-	TrustDeviceExpiration:    30 * 24 * time.Hour,
-	TrustDeviceExpirationStr: "720h",
-	CleanupInterval:          6 * time.Hour,
-	CleanupIntervalStr:       "6h",
-	CleanupRetention:         24 * time.Hour,
-	CleanupRetentionStr:      "24h",
-	MfaEnabled: false,
-	MfaMethod:  "totp",
-	SmtpPort:   "587",
-	Theme: ThemeConfig{
-		Title: "Autentico",
-	},
+	Theme:                              ThemeConfig{Title: "Autentico"},
 }
 
-var Values = defaultConfig
+var (
+	Bootstrap = BootstrapConfig{
+		DbFilePath:                     "./db/autentico.db",
+		AppURL:                         "http://localhost:9999",
+		AppOAuthPath:                   "/oauth2",
+		AppEnableCORS:                  true,
+		AppDomain:                      "localhost",
+		AppHost:                        "localhost:9999",
+		AppPort:                        "9999",
+		AppAuthIssuer:                  "http://localhost:9999/oauth2",
+		AuthAccessTokenSecret:          "your-secret-here",
+		AuthRefreshTokenSecret:         "your-secret-here",
+		AuthCSRFProtectionSecretKey:    "your-secret-here",
+		AuthCSRFSecureCookie:           false,
+		AuthJwkCertKeyID:               "autentico-key-1",
+		AuthRefreshTokenCookieName:     "autentico_refresh_token",
+		AuthRefreshTokenAsSecureCookie: false,
+		AuthIdpSessionCookieName:       "autentico_idp_session",
+		AuthIdpSessionSecureCookie:     false,
+		SwaggerPort:                    "8888",
+	}
+	Values = defaultConfig
+)
 
-func Get() *Config {
-	return &Values
+func GetBootstrap() *BootstrapConfig { return &Bootstrap }
+
+func Get() *Config { return &Values }
+
+// GetOriginal returns the default soft config for test override purposes.
+func GetOriginal() Config { return defaultConfig }
+
+// ParseDuration parses a duration string with a fallback value.
+func ParseDuration(s string, fallback time.Duration) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return fallback
+	}
+	return d
 }
 
-// InitConfig loads config from autentico.json and sets Values
-func InitConfig(path string) error {
-	cfg := defaultConfig
-	f, err := os.Open(path)
-	if err == nil {
-		defer func() { _ = f.Close() }()
-		dec := json.NewDecoder(f)
-		// decode into a map to allow partial override
-		var overrides map[string]interface{}
-		if err := dec.Decode(&overrides); err == nil {
-			// re-marshal and unmarshal into cfg to override only provided fields
-			b, _ := json.Marshal(overrides)
-			_ = json.Unmarshal(b, &cfg)
-		}
-	}
-	// Parse durations from string fields
-	parseDuration := func(s string, fallback time.Duration) time.Duration {
-		d, err := time.ParseDuration(s)
-		if err != nil {
-			return fallback
-		}
-		return d
-	}
-	cfg.AuthAccessTokenExpiration = parseDuration(cfg.AuthAccessTokenExpirationStr, defaultConfig.AuthAccessTokenExpiration)
-	cfg.AuthRefreshTokenExpiration = parseDuration(cfg.AuthRefreshTokenExpirationStr, defaultConfig.AuthRefreshTokenExpiration)
-	cfg.AuthAuthorizationCodeExpiration = parseDuration(cfg.AuthAuthorizationCodeExpirationStr, defaultConfig.AuthAuthorizationCodeExpiration)
-	cfg.AuthSsoSessionIdleTimeout = parseDuration(cfg.AuthSsoSessionIdleTimeoutStr, defaultConfig.AuthSsoSessionIdleTimeout)
-	cfg.AuthAccountLockoutDuration = parseDuration(cfg.AuthAccountLockoutDurationStr, defaultConfig.AuthAccountLockoutDuration)
-	cfg.TrustDeviceExpiration = parseDuration(cfg.TrustDeviceExpirationStr, defaultConfig.TrustDeviceExpiration)
-	cfg.CleanupInterval = parseDuration(cfg.CleanupIntervalStr, defaultConfig.CleanupInterval)
-	cfg.CleanupRetention = parseDuration(cfg.CleanupRetentionStr, defaultConfig.CleanupRetention)
+// InitBootstrap loads environment variables (from .env file if present, then
+// OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
+// are derived from AppURL — they do not need to be set manually.
+func InitBootstrap() {
+	_ = godotenv.Load() // silent if no .env file
 
-	// Resolve theme CSS: file first, inline overrides
-	if cfg.Theme.CssFile != "" {
-		cssBytes, err := os.ReadFile(cfg.Theme.CssFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not read theme CSS file %q: %v\n", cfg.Theme.CssFile, err)
-		} else {
-			cfg.ThemeCssResolved = string(cssBytes)
+	appURL := getEnv("AUTENTICO_APP_URL", "http://localhost:9999")
+	oauthPath := getEnv("AUTENTICO_APP_OAUTH_PATH", "/oauth2")
+
+	// Derive domain/host/port from the URL
+	domain := "localhost"
+	host := "localhost:9999"
+	port := "9999"
+	if u, err := url.Parse(appURL); err == nil {
+		domain = u.Hostname()
+		host = u.Host
+		port = u.Port()
+		if port == "" {
+			// Standard ports (80/443) don't appear in u.Host
+			if u.Scheme == "https" {
+				port = "443"
+			} else {
+				port = "80"
+			}
 		}
-	}
-	if cfg.Theme.CssInline != "" {
-		cfg.ThemeCssResolved = cfg.Theme.CssInline
 	}
 
-	Values = cfg
-	return nil
+	Bootstrap = BootstrapConfig{
+		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./db/autentico.db"),
+		AppURL:                         appURL,
+		AppOAuthPath:                   oauthPath,
+		AppEnableCORS:                  getEnvBool("AUTENTICO_APP_ENABLE_CORS", true),
+		AppDomain:                      domain,
+		AppHost:                        host,
+		AppPort:                        port,
+		AppAuthIssuer:                  appURL + oauthPath,
+		AuthAccessTokenSecret:          getEnv("AUTENTICO_ACCESS_TOKEN_SECRET", "your-secret-here"),
+		AuthRefreshTokenSecret:         getEnv("AUTENTICO_REFRESH_TOKEN_SECRET", "your-secret-here"),
+		AuthCSRFProtectionSecretKey:    getEnv("AUTENTICO_CSRF_SECRET_KEY", "your-secret-here"),
+		AuthCSRFSecureCookie:           getEnvBool("AUTENTICO_CSRF_SECURE_COOKIE", false),
+		PrivateKeyBase64:               getEnv("AUTENTICO_PRIVATE_KEY", ""),
+		AuthJwkCertKeyID:               getEnv("AUTENTICO_JWK_CERT_KEY_ID", "autentico-key-1"),
+		AuthRefreshTokenCookieName:     getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
+		AuthRefreshTokenAsSecureCookie: getEnvBool("AUTENTICO_REFRESH_TOKEN_SECURE", false),
+		AuthIdpSessionCookieName:       getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
+		AuthIdpSessionSecureCookie:     getEnvBool("AUTENTICO_IDP_SESSION_SECURE", false),
+		SwaggerPort:                    getEnv("AUTENTICO_SWAGGER_PORT", "8888"),
+	}
 }
 
-// GetOriginal returns the default config for test override purposes
-func GetOriginal() Config {
-	return defaultConfig
+// GetForClient returns a copy of the current soft Config with any non-nil
+// per-client overrides applied. Pass the overrides as a ClientOverrides struct.
+func GetForClient(overrides ClientOverrides) Config {
+	cfg := Values
+	if overrides.AccessTokenExpiration != nil {
+		cfg.AuthAccessTokenExpiration = ParseDuration(*overrides.AccessTokenExpiration, cfg.AuthAccessTokenExpiration)
+	}
+	if overrides.RefreshTokenExpiration != nil {
+		cfg.AuthRefreshTokenExpiration = ParseDuration(*overrides.RefreshTokenExpiration, cfg.AuthRefreshTokenExpiration)
+	}
+	if overrides.AuthorizationCodeExpiration != nil {
+		cfg.AuthAuthorizationCodeExpiration = ParseDuration(*overrides.AuthorizationCodeExpiration, cfg.AuthAuthorizationCodeExpiration)
+	}
+	if overrides.AllowedAudiences != nil {
+		cfg.AuthAccessTokenAudience = overrides.AllowedAudiences
+	}
+	if overrides.AllowSelfSignup != nil {
+		cfg.AuthAllowSelfSignup = *overrides.AllowSelfSignup
+	}
+	if overrides.SsoSessionIdleTimeout != nil {
+		cfg.AuthSsoSessionIdleTimeout = ParseDuration(*overrides.SsoSessionIdleTimeout, cfg.AuthSsoSessionIdleTimeout)
+	}
+	if overrides.TrustDeviceEnabled != nil {
+		cfg.TrustDeviceEnabled = *overrides.TrustDeviceEnabled
+	}
+	if overrides.TrustDeviceExpiration != nil {
+		cfg.TrustDeviceExpiration = ParseDuration(*overrides.TrustDeviceExpiration, cfg.TrustDeviceExpiration)
+	}
+	return cfg
+}
+
+// ClientOverrides holds nullable per-client config fields. A nil pointer means
+// "use the global setting"; a non-nil pointer overrides it.
+type ClientOverrides struct {
+	AccessTokenExpiration       *string
+	RefreshTokenExpiration      *string
+	AuthorizationCodeExpiration *string
+	AllowedAudiences            []string
+	AllowSelfSignup             *bool
+	SsoSessionIdleTimeout       *string
+	TrustDeviceEnabled          *bool
+	TrustDeviceExpiration       *string
+}
+
+// getEnv returns the value of the environment variable or the fallback.
+func getEnv(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+	return fallback
+}
+
+// getEnvBool parses a boolean environment variable with a fallback.
+func getEnvBool(key string, fallback bool) bool {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return fallback
+	}
+	return b
 }

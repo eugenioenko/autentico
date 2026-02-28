@@ -19,7 +19,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
-	authToken, err := DecodeRefreshToken(request.RefreshToken, config.Get().AuthRefreshTokenSecret)
+	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
 		return nil, err

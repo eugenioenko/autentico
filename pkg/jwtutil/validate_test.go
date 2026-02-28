@@ -14,10 +14,9 @@ import (
 
 func TestValidateAccessToken_Valid(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthPrivateKeyFile = "../../db/private_key.pem"
 		config.Values.AuthAccessTokenAudience = []string{"test-audience"}
-		config.Values.AppAuthIssuer = "test-issuer"
-		config.Values.AuthJwkCertKeyID = "test-kid"
+		config.Bootstrap.AppAuthIssuer = "test-issuer"
+		config.Bootstrap.AuthJwkCertKeyID = "test-kid"
 	})
 
 	claims := jwt.MapClaims{
@@ -44,9 +43,8 @@ func TestValidateAccessToken_Valid(t *testing.T) {
 
 func TestValidateAccessToken_Expired(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthPrivateKeyFile = "../../db/private_key.pem"
 		config.Values.AuthAccessTokenAudience = []string{"test-audience"}
-		config.Values.AppAuthIssuer = "test-issuer"
+		config.Bootstrap.AppAuthIssuer = "test-issuer"
 	})
 
 	claims := jwt.MapClaims{
@@ -65,19 +63,14 @@ func TestValidateAccessToken_Expired(t *testing.T) {
 }
 
 func TestValidateAccessToken_InvalidToken(t *testing.T) {
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthPrivateKeyFile = "../../db/private_key.pem"
-	})
-
 	_, err := ValidateAccessToken("not-a-valid-token")
 	assert.Error(t, err)
 }
 
 func TestValidateAccessToken_WrongAudience(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthPrivateKeyFile = "../../db/private_key.pem"
 		config.Values.AuthAccessTokenAudience = []string{"expected-audience"}
-		config.Values.AppAuthIssuer = "test-issuer"
+		config.Bootstrap.AppAuthIssuer = "test-issuer"
 	})
 
 	claims := jwt.MapClaims{
@@ -107,9 +100,18 @@ func TestValidateAudience_NoMatch(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid token audience")
 }
 
-func TestValidateAudience_Empty(t *testing.T) {
+func TestValidateAudience_EmptyTokenAud(t *testing.T) {
+	// Token has no audience but one is required → fail
 	err := ValidateAudience([]string{}, []string{"aud1"})
 	assert.Error(t, err)
+}
+
+func TestValidateAudience_NoRequiredAudiences(t *testing.T) {
+	// No audiences configured → skip validation (any token accepted)
+	err := ValidateAudience([]string{}, []string{})
+	assert.NoError(t, err)
+	err = ValidateAudience([]string{"any-aud"}, []string{})
+	assert.NoError(t, err)
 }
 
 func TestAccessTokenClaims_Valid(t *testing.T) {

@@ -36,7 +36,7 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -44,7 +44,7 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 
@@ -97,7 +97,7 @@ func TestGetUserFromRequest_NoSession(t *testing.T) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   "some-user-id",
 		"typ":   "Bearer",
@@ -105,7 +105,7 @@ func TestGetUserFromRequest_NoSession(t *testing.T) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 

@@ -16,8 +16,8 @@ import (
 func TestGenerateTokens(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
 	config.Values.AuthRefreshTokenExpiration = 30 * 24 * time.Hour
-	config.Values.AuthAccessTokenSecret = "test-secret"
-	config.Values.AuthRefreshTokenSecret = "test-secret"
+	config.Bootstrap.AuthAccessTokenSecret = "test-secret"
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
 
 	testUser := user.User{
 		ID:       "user-1",
@@ -25,7 +25,7 @@ func TestGenerateTokens(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	tokens, err := GenerateTokens(testUser, "")
+	tokens, err := GenerateTokens(testUser, "", config.Get())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokens.AccessToken)
 	assert.NotEmpty(t, tokens.RefreshToken)
@@ -36,7 +36,7 @@ func TestGenerateTokens(t *testing.T) {
 
 func TestGenerateIDToken_WithNonce(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
-	config.Values.AppAuthIssuer = "http://localhost/oauth2"
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
 
 	testUser := user.User{
 		ID:       "user-1",
@@ -67,7 +67,7 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 
 func TestGenerateIDToken_WithoutNonce(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
-	config.Values.AppAuthIssuer = "http://localhost/oauth2"
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
 
 	testUser := user.User{
 		ID:       "user-1",
@@ -86,7 +86,7 @@ func TestGenerateIDToken_WithoutNonce(t *testing.T) {
 
 func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
-	config.Values.AppAuthIssuer = "http://localhost/oauth2"
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
 
 	testUser := user.User{
 		ID:       "user-1",

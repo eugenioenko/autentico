@@ -1,4 +1,4 @@
-package signup
+package onboarding
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -15,25 +16,29 @@ import (
 	"github.com/gorilla/csrf"
 )
 
-func HandleSignup(w http.ResponseWriter, r *http.Request) {
-	if !config.Get().AuthAllowSelfSignup {
+// HandleOnboard manages the first-time setup of the admin account.
+// This endpoint only works if the system is not yet onboarded.
+func HandleOnboard(w http.ResponseWriter, r *http.Request) {
+	// Only allow onboarding if BOTH the flag is false AND the users table is empty.
+	count, _ := user.CountUsers()
+	if appsettings.IsOnboarded() || count > 0 {
 		http.NotFound(w, r)
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		handleSignupGet(w, r)
+		handleOnboardGet(w, r)
 	case http.MethodPost:
-		handleSignupPost(w, r)
+		handleOnboardPost(w, r)
 	default:
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
 	}
 }
 
-func handleSignupGet(w http.ResponseWriter, r *http.Request) {
+func handleOnboardGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	renderSignup(w, r, signupParams{
+	renderOnboard(w, r, onboardParams{
 		State:               q.Get("state"),
 		RedirectURI:         q.Get("redirect_uri"),
 		ClientID:            q.Get("client_id"),
@@ -44,13 +49,13 @@ func handleSignupGet(w http.ResponseWriter, r *http.Request) {
 	}, "")
 }
 
-func handleSignupPost(w http.ResponseWriter, r *http.Request) {
+func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
 	}
 
-	params := signupParams{
+	params := onboardParams{
 		State:               r.FormValue("state"),
 		RedirectURI:         r.FormValue("redirect_uri"),
 		ClientID:            r.FormValue("client_id"),
@@ -71,7 +76,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 
 	if password != confirmPassword {
-		renderSignup(w, r, params, "Passwords do not match")
+		renderOnboard(w, r, params, "Passwords do not match")
 		return
 	}
 
@@ -81,15 +86,27 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Email:    email,
 	}
 	if err := user.ValidateUserCreateRequest(req); err != nil {
-		renderSignup(w, r, params, err.Error())
+		renderOnboard(w, r, params, err.Error())
+		return
+	}
+
+	// Double check user count just to be safe
+	count, countErr := user.CountUsers()
+	if countErr != nil || count > 0 {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "onboarding_already_completed", "Setup already finished")
 		return
 	}
 
 	usr, err := user.CreateUser(username, password, email)
 	if err != nil {
-		renderSignup(w, r, params, "Could not create account. Username may already be taken.")
+		renderOnboard(w, r, params, "Could not create administrator account.")
 		return
 	}
+
+	// Grant admin role and mark as onboarded.
+	_ = user.UpdateUser(usr.ID, usr.Email, "admin")
+	_ = appsettings.SetSetting("onboarded", "true")
+	_ = appsettings.LoadIntoConfig()
 
 	// Create IdP session if SSO is enabled
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
@@ -109,7 +126,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate authorization code")
 		return
 	}
 
@@ -127,7 +144,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create authorization code")
 		return
 	}
 
@@ -135,7 +152,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-type signupParams struct {
+type onboardParams struct {
 	State               string
 	RedirectURI         string
 	ClientID            string
@@ -145,9 +162,9 @@ type signupParams struct {
 	CodeChallengeMethod string
 }
 
-func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, errMsg string) {
+func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams, errMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("signup")
+	tmpl, err := view.ParseTemplate("onboard")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

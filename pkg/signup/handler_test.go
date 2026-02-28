@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -17,6 +18,8 @@ import (
 
 func TestHandleSignup_DisabledReturns404(t *testing.T) {
 	testutils.WithTestDB(t)
+	// Seed 'onboarded' as true to simulate an already-setup system
+	_ = appsettings.SetSetting("onboarded", "true")
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = false
 	})
@@ -47,14 +50,13 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
 	})
 
 	form := url.Values{}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://evil.com/callback")
+	form.Set("redirect_uri", "not-a-valid-uri") // syntactically invalid
 	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -77,7 +79,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "different456")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -101,7 +103,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 	form.Set("username", "ab") // too short
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -128,7 +130,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	form.Set("username", "existinguser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -153,7 +155,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 	form.Set("client_id", "test-client")
 
@@ -176,14 +178,14 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ValidationUsernameIsEmail = false
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	form := url.Values{}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -219,7 +221,7 @@ func TestHandleSignup_Post_NoIdpCookieWhenDisabled(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://localhost/callback")
+	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))

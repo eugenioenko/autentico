@@ -19,15 +19,16 @@ import (
 // @Success 200 {object} model.WellKnownConfigResponse
 // @Router /.well-known/openid-configuration [get]
 func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
-	config := config.Get()
+	bs := config.GetBootstrap()
+	issuer := bs.AppAuthIssuer
 	response := model.WellKnownConfigResponse{
-		Issuer:                config.AppAuthIssuer,
-		AuthorizationEndpoint: fmt.Sprintf("%s/authorize", config.AppAuthIssuer),
-		TokenEndpoint:         fmt.Sprintf("%s/token", config.AppAuthIssuer),
-		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", config.AppAuthIssuer),
-		RegistrationEndpoint:  fmt.Sprintf("%s/register", config.AppAuthIssuer),
-		EndSessionEndpoint:    fmt.Sprintf("%s/logout", config.AppAuthIssuer),
-		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", config.AppURL),
+		Issuer:                issuer,
+		AuthorizationEndpoint: fmt.Sprintf("%s/authorize", issuer),
+		TokenEndpoint:         fmt.Sprintf("%s/token", issuer),
+		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", issuer),
+		RegistrationEndpoint:  fmt.Sprintf("%s/register", issuer),
+		EndSessionEndpoint:    fmt.Sprintf("%s/logout", issuer),
+		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppURL),
 		ResponseTypesSupported: []string{
 			"code", "token", "id_token", "code token", "code id_token",
 		},
@@ -60,7 +61,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} model.JWKSResponse
 // @Router /.well-known/jwks.json [get]
 func HandleJWKS(w http.ResponseWriter, r *http.Request) {
-	kid := config.Get().AuthJwkCertKeyID
+	kid := config.GetBootstrap().AuthJwkCertKeyID
 	kMap := key.GetRSAPublicKeyJWK(kid)
 	jwk := model.JWK{
 		Kty: kMap["kty"],

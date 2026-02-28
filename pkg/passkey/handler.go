@@ -36,7 +36,7 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	creds, _ := PasskeyCredentialsByUserID(usr.ID)
 
 	loginState := LoginState{
-		Redirect:            q.Get("redirect"),
+		RedirectURI:            q.Get("redirect_uri"),
 		State:               q.Get("state"),
 		ClientID:            q.Get("client_id"),
 		Scope:               q.Get("scope"),
@@ -317,7 +317,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		Code:                authorizationCode,
 		UserID:              usr.ID,
 		ClientID:            loginState.ClientID,
-		RedirectURI:         loginState.Redirect,
+		RedirectURI:         loginState.RedirectURI,
 		Scope:               loginState.Scope,
 		Nonce:               loginState.Nonce,
 		CodeChallenge:       loginState.CodeChallenge,
@@ -329,7 +329,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		return "", fmt.Errorf("failed to create authorization code")
 	}
 
-	return fmt.Sprintf("%s?code=%s&state=%s", loginState.Redirect, ac.Code, loginState.State), nil
+	return fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State), nil
 }
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {

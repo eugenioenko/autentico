@@ -52,18 +52,18 @@ func startTestServer(t *testing.T) *TestServer {
 	baseURL := "http://" + host
 
 	// Override config to match test server URL
-	oauth := config.Get().AppOAuthPath
-	config.Values.AppURL = baseURL
-	config.Values.AppHost = host
-	config.Values.AppAuthIssuer = baseURL + oauth
-	config.Values.AuthCSRFSecureCookie = false
+	oauth := config.GetBootstrap().AppOAuthPath
+	config.Bootstrap.AppURL = baseURL
+	config.Bootstrap.AppHost = host
+	config.Bootstrap.AppAuthIssuer = baseURL + oauth
+	config.Bootstrap.AuthCSRFSecureCookie = false
 
 	// Create CSRF middleware for the test server.
 	// gorilla/csrf v1.7.3 assumes HTTPS by default and rejects HTTP referers.
 	// We wrap handlers with plaintextCSRF which marks requests as plaintext
 	// (via csrf.PlaintextHTTPRequest) so the strict referer check is skipped.
 	csrfProtect := csrf.Protect(
-		[]byte(config.Get().AuthCSRFProtectionSecretKey),
+		[]byte(config.GetBootstrap().AuthCSRFProtectionSecretKey),
 		csrf.Secure(false),
 		csrf.Path("/"),
 	)

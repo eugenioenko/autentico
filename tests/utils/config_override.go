@@ -7,10 +7,12 @@ import (
 )
 
 func WithConfigOverride(t *testing.T, override func()) {
-	original := config.GetOriginal()
+	originalValues := config.GetOriginal()
+	originalBootstrap := *config.GetBootstrap()
 
 	t.Cleanup(func() {
-		config.Values = original
+		config.Values = originalValues
+		config.Bootstrap = originalBootstrap
 	})
 
 	override()

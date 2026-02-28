@@ -26,7 +26,7 @@ func TestHandleLoginUser(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -61,7 +61,7 @@ func TestHandleLoginUser_ValidationError(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "ab")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -78,14 +78,11 @@ func TestHandleLoginUser_ValidationError(t *testing.T) {
 
 func TestHandleLoginUser_InvalidRedirectURI(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
-	})
 
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://notallowed.com/callback")
+	form.Add("redirect_uri", "not-a-valid-uri") // syntactically invalid (no scheme/host)
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -107,7 +104,7 @@ func TestHandleLoginUser_WrongCredentials(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "wrongpassword")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -128,7 +125,7 @@ func TestHandleLoginUser_NonExistentUser(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "nonexistent")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -147,7 +144,7 @@ func TestValidateLoginRequest_InvalidPassword(t *testing.T) {
 	err := ValidateLoginRequest(LoginRequest{
 		Username: "testuser",
 		Password: "ab",
-		Redirect: "http://localhost/callback",
+		RedirectURI: "http://localhost/callback",
 		State:    "xyz123",
 	})
 	assert.Error(t, err)
@@ -158,7 +155,7 @@ func TestValidateLoginRequest_InvalidRedirect(t *testing.T) {
 	err := ValidateLoginRequest(LoginRequest{
 		Username: "testuser",
 		Password: "password123",
-		Redirect: "",
+		RedirectURI: "",
 		State:    "xyz123",
 	})
 	assert.Error(t, err)
@@ -170,7 +167,7 @@ func TestValidateLoginRequest_MissingState(t *testing.T) {
 	err := ValidateLoginRequest(LoginRequest{
 		Username: "testuser",
 		Password: "password123",
-		Redirect: "http://localhost/callback",
+		RedirectURI: "http://localhost/callback",
 		State:    "",
 	})
 	assert.NoError(t, err)
@@ -180,7 +177,7 @@ func TestValidateLoginRequest_Valid(t *testing.T) {
 	err := ValidateLoginRequest(LoginRequest{
 		Username: "testuser",
 		Password: "password123",
-		Redirect: "http://localhost/callback",
+		RedirectURI: "http://localhost/callback",
 		State:    "xyz123",
 	})
 	assert.NoError(t, err)
@@ -190,8 +187,8 @@ func TestHandleLoginUser_SetsIdpSessionCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
-		config.Values.AppOAuthPath = "/oauth2"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AppOAuthPath = "/oauth2"
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -200,7 +197,7 @@ func TestHandleLoginUser_SetsIdpSessionCookie(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -238,7 +235,7 @@ func TestHandleLoginUser_NoIdpCookieWhenDisabled(t *testing.T) {
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://localhost/callback")
+	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))

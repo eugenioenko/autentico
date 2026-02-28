@@ -28,8 +28,12 @@ func (a *AccessTokenClaims) Valid() error {
 	return nil
 }
 
-// ValidateAudience checks if the token's audience matches any of the required audiences
+// ValidateAudience checks if the token's audience matches any of the required audiences.
+// If requiredAudiences is empty, audience validation is skipped (no restriction).
 func ValidateAudience(tokenAud []string, requiredAudiences []string) error {
+	if len(requiredAudiences) == 0 {
+		return nil
+	}
 	for _, aud := range tokenAud {
 		for _, required := range requiredAudiences {
 			if aud == required {

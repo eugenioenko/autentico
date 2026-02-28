@@ -18,7 +18,7 @@ func TestSelfSignup_Disabled(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = false
 
-	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect=http://localhost:3000/callback&state=s1&client_id=test-client")
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=http://localhost:3000/callback&state=s1&client_id=test-client")
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
@@ -30,9 +30,9 @@ func TestSelfSignup_RendersForm(t *testing.T) {
 	config.Values.AuthAllowSelfSignup = true
 
 	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect":  {"http://localhost:3000/callback"},
-		"state":     {"abc123"},
-		"client_id": {"test-client"},
+		"redirect_uri": {"http://localhost:3000/callback"},
+		"state":        {"abc123"},
+		"client_id":    {"test-client"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -111,9 +111,9 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 
 	// GET signup page
 	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect":  {redirectURI},
-		"state":     {expectedState},
-		"client_id": {"test-client"},
+		"redirect_uri": {redirectURI},
+		"state":        {expectedState},
+		"client_id":    {"test-client"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -132,7 +132,7 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 	form.Set("username", "stateuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", expectedState)
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", csrfToken)
@@ -162,7 +162,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	redirectURI := "http://localhost:3000/callback"
 
 	// GET signup page for CSRF token
-	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
@@ -173,7 +173,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	form.Set("username", "someuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "different456")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s1")
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", csrfToken)
@@ -205,7 +205,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	freshClient := newClientWithJar()
 
 	// GET signup page for a new CSRF token
-	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/signup?redirect=" + url.QueryEscape(redirectURI) + "&state=s2&client_id=test-client")
+	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s2&client_id=test-client")
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
@@ -216,7 +216,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	form.Set("username", "dupuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s2")
 	form.Set("client_id", "test-client")
 	form.Set("gorilla.csrf.Token", csrfToken)
@@ -241,7 +241,7 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	redirectURI := "http://localhost:3000/callback"
 
 	// Seed the CSRF cookie by visiting the signup page first
-	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
 	require.NoError(t, err)
 	_ = resp.Body.Close()
 
@@ -249,7 +249,7 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	form.Set("username", "csrfuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", redirectURI)
+	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s1")
 	form.Set("gorilla.csrf.Token", "forged-invalid-csrf-token")
 

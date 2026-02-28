@@ -82,7 +82,7 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	require.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
 	// Verify the IdP cookie is cleared in the response
-	cookieName := config.Get().AuthIdpSessionCookieName
+	cookieName := config.GetBootstrap().AuthIdpSessionCookieName
 	var clearedCookie *http.Cookie
 	for _, c := range logoutResp.Cookies() {
 		if c.Name == cookieName {

@@ -132,7 +132,14 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authToken, err := GenerateTokens(*usr, request.ClientID)
+	// Resolve per-client config overrides (falls back to global settings if client is nil or has no overrides)
+	clientCfg := config.Get()
+	if authenticatedClient != nil {
+		resolved := config.GetForClient(authenticatedClient.ToOverrides())
+		clientCfg = &resolved
+	}
+
+	authToken, err := GenerateTokens(*usr, request.ClientID, clientCfg)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
 		return
@@ -174,7 +181,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  authToken.AccessToken,
 		RefreshToken: authToken.RefreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    int(config.Get().AuthAccessTokenExpiration / time.Second),
+		ExpiresIn:    int(clientCfg.AuthAccessTokenExpiration / time.Second),
 		Scope:        codeScope,
 	}
 
@@ -189,7 +196,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send the refresh token as secure cookie
-	if config.Get().AuthRefreshTokenAsSecureCookie {
+	if config.GetBootstrap().AuthRefreshTokenAsSecureCookie {
 		SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
 		response.RefreshToken = ""
 	}

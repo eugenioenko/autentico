@@ -14,21 +14,25 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
-func GenerateTokens(user user.User, clientID string) (*AuthToken, error) {
+// GenerateTokens creates a signed access token and refresh token for the given user.
+// cfg should be the per-client resolved config (via config.GetForClient) so that
+// per-client overrides for expiration and audience are applied.
+func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthToken, error) {
+	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
-	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
-	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()
+	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
+	refreshTokenExpiresAt := time.Now().Add(cfg.AuthRefreshTokenExpiration).UTC()
 
 	accessClaims := jwt.MapClaims{
 		"exp":       accessTokenExpiresAt.Unix(),
 		"iat":       time.Now().Unix(),
 		"auth_time": time.Now().Unix(),
 		"jti":       xid.New().String(),
-		"iss":       config.Get().AppAuthIssuer,
-		"aud":       config.Get().AuthAccessTokenAudience,
+		"iss":       bs.AppAuthIssuer,
+		"aud":       cfg.AuthAccessTokenAudience,
 		"sub":       user.ID,
 		"typ":       "Bearer",
-		"azp":       firstNonEmpty(clientID, config.Get().AuthDefaultClientID),
+		"azp":       clientID,
 		"sid":       sessionID,
 		"acr":       "password",
 		"scope":              "openid profile email",
@@ -40,7 +44,7 @@ func GenerateTokens(user user.User, clientID string) (*AuthToken, error) {
 		"email":              user.Email,
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = bs.AuthJwkCertKeyID
 	signedAccessToken, err := accessToken.SignedString(key.GetPrivateKey())
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
@@ -54,7 +58,7 @@ func GenerateTokens(user user.User, clientID string) (*AuthToken, error) {
 		"exp": refreshTokenExpiresAt.Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	signedRefreshToken, err := refreshToken.SignedString([]byte(config.Get().AuthRefreshTokenSecret))
+	signedRefreshToken, err := refreshToken.SignedString([]byte(bs.AuthRefreshTokenSecret))
 	if err != nil {
 		return nil, fmt.Errorf("could not sign refresh token: %v", err)
 	}
@@ -75,11 +79,12 @@ func GenerateTokens(user user.User, clientID string) (*AuthToken, error) {
 // The nonce parameter is included in the token if non-empty (for authorization code flow replay protection).
 // The scope parameter controls which claims are included (e.g. "profile" adds name claims, "email" adds email claims).
 func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string) (string, error) {
+	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
 
 	claims := jwt.MapClaims{
-		"iss":       config.Get().AppAuthIssuer,
+		"iss":       bs.AppAuthIssuer,
 		"sub":       user.ID,
 		"aud":       clientID,
 		"exp":       idTokenExpiresAt.Unix(),
@@ -92,7 +97,7 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["nonce"] = nonce
 	}
 
-	if clientID != "" && clientID != config.Get().AuthDefaultClientID {
+	if clientID != "" {
 		claims["azp"] = clientID
 	}
 
@@ -109,7 +114,7 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	}
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	idToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	idToken.Header["kid"] = bs.AuthJwkCertKeyID
 
 	signedIDToken, err := idToken.SignedString(key.GetPrivateKey())
 	if err != nil {
@@ -130,23 +135,15 @@ func containsScope(scopeStr string, target string) bool {
 	return false
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {
+	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
-		Name:     config.Get().AuthRefreshTokenCookieName,
+		Name:     bs.AuthRefreshTokenCookieName,
 		Value:    refreshToken,
 		Expires:  time.Now().Add(config.Get().AuthRefreshTokenExpiration),
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteStrictMode, // Helps mitigate CSRF attacks
+		SameSite: http.SameSiteStrictMode,
 		Path:     "/",
 	})
 }

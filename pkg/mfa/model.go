@@ -14,7 +14,7 @@ type MfaChallenge struct {
 }
 
 type LoginState struct {
-	Redirect            string `json:"redirect"`
+	RedirectURI         string `json:"redirect_uri"`
 	State               string `json:"state"`
 	ClientID            string `json:"client_id"`
 	Scope               string `json:"scope"`

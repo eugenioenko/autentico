@@ -26,7 +26,7 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -34,7 +34,7 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
 	if err != nil {
 		return "", "", err
@@ -230,7 +230,7 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 	claims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   "some-user-id",
 		"typ":   "Bearer",
@@ -238,7 +238,7 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 		"scope": "openid",
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = config.Get().AuthJwkCertKeyID
+	token.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := token.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 
@@ -274,7 +274,7 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 	claims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -282,7 +282,7 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 		"scope": "openid",
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	jwtToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	jwtToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := jwtToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 
