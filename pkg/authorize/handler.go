@@ -53,7 +53,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Validate redirect_uri format
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		renderError(w, "Invalid redirect_uri")
 		return
 	}
 
@@ -67,17 +67,17 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Client found - validate redirect_uri and response_type
 			if !registeredClient.IsActive {
-				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
+				renderError(w, "Client is inactive")
 				return
 			}
 
 			if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
-				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
+				renderError(w, "Redirect URI not allowed for this client")
 				return
 			}
 
 			if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
-				utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_response_type", "Response type not allowed for this client")
+				renderError(w, "Response type not allowed for this client")
 				return
 			}
 		}
@@ -117,7 +117,14 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tmpl, err := template.New("login").Parse(view.LoginTemplate)
+	renderLogin(w, r, request, q.Get("error"))
+}
+
+// renderLogin renders the login form, or an error-only page when errorMsg is a fatal
+// configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
+func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("login")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -131,16 +138,38 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		"Nonce":               request.Nonce,
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
-		"Error":               q.Get("error"),
+		"Error":               errorMsg,
 		"AuthMode":            cfg.AuthMode,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"ThemeTitle":          cfg.Theme.Title,
+		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
+		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+	}
+
+	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
+	}
+}
+
+// renderError renders a branded error page without any login form fields.
+// Use this for fatal errors where redirecting or submitting credentials makes no sense.
+func renderError(w http.ResponseWriter, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("error")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]any{
+		"Error":            errorMsg,
 		"ThemeTitle":       cfg.Theme.Title,
 		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
 		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
 	}
 
-	err = tmpl.Execute(w, data)
-	if err != nil {
+	w.WriteHeader(http.StatusBadRequest)
+	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
 }

@@ -1,16 +1,15 @@
 package view
 
 import (
-	_ "embed"
+	"embed"
+	"html/template"
 )
 
-var (
-	//go:embed login.html
-	LoginTemplate string
+//go:embed *.html
+var FS embed.FS
 
-	//go:embed mfa.html
-	MfaTemplate string
-
-	//go:embed mfa_enroll.html
-	MfaEnrollTemplate string
-)
+// ParseTemplate parses layout.html together with the named page template,
+// returning a template set where executing "layout" renders the full page.
+func ParseTemplate(name string) (*template.Template, error) {
+	return template.ParseFS(FS, "layout.html", name+".html")
+}

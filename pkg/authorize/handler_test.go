@@ -95,7 +95,7 @@ func TestHandleAuthorize_InactiveClient(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_client")
+	assert.Contains(t, rr.Body.String(), "Client is inactive")
 }
 
 func TestHandleAuthorize_RedirectURINotAllowed(t *testing.T) {
@@ -133,7 +133,7 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "unsupported_response_type")
+	assert.Contains(t, rr.Body.String(), "Response type not allowed for this client")
 }
 
 func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {

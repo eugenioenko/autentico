@@ -60,15 +60,15 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ValidateLoginRequest(request)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("user credentials error. %v", err))
+	// Validate redirect_uri first so we know whether we can redirect errors back to the form
+	if !utils.IsValidRedirectURI(request.Redirect) {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
 	}
 
-	// Validate redirect_uri
-	if !utils.IsValidRedirectURI(request.Redirect) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+	err = ValidateLoginRequest(request)
+	if err != nil {
+		redirectToLogin(w, r, request, fmt.Sprintf("user credentials error. %v", err))
 		return
 	}
 
