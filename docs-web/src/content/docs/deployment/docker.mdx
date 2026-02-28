@@ -18,7 +18,7 @@ The image is a minimal Linux container with just the `autentico` binary. All con
 ```bash
 docker run -d \
   --name autentico \
-  -p 8080:8080 \
+  -p 9999:9999 \
   -v autentico-data:/data \
   -e AUTENTICO_APP_URL=https://auth.example.com \
   -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
@@ -41,7 +41,7 @@ All configuration is done via [Bootstrap Settings](/configuration/bootstrap/). T
 | `AUTENTICO_COOKIE_SECRET` | Yes | At least 32 random characters |
 | `AUTENTICO_ADMIN_TOKEN` | Yes | Bearer token for admin API access |
 | `AUTENTICO_PRIVATE_KEY_PATH` | No | Defaults to `db/private_key.pem`; persist this path |
-| `AUTENTICO_APP_LISTEN_PORT` | No | Defaults to `8080` |
+| `AUTENTICO_APP_LISTEN_PORT` | No | Defaults to `9999` |
 | `AUTENTICO_ENABLE_CORS` | No | Set to `true` if your SPA frontend is on a different origin |
 
 ## Health check
@@ -50,7 +50,7 @@ Autentico exposes `/.well-known/openid-configuration` which returns 200 and can 
 
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=5s \
-  CMD wget -qO- http://localhost:8080/.well-known/openid-configuration || exit 1
+  CMD wget -qO- http://localhost:9999/.well-known/openid-configuration || exit 1
 ```
 
 ## Logs
