@@ -1,0 +1,38 @@
+{
+    on_demand_tls {
+        ask http://host.docker.internal:8080/status
+    }
+}
+
+firenice.top {
+    reverse_proxy solomon-app:3000
+}
+
+skedoodle.top {
+    @websocket {
+        path /ws
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websocket skedoodle-app:3014
+    reverse_proxy skedoodle-app:3013
+}
+
+pocketid.yy-dev.top {
+    reverse_proxy pocket-id:1411
+}
+
+demo.autentico.top {
+    reverse_proxy host.docker.internal:8080
+}
+
+*.demo.autentico.top {
+    tls {
+        on_demand
+    }
+    reverse_proxy host.docker.internal:8080
+}
+
+autentico.top {
+    reverse_proxy host.docker.internal:9999
+}

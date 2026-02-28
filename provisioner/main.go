@@ -50,7 +50,8 @@ func main() {
 	reg := &registry{instances: make(map[string]*instance)}
 	go reg.runCleanup()
 
-	http.HandleFunc("/launch", reg.handleLaunch)
+	http.HandleFunc("/launch", reg.handleLaunchPage)
+	http.HandleFunc("/launch/start", reg.handleLaunchStart)
 	http.HandleFunc("/status", reg.handleStatus)
 	http.HandleFunc("/", reg.handleProxy)
 
@@ -61,17 +62,79 @@ func main() {
 	}
 }
 
-func (r *registry) handleLaunch(w http.ResponseWriter, req *http.Request) {
+func (r *registry) handleLaunchPage(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, launchPageHTML)
+}
+
+func (r *registry) handleLaunchStart(w http.ResponseWriter, req *http.Request) {
 	inst, err := r.launch()
 	if err != nil {
 		slog.Error("failed to launch demo", "err", err)
-		http.Error(w, "failed to launch demo — please try again", http.StatusInternalServerError)
+		http.Error(w, `{"error":"failed to launch demo"}`, http.StatusInternalServerError)
 		return
 	}
-	target := instanceURL(inst.slug)
+	target := instanceURL(inst.slug) + "/admin/"
 	slog.Info("launched demo", "slug", inst.slug, "port", inst.port, "expires", inst.expiresAt.Format(time.RFC3339))
-	http.Redirect(w, req, target, http.StatusFound)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"url":%q}`, target)
 }
+
+const launchPageHTML = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Launching demo — Autentico</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #1a1a1a;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 3rem 2.5rem;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    h1 { font-size: 1.5rem; margin-bottom: .75rem; }
+    p  { color: #555; line-height: 1.6; margin-bottom: 2rem; }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #3b5bdb;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #c0392b; margin-top: 1.5rem; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Hang tight!</h1>
+    <p>We're prepping a fresh Autentico instance just for you.<br>This usually takes a few seconds.</p>
+    <div class="spinner"></div>
+    <p class="error" id="err">Something went wrong. <a href="/launch">Try again</a>.</p>
+  </div>
+  <script>
+    fetch('/launch/start')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { window.location.href = data.url; })
+      .catch(() => { document.getElementById('err').style.display = 'block'; });
+  </script>
+</body>
+</html>`
 
 func (r *registry) handleStatus(w http.ResponseWriter, req *http.Request) {
 	r.mu.RLock()
@@ -134,18 +197,20 @@ func (r *registry) launch() (*instance, error) {
 
 	publicURL := instanceURL(slug)
 	cmd := exec.Command(binary, "start")
-	cmd.Env = append(os.Environ(),
-		"AUTENTICO_APP_URL="+publicURL,
+	// Our vars come first so they take precedence over any duplicates in os.Environ()
+	// (on Linux, getenv returns the first match in the env array)
+	cmd.Env = append([]string{
+		"AUTENTICO_APP_URL=" + publicURL,
 		fmt.Sprintf("AUTENTICO_LISTEN_PORT=%d", port),
-		"AUTENTICO_DB_FILE_PATH="+filepath.Join(dir, "db", "autentico.db"),
-		"AUTENTICO_ACCESS_TOKEN_SECRET="+randomHex(32),
-		"AUTENTICO_REFRESH_TOKEN_SECRET="+randomHex(32),
-		"AUTENTICO_CSRF_SECRET_KEY="+randomHex(32),
+		"AUTENTICO_DB_FILE_PATH=" + filepath.Join(dir, "db", "autentico.db"),
+		"AUTENTICO_ACCESS_TOKEN_SECRET=" + randomHex(32),
+		"AUTENTICO_REFRESH_TOKEN_SECRET=" + randomHex(32),
+		"AUTENTICO_CSRF_SECRET_KEY=" + randomHex(32),
 		"AUTENTICO_APP_ENABLE_CORS=true",
 		"AUTENTICO_CSRF_SECURE_COOKIE=true",
 		"AUTENTICO_REFRESH_TOKEN_SECURE=true",
 		"AUTENTICO_IDP_SESSION_SECURE=true",
-	)
+	}, os.Environ()...)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 

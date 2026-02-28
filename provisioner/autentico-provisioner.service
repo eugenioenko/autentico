@@ -1,0 +1,21 @@
+[Unit]
+Description=Autentico Demo Provisioner
+After=network.target
+
+[Service]
+ExecStart=/root/autentico/provisioner
+Restart=on-failure
+RestartSec=5
+
+Environment=BASE_DOMAIN=demo.autentico.top
+Environment=AUTENTICO_BINARY=/root/autentico/autentico
+Environment=DATA_DIR=/root/autentico/demos
+Environment=LISTEN_ADDR=:8080
+Environment=DEMO_TTL=24h
+
+WorkingDirectory=/root/autentico
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
