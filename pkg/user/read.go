@@ -9,7 +9,7 @@ import (
 
 func ListUsers() ([]*User, error) {
 	query := `
-		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified
+		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, deactivated_at
 		FROM users WHERE deactivated_at IS NULL
 	`
 	rows, err := db.GetDB().Query(query)
@@ -21,7 +21,7 @@ func ListUsers() ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified, &u.DeactivatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, &u)
@@ -32,7 +32,7 @@ func ListUsers() ([]*User, error) {
 func UserByUsername(username string) (*User, error) {
 	var user User
 	query := `
-		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified
+		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, deactivated_at
 		FROM users WHERE username = ? AND deactivated_at IS NULL
 	`
 	row := db.GetDB().QueryRow(query, username)
@@ -47,6 +47,7 @@ func UserByUsername(username string) (*User, error) {
 		&user.LockedUntil,
 		&user.TotpSecret,
 		&user.TotpVerified,
+		&user.DeactivatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -60,8 +61,8 @@ func UserByUsername(username string) (*User, error) {
 func UserByID(userID string) (*User, error) {
 	var user User
 	query := `
-		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified
-		FROM users WHERE id = ?
+		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, deactivated_at
+		FROM users WHERE id = ? AND deactivated_at IS NULL
 	`
 	row := db.GetDB().QueryRow(query, userID)
 	err := row.Scan(
@@ -75,6 +76,7 @@ func UserByID(userID string) (*User, error) {
 		&user.LockedUntil,
 		&user.TotpSecret,
 		&user.TotpVerified,
+		&user.DeactivatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

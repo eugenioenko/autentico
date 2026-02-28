@@ -20,11 +20,11 @@ func TestDeleteUser(t *testing.T) {
 	err = DeleteUser(user.ID)
 	assert.NoError(t, err)
 
-	// User should still exist in DB (soft delete)
+	// User should NOT be returned by UserByID (active-only)
 	_, err = UserByID(user.ID)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 
-	// But should have deactivated_at set
+	// But should have deactivated_at set in DB
 	var deactivatedAt *string
 	row := db.GetDB().QueryRow(`SELECT deactivated_at FROM users WHERE id = ?`, user.ID)
 	err = row.Scan(&deactivatedAt)

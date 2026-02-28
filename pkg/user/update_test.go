@@ -24,3 +24,16 @@ func TestUpdateUser(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "newemail@example.com", updatedUser.Email)
 }
+
+func TestSaveTotpSecret(t *testing.T) {
+	testutils.WithTestDB(t)
+	u, _ := CreateUser("u1", "p", "e1")
+
+	err := SaveTotpSecret(u.ID, "SECRET123")
+	assert.NoError(t, err)
+
+	updated, _ := UserByID(u.ID)
+	assert.Equal(t, "SECRET123", updated.TotpSecret)
+	assert.True(t, updated.TotpVerified)
+}
+

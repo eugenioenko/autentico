@@ -1,7 +1,7 @@
 # Autentico - OIDC Identity Provider
 
-[![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-358-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-79.3%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-464-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -647,27 +647,39 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 
 ## Testing
 
-Autentico maintains comprehensive test coverage with **358+ test functions** across unit, integration, and end-to-end tests.
+Autentico maintains comprehensive test coverage with **464+ test functions** across unit, integration, and end-to-end tests.
 
 ### Test Coverage
 
-![Test Coverage](https://img.shields.io/badge/coverage-78.1%25-green.svg)
-![Test Count](https://img.shields.io/badge/tests-358-blue.svg)
-![Packages Tested](https://img.shields.io/badge/packages-15-lightgrey.svg)
+![Test Coverage](https://img.shields.io/badge/coverage-79.3%25-green.svg)
+![Test Count](https://img.shields.io/badge/tests-464-blue.svg)
+![Packages Tested](https://img.shields.io/badge/packages-23-lightgrey.svg)
 
-| Package          | Coverage | Test Count | Focus Area               |
-| ---------------- | -------- | ---------- | ------------------------ |
-| `pkg/config`     | 100.0%   | 8          | Configuration management |
-| `pkg/model`      | 100.0%   | 6          | Data validation          |
-| `pkg/wellknown`  | 100.0%   | 4          | OIDC discovery           |
-| `pkg/idpsession` | 96.3%    | 15         | Session management       |
-| `pkg/jwtutil`    | 95.2%    | 10         | JWT validation           |
-| `pkg/authorize`  | 93.3%    | 13         | Authorization flow       |
-| `pkg/middleware` | 93.4%    | 21         | Security middleware      |
-| `pkg/user`       | 92.3%    | 46         | User management          |
-| `pkg/auth_code`  | 90.9%    | 16         | Authorization codes      |
-| `pkg/session`    | 90.7%    | 13         | Session lifecycle        |
-| `pkg/introspect` | 89.4%    | 13         | Token introspection      |
+| Package          | Coverage | Focus Area               |
+| ---------------- | -------- | ------------------------ |
+| `pkg/trusteddevice` | 96.9%    | Device fingerprinting    |
+| `pkg/jwtutil`    | 95.7%    | JWT validation           |
+| `pkg/middleware` | 91.0%    | Security middleware      |
+| `pkg/auth_code`  | 90.9%    | Authorization codes      |
+| `pkg/introspect` | 89.4%    | Token introspection      |
+| `pkg/cleanup`    | 88.9%    | Data retention           |
+| `pkg/utils`      | 87.8%    | Core utilities           |
+| `pkg/idpsession` | 86.2%    | Session management       |
+| `pkg/user`       | 85.8%    | User management          |
+| `pkg/userinfo`   | 84.6%    | User Info endpoint       |
+| `pkg/session`    | 84.3%    | Session lifecycle        |
+| `pkg/token`      | 83.5%    | Token handling           |
+| `pkg/client`     | 80.2%    | Client registration      |
+| `pkg/signup`     | 78.2%    | User registration        |
+| `pkg/authorize`  | 77.4%    | Authorization flow       |
+| `pkg/key`        | 76.7%    | Key management           |
+| `pkg/login`      | 76.7%    | Authentication logic     |
+| `pkg/config`     | 76.0%    | Configuration            |
+| `pkg/db`         | 71.7%    | Database layer           |
+| `pkg/onboarding` | 69.8%    | Initial setup flow       |
+| `pkg/appsettings` | 64.9%    | Runtime settings         |
+| `pkg/passkey`    | 52.9%    | WebAuthn authentication  |
+| `pkg/mfa`        | 44.1%    | Multi-factor auth        |
 
 ### Running Tests
 

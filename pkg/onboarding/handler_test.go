@@ -72,3 +72,62 @@ func TestHandleOnboard_Post_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "admin", u.Role)
 }
+
+func TestHandleOnboard_Post_PasswordMismatch(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("username", "admin")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "wrong")
+	form.Set("email", "admin@example.com")
+	form.Set("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/onboard", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleOnboard(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Passwords do not match")
+}
+
+func TestHandleOnboard_Post_InvalidRedirectURI(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("username", "admin")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+	form.Set("redirect_uri", "not-a-url")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/onboard", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleOnboard(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleOnboard_Post_ValidationError(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("username", "a") // too short
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+	form.Set("email", "admin@example.com")
+	form.Set("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/onboard", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleOnboard(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "username is invalid")
+}
+
