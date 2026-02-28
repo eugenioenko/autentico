@@ -12,12 +12,7 @@
 ## Try It Live
 
 > **A brand-new, isolated Autentico instance is provisioned just for you**
-
-<div align="center">
-
 ### [→ Launch a Live Demo](https://demo.autentico.top/launch)
-
-</div>
 
 Clicking the link spins up a fresh instance with its own isolated database and a full Admin UI.
 The first account you create becomes the administrator.
@@ -852,3 +847,4 @@ Please open an issue to discuss significant changes or new features before start
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file in the repository for the full license text.
+
