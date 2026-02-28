@@ -132,7 +132,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authToken, err := GenerateTokens(*usr)
+	authToken, err := GenerateTokens(*usr, request.ClientID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
 		return
