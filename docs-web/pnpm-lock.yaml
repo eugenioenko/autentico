@@ -20,6 +20,9 @@ importers:
       sharp:
         specifier: ^0.34.2
         version: 0.34.5
+      starlight-theme-galaxy:
+        specifier: ^0.7.0
+        version: 0.7.0(@astrojs/starlight@0.37.6(astro@5.18.0(rollup@4.59.0)(typescript@5.9.3)))
 
 packages:
 
@@ -425,11 +428,20 @@ packages:
   '@expressive-code/plugin-frames@0.41.7':
     resolution: {integrity: sha512-diKtxjQw/979cTglRFaMCY/sR6hWF0kSMg8jsKLXaZBSfGS0I/Hoe7Qds3vVEgeoW+GHHQzMcwvgx/MOIXhrTA==}
 
+  '@expressive-code/plugin-line-numbers@0.41.7':
+    resolution: {integrity: sha512-wI9D5NBcgE9ksiJJV8YfOC0RPI3283+9AYWIb8pBUM5TSM8msIs1YRPDt8c8Ub0XGQvbjJKtB+f9fAl2RiHJ2A==}
+
   '@expressive-code/plugin-shiki@0.41.7':
     resolution: {integrity: sha512-DL605bLrUOgqTdZ0Ot5MlTaWzppRkzzqzeGEu7ODnHF39IkEBbFdsC7pbl3LbUQ1DFtnfx6rD54k/cdofbW6KQ==}
 
   '@expressive-code/plugin-text-markers@0.41.7':
     resolution: {integrity: sha512-Ewpwuc5t6eFdZmWlFyeuy3e1PTQC0jFvw2Q+2bpcWXbOZhPLsT7+h8lsSIJxb5mS7wZko7cKyQ2RLYDyK6Fpmw==}
+
+  '@fontsource-variable/inter@5.2.8':
+    resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
+
+  '@fontsource-variable/jetbrains-mono@5.2.8':
+    resolution: {integrity: sha512-WBA9elru6Jdp5df2mES55wuOO0WIrn3kpXnI4+W2ek5u3ZgLS9XS4gmIlcQhiZOWEKl95meYdvK7xI+ETLCq/Q==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -2079,6 +2091,12 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
+  starlight-theme-galaxy@0.7.0:
+    resolution: {integrity: sha512-4AfYU6sBjniohESdcUwscMsWncV3tRSK0/W9E0Z2lwzYr6czSzm2Jh9ODjWuczdIyEaUBjL6l0IvZqm2B8PutA==}
+    engines: {node: ^18.17.1 || ^20.3.0 || >=21.0.0}
+    peerDependencies:
+      '@astrojs/starlight': '>=0.34'
+
   stream-replace-string@2.0.0:
     resolution: {integrity: sha512-TlnjJ1C0QrmxRNrON00JvaFFlNh5TTG00APw23j74ET7gkQpTASi6/L2fuiav8pzK715HXtUeClpBTw2NPSn6w==}
 
@@ -2729,6 +2747,10 @@ snapshots:
     dependencies:
       '@expressive-code/core': 0.41.7
 
+  '@expressive-code/plugin-line-numbers@0.41.7':
+    dependencies:
+      '@expressive-code/core': 0.41.7
+
   '@expressive-code/plugin-shiki@0.41.7':
     dependencies:
       '@expressive-code/core': 0.41.7
@@ -2737,6 +2759,10 @@ snapshots:
   '@expressive-code/plugin-text-markers@0.41.7':
     dependencies:
       '@expressive-code/core': 0.41.7
+
+  '@fontsource-variable/inter@5.2.8': {}
+
+  '@fontsource-variable/jetbrains-mono@5.2.8': {}
 
   '@iconify/types@2.0.0': {}
 
@@ -5042,6 +5068,14 @@ snapshots:
   source-map@0.7.6: {}
 
   space-separated-tokens@2.0.2: {}
+
+  starlight-theme-galaxy@0.7.0(@astrojs/starlight@0.37.6(astro@5.18.0(rollup@4.59.0)(typescript@5.9.3))):
+    dependencies:
+      '@astrojs/starlight': 0.37.6(astro@5.18.0(rollup@4.59.0)(typescript@5.9.3))
+      '@expressive-code/core': 0.41.7
+      '@expressive-code/plugin-line-numbers': 0.41.7
+      '@fontsource-variable/inter': 5.2.8
+      '@fontsource-variable/jetbrains-mono': 5.2.8
 
   stream-replace-string@2.0.0: {}
 

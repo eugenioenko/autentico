@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
+import starlightThemeGalaxy from 'starlight-theme-galaxy';
 
 // https://astro.build/config
 export default defineConfig({
@@ -10,13 +11,17 @@ export default defineConfig({
 		starlight({
 			title: 'Autentico',
 			description: 'Documentation for the Autentico OpenID Connect Identity Provider',
+			favicon: '/favicon.svg',
+			logo: {
+				src: './src/assets/logo.svg',
+			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/eugenioenko/autentico' },
 			],
 			editLink: {
 				baseUrl: 'https://github.com/eugenioenko/autentico/edit/main/docs-web/',
 			},
-			plugins: [starlightClientMermaid()],
+			plugins: [starlightThemeGalaxy(), starlightClientMermaid()],
 			sidebar: [
 				{ label: 'Introduction', link: '/' },
 				{
