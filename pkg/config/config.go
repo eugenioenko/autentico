@@ -22,6 +22,11 @@ type BootstrapConfig struct {
 	AppHost       string
 	AppPort       string
 	AppAuthIssuer string
+	// AUTENTICO_LISTEN_PORT overrides the port the server binds to,
+	// while AppURL (and AppAuthIssuer) remain unchanged. Useful when
+	// a reverse proxy handles TLS and the public URL differs from the
+	// local listen port.
+	AppListenPort string
 	// Secrets and cookies
 	AuthAccessTokenSecret          string
 	AuthRefreshTokenSecret         string
@@ -195,6 +200,7 @@ func InitBootstrap() {
 		AppDomain:                      domain,
 		AppHost:                        host,
 		AppPort:                        port,
+		AppListenPort:                  getEnv("AUTENTICO_LISTEN_PORT", port),
 		AppAuthIssuer:                  appURL + oauthPath,
 		AuthAccessTokenSecret:          getEnv("AUTENTICO_ACCESS_TOKEN_SECRET", "your-secret-here"),
 		AuthRefreshTokenSecret:         getEnv("AUTENTICO_REFRESH_TOKEN_SECRET", "your-secret-here"),

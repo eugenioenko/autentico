@@ -110,7 +110,6 @@ func RunStart(_ *cli.Context) error {
 
 	cleanup.Start(ctx, cfg.CleanupInterval, cfg.CleanupRetention)
 
-	port := bs.AppPort
 	baseURL := bs.AppURL
 	fmt.Println()
 	fmt.Println("  Autentico OIDC Identity Provider")
@@ -140,7 +139,7 @@ func RunStart(_ *cli.Context) error {
 	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
 
 	srv := &http.Server{
-		Addr:    ":" + port,
+		Addr:    ":" + bs.AppListenPort,
 		Handler: combinedMiddleware(mux),
 	}
 
