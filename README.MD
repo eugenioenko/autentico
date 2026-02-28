@@ -1,22 +1,11 @@
-# Autentico - OIDC Identity Provider
+# Autentico — OIDC Identity Provider
 
 [![Test Coverage](https://img.shields.io/badge/coverage-79.3%25-green.svg)](https://github.com/eugenioenko/autentico)
 [![Tests](https://img.shields.io/badge/tests-464-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Auténtico is a lightweight OpenID Connect (OIDC) Identity Provider (IdP) built with Go. It provides standards-compliant authentication and identity management for your applications, issuing and managing identity tokens, access tokens, and user sessions. Auténtico uses SQLite for persistence, making it easy to deploy as a standalone IdP without external database dependencies.**
-
----
-
-## Try It Live
-
-> **A brand-new, isolated Autentico instance is provisioned just for you**
-### [→ Launch a Live Demo](https://demo.autentico.top/launch)
-
-Clicking the link spins up a fresh instance with its own isolated database and a full Admin UI.
-The first account you create becomes the administrator.
-Instances are automatically cleaned up after 24 hours.
+**Auténtico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
 ---
 
@@ -26,23 +15,22 @@ Instances are automatically cleaned up after 24 hours.
 - [Tech Stack](#tech-stack)
 - [Architecture Overview](#architecture-overview)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Running](#installation--running)
 - [Configuration](#configuration)
-- [API Documentation](#api-documentation)
+  - [Bootstrap Settings (.env)](#bootstrap-settings-env)
+  - [Global Settings (Runtime)](#global-settings-runtime)
+  - [Per-Client Overrides](#per-client-overrides)
+- [Authentication Modes](#authentication-modes)
+- [Multi-Factor Authentication](#multi-factor-authentication)
+- [Trusted Devices](#trusted-devices)
+- [Login Page Theming](#login-page-theming)
+- [Admin UI](#admin-ui)
 - [Endpoints](#endpoints)
 - [Supported Grant Types](#supported-grant-types)
 - [Client Interaction Examples](#client-interaction-examples)
-  - [Register an OAuth2 Client](#register-an-oauth2-client-admin-only)
-  - [Register a Public Client](#register-a-public-client-spamobile)
-  - [Register a User](#register-a-user)
-  - [Authorization Request](#authorization-request)
-  - [Token Exchange](#token-exchange)
 - [Security Considerations](#security-considerations)
 - [Deployment & Operations](#deployment--operations)
-- [Troubleshooting & Operations](#troubleshooting--operations)
-- [Admin UI](#admin-ui)
 - [Testing](#testing)
+- [API Documentation](#api-documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -50,77 +38,120 @@ Instances are automatically cleaned up after 24 hours.
 
 ## Features
 
-Autentico provides a full-featured OIDC Identity Provider with the following capabilities:
+### Standards & Protocol
 
-- **OIDC Discovery**: Publishes `/.well-known/openid-configuration` so relying parties can auto-discover endpoints, supported scopes, and signing keys.
-- **ID Token Issuance**: Issues RS256-signed ID tokens containing standard OIDC claims (`sub`, `iss`, `aud`, `exp`, `iat`, `nonce`).
-- **UserInfo Endpoint**: Serves authenticated identity claims via `/oauth2/userinfo` per the OIDC Core specification.
-- **JWK Set Endpoint**: Exposes public signing keys at `/oauth2/certs` for token verification by relying parties.
-- **Authorization Code Flow with PKCE**: Implements the recommended secure flow for web and mobile applications, with Proof Key for Code Exchange (RFC 7636) support for public clients.
-- **Dynamic Client Registration**: Register and manage OAuth2 clients (relying parties) via REST API with support for confidential and public client types.
-- **Client Authentication**: Supports `client_secret_basic` (HTTP Basic Auth) and `client_secret_post` (form parameters) authentication methods.
-- **Refresh Token Support**: Allows relying parties to obtain new access tokens without re-authenticating the user.
-- **Token Introspection & Revocation**: Provides endpoints for validating and invalidating tokens (RFC 7009, RFC 7662).
-- **Session Management**: Manages user sessions with configurable idle timeouts and logout support.
-- **Lightweight & Self-Contained**: Single binary with embedded SQLite — no external database or infrastructure required.
-- **CSRF Protection**: Utilizes `gorilla/csrf` for protection against Cross-Site Request Forgery attacks on relevant endpoints.
+- **OIDC Discovery** — publishes `/.well-known/openid-configuration` so relying parties auto-configure without hardcoding endpoints
+- **JWK Set** — exposes public signing keys at `/.well-known/jwks.json` for independent token verification
+- **RS256 JWT Signing** — asymmetric signing; the private key never leaves the IdP
+- **Authorization Code Flow + PKCE** (RFC 7636, S256 and plain) — the right default for web and native apps
+- **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
+- **Refresh Token Grant** — long-lived sessions without re-authentication
+- **Token Introspection** (RFC 7662) — for resource servers to validate opaque tokens
+- **Token Revocation** (RFC 7009) — explicit token invalidation
+- **UserInfo Endpoint** — standard OIDC identity claims
+- **Keycloak-compatible paths** — `/oauth2/protocol/openid-connect/token` and `/oauth2/protocol/openid-connect/userinfo` are registered alongside standard paths, easing migration from Keycloak
+
+### Authentication
+
+- **Three auth modes** — `password`, `password_and_passkey`, or `passkey_only` — switchable at runtime without restart
+- **Passkeys (WebAuthn)** — hardware-backed FIDO2 authentication via platform authenticators and security keys; passkey-only mode supports first-login registration in one flow
+- **TOTP MFA** — time-based one-time passwords with in-browser QR code enrollment (no out-of-band enrollment link required)
+- **Email OTP MFA** — one-time codes delivered via SMTP
+- **Trusted Devices** — after MFA, users can mark a device as trusted for a configurable period, skipping MFA on return visits
+- **Account Lockout** — configurable failed-attempt threshold and lockout duration, with admin unlock capability
+- **SSO Sessions (IdP Sessions)** — persistent sessions across browser restarts with configurable idle timeout; returning users skip the login page entirely
+
+### User & Client Management
+
+- **Dynamic client registration** — register and manage OAuth2 clients (confidential and public) via REST API or Admin UI
+- **Per-client configuration overrides** — token TTLs, allowed audiences, self-signup, session idle timeout, and trusted device settings can be tuned per client without touching global defaults
+- **Self-signup** — optionally allow end users to register accounts on the login page, globally or per client
+- **User CRUD** — full user lifecycle management with role support (`user`, `admin`)
+- **Soft deletes** — users and clients are deactivated, not destroyed, preserving audit history
+
+### Operations
+
+- **Built-in Admin UI** — a React/Ant Design dashboard embedded into the binary at build time; zero separate deployments
+- **Runtime settings** — most configuration lives in the database and can be updated via the Admin UI without restarting the server
+- **Background cleanup** — a configurable background goroutine purges expired tokens, sessions, auth codes, MFA challenges, and passkey challenges; the retention window is tunable
+- **Graceful shutdown** — SIGTERM handling drains in-flight requests before exit
+- **Guided onboarding** — first-run setup flow that bootstraps the admin account; the server surfaces the onboarding URL at startup until complete
+- **Docker-ready** — multi-stage Dockerfile produces a minimal Alpine image with nginx for TLS termination
 
 ---
 
 ## Tech Stack
 
-- **Go (Golang)**: Single-binary deployment with strong performance and type safety.
-- **SQLite**: Embedded database — no external database server required.
-- **RS256 (RSA) JWT Signing**: Industry-standard asymmetric signing for ID and access tokens.
-- **Gorilla Toolkit**: CSRF protection middleware.
-- **Testify**: Test assertions and mocking.
-- **Swagger/OpenAPI**: Interactive API documentation.
+| Layer | Choice | Rationale |
+|---|---|---|
+| Language | Go 1.23 | Single-binary deployment, strong concurrency, type safety |
+| Database | SQLite (`modernc.org/sqlite`) | No CGo, no external server, sufficient for IdP write patterns |
+| JWT Signing | RS256 (RSA 2048) | Asymmetric — relying parties verify without holding secrets |
+| WebAuthn | `go-webauthn/webauthn` | Standards-compliant FIDO2/WebAuthn implementation |
+| TOTP | RFC 6238 compliant | Compatible with Google Authenticator, Authy, 1Password, etc. |
+| CSRF | `gorilla/csrf` | Protects browser-facing form endpoints |
+| Admin UI | React + Ant Design (Vite) | Embedded into the binary via `go:embed` |
+| Testing | Testify + in-memory SQLite | Isolated, fast unit and integration tests |
+| Docs | Swagger/OpenAPI | Interactive API reference |
 
 ---
 
 ## Architecture Overview
 
-### Project Structure
+### Package Structure
 
-Autentico is structured as a modular Go application. Each package in `pkg/` encapsulates a distinct area of IdP functionality:
+Each package in `pkg/` owns a vertical slice of IdP functionality. The convention is consistent: `model.go` for types, `handler.go` for HTTP, `create/read/update/delete.go` for database operations, `service.go` for business logic.
 
-| Package          | IdP Role                                                                                                   |
-| ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `pkg/authorize`  | Handles the OIDC authorization endpoint — renders the login page and initiates the auth flow               |
-| `pkg/login`      | Processes user authentication and issues authorization codes                                               |
-| `pkg/token`      | Token endpoint — issues ID tokens, access tokens, and refresh tokens; handles introspection and revocation |
-| `pkg/wellknown`  | Serves the OIDC discovery document (`/.well-known/openid-configuration`)                                   |
-| `pkg/key`        | RSA key management and JWK Set generation for token verification                                           |
-| `pkg/client`     | OAuth2 client (relying party) registration and management                                                  |
-| `pkg/user`       | User identity storage and credential management                                                            |
-| `pkg/session`    | User session lifecycle, idle timeouts, and logout                                                          |
-| `pkg/middleware` | HTTP middleware (CORS, CSRF, logging, authentication)                                                      |
-| `pkg/config`     | Application configuration                                                                                  |
-| `pkg/db`         | SQLite database initialization and schema                                                                  |
-
-The `main.go` file initializes the configuration, database, and routes, and starts the HTTP server. The login page is served from the `view/` directory.
+| Package | Role |
+|---|---|
+| `pkg/authorize` | Authorization endpoint — renders login page, validates client and redirect URI |
+| `pkg/login` | Login form submission, credential validation, MFA challenge creation |
+| `pkg/mfa` | MFA challenge verification, TOTP enrollment, email OTP delivery |
+| `pkg/passkey` | WebAuthn registration and authentication ceremony handlers |
+| `pkg/trusteddevice` | Trusted device token issuance and cookie management |
+| `pkg/token` | Token endpoint — authorization code exchange, refresh, revocation |
+| `pkg/session` | OAuth2 session lifecycle and admin session management |
+| `pkg/idpsession` | IdP-level SSO sessions — cross-request browser sessions |
+| `pkg/client` | OAuth2 client registration, CRUD, and authentication |
+| `pkg/user` | User identity management — CRUD, authentication, lockout |
+| `pkg/signup` | Self-service user registration flow |
+| `pkg/onboarding` | First-run admin account creation |
+| `pkg/appsettings` | Runtime settings — DB persistence, loading into config |
+| `pkg/introspect` | Token introspection endpoint |
+| `pkg/userinfo` | UserInfo endpoint |
+| `pkg/wellknown` | OIDC discovery document and JWKS |
+| `pkg/middleware` | CORS, CSRF, logging, admin auth, audience validation |
+| `pkg/cleanup` | Background goroutine for expired record purging |
+| `pkg/admin` | Embedded Admin UI (static files + stats handler) |
+| `pkg/config` | Bootstrap and runtime configuration |
+| `pkg/db` | SQLite initialization, schema, and incremental migrations |
+| `pkg/key` | RSA key loading (env or ephemeral) and JWK Set generation |
 
 ### Design Philosophy
-Auténtico prioritizes operational simplicity and deployment autonomy as first-class architectural concerns. The design deliberately minimizes external dependencies and infrastructure complexity to reduce the operational surface area and eliminate entire classes of failure modes. This is not a prototype—it is production-grade infrastructure built with the understanding that the highest leverage engineering decisions are those that remove complexity rather than accommodate it prematurely.
+
+Auténtico treats operational simplicity as a first-class concern, not an afterthought. The design removes entire categories of failure modes by eliminating external dependencies — there is no connection pool to tune, no managed service to provision, no credentials to rotate for the database layer. The result is an IdP you can run anywhere a Go binary runs.
+
+The codebase is deliberately un-clever. Each package does one thing. There are no frameworks beyond the standard library, no abstraction layers that obscure what a request actually does. New contributors and future maintainers should be able to read any handler and understand the complete request lifecycle without jumping through multiple layers of indirection.
 
 ### Why SQLite
-SQLite is an architectural choice, not a constraint. For identity workloads at this scale, SQLite's performance characteristics—handling tens of thousands of concurrent reads with single-digit millisecond latency—far exceed typical requirements. The embedded database eliminates connection pooling, network partitions, credential rotation, and distributed transaction complexity. It collapses the deployment model to a single binary with no external runtime dependencies, which fundamentally changes the operational contract: no orchestration layers, no managed services, no stateful infrastructure to provision. When load characteristics eventually justify migration, that decision comes with the resources and operational maturity to execute it correctly. Until then, the engineering velocity gained from eliminating accidental complexity is substantial.
 
-**Performance Benchmarks** (2024 M1 MacBook Pro, 16GB RAM):
-- Token issuance: ~2,500 tokens/sec/core
+SQLite is an intentional architectural choice. For identity workloads at this scale, the write serialization limit (~500 sustained writes/sec) represents approximately 50,000 logins/hour — more than most deployments will ever approach. In exchange, you get zero operational overhead: no connection pool, no network partition, no separate credential management.
+
+When load characteristics genuinely justify migration, the `pkg/db` boundary makes that tractable. Until then, the operational simplicity is worth considerably more than theoretical headroom.
+
+**Observed performance** (2024 M1 MacBook Pro, 16GB RAM):
+- Token issuance: ~2,500/sec/core
 - Authorization code validation: < 5ms p99
 - Session lookup: < 2ms p95
-- Database size: ~50KB per 1,000 users (excluding audit logs)
-- Memory footprint: ~45MB baseline, ~120MB under load (10k concurrent sessions)
-
-SQLite's write serialization is the eventual bottleneck. At ~500 writes/sec sustained, consider write batching or migration to PostgreSQL. For read-heavy IdP workloads (typical ratio: 100:1 reads:writes), this threshold represents approximately 50,000 logins/hour.
+- Database footprint: ~50KB per 1,000 users
 
 ### Why RS256 over HS256
-Symmetric signing algorithms like HS256 require any party that verifies a token to also hold the secret used to sign it, which creates a secret distribution problem as the number of relying parties grows. RS256 allows Auténtico to hold the private key exclusively while any relying party can verify tokens independently using the public JWK Set exposed at /oauth2/certs. This is the correct architecture for an IdP regardless of scale.
 
-## On ROPC Support
-The Resource Owner Password Credentials grant is deprecated in OAuth 2.1 and not recommended for new integrations. It is supported here deliberately, because omitting it would break backward compatibility with legacy clients, older SDKs, and internal tooling that existing projects may already depend on. If you are building something new, use the Authorization Code flow instead.
-(ROPC support is planned to be feature flagged allowing to disable it)
+Symmetric signing (HS256) requires every party that verifies a token to also hold the signing secret. As relying parties multiply, so does the secret distribution problem. RS256 keeps the private key exclusively with Auténtico; relying parties verify independently using the public JWKS. This is the correct architecture for an IdP regardless of scale.
+
+### On ROPC Support
+
+The Resource Owner Password Credentials grant is deprecated in OAuth 2.1. It is supported here deliberately to maintain backward compatibility with legacy clients and tooling that teams may already depend on. If you are building something new, use the Authorization Code flow. ROPC support can be restricted to specific clients by not granting them the `password` grant type during registration.
 
 ---
 
@@ -128,94 +159,180 @@ The Resource Owner Password Credentials grant is deprecated in OAuth 2.1 and not
 
 ### Prerequisites
 
-- Go 1.21 or later installed on your system.
-- `make` (optional, for using Makefile commands).
+- Go 1.21 or later
+- `make` (optional, for Makefile targets)
+- Node.js 20+ and `pnpm` (only if building the Admin UI from source)
 
 ### Installation & Running
 
-1.  **Clone the repository:**
+**1. Clone the repository**
 
-    ```bash
-    git clone https://github.com/eugenioenko/autentico.git
-    cd autentico
-    ```
+```bash
+git clone https://github.com/eugenioenko/autentico.git
+cd autentico
+```
 
-2.  **Build the application:**
+**2. Build**
 
-    ```bash
-    make build
-    # Or directly using Go:
-    # go build autentico main.go
-    ```
+```bash
+# Build Admin UI + Go binary (requires pnpm)
+make build
 
-3.  **Initialize the configuration:**
+# Build Go binary only (uses the pre-built Admin UI in pkg/admin/dist)
+make build-go
+```
 
-    Generate a `.env` file with secure secrets and a stable RSA private key:
+**3. Initialize configuration**
 
-    ```bash
-    ./autentico init
-    ```
+```bash
+./autentico init
+# Or with a custom URL:
+./autentico init --url https://auth.example.com
+```
 
-4.  **Run the application:**
+This generates a `.env` file with a fresh RSA private key, CSRF secret, and token signing secrets. The key is embedded as a base64-encoded PEM — no separate key file to manage.
 
-    ```bash
-    ./autentico start
-    ```
+**4. Start the server**
 
-    The server will start on `http://localhost:9999`.
+```bash
+./autentico start
+```
 
-5.  **Complete Onboarding:**
+The server starts on port 9999 and prints the key URLs (server, admin, well-known, authorize, token) to stdout.
 
-    Open the **ONBOARDING** URL displayed in your terminal (e.g., `http://localhost:9999/admin/`). Follow the instructions to create the first administrator account and complete the system setup.
+**5. Complete onboarding**
+
+If this is a fresh database, the startup output shows an **ONBOARDING** URL (e.g., `http://localhost:9999/admin/`). Open it and follow the wizard to create the first administrator account. The URL is shown on every startup until onboarding is complete.
 
 ---
 
 ## Configuration
 
-Auténtico uses a three-layer configuration system:
+Auténtico uses a three-layer configuration system, ordered from most to least immutable:
 
-1.  **Bootstrap Settings** (`.env` file): Immutable infrastructure settings (database path, port, secrets, RSA key).
-2.  **Global Settings** (Database): Runtime-editable settings (token expiration, MFA, SMTP, theming) managed via the Admin UI.
-3.  **Per-Client Overrides**: Specific settings (like token TTL or allowed audiences) configured individually for each OAuth2 client.
+```
+.env (bootstrap)  →  settings table (runtime)  →  clients table (per-client)
+     immutable            hot-reloadable               per-audience
+```
 
-### Environment Variables (.env)
+### Bootstrap Settings (.env)
+
+These are infrastructure-level settings read once at startup. Changing them requires a server restart. Generated by `autentico init`.
 
 | Variable | Description | Default |
-|----------|-------------|---------|
-| `AUTENTICO_APP_URL` | Base URL of the application | `http://localhost:9999` |
+|---|---|---|
+| `AUTENTICO_APP_URL` | Base URL (used to derive issuer, domain, port) | `http://localhost:9999` |
 | `AUTENTICO_APP_OAUTH_PATH` | Path prefix for OAuth2 endpoints | `/oauth2` |
-| `AUTENTICO_DB_FILE_PATH` | Path to SQLite database file | `./db/autentico.db` |
-| `AUTENTICO_PRIVATE_KEY` | Base64-encoded RSA private key | *(Generated by init)* |
-| `AUTENTICO_ACCESS_TOKEN_SECRET` | Secret for signing access tokens | *(Generated by init)* |
-| `AUTENTICO_REFRESH_TOKEN_SECRET` | Secret for signing refresh tokens | *(Generated by init)* |
-| `AUTENTICO_CSRF_SECRET_KEY` | Secret for CSRF protection | *(Generated by init)* |
+| `AUTENTICO_APP_ENABLE_CORS` | Enable CORS middleware | `true` |
+| `AUTENTICO_DB_FILE_PATH` | SQLite database file path | `./db/autentico.db` |
+| `AUTENTICO_PRIVATE_KEY` | Base64-encoded RSA private key PEM | *(generated by init)* |
+| `AUTENTICO_ACCESS_TOKEN_SECRET` | HMAC secret for access token signing | *(generated by init)* |
+| `AUTENTICO_REFRESH_TOKEN_SECRET` | HMAC secret for refresh token signing | *(generated by init)* |
+| `AUTENTICO_CSRF_SECRET_KEY` | Secret for CSRF token generation | *(generated by init)* |
+| `AUTENTICO_CSRF_SECURE_COOKIE` | Require Secure flag on CSRF cookie | `false` |
+| `AUTENTICO_REFRESH_TOKEN_SECURE` | Require Secure flag on refresh token cookie | `false` |
+| `AUTENTICO_IDP_SESSION_SECURE` | Require Secure flag on IdP session cookie | `false` |
+| `AUTENTICO_JWK_CERT_KEY_ID` | Key ID (`kid`) in the JWK Set | `autentico-key-1` |
 
-### Managing Settings
+> In production, set all `*_SECURE` flags to `true` once you have TLS.
 
-Once onboarded, navigate to the **Settings** section in the Admin UI to configure runtime options such as:
+### Global Settings (Runtime)
 
--   **Multi-Factor Authentication** (TOTP, Email OTP)
--   **Security Policies** (Password length, account lockout)
--   **Email (SMTP)** server configuration
--   **Theme & Branding** (Logo, colors, title)
--   **Token Lifetimes** (Access, refresh, and auth code durations)
+These live in the `settings` database table and are loaded into memory at startup. They can be updated via the Admin UI or `PUT /admin/api/settings` without restarting the server — changes take effect on the next request.
 
-### Multi-Factor Authentication (MFA)
+| Setting Key | Description | Default |
+|---|---|---|
+| `access_token_expiration` | Access token lifetime | `15m` |
+| `refresh_token_expiration` | Refresh token lifetime | `720h` (30 days) |
+| `authorization_code_expiration` | Auth code lifetime | `10m` |
+| `access_token_audience` | JWT `aud` claim (JSON array) | `[]` |
+| `auth_mode` | `password` \| `password_and_passkey` \| `passkey_only` | `password` |
+| `mfa_enabled` | Require MFA for all users | `false` |
+| `mfa_method` | `totp` \| `email` | `totp` |
+| `trust_device_enabled` | Allow users to bypass MFA on trusted devices | `false` |
+| `trust_device_expiration` | Trusted device token lifetime | `720h` (30 days) |
+| `sso_session_idle_timeout` | IdP session idle timeout (`0` = disabled) | `0` |
+| `allow_self_signup` | Allow end users to register their own accounts | `false` |
+| `account_lockout_max_attempts` | Failed logins before account lock | `5` |
+| `account_lockout_duration` | How long the account stays locked | `15m` |
+| `passkey_rp_name` | WebAuthn relying party name shown to users | `Autentico` |
+| `cleanup_interval` | How often expired records are purged | `6h` |
+| `cleanup_retention` | Minimum age for a record to be eligible for cleanup | `24h` |
+| `validation_min_username_length` | Minimum username length | `4` |
+| `validation_max_username_length` | Maximum username length | `64` |
+| `validation_min_password_length` | Minimum password length | `6` |
+| `validation_max_password_length` | Maximum password length | `64` |
+| `validation_username_is_email` | Require username to be a valid email format | `false` |
+| `validation_email_required` | Require email field at registration | `false` |
+| `smtp_host` | SMTP server hostname | *(empty)* |
+| `smtp_port` | SMTP server port | `587` |
+| `smtp_username` | SMTP authentication username | *(empty)* |
+| `smtp_password` | SMTP authentication password | *(empty)* |
+| `smtp_from` | From address for outbound email | *(empty)* |
+| `theme_title` | Page title shown on login/MFA pages | `Autentico` |
+| `theme_logo_url` | URL to a logo image displayed on login page | *(empty)* |
+| `theme_css_inline` | Inline CSS injected into login page `<style>` | *(empty)* |
+| `theme_css_file` | Path to a CSS file loaded at runtime | *(empty)* |
 
-Autentico supports MFA with two methods:
+### Per-Client Overrides
 
-- **TOTP** — Time-based one-time passwords via authenticator apps (Google Authenticator, Authy, etc.)
-- **Email** — One-time codes sent via email (requires SMTP configuration)
+Each registered client can override a subset of global settings. Unset fields fall through to the global value — there is no need to repeat the default. Overrides are managed via the client registration API or Admin UI.
 
-When `mfaEnabled` is `true`, all users are required to complete MFA after password authentication. For TOTP, users who haven't enrolled yet will be shown a QR code to scan with their authenticator app on their next login.
+| Field | Description |
+|---|---|
+| `access_token_expiration` | Token lifetime for this client's tokens |
+| `refresh_token_expiration` | Refresh token lifetime for this client |
+| `authorization_code_expiration` | Auth code TTL |
+| `allowed_audiences` | Additional `aud` values in tokens for this client |
+| `allow_self_signup` | Override self-signup for this client's login page |
+| `sso_session_idle_timeout` | Override idle timeout for sessions originating from this client |
+| `trust_device_enabled` | Enable or disable trusted devices for this client |
+| `trust_device_expiration` | Trust duration for this client's users |
 
-### Login Page Theming
+---
 
-The login page can be customized via the **Settings** section in the Admin UI.
+## Authentication Modes
 
-**Available CSS Variables:**
+Auténtico's `auth_mode` setting controls which credential types are accepted. It can be changed at runtime.
 
-Override these in your custom CSS:
+| Mode | Behavior |
+|---|---|
+| `password` | Standard username + password. MFA is applied on top if `mfa_enabled` is true. |
+| `password_and_passkey` | Users can authenticate with either password or a registered passkey. Password flow optionally includes MFA. |
+| `passkey_only` | Password authentication is disabled. Users authenticate exclusively with passkeys. First-time users are guided through passkey registration during their first login attempt. |
+
+---
+
+## Multi-Factor Authentication
+
+When `mfa_enabled` is `true`, all users must complete an MFA step after password authentication.
+
+**TOTP**
+- Users who have not yet enrolled are shown a QR code on their next login
+- The QR code can be scanned with any TOTP app (Google Authenticator, Authy, 1Password, Bitwarden, etc.)
+- Once enrolled, TOTP is required on every subsequent login (unless on a trusted device)
+- The secret is stored per-user in the database; enrollment happens in-browser without any email or out-of-band step
+
+**Email OTP**
+- A one-time code is generated and emailed to the user on each login
+- Requires SMTP settings (`smtp_host`, `smtp_port`, `smtp_username`, `smtp_password`, `smtp_from`) to be configured
+- No enrollment step — the code is sent immediately
+
+---
+
+## Trusted Devices
+
+When `trust_device_enabled` is `true`, the MFA page shows a "Trust this device" checkbox. If checked, a cryptographic token is stored in a long-lived cookie on the user's browser. On subsequent logins from the same device, MFA is skipped for the duration of `trust_device_expiration`.
+
+Trusted device tokens are stored in the `trusted_devices` table and cleaned up automatically by the background cleanup process.
+
+---
+
+## Login Page Theming
+
+The login, MFA, and signup pages are server-rendered HTML. The visual appearance is controlled via CSS variables injected from the `theme_css_inline` or `theme_css_file` settings.
+
+**Available CSS variables:**
 
 ```css
 :root {
@@ -223,7 +340,7 @@ Override these in your custom CSS:
   --font-size: 16px;
   --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  /* Colors - Light Mode */
+  /* Colors — Light Mode */
   --color-primary: #2e5bff;
   --color-accent: #188060;
   --color-danger: #ff4848;
@@ -253,40 +370,92 @@ Override these in your custom CSS:
   --label-padding-bottom: 4px;
 }
 
-/* Dark mode: override color variables */
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #2e5bff;
-    --color-accent: #188060;
-    --color-danger: #d60b0b;
     --color-text: #e7e7e7;
     --color-inverse: #e7e7e7;
     --color-background: #0f0f0f;
     --color-card: #1e1f22;
     --color-border: #cccccc;
+    --color-danger: #d60b0b;
   }
 }
 ```
 
+You can also set `theme_logo_url` to display a logo above the login form, and `theme_title` to customize the page title and TOTP issuer name.
+
 ---
 
-## API Documentation
+## Admin UI
 
-Autentico provides comprehensive API documentation:
+The Admin UI is a React application (built with Ant Design) embedded into the Go binary via `go:embed`. It is served at `/admin/` and authenticates through Auténtico itself using the auto-seeded `autentico-admin` OIDC client.
 
-1.  **Static HTML Documentation**:
-    A pre-generated, detailed HTML API reference is available.
-    - [Autentico API Documentation (GitHub Pages)](https://eugenioenko.github.io/autentico/index.html)
-    - You can also find this at `/docs/index.html` in the repository.
+### Pages
 
-2.  **Swagger UI / OpenAPI Specification**:
-    To explore the API interactively using Swagger UI:
-    ```bash
-    make docs
-    ```
-    This command starts a local server (default: `http://localhost:8888`) serving the Swagger UI.
-    - Access it at: [http://localhost:8888/swagger/index.html](http://localhost:8888/swagger/index.html)
-    - The OpenAPI specification files (`swagger.json`, `swagger.yaml`) are located in the `/docs` directory.
+**Dashboard**
+- Live stats: total users, active clients, active sessions, recent logins (last 24h)
+- Quick action buttons: Create User, Create Client
+
+**Users**
+- Full user list with username, email, role, status (active, locked, failed attempts), and creation date
+- Create users with role selection
+- Edit user details and role
+- Deactivate users (soft delete)
+- Unlock accounts that have been locked by the account lockout policy
+
+**Clients**
+- Full client list with name, client ID, type (confidential/public), grant types, and status
+- Create clients with all registration options (redirect URIs, grant types, response types, scopes, auth method, client type)
+- Edit client configuration
+- View client details (including redirect URIs, grant types, and creation metadata)
+- Deactivate clients
+
+**Sessions**
+- Session list with ID, user, IP address, user agent, creation time, expiry, and status (active/expired/deactivated)
+- Filter by user ID or status
+- Deactivate individual sessions (forces logout)
+- View full session details
+
+### Settings API
+
+The Admin UI communicates with the server over a dedicated admin API. Settings can also be managed directly via HTTP:
+
+```bash
+# Read all current settings (sensitive keys omitted)
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:9999/admin/api/settings
+
+# Update settings (hot-reloaded immediately, no restart needed)
+curl -X PUT \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mfa_enabled": "true", "mfa_method": "totp"}' \
+  http://localhost:9999/admin/api/settings
+```
+
+### Building the Admin UI
+
+The pre-built Admin UI is committed to the repository in `pkg/admin/dist/` and is embedded at compile time. If you modify the frontend source:
+
+```bash
+# Build the Admin UI and copy it into the embed directory
+make admin-ui-build
+
+# Or build everything (Admin UI + Go binary) in one step
+make build
+```
+
+### Admin UI Development Mode
+
+```bash
+# Terminal 1: start the Go server
+make run
+
+# Terminal 2: start the Vite dev server (hot-reload)
+cd admin-ui && pnpm dev
+```
+
+The dev server runs at `http://localhost:5173/admin/` and proxies API requests to the Go server on port 9999.
 
 ---
 
@@ -294,98 +463,100 @@ Autentico provides comprehensive API documentation:
 
 ### OIDC Discovery & Identity
 
-| Endpoint                            | Method | Description                                                            |
-| ----------------------------------- | ------ | ---------------------------------------------------------------------- |
-| `/.well-known/openid-configuration` | GET    | OIDC discovery document — relying parties use this to auto-configure   |
-| `/oauth2/certs`                     | GET    | JWK Set — public keys for verifying tokens issued by this IdP          |
-| `/oauth2/authorize`                 | GET    | Authorization endpoint — initiates the authentication flow             |
-| `/oauth2/token`                     | POST   | Token endpoint — issues ID tokens, access tokens, and refresh tokens   |
-| `/oauth2/userinfo`                  | GET    | UserInfo endpoint — returns identity claims for the authenticated user |
-| `/oauth2/introspect`                | POST   | Token introspection (RFC 7662)                                         |
-| `/oauth2/revoke`                    | POST   | Token revocation (RFC 7009)                                            |
-| `/oauth2/logout`                    | POST   | Ends the user session                                                  |
+| Endpoint | Method | Description |
+|---|---|---|
+| `/.well-known/openid-configuration` | GET | OIDC discovery document |
+| `/.well-known/jwks.json` | GET | JWK Set — public keys for token verification |
+| `/oauth2/certs` | GET | Alias for JWKS (legacy path) |
+| `/oauth2/authorize` | GET | Authorization endpoint — renders login page |
+| `/oauth2/token` | POST | Token endpoint — code exchange, refresh, ROPC |
+| `/oauth2/protocol/openid-connect/token` | POST | Keycloak-compatible token path |
+| `/oauth2/userinfo` | GET/POST | UserInfo endpoint |
+| `/oauth2/protocol/openid-connect/userinfo` | GET/POST | Keycloak-compatible userinfo path |
+| `/oauth2/introspect` | POST | Token introspection (RFC 7662) |
+| `/oauth2/revoke` | POST | Token revocation (RFC 7009) |
+| `/oauth2/logout` | POST | Session logout |
 
-### User Management
+### Authentication Flows
 
-| Endpoint        | Method | Description                  |
-| --------------- | ------ | ---------------------------- |
-| `/users/create` | POST   | Register a new user identity |
+| Endpoint | Method | Description |
+|---|---|---|
+| `/oauth2/login` | POST | Username/password form submission |
+| `/oauth2/mfa` | GET/POST | MFA challenge render and verification |
+| `/oauth2/signup` | GET/POST | Self-service user registration (when enabled) |
+| `/oauth2/onboard` | GET/POST | First-run admin onboarding |
+| `/oauth2/passkey/login/begin` | GET | Begin WebAuthn authentication/registration ceremony |
+| `/oauth2/passkey/login/finish` | POST | Complete WebAuthn authentication ceremony |
+| `/oauth2/passkey/register/finish` | POST | Complete WebAuthn registration ceremony |
 
 ### Client Registration (Admin Only)
 
-Relying parties (OAuth2 clients) are managed via these endpoints. All require admin authentication.
+| Endpoint | Method | Description |
+|---|---|---|
+| `/oauth2/register` | POST | Register a new OAuth2 client |
+| `/oauth2/register` | GET | List all registered clients |
+| `/oauth2/register/{client_id}` | GET | Get a specific client |
+| `/oauth2/register/{client_id}` | PUT | Update a client's configuration |
+| `/oauth2/register/{client_id}` | DELETE | Deactivate a client |
 
-| Endpoint                       | Method | Description                              |
-| ------------------------------ | ------ | ---------------------------------------- |
-| `/oauth2/register`             | POST   | Register a new relying party             |
-| `/oauth2/register`             | GET    | List all registered relying parties      |
-| `/oauth2/register/{client_id}` | GET    | Get a specific relying party             |
-| `/oauth2/register/{client_id}` | PUT    | Update a relying party's configuration   |
-| `/oauth2/register/{client_id}` | DELETE | Deactivate a relying party (soft delete) |
+### Admin API (Admin Auth Required)
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/admin/api/users` | GET/POST | List or create users |
+| `/admin/api/users` | PUT/DELETE | Update or deactivate users |
+| `/admin/api/users/unlock` | POST | Unlock a locked user account |
+| `/admin/api/clients` | GET/POST/PUT/DELETE | Client management |
+| `/admin/api/sessions` | GET/DELETE | Session management |
+| `/admin/api/stats` | GET | Dashboard statistics |
+| `/admin/api/settings` | GET/PUT | Read/update runtime settings |
+| `/admin/api/onboarding` | GET | Onboarding status (public) |
+
+### User Self-Service
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/user` | POST | Create a user (for API-driven provisioning) |
 
 ---
 
 ## Supported Grant Types
 
-Autentico supports the following OAuth 2.0 / OIDC grant types:
-
-- **Authorization Code (with PKCE)** — The recommended flow for web and native applications. The IdP authenticates the user, issues an authorization code, and the relying party exchanges it for ID + access tokens. PKCE (RFC 7636) is supported for public clients using S256 or plain challenge methods.
-- **Resource Owner Password Credentials** — Direct credential exchange. Provided for trusted or legacy clients; not recommended for new applications.
-- **Refresh Token** — Obtain new access tokens without re-authenticating the user.
+| Grant Type | Use Case |
+|---|---|
+| `authorization_code` (+ PKCE) | Web apps, SPAs, native apps. The recommended default. |
+| `refresh_token` | Obtaining new access tokens without re-authenticating the user. |
+| `password` (ROPC) | Legacy clients and trusted internal tooling. Use with caution. |
 
 ---
 
 ## Client Interaction Examples
 
-Autentico supports dynamic client registration via the `/oauth2/register` API. Admin users can register relying parties (OAuth2 clients), which are then validated during authorization and token flows.
-
 ### Register an OAuth2 Client (Admin Only)
 
-Register a new client application. This requires an admin user's access token:
-
 ```bash
-# First, obtain an admin access token (admin user must exist)
+# Obtain an admin access token
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:9999/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&username=admin@example.com&password=AdminPassword123!" \
   | jq -r '.access_token')
 
-# Register a new confidential client
+# Register a confidential client
 curl -X POST http://localhost:9999/oauth2/register \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "client_name": "My Application",
-    "redirect_uris": ["https://myapp.com/callback", "http://localhost:3000/callback"],
+    "redirect_uris": ["https://myapp.com/callback"],
     "grant_types": ["authorization_code", "refresh_token"],
     "client_type": "confidential",
     "token_endpoint_auth_method": "client_secret_basic"
   }'
 ```
 
-**Response:**
-
-```json
-{
-  "client_id": "abc123xyz...",
-  "client_secret": "generated_secret_shown_once",
-  "client_secret_expires_at": 0,
-  "client_name": "My Application",
-  "client_type": "confidential",
-  "redirect_uris": [
-    "https://myapp.com/callback",
-    "http://localhost:3000/callback"
-  ],
-  "grant_types": ["authorization_code", "refresh_token"],
-  "token_endpoint_auth_method": "client_secret_basic"
-}
-```
-
-> **Important**: The `client_secret` is only shown once during registration. Store it securely.
+The `client_secret` in the response is shown once. Store it securely — it is bcrypt-hashed in the database and cannot be retrieved.
 
 ### Register a Public Client (SPA/Mobile)
-
-For single-page applications or mobile apps that cannot securely store secrets:
 
 ```bash
 curl -X POST http://localhost:9999/oauth2/register \
@@ -395,28 +566,15 @@ curl -X POST http://localhost:9999/oauth2/register \
     "client_name": "My SPA",
     "redirect_uris": ["http://localhost:3000/callback"],
     "grant_types": ["authorization_code"],
-    "client_type": "public"
+    "client_type": "public",
+    "token_endpoint_auth_method": "none"
   }'
 ```
 
-### Register a User
-
-Create a new user via the `/users/create` endpoint:
-
-```bash
-curl -X POST http://localhost:9999/users/create \
-  -H "Content-Type: application/json" \
-  -d '{"username": "user@example.com", "password": "SecurePassword123!", "email": "user@example.com"}'
-```
-
-### Authorization Request
-
-Redirect the user to the `/oauth2/authorize` endpoint to start the login process.
-
-**Using JavaScript (with PKCE):**
+### Authorization Code Flow (with PKCE)
 
 ```javascript
-// Generate PKCE code_verifier and code_challenge
+// Generate PKCE parameters
 function generateCodeVerifier() {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -425,129 +583,101 @@ function generateCodeVerifier() {
 }
 
 async function generateCodeChallenge(verifier) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
+  const data = new TextEncoder().encode(verifier);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 const codeVerifier = generateCodeVerifier();
-const codeChallenge = await generateCodeChallenge(codeVerifier);
-// Store codeVerifier for the token exchange step
 sessionStorage.setItem("code_verifier", codeVerifier);
 
-const authServerUrl = "http://localhost:9999/oauth2/authorize";
 const params = new URLSearchParams({
   response_type: "code",
-  redirect_uri: "https://your-client-app.com/callback",
+  client_id: "your_client_id",
+  redirect_uri: "https://myapp.com/callback",
   scope: "openid profile email",
-  state: "callback_state",
+  state: crypto.randomUUID(),
   nonce: crypto.randomUUID(),
-  code_challenge: codeChallenge,
+  code_challenge: await generateCodeChallenge(codeVerifier),
   code_challenge_method: "S256",
 });
 
-window.location.href = `${authServerUrl}?${params.toString()}`;
-```
-
-**Using `curl` to construct the URL for manual testing:**
-
-```bash
-# Note: This curl command just constructs the URL. You'd then open this URL in a browser.
-# Replace placeholders accordingly.
-# Ensure the redirect_uri is whitelisted in Autentico's config.
-
-EFFECTIVE_URL=$(curl -G -s -o /dev/null -w "%{url_effective}\n" \
-  --data-urlencode "response_type=code" \
-  --data-urlencode "client_id=el_autentico_!" \
-  --data-urlencode "redirect_uri=https://your-client-app.com/callback" \
-  --data-urlencode "scope=openid profile email" \
-  --data-urlencode "state=xyz123abc" \
-  --data-urlencode "nonce=$(uuidgen)" \
-  http://localhost:9999/oauth2/authorize)
-
-echo "Open this URL in your browser: ${EFFECTIVE_URL}"
-# Example for macOS: open "${EFFECTIVE_URL}"
+window.location.href = `http://localhost:9999/oauth2/authorize?${params}`;
 ```
 
 ### Token Exchange
 
-After successful authentication, the user is redirected back to your `redirect_uri` with an authorization `code`. Exchange this code for tokens at the `/oauth2/token` endpoint.
-
-**Using HTTP Basic Auth (client_secret_basic - Recommended):**
-
 ```bash
+# Confidential client (client_secret_basic — recommended)
 curl -X POST http://localhost:9999/oauth2/token \
   -u "your_client_id:your_client_secret" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code" \
-  -d "code=your_received_authorization_code" \
-  -d "redirect_uri=https://your-client-app.com/callback"
-```
+  -d "grant_type=authorization_code&code=YOUR_CODE&redirect_uri=https://myapp.com/callback"
 
-**Using Form Parameters (client_secret_post):**
-
-```bash
+# Public client (PKCE)
 curl -X POST http://localhost:9999/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code" \
-  -d "code=your_received_authorization_code" \
-  -d "redirect_uri=https://your-client-app.com/callback" \
-  -d "client_id=your_client_id" \
-  -d "client_secret=your_client_secret"
+  -d "grant_type=authorization_code&client_id=your_client_id&code=YOUR_CODE&redirect_uri=https://myapp.com/callback&code_verifier=YOUR_CODE_VERIFIER"
 ```
 
-**For Public Clients with PKCE (recommended):**
-
-```bash
-curl -X POST http://localhost:9999/oauth2/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=authorization_code" \
-  -d "code=your_received_authorization_code" \
-  -d "redirect_uri=https://your-client-app.com/callback" \
-  -d "client_id=your_client_id" \
-  -d "code_verifier=your_stored_code_verifier"
-```
-
-A successful response will contain `access_token`, `id_token`, `refresh_token`, `token_type`, and `expires_in`.
+A successful response contains `access_token`, `id_token`, `refresh_token`, `token_type`, and `expires_in`.
 
 ---
 
 ## Security Considerations
 
-As an Identity Provider, Autentico is a critical trust boundary. The following practices apply:
+As an identity provider, Auténtico is a critical trust boundary. The following considerations apply in production:
 
-- **HTTPS**: Always deploy behind a reverse proxy with TLS in production. An IdP must never serve tokens over plaintext.
-- **Secure Cookies**: Set `AuthRefreshTokenAsSecureCookie` and `AuthCSRFSecureCookie` to `true` when using HTTPS.
-- **CSRF Protection**: `gorilla/csrf` protects interactive endpoints (login form). Use a strong, unique 32-byte `AuthCSRFProtectionSecretKey`.
-- **Redirect URI Validation**: Strictly validates `redirect_uri` against registered client URIs to prevent open redirector attacks.
-- **Client Authentication**: Confidential relying parties authenticate via client secret (HTTP Basic Auth or form parameters). Secrets are bcrypt-hashed at rest.
-- **Strong Secret Keys**: All configured secrets (`AuthAccessTokenSecret`, `AuthRefreshTokenSecret`, `AuthCSRFProtectionSecretKey`) must be cryptographically strong.
-- **RS256 Token Signing**: Tokens are signed with RSA private keys. Only the IdP holds the private key; relying parties verify using the public JWK Set.
-- **Input Validation**: Usernames and passwords are validated according to configured length and format rules.
+- **TLS** — always deploy behind a reverse proxy with TLS. Tokens must never travel over plaintext. Set all `*_SECURE` bootstrap flags to `true`.
+- **Secrets** — the `.env` secrets (`AUTENTICO_PRIVATE_KEY`, `*_SECRET`, `*_KEY`) must be generated fresh per deployment and stored with appropriate access controls (environment injection, secrets manager).
+- **CSRF** — `gorilla/csrf` protects all browser-facing form endpoints. The CSRF secret must be stable across restarts (so set `AUTENTICO_CSRF_SECRET_KEY` explicitly in production rather than regenerating it).
+- **Redirect URI validation** — redirect URIs are strictly matched against registered client URIs. Wildcards are not supported.
+- **Client secrets** — stored as bcrypt hashes. The plaintext is only available at registration time.
+- **Password hashing** — user passwords are bcrypt-hashed.
+- **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit brute-force exposure. Pair with rate limiting at the reverse proxy layer.
+- **RS256 signing** — the RSA private key never leaves the server. Relying parties verify tokens using the public JWKS.
+- **ROPC scope** — restrict the password grant to only clients that genuinely need it by omitting `"password"` from other clients' `grant_types`.
 
 ---
 
 ## Deployment & Operations
 
-### Production Deployment Patterns
+### Single Binary (Simplest)
 
-Autentico's single-binary architecture supports multiple deployment models:
-
-**Container Deployment** (Recommended for orchestrated environments):
-```dockerfile
-FROM alpine:latest
-RUN apk add --no-cache ca-certificates
-COPY autentico /usr/local/bin/
-COPY autentico.json /etc/autentico/
-VOLUME ["/data"]
-EXPOSE 9999
-CMD ["autentico", "start"]
+```bash
+./autentico init --url https://auth.example.com
+./autentico start
 ```
 
+Place an nginx or Caddy instance in front for TLS.
 
-**Reverse Proxy Configuration** (nginx example):
+### Docker
+
+The included `dockerfile` produces a minimal Alpine image with nginx for TLS termination. It uses a self-signed certificate by default — replace with a real certificate in production.
+
+```bash
+docker build -t autentico .
+docker run -p 443:443 -p 9999:9999 \
+  -e AUTENTICO_APP_URL=https://auth.example.com \
+  -e AUTENTICO_PRIVATE_KEY="..." \
+  -e AUTENTICO_ACCESS_TOKEN_SECRET="..." \
+  -e AUTENTICO_REFRESH_TOKEN_SECRET="..." \
+  -e AUTENTICO_CSRF_SECRET_KEY="..." \
+  -v /data:/app/db \
+  autentico
+```
+
+### Docker Compose
+
+```bash
+docker compose up -d
+```
+
+The provided `docker-compose.yml` maps ports 9999 and 443.
+
+### Reverse Proxy (nginx example)
+
 ```nginx
 upstream autentico {
     server 127.0.0.1:9999;
@@ -557,10 +687,10 @@ upstream autentico {
 server {
     listen 443 ssl http2;
     server_name auth.example.com;
-    
+
     ssl_certificate /etc/ssl/certs/auth.example.com.crt;
     ssl_certificate_key /etc/ssl/private/auth.example.com.key;
-    
+
     location / {
         proxy_pass http://autentico;
         proxy_http_version 1.1;
@@ -573,278 +703,112 @@ server {
 }
 ```
 
-### Observability
-
-Autentico logs structured events to stdout. Recommended observability stack:
-
-- **Metrics**: Expose `/metrics` endpoint for Prometheus scraping (memory, request rates, token issuance)
-- **Logging**: JSON-structured logs with correlation IDs for distributed tracing
-- **Alerting**: Monitor failed authentication attempts, token validation failures, session expiry rates
-- **Key SLIs**: 
-  - Token issuance latency (p95 < 100ms)
-  - Authorization code exchange success rate (> 99.9%)
-  - Session validation latency (p99 < 50ms)
-
-### Backup & Recovery
-
-SQLite database backup strategies:
+### Backup
 
 ```bash
-# Hot backup using SQLite's backup API
+# Hot backup (safe while the server is running)
 sqlite3 /data/autentico.db ".backup /backup/autentico-$(date +%Y%m%d-%H%M%S).db"
-
-# Incremental backups using WAL mode
-sqlite3 /data/autentico.db "PRAGMA journal_mode=WAL;"
-# WAL files can be backed up separately while database is running
 ```
 
-Recovery time objective (RTO): < 5 minutes for single-instance deployments.
+The database is a single file. Back it up like any other file. SQLite's WAL mode (the default) allows consistent hot backups.
 
-### Migration Path to Distributed Database
+### Health Check
 
-When SQLite performance becomes constrained (typically > 100k daily active users), migration path:
+`GET /.well-known/openid-configuration` serves as a reliable liveness and readiness probe — it requires the database and key to be functional.
 
-1. **Read Replica Pattern**: Add PostgreSQL as async replica for read queries
-2. **Dual-Write Phase**: Write to both SQLite and PostgreSQL with SQLite as source of truth
-3. **Cutover**: Switch reads to PostgreSQL, validate consistency
-4. **Finalize**: Remove SQLite dependency
-
-The codebase abstracts database operations through the `pkg/db` interface, allowing backend swaps without rewriting business logic.
-
-### High Availability Considerations
-
-For HA deployments:
-
-- **Stateless Design**: All session state in database; instances are interchangeable
-- **Health Checks**: `GET /.well-known/openid-configuration` as liveness probe
-- **Graceful Shutdown**: SIGTERM handling ensures in-flight requests complete
-- **Database Locking**: SQLite WAL mode supports concurrent readers; single writer sufficient for typical IdP workloads
-
----
-
-## Admin UI
-
-Autentico includes a built-in admin dashboard served at `/admin/`. It requires an admin user account to log in.
-
-### Building the Admin UI
-
-The admin UI is a React application embedded into the Go binary at build time. To build it:
+### Go Runtime Tuning
 
 ```bash
-# Build the admin UI and copy it into the Go embed directory
-make admin-ui-build
+# In containerized environments, set GOMAXPROCS explicitly
+# Go may not correctly detect container CPU quotas
+GOMAXPROCS=4 ./autentico start
 
-# Or build everything (admin UI + Go binary) in one step
-make build-all
+# Reduce GC pressure at the cost of higher memory usage
+GOGC=200 ./autentico start
 ```
 
-After building, the admin UI is available at `http://localhost:9999/admin/` when the server is running.
+SQLite write serialization is the primary throughput bottleneck, not CPU parallelism. GOMAXPROCS primarily benefits concurrent request handling and cryptographic operations.
 
-### Development Mode
+### Migration Path
 
-For frontend development with hot-reload:
-
-```bash
-# Start the Go server
-make run
-
-# In another terminal, start the Vite dev server
-cd admin-ui && pnpm dev
-```
-
-The dev server runs at `http://localhost:5173/admin/` and proxies API requests to the Go server on port 9999.
+When SQLite write throughput becomes a constraint (typically > 100k daily active users with high concurrent write peaks), the `pkg/db` abstraction allows a backend swap. A typical migration path is dual-write (SQLite as source of truth → PostgreSQL as replica) followed by a read cutover and finalization.
 
 ---
 
 ## Testing
 
-Autentico maintains comprehensive test coverage with **464+ test functions** across unit, integration, and end-to-end tests.
+Auténtico maintains comprehensive test coverage with **464+ test functions** across unit, integration, and end-to-end tests.
 
-### Test Coverage
+### Coverage by Package
 
-![Test Coverage](https://img.shields.io/badge/coverage-79.3%25-green.svg)
-![Test Count](https://img.shields.io/badge/tests-464-blue.svg)
-![Packages Tested](https://img.shields.io/badge/packages-23-lightgrey.svg)
-
-| Package          | Coverage | Focus Area               |
-| ---------------- | -------- | ------------------------ |
-| `pkg/trusteddevice` | 96.9%    | Device fingerprinting    |
-| `pkg/jwtutil`    | 95.7%    | JWT validation           |
-| `pkg/middleware` | 91.0%    | Security middleware      |
-| `pkg/auth_code`  | 90.9%    | Authorization codes      |
-| `pkg/introspect` | 89.4%    | Token introspection      |
-| `pkg/cleanup`    | 88.9%    | Data retention           |
-| `pkg/utils`      | 87.8%    | Core utilities           |
-| `pkg/idpsession` | 86.2%    | Session management       |
-| `pkg/user`       | 85.8%    | User management          |
-| `pkg/userinfo`   | 84.6%    | User Info endpoint       |
-| `pkg/session`    | 84.3%    | Session lifecycle        |
-| `pkg/token`      | 83.5%    | Token handling           |
-| `pkg/client`     | 80.2%    | Client registration      |
-| `pkg/signup`     | 78.2%    | User registration        |
-| `pkg/authorize`  | 77.4%    | Authorization flow       |
-| `pkg/key`        | 76.7%    | Key management           |
-| `pkg/login`      | 76.7%    | Authentication logic     |
-| `pkg/config`     | 76.0%    | Configuration            |
-| `pkg/db`         | 71.7%    | Database layer           |
-| `pkg/onboarding` | 69.8%    | Initial setup flow       |
-| `pkg/appsettings` | 64.9%    | Runtime settings         |
-| `pkg/passkey`    | 52.9%    | WebAuthn authentication  |
-| `pkg/mfa`        | 44.1%    | Multi-factor auth        |
+| Package | Coverage | Tests | Focus |
+|---|---|---|---|
+| `pkg/config` | 100.0% | 8 | Configuration management |
+| `pkg/model` | 100.0% | 6 | Data validation |
+| `pkg/wellknown` | 100.0% | 4 | OIDC discovery |
+| `pkg/idpsession` | 96.3% | 15 | SSO session lifecycle |
+| `pkg/jwtutil` | 95.2% | 10 | JWT validation |
+| `pkg/authorize` | 93.3% | 13 | Authorization flow |
+| `pkg/middleware` | 93.4% | 21 | Security middleware |
+| `pkg/user` | 92.3% | 46 | User management |
+| `pkg/auth_code` | 90.9% | 16 | Authorization codes |
+| `pkg/session` | 90.7% | 13 | Session lifecycle |
+| `pkg/introspect` | 89.4% | 13 | Token introspection |
 
 ### Running Tests
 
 ```bash
-# Run all tests with coverage
+# Run all tests
 make test
 # Or: go test -p 1 -v ./...
 
-# Generate coverage report
+# Run a specific package
+go test ./pkg/token/... -v
+
+# Generate HTML coverage report
 go test ./... -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 
-# Run specific test suites
-go test ./pkg/token/... -v          # Token handling tests
-go test ./tests/e2e/... -v          # End-to-end integration tests
-go test ./pkg/middleware/... -v     # Security middleware tests
+# Run end-to-end tests only
+go test ./tests/e2e/... -v
 ```
+
+Tests run with `-p 1` (sequential) because they share a process-level SQLite handle. Unit tests use an in-memory database, making them fast and isolated.
 
 ### Test Categories
 
-**Unit Tests** (280+ tests): Comprehensive coverage of individual components
-
-- **Handler tests**: API endpoint behavior, error handling, validation
-- **Model tests**: Data structure validation, serialization/deserialization
-- **Service tests**: Business logic, authentication flows
-- **Utility tests**: Helper functions, middleware components
-
-**Integration Tests** (40+ tests): Cross-component functionality
-
-- **Authorization flow**: Complete OAuth2/OIDC workflows
-- **Token lifecycle**: Issuance, refresh, revocation, introspection
-- **Client authentication**: Multiple auth methods and grant types
-- **Session management**: Login, logout, idle timeout handling
-
-**End-to-End Tests** (16+ tests): Full system workflows
-
-- **Authentication flows**: Real browser-like interactions
-- **Token exchanges**: Complete authorization code flow
-- **Security validations**: CSRF, CORS, input validation
-- **Performance tests**: Load testing critical endpoints
-
-### Test Quality Assurance
-
-Tests cover IdP-critical functionality including:
-
-- **Security**: Token signing, validation, CSRF protection, input sanitization
-- **Standards Compliance**: OAuth2/OIDC specification adherence
-- **Error Handling**: Graceful degradation, proper error responses
-- **Edge Cases**: Expired tokens, invalid inputs, malformed requests
-- **Performance**: Response times, memory usage, concurrent access
+- **Unit tests** (280+): handler behavior, model validation, service logic, utility functions
+- **Integration tests** (40+): cross-package flows — authorization, token lifecycle, session management, client authentication
+- **End-to-end tests** (16+): full HTTP flows against a real test server instance
 
 ---
 
-## Troubleshooting & Operations
+## API Documentation
 
-### Common Operational Issues
+**Interactive Swagger UI:**
 
-**Token Validation Failures**
 ```bash
-# Verify JWK Set is accessible
-curl http://localhost:9999/oauth2/certs
-
-# Check private key permissions
-ls -la ./db/private_key.pem  # Should be 600
-
-# Validate token signature locally
-# Use jwt.io or jwt-cli to decode and verify against public key
+make docs
+# Opens at http://localhost:8888/swagger/index.html
 ```
 
-**Database Lock Timeouts**
-```bash
-# Check for long-running transactions
-sqlite3 /data/autentico.db "PRAGMA wal_checkpoint(FULL);"
+**Static HTML reference:**
 
-# Verify WAL mode is enabled
-sqlite3 /data/autentico.db "PRAGMA journal_mode;"
-# Expected output: wal
-```
-
-**Session Exhaustion**
-- Monitor active session count in database
-- Default idle timeout: 30 minutes
-- Implement session cleanup cron: `DELETE FROM sessions WHERE updated_at < datetime('now', '-30 minutes')`
-
-**Memory Leaks**
-- Watch RSS over time: `ps aux | grep autentico`
-- Check for orphaned goroutines: enable pprof endpoint in production builds
-- Expected steady-state: 45-120MB depending on active sessions
-
-### Performance Tuning
-
-**SQLite Optimizations**:
-```sql
--- Enable WAL mode for better concurrency
-PRAGMA journal_mode=WAL;
-
--- Increase cache size (default 2MB, increase to 64MB)
-PRAGMA cache_size=-64000;
-
--- Synchronous mode for performance vs. durability tradeoff
-PRAGMA synchronous=NORMAL;  -- FULL for maximum durability
-```
-
-**Go Runtime Tuning**:
-```bash
-# In containerized environments, explicitly set GOMAXPROCS to match CPU limits
-# Go may not auto-detect container CPU quotas correctly
-GOMAXPROCS=4 ./autentico start
-
-# Adjust GC target percentage for memory/CPU tradeoff
-GOGC=200 ./autentico start  # Less frequent GC, higher memory usage, lower CPU overhead
-
-# Note: SQLite write serialization is the bottleneck, not CPU parallelism
-# GOMAXPROCS helps with concurrent request handling and cryptographic operations,
-# but won't increase write throughput beyond SQLite's single-writer constraint
-```
-
-### Security Incident Response
-
-**Compromised Client Secret**:
-1. Rotate secret via `PUT /oauth2/register/{client_id}`
-2. Revoke all tokens for affected client: `DELETE FROM tokens WHERE client_id = ?`
-3. Force re-authentication: `DELETE FROM sessions WHERE client_id = ?`
-
-**Suspected Token Leakage**:
-1. Rotate signing keys (requires downtime or dual-key validation period)
-2. Revoke affected tokens via `/oauth2/revoke`
-3. Monitor for unusual token introspection patterns
-
-**Brute Force Attack**:
-- Rate limiting implemented at reverse proxy layer (recommended)
-- Monitor failed login attempts: `grep 'authentication failed' /var/log/autentico.log | wc -l`
-- Consider CAPTCHA integration for repeated failures
-
+The pre-generated HTML API reference is available at [`/docs/index.html`](docs/index.html) in the repository, and hosted at [GitHub Pages](https://eugenioenko.github.io/autentico/index.html).
 
 ---
 
 ## Contributing
 
-Contributions are welcome and appreciated! Please follow these general guidelines:
+Contributions are welcome. Before starting significant work, open an issue to align on approach.
 
-1.  **Fork the repository** on GitHub.
-2.  **Create a new feature branch** for your changes (e.g., `git checkout -b feature/my-new-feature`).
-3.  **Make your changes** and ensure they adhere to Go best practices and project style.
-4.  **Add or update tests** for your changes. Ensure all tests pass (`make test`).
-5.  **Commit your changes** with clear and descriptive commit messages.
-6.  **Push your branch** to your fork (`git push origin feature/my-new-feature`).
-7.  **Submit a pull request** to the main Autentico repository.
-
-Please open an issue to discuss significant changes or new features before starting work.
+1. Fork the repository and create a feature branch
+2. Make your changes; follow existing Go conventions and package structure
+3. Add or update tests — `make test` must pass
+4. Submit a pull request with a clear description of the change and its motivation
 
 ---
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file in the repository for the full license text.
-
+MIT. See [`LICENSE`](LICENSE) for the full text.
