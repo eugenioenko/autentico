@@ -3,5 +3,18 @@ services:
     build: .
     ports:
       - "9999:9999"
-      - "443:443"
-    restart: unless-stopped
+    volumes:
+      - autentico-db:/app/db
+    environment:
+      AUTENTICO_APP_URL: http://localhost:9999
+      # Secrets — override these in production (or use a .env file)
+      AUTENTICO_ACCESS_TOKEN_SECRET: change-me-in-production
+      AUTENTICO_REFRESH_TOKEN_SECRET: change-me-in-production
+      AUTENTICO_CSRF_SECRET_KEY: change-me-in-production
+      # Stable RSA private key (base64-encoded PEM).
+      # Generate with: autentico init --url http://localhost:9999
+      # If unset, an ephemeral key is used and tokens are lost on restart.
+      # AUTENTICO_PRIVATE_KEY: <base64-encoded PEM>
+
+volumes:
+  autentico-db:

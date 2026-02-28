@@ -10,7 +10,7 @@ build-go:
 
 # Build admin UI + Go binary
 build: admin-ui-build
-	go build -o $(APP_NAME) main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
 
 # Run the application
 run:
