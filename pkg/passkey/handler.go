@@ -16,8 +16,17 @@ import (
 )
 
 // HandleLoginBegin starts a passkey authentication (or registration in passkey_only mode).
-// GET /oauth2/passkey/login/begin
-// Query params: username, redirect, state, client_id, scope, nonce, code_challenge, code_challenge_method
+// @Summary Begin passkey login
+// @Description Initiates a WebAuthn authentication ceremony. Returns the options for the navigator.credentials.get call.
+// @Tags passkey
+// @Accept json
+// @Produce json
+// @Param username query string true "User's username"
+// @Param redirect_uri query string false "Redirect URI"
+// @Param state query string false "OAuth2 state"
+// @Param client_id query string false "OAuth2 client ID"
+// @Success 200 {object} map[string]any "WebAuthn assertion options"
+// @Router /oauth2/passkey/login/begin [get]
 func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	username := q.Get("username")
@@ -136,8 +145,15 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLoginFinish completes a passkey authentication ceremony.
-// POST /oauth2/passkey/login/finish?challenge_id=X
-// Body: WebAuthn assertion JSON
+// @Summary Complete passkey login
+// @Description Processes the WebAuthn assertion from the client and issues an authorization code.
+// @Tags passkey
+// @Accept json
+// @Produce json
+// @Param challenge_id query string true "Challenge ID from BeginLogin"
+// @Param assertion body map[string]any true "WebAuthn assertion response"
+// @Success 200 {object} map[string]string "Redirect URL"
+// @Router /oauth2/passkey/login/finish [post]
 func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
 	if challengeID == "" {
@@ -206,8 +222,15 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleRegisterFinish completes a passkey registration ceremony.
-// POST /oauth2/passkey/register/finish?challenge_id=X
-// Body: WebAuthn attestation JSON
+// @Summary Complete passkey registration
+// @Description Processes the WebAuthn attestation from the client and registers the passkey.
+// @Tags passkey
+// @Accept json
+// @Produce json
+// @Param challenge_id query string true "Challenge ID from BeginRegistration"
+// @Param attestation body map[string]any true "WebAuthn attestation response"
+// @Success 200 {object} map[string]string "Redirect URL"
+// @Router /oauth2/passkey/register/finish [post]
 func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
 	if challengeID == "" {

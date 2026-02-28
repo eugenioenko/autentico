@@ -15,6 +15,14 @@ type StatsResponse struct {
 	RecentLogins   int `json:"recent_logins"`
 }
 
+// HandleStats returns system-wide statistics for the admin dashboard.
+// @Summary System statistics
+// @Description Returns a summary of users, clients, and active sessions.
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} StatsResponse
+// @Router /admin/api/stats [get]
 func HandleStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")

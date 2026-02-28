@@ -10,6 +10,12 @@ import (
 
 // HandleOnboarding is a public endpoint that returns the current onboarding status.
 // GET /admin/api/onboarding → {"onboarded": bool}
+// @Summary Check onboarding status
+// @Description Returns whether the system has been initialized with an admin account and the current OAuth path.
+// @Tags onboarding
+// @Produce json
+// @Success 200 {object} map[string]any
+// @Router /admin/api/onboarding [get]
 func HandleOnboarding(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
@@ -26,6 +32,16 @@ func HandleOnboarding(w http.ResponseWriter, r *http.Request) {
 // HandleSettings is an admin-protected endpoint for reading and updating settings.
 // GET  /admin/api/settings → returns all settings as a JSON object
 // PUT  /admin/api/settings → accepts a JSON object and updates matching keys
+// @Summary System settings
+// @Description GET: Retrieve all system settings (except sensitive values). PUT: Update multiple settings.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "All settings (GET)"
+// @Success 204 "Settings updated (PUT)"
+// @Router /admin/api/settings [get]
+// @Router /admin/api/settings [put]
 func HandleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

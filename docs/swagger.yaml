@@ -1,5 +1,18 @@
 basePath: /
 definitions:
+  admin.StatsResponse:
+    properties:
+      active_clients:
+        type: integer
+      active_sessions:
+        type: integer
+      recent_logins:
+        type: integer
+      total_sessions:
+        type: integer
+      total_users:
+        type: integer
+    type: object
   client.ClientCreateRequest:
     properties:
       client_name:
@@ -230,6 +243,31 @@ definitions:
       userinfo_endpoint:
         type: string
     type: object
+  session.SessionResponse:
+    properties:
+      created_at:
+        type: string
+      deactivated_at:
+        type: string
+      device_id:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      last_activity_at:
+        type: string
+      location:
+        type: string
+      status:
+        type: string
+      user_agent:
+        type: string
+      user_id:
+        type: string
+    type: object
   token.TokenResponse:
     properties:
       access_token:
@@ -263,7 +301,11 @@ definitions:
         type: string
       email:
         type: string
+      failed_login_attempts:
+        type: integer
       id:
+        type: string
+      locked_until:
         type: string
       role:
         type: string
@@ -442,6 +484,293 @@ paths:
       summary: Update client information
       tags:
       - client
+  /admin/api/onboarding:
+    get:
+      description: Returns whether the system has been initialized with an admin account
+        and the current OAuth path.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check onboarding status
+      tags:
+      - onboarding
+  /admin/api/sessions:
+    delete:
+      consumes:
+      - application/json
+      description: 'GET: List all active sessions or filter by user ID. DELETE: Deactivate
+        a specific session.'
+      parameters:
+      - description: Filter sessions by User ID (GET)
+        in: query
+        name: user_id
+        type: string
+      - description: Session ID to deactivate (DELETE)
+        in: query
+        name: id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deactivation result (DELETE)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Session administration
+      tags:
+      - sessions-admin
+    get:
+      consumes:
+      - application/json
+      description: 'GET: List all active sessions or filter by user ID. DELETE: Deactivate
+        a specific session.'
+      parameters:
+      - description: Filter sessions by User ID (GET)
+        in: query
+        name: user_id
+        type: string
+      - description: Session ID to deactivate (DELETE)
+        in: query
+        name: id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Deactivation result (DELETE)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Session administration
+      tags:
+      - sessions-admin
+  /admin/api/settings:
+    get:
+      consumes:
+      - application/json
+      description: 'GET: Retrieve all system settings (except sensitive values). PUT:
+        Update multiple settings.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All settings (GET)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "204":
+          description: Settings updated (PUT)
+      security:
+      - BearerAuth: []
+      summary: System settings
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: 'GET: Retrieve all system settings (except sensitive values). PUT:
+        Update multiple settings.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All settings (GET)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "204":
+          description: Settings updated (PUT)
+      security:
+      - BearerAuth: []
+      summary: System settings
+      tags:
+      - admin
+  /admin/api/stats:
+    get:
+      description: Returns a summary of users, clients, and active sessions.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/admin.StatsResponse'
+      security:
+      - BearerAuth: []
+      summary: System statistics
+      tags:
+      - admin
+  /admin/api/users:
+    delete:
+      consumes:
+      - application/json
+      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
+        user. DELETE: Soft-delete user.'
+      parameters:
+      - description: User ID (required for GET/PUT/DELETE single)
+        in: query
+        name: id
+        type: string
+      - description: User creation/update payload
+        in: body
+        name: user
+        schema:
+          $ref: '#/definitions/user.UserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users (GET)
+          schema:
+            items:
+              $ref: '#/definitions/user.UserResponse'
+            type: array
+        "201":
+          description: Created user (POST)
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: User administration
+      tags:
+      - users-admin
+    get:
+      consumes:
+      - application/json
+      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
+        user. DELETE: Soft-delete user.'
+      parameters:
+      - description: User ID (required for GET/PUT/DELETE single)
+        in: query
+        name: id
+        type: string
+      - description: User creation/update payload
+        in: body
+        name: user
+        schema:
+          $ref: '#/definitions/user.UserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users (GET)
+          schema:
+            items:
+              $ref: '#/definitions/user.UserResponse'
+            type: array
+        "201":
+          description: Created user (POST)
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: User administration
+      tags:
+      - users-admin
+    post:
+      consumes:
+      - application/json
+      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
+        user. DELETE: Soft-delete user.'
+      parameters:
+      - description: User ID (required for GET/PUT/DELETE single)
+        in: query
+        name: id
+        type: string
+      - description: User creation/update payload
+        in: body
+        name: user
+        schema:
+          $ref: '#/definitions/user.UserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users (GET)
+          schema:
+            items:
+              $ref: '#/definitions/user.UserResponse'
+            type: array
+        "201":
+          description: Created user (POST)
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: User administration
+      tags:
+      - users-admin
+    put:
+      consumes:
+      - application/json
+      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
+        user. DELETE: Soft-delete user.'
+      parameters:
+      - description: User ID (required for GET/PUT/DELETE single)
+        in: query
+        name: id
+        type: string
+      - description: User creation/update payload
+        in: body
+        name: user
+        schema:
+          $ref: '#/definitions/user.UserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users (GET)
+          schema:
+            items:
+              $ref: '#/definitions/user.UserResponse'
+            type: array
+        "201":
+          description: Created user (POST)
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: User administration
+      tags:
+      - users-admin
+  /admin/api/users/unlock:
+    post:
+      consumes:
+      - application/json
+      description: Resets the failed login attempts and clear the lockout time for
+        a user.
+      parameters:
+      - description: User ID
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlock user account
+      tags:
+      - users-admin
   /oauth2/authorize:
     get:
       consumes:
@@ -601,6 +930,273 @@ paths:
       summary: Log out a user
       tags:
       - session
+  /oauth2/mfa:
+    get:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the MFA verification or enrollment page (GET) or processes
+        the MFA code (POST).
+      parameters:
+      - description: MFA challenge ID (GET)
+        in: query
+        name: challenge_id
+        type: string
+      - description: MFA challenge ID (POST)
+        in: formData
+        name: challenge_id
+        type: string
+      - description: Verification code (POST)
+        in: formData
+        name: code
+        type: string
+      - description: TOTP secret for enrollment (POST)
+        in: formData
+        name: totp_secret
+        type: string
+      - description: Whether to trust the device (POST)
+        in: formData
+        name: trust_device
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: MFA form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect back to client with code after success (POST)
+          schema:
+            type: string
+      summary: Multi-factor authentication
+      tags:
+      - mfa
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the MFA verification or enrollment page (GET) or processes
+        the MFA code (POST).
+      parameters:
+      - description: MFA challenge ID (GET)
+        in: query
+        name: challenge_id
+        type: string
+      - description: MFA challenge ID (POST)
+        in: formData
+        name: challenge_id
+        type: string
+      - description: Verification code (POST)
+        in: formData
+        name: code
+        type: string
+      - description: TOTP secret for enrollment (POST)
+        in: formData
+        name: totp_secret
+        type: string
+      - description: Whether to trust the device (POST)
+        in: formData
+        name: trust_device
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: MFA form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect back to client with code after success (POST)
+          schema:
+            type: string
+      summary: Multi-factor authentication
+      tags:
+      - mfa
+  /oauth2/onboard:
+    get:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the onboarding page (GET) or creates the initial administrator
+        (POST).
+      parameters:
+      - description: Admin username
+        in: formData
+        name: username
+        type: string
+      - description: Admin password
+        in: formData
+        name: password
+        type: string
+      - description: Confirm password
+        in: formData
+        name: confirm_password
+        type: string
+      - description: Admin email
+        in: formData
+        name: email
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: formData
+        name: state
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Onboarding form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect to admin UI after success (POST)
+          schema:
+            type: string
+      summary: Initial admin setup
+      tags:
+      - onboarding
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the onboarding page (GET) or creates the initial administrator
+        (POST).
+      parameters:
+      - description: Admin username
+        in: formData
+        name: username
+        type: string
+      - description: Admin password
+        in: formData
+        name: password
+        type: string
+      - description: Confirm password
+        in: formData
+        name: confirm_password
+        type: string
+      - description: Admin email
+        in: formData
+        name: email
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: formData
+        name: state
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Onboarding form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect to admin UI after success (POST)
+          schema:
+            type: string
+      summary: Initial admin setup
+      tags:
+      - onboarding
+  /oauth2/passkey/login/begin:
+    get:
+      consumes:
+      - application/json
+      description: Initiates a WebAuthn authentication ceremony. Returns the options
+        for the navigator.credentials.get call.
+      parameters:
+      - description: User's username
+        in: query
+        name: username
+        required: true
+        type: string
+      - description: Redirect URI
+        in: query
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: query
+        name: state
+        type: string
+      - description: OAuth2 client ID
+        in: query
+        name: client_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: WebAuthn assertion options
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Begin passkey login
+      tags:
+      - passkey
+  /oauth2/passkey/login/finish:
+    post:
+      consumes:
+      - application/json
+      description: Processes the WebAuthn assertion from the client and issues an
+        authorization code.
+      parameters:
+      - description: Challenge ID from BeginLogin
+        in: query
+        name: challenge_id
+        required: true
+        type: string
+      - description: WebAuthn assertion response
+        in: body
+        name: assertion
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Redirect URL
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Complete passkey login
+      tags:
+      - passkey
+  /oauth2/passkey/register/finish:
+    post:
+      consumes:
+      - application/json
+      description: Processes the WebAuthn attestation from the client and registers
+        the passkey.
+      parameters:
+      - description: Challenge ID from BeginRegistration
+        in: query
+        name: challenge_id
+        required: true
+        type: string
+      - description: WebAuthn attestation response
+        in: body
+        name: attestation
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Redirect URL
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Complete passkey registration
+      tags:
+      - passkey
   /oauth2/register:
     get:
       consumes:
@@ -765,6 +1361,95 @@ paths:
       summary: Revoke a token
       tags:
       - token
+  /oauth2/signup:
+    get:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the signup page (GET) or processes a new user registration
+        (POST).
+      parameters:
+      - description: Desired username
+        in: formData
+        name: username
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        type: string
+      - description: Confirm password
+        in: formData
+        name: confirm_password
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: formData
+        name: state
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Signup form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect back to client with code (POST)
+          schema:
+            type: string
+      summary: User signup
+      tags:
+      - signup
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Renders the signup page (GET) or processes a new user registration
+        (POST).
+      parameters:
+      - description: Desired username
+        in: formData
+        name: username
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        type: string
+      - description: Confirm password
+        in: formData
+        name: confirm_password
+        type: string
+      - description: Email address
+        in: formData
+        name: email
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: formData
+        name: state
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Signup form (GET)
+          schema:
+            type: string
+        "302":
+          description: Redirect back to client with code (POST)
+          schema:
+            type: string
+      summary: User signup
+      tags:
+      - signup
   /oauth2/token:
     post:
       consumes:
@@ -874,4 +1559,10 @@ paths:
       summary: Create a new user
       tags:
       - users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and then your access token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

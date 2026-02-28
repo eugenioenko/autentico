@@ -15,6 +15,22 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// HandleSignup handles user registration requests.
+// @Summary User signup
+// @Description Renders the signup page (GET) or processes a new user registration (POST).
+// @Tags signup
+// @Accept x-www-form-urlencoded
+// @Produce html
+// @Param username formData string false "Desired username"
+// @Param password formData string false "Password"
+// @Param confirm_password formData string false "Confirm password"
+// @Param email formData string false "Email address"
+// @Param redirect_uri formData string false "Redirect URI"
+// @Param state formData string false "OAuth2 state"
+// @Success 200 {string} string "Signup form (GET)"
+// @Success 302 {string} string "Redirect back to client with code (POST)"
+// @Router /oauth2/signup [get]
+// @Router /oauth2/signup [post]
 func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	if !config.Get().AuthAllowSelfSignup {
 		http.NotFound(w, r)

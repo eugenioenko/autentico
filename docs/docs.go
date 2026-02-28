@@ -265,6 +265,449 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/api/onboarding": {
+            "get": {
+                "description": "Returns whether the system has been initialized with an admin account and the current OAuth path.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "onboarding"
+                ],
+                "summary": "Check onboarding status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions-admin"
+                ],
+                "summary": "Session administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter sessions by User ID (GET)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Session ID to deactivate (DELETE)",
+                        "name": "id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deactivation result (DELETE)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions-admin"
+                ],
+                "summary": "Session administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter sessions by User ID (GET)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Session ID to deactivate (DELETE)",
+                        "name": "id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deactivation result (DELETE)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: Retrieve all system settings (except sensitive values). PUT: Update multiple settings.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "System settings",
+                "responses": {
+                    "200": {
+                        "description": "All settings (GET)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "Settings updated (PUT)"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: Retrieve all system settings (except sensitive values). PUT: Update multiple settings.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "System settings",
+                "responses": {
+                    "200": {
+                        "description": "All settings (GET)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "Settings updated (PUT)"
+                    }
+                }
+            }
+        },
+        "/admin/api/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a summary of users, clients, and active sessions.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "System statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/admin.StatsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "User administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "User creation/update payload",
+                        "name": "user",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users (GET)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/user.UserResponse"
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created user (POST)",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "User administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "User creation/update payload",
+                        "name": "user",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users (GET)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/user.UserResponse"
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created user (POST)",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "User administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "User creation/update payload",
+                        "name": "user",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users (GET)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/user.UserResponse"
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created user (POST)",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "User administration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "User creation/update payload",
+                        "name": "user",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of users (GET)",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/user.UserResponse"
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Created user (POST)",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users/unlock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resets the failed login attempts and clear the lockout time for a user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "Unlock user account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/authorize": {
             "get": {
                 "description": "Handles the authorization request and displays the login page",
@@ -498,6 +941,399 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/mfa": {
+            "get": {
+                "description": "Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "mfa"
+                ],
+                "summary": "Multi-factor authentication",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MFA challenge ID (GET)",
+                        "name": "challenge_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MFA challenge ID (POST)",
+                        "name": "challenge_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Verification code (POST)",
+                        "name": "code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "TOTP secret for enrollment (POST)",
+                        "name": "totp_secret",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Whether to trust the device (POST)",
+                        "name": "trust_device",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MFA form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect back to client with code after success (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "mfa"
+                ],
+                "summary": "Multi-factor authentication",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MFA challenge ID (GET)",
+                        "name": "challenge_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MFA challenge ID (POST)",
+                        "name": "challenge_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Verification code (POST)",
+                        "name": "code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "TOTP secret for enrollment (POST)",
+                        "name": "totp_secret",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Whether to trust the device (POST)",
+                        "name": "trust_device",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MFA form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect back to client with code after success (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/onboard": {
+            "get": {
+                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "onboarding"
+                ],
+                "summary": "Initial admin setup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Onboarding form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to admin UI after success (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "onboarding"
+                ],
+                "summary": "Initial admin setup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Onboarding form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to admin UI after success (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/passkey/login/begin": {
+            "get": {
+                "description": "Initiates a WebAuthn authentication ceremony. Returns the options for the navigator.credentials.get call.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "passkey"
+                ],
+                "summary": "Begin passkey login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User's username",
+                        "name": "username",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 client ID",
+                        "name": "client_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "WebAuthn assertion options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/passkey/login/finish": {
+            "post": {
+                "description": "Processes the WebAuthn assertion from the client and issues an authorization code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "passkey"
+                ],
+                "summary": "Complete passkey login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID from BeginLogin",
+                        "name": "challenge_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "WebAuthn assertion response",
+                        "name": "assertion",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Redirect URL",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/passkey/register/finish": {
+            "post": {
+                "description": "Processes the WebAuthn attestation from the client and registers the passkey.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "passkey"
+                ],
+                "summary": "Complete passkey registration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID from BeginRegistration",
+                        "name": "challenge_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "WebAuthn attestation response",
+                        "name": "attestation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Redirect URL",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -751,6 +1587,138 @@ const docTemplate = `{
                 }
             }
         },
+        "/oauth2/signup": {
+            "get": {
+                "description": "Renders the signup page (GET) or processes a new user registration (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "signup"
+                ],
+                "summary": "User signup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Desired username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email address",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Signup form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect back to client with code (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Renders the signup page (GET) or processes a new user registration (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "signup"
+                ],
+                "summary": "User signup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Desired username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email address",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Signup form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect back to client with code (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/token": {
             "post": {
                 "description": "Exchanges authorization code or credentials for tokens",
@@ -918,6 +1886,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "admin.StatsResponse": {
+            "type": "object",
+            "properties": {
+                "active_clients": {
+                    "type": "integer"
+                },
+                "active_sessions": {
+                    "type": "integer"
+                },
+                "recent_logins": {
+                    "type": "integer"
+                },
+                "total_sessions": {
+                    "type": "integer"
+                },
+                "total_users": {
+                    "type": "integer"
+                }
+            }
+        },
         "client.ClientCreateRequest": {
             "type": "object",
             "properties": {
@@ -1260,6 +2248,44 @@ const docTemplate = `{
                 }
             }
         },
+        "session.SessionResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "deactivated_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "last_activity_at": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "token.TokenResponse": {
             "type": "object",
             "properties": {
@@ -1310,7 +2336,13 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "failed_login_attempts": {
+                    "type": "integer"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "locked_until": {
                     "type": "string"
                 },
                 "role": {
@@ -1320,6 +2352,14 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and then your access token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

@@ -6,6 +6,7 @@ import {
   AppstoreOutlined,
   UserOutlined,
   DesktopOutlined,
+  FileTextOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -20,6 +21,8 @@ const menuItems = [
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
+  { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
+  { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
 ];
 
 export default function AdminLayout() {
@@ -46,25 +49,39 @@ export default function AdminLayout() {
       <Sider trigger={null} collapsible collapsed={collapsed}>
         <div
           style={{
-            height: 48,
+            height: 64,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            gap: 12,
             color: "white",
             fontWeight: 600,
-            fontSize: collapsed ? 14 : 16,
-            whiteSpace: "nowrap",
+            fontSize: 18,
+            padding: "0 16px",
             overflow: "hidden",
           }}
         >
-          {collapsed ? "A" : "Autentico"}
+          <img 
+            src="/admin/favicon.svg" 
+            alt="Autentico Logo" 
+            style={{ width: 32, height: 32, flexShrink: 0 }} 
+          />
+          {!collapsed && <span style={{ whiteSpace: "nowrap" }}>Autentico</span>}
         </div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            if (key === "/docs") {
+              window.open("/admin/docs", "_blank");
+            } else if (key === "/swagger") {
+              window.open("/swagger/index.html", "_blank");
+            } else {
+              navigate(key);
+            }
+          }}
         />
       </Sider>
       <Layout>

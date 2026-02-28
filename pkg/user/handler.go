@@ -169,7 +169,16 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
-// HandleUnlockUser handles POST /admin/api/users/unlock?id=...
+// HandleUnlockUser unlocks a user account after multiple failed login attempts.
+// @Summary Unlock user account
+// @Description Resets the failed login attempts and clear the lockout time for a user.
+// @Tags users-admin
+// @Accept json
+// @Produce json
+// @Param id query string true "User ID"
+// @Security BearerAuth
+// @Success 200 {object} UserResponse
+// @Router /admin/api/users/unlock [post]
 func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
@@ -195,6 +204,21 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleUserAdminEndpoint is the combined handler for /admin/api/users
 // Routes requests based on HTTP method
+// @Summary User administration
+// @Description GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.
+// @Tags users-admin
+// @Accept json
+// @Produce json
+// @Param id query string false "User ID (required for GET/PUT/DELETE single)"
+// @Param user body UserCreateRequest false "User creation/update payload"
+// @Security BearerAuth
+// @Success 200 {object} UserResponse "Single user (GET/PUT)"
+// @Success 200 {array} UserResponse "List of users (GET)"
+// @Success 201 {object} UserResponse "Created user (POST)"
+// @Router /admin/api/users [get]
+// @Router /admin/api/users [post]
+// @Router /admin/api/users [put]
+// @Router /admin/api/users [delete]
 func HandleUserAdminEndpoint(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
