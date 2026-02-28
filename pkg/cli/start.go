@@ -31,6 +31,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
+	_ "github.com/eugenioenko/autentico/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func RunStart(_ *cli.Context) error {
@@ -84,6 +86,7 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
 	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// Client registration endpoints (admin only)
 	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
@@ -99,7 +102,7 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle("/admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleSettings)))
 	mux.HandleFunc("/admin/api/onboarding", appsettings.HandleOnboarding)
 
-	// Admin UI
+	// Admin UI & Docs
 	mux.Handle("/admin/", admin.Handler())
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -120,6 +123,8 @@ func RunStart(_ *cli.Context) error {
 
 	fmt.Printf("  Server:    %s\n", baseURL)
 	fmt.Printf("  Admin UI:  %s/admin/\n", baseURL)
+	fmt.Printf("  API Docs:  %s/admin/docs/\n", baseURL)
+	fmt.Printf("  Swagger:   %s/swagger/index.html\n", baseURL)
 	fmt.Printf("  WellKnown: %s/.well-known/openid-configuration\n", baseURL)
 	fmt.Printf("  JWKS:      %s/.well-known/jwks.json\n", baseURL)
 	fmt.Printf("  Authorize: %s%s/authorize\n", baseURL, oauth)

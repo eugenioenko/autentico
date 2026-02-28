@@ -15,6 +15,11 @@ import (
 // @host localhost:9999
 // @BasePath /
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and then your access token.
+
 func main() {
 	app := &cli.App{
 		Name:  "autentico",

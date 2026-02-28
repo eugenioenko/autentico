@@ -27,6 +27,13 @@ func Handler() http.Handler {
 			path = "/"
 		}
 
+		// Handle /admin/docs specifically to serve the embedded documentation
+		if path == "/docs" || path == "/docs/" {
+			r.URL.Path = "/admin/docs.html"
+			http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
+			return
+		}
+
 		// Try to open the file to see if it exists
 		if path != "/" {
 			trimmed := strings.TrimPrefix(path, "/")

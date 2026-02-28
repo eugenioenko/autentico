@@ -18,6 +18,21 @@ import (
 
 // HandleOnboard manages the first-time setup of the admin account.
 // This endpoint only works if the system is not yet onboarded.
+// @Summary Initial admin setup
+// @Description Renders the onboarding page (GET) or creates the initial administrator (POST).
+// @Tags onboarding
+// @Accept x-www-form-urlencoded
+// @Produce html
+// @Param username formData string false "Admin username"
+// @Param password formData string false "Admin password"
+// @Param confirm_password formData string false "Confirm password"
+// @Param email formData string false "Admin email"
+// @Param redirect_uri formData string false "Redirect URI"
+// @Param state formData string false "OAuth2 state"
+// @Success 200 {string} string "Onboarding form (GET)"
+// @Success 302 {string} string "Redirect to admin UI after success (POST)"
+// @Router /oauth2/onboard [get]
+// @Router /oauth2/onboard [post]
 func HandleOnboard(w http.ResponseWriter, r *http.Request) {
 	// Only allow onboarding if BOTH the flag is false AND the users table is empty.
 	count, _ := user.CountUsers()

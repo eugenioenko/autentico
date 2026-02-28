@@ -34,7 +34,6 @@ type BootstrapConfig struct {
 	AuthIdpSessionSecureCookie     bool
 	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
 	PrivateKeyBase64 string
-	SwaggerPort      string
 }
 
 // ThemeConfig holds theme-related display settings.
@@ -141,7 +140,6 @@ var (
 		AuthRefreshTokenAsSecureCookie: false,
 		AuthIdpSessionCookieName:       "autentico_idp_session",
 		AuthIdpSessionSecureCookie:     false,
-		SwaggerPort:                    "8888",
 	}
 	Values = defaultConfig
 )
@@ -208,7 +206,6 @@ func InitBootstrap() {
 		AuthRefreshTokenAsSecureCookie: getEnvBool("AUTENTICO_REFRESH_TOKEN_SECURE", false),
 		AuthIdpSessionCookieName:       getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
 		AuthIdpSessionSecureCookie:     getEnvBool("AUTENTICO_IDP_SESSION_SECURE", false),
-		SwaggerPort:                    getEnv("AUTENTICO_SWAGGER_PORT", "8888"),
 	}
 }
 

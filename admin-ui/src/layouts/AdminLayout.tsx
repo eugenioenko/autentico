@@ -6,6 +6,7 @@ import {
   AppstoreOutlined,
   UserOutlined,
   DesktopOutlined,
+  FileTextOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -20,6 +21,8 @@ const menuItems = [
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
+  { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
+  { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
 ];
 
 export default function AdminLayout() {
@@ -64,7 +67,15 @@ export default function AdminLayout() {
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            if (key === "/docs") {
+              window.open("/admin/docs", "_blank");
+            } else if (key === "/swagger") {
+              window.open("/swagger/index.html", "_blank");
+            } else {
+              navigate(key);
+            }
+          }}
         />
       </Sider>
       <Layout>

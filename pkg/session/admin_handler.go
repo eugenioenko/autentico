@@ -7,6 +7,18 @@ import (
 )
 
 // HandleSessionAdminEndpoint is the combined handler for /admin/api/sessions
+// @Summary Session administration
+// @Description GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.
+// @Tags sessions-admin
+// @Accept json
+// @Produce json
+// @Param user_id query string false "Filter sessions by User ID (GET)"
+// @Param id query string false "Session ID to deactivate (DELETE)"
+// @Security BearerAuth
+// @Success 200 {array} SessionResponse "List of sessions (GET)"
+// @Success 200 {object} map[string]string "Deactivation result (DELETE)"
+// @Router /admin/api/sessions [get]
+// @Router /admin/api/sessions [delete]
 func HandleSessionAdminEndpoint(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

@@ -35,16 +35,12 @@ generate-docs:
 	swag init
 	npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 
-# Run swagger
-.PHONY: docs
-docs:
-	go run cmd/swagger.go
-
 # Build admin UI and copy to pkg/admin/dist
-admin-ui-build:
+admin-ui-build: generate-docs
 	cd admin-ui && pnpm install && pnpm run build
 	rm -rf pkg/admin/dist
 	cp -r admin-ui/dist pkg/admin/dist
+	cp docs/index.html pkg/admin/dist/docs.html
 
 
 docker-build:
