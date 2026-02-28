@@ -126,6 +126,7 @@
       }
 
       input[type="text"],
+      input[type="email"],
       input[type="password"] {
         width: 100%;
         padding: var(--input-padding);
@@ -141,12 +142,14 @@
       }
 
       input[type="text"]:focus,
+      input[type="email"]:focus,
       input[type="password"]:focus {
         border-color: var(--color-primary);
         box-shadow: 0 0 0 3px var(--color-primary-glow);
       }
 
       input[type="text"]::placeholder,
+      input[type="email"]::placeholder,
       input[type="password"]::placeholder {
         color: var(--color-text-muted);
       }
@@ -249,6 +252,20 @@
       button.passkey-btn:hover {
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .auth-link {
+        color: var(--color-text-muted);
+        text-align: center;
+      }
+
+      .auth-link a {
+        color: var(--color-primary);
+        text-decoration: none;
+      }
+
+      .auth-link a:hover {
+        text-decoration: underline;
       }
     </style>
 

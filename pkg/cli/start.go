@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
@@ -49,6 +50,7 @@ func RunStart(c *cli.Context) error {
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
 	mux.Handle(oauth+"/mfa", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/login/finish", passkey.HandleLoginFinish)
