@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -89,6 +90,13 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		renderSignup(w, r, params, "Could not create account. Username may already be taken.")
 		return
+	}
+
+	// If this is the first user ever, grant admin role and mark as onboarded.
+	if count, countErr := user.CountUsers(); countErr == nil && count == 1 {
+		_ = user.UpdateUser(usr.ID, usr.Email, "admin")
+		_ = appsettings.SetSetting("onboarded", "true")
+		_ = appsettings.LoadIntoConfig()
 	}
 
 	// Create IdP session if SSO is enabled

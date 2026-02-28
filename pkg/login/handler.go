@@ -132,7 +132,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		mfaURL := cfg.AppOAuthPath + "/mfa?challenge_id=" + challengeID
+		mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
 		http.Redirect(w, r, mfaURL, http.StatusFound)
 		return
 	}
@@ -199,6 +199,6 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 		params.Set("code_challenge", req.CodeChallenge)
 		params.Set("code_challenge_method", req.CodeChallengeMethod)
 	}
-	redirectURL := config.Get().AppOAuthPath + "/authorize?" + params.Encode()
+	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }

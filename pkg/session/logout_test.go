@@ -26,7 +26,7 @@ func generateTestAccessToken(userID string) (string, string, error) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -34,7 +34,7 @@ func generateTestAccessToken(userID string) (string, string, error) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
 	return signedToken, sessionID, err
 }
@@ -152,7 +152,7 @@ func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.AddCookie(&http.Cookie{
-		Name:  config.Get().AuthIdpSessionCookieName,
+		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
 		Value: idpSessionID,
 	})
 	rr := httptest.NewRecorder()
@@ -165,7 +165,7 @@ func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
 	cookies := rr.Result().Cookies()
 	var clearedCookie *http.Cookie
 	for _, c := range cookies {
-		if c.Name == config.Get().AuthIdpSessionCookieName {
+		if c.Name == config.GetBootstrap().AuthIdpSessionCookieName {
 			clearedCookie = c
 			break
 		}

@@ -89,6 +89,11 @@ func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
 	}
 	defer db.CloseDB()
 
+	// Set a required audience so validation actually checks against it
+	savedValues := config.Values
+	config.Values.AuthAccessTokenAudience = []string{"expected-audience"}
+	defer func() { config.Values = savedValues }()
+
 	userID := xid.New().String()
 
 	// Generate a token with wrong audience
@@ -96,7 +101,7 @@ func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   []string{"wrong-audience"},
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -104,7 +109,7 @@ func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
 		"scope": "openid",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	token, err := accessToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 
@@ -120,7 +125,7 @@ func TestAuthAudienceMiddlewareWrongAudience(t *testing.T) {
 
 	wrapped.ServeHTTP(rr, req)
 
-	// ValidateAccessToken already checks audience, so this returns 401
+	// With wrong audience and required audience configured, should be 401
 	assert.True(t, rr.Code == http.StatusUnauthorized || rr.Code == http.StatusForbidden)
 }
 
@@ -138,7 +143,7 @@ func TestAuthAudienceMiddlewareValidToken(t *testing.T) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -146,7 +151,7 @@ func TestAuthAudienceMiddlewareValidToken(t *testing.T) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	token, err := accessToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 

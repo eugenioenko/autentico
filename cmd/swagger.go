@@ -11,7 +11,8 @@ import (
 )
 
 func main() {
-	port := config.Get().SwaggerPort
+	config.InitBootstrap()
+	port := config.GetBootstrap().SwaggerPort
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 	log.Printf("Swagger server started at http://localhost:%s/swagger/index.html", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

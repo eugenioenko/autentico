@@ -13,9 +13,9 @@ import (
 
 func TestSetCookie(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
-		config.Values.AppOAuthPath = "/oauth2"
-		config.Values.AuthIdpSessionSecureCookie = false
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AppOAuthPath = "/oauth2"
+		config.Bootstrap.AuthIdpSessionSecureCookie = false
 	})
 
 	rr := httptest.NewRecorder()
@@ -33,7 +33,7 @@ func TestSetCookie(t *testing.T) {
 
 func TestReadCookie(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -45,7 +45,7 @@ func TestReadCookie(t *testing.T) {
 
 func TestReadCookie_Missing(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -56,9 +56,9 @@ func TestReadCookie_Missing(t *testing.T) {
 
 func TestClearCookie(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
-		config.Values.AppOAuthPath = "/oauth2"
-		config.Values.AuthIdpSessionSecureCookie = false
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AppOAuthPath = "/oauth2"
+		config.Bootstrap.AuthIdpSessionSecureCookie = false
 	})
 
 	rr := httptest.NewRecorder()

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/stretchr/testify/require"
@@ -44,7 +43,7 @@ func obtainTokensViaPasswordGrant(t *testing.T, ts *TestServer, username, passwo
 	form.Set("grant_type", "password")
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("client_id", config.Get().AuthDefaultClientID)
+	form.Set("client_id", "")
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err, "failed to post password grant")

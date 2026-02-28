@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -78,7 +77,6 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	introspect := IntrospectResponse{
 		Active:    true,
 		Scope:     tkn.Scope,
-		ClientID:  config.Get().AuthDefaultClientID,
 		TokenType: tkn.AccessTokenType,
 		Exp:       tkn.AccessTokenExpiresAt.Unix(),
 		Iat:       tkn.IssuedAt.Unix(),

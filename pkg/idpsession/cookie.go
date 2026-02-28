@@ -7,20 +7,19 @@ import (
 )
 
 func SetCookie(w http.ResponseWriter, sessionID string) {
-	cfg := config.Get()
+	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
-		Name:     cfg.AuthIdpSessionCookieName,
+		Name:     bs.AuthIdpSessionCookieName,
 		Value:    sessionID,
-		Path:     cfg.AppOAuthPath,
+		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
-		Secure:   cfg.AuthIdpSessionSecureCookie,
+		Secure:   bs.AuthIdpSessionSecureCookie,
 		SameSite: http.SameSiteStrictMode,
 	})
 }
 
 func ReadCookie(r *http.Request) string {
-	cfg := config.Get()
-	cookie, err := r.Cookie(cfg.AuthIdpSessionCookieName)
+	cookie, err := r.Cookie(config.GetBootstrap().AuthIdpSessionCookieName)
 	if err != nil {
 		return ""
 	}
@@ -28,13 +27,13 @@ func ReadCookie(r *http.Request) string {
 }
 
 func ClearCookie(w http.ResponseWriter) {
-	cfg := config.Get()
+	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
-		Name:     cfg.AuthIdpSessionCookieName,
+		Name:     bs.AuthIdpSessionCookieName,
 		Value:    "",
-		Path:     cfg.AppOAuthPath,
+		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
-		Secure:   cfg.AuthIdpSessionSecureCookie,
+		Secure:   bs.AuthIdpSessionSecureCookie,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})

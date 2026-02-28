@@ -30,8 +30,8 @@ func setupPasskeyTestUser(t *testing.T) (id, username string) {
 // withPasskeyConfig sets the standard config needed for WebAuthn ceremony handlers.
 func withPasskeyConfig(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AppDomain = "localhost"
-		config.Values.AppURL = "http://localhost:9999"
+		config.Bootstrap.AppDomain = "localhost"
+		config.Bootstrap.AppURL = "http://localhost:9999"
 		config.Values.PasskeyRPName = "Test"
 	})
 }

@@ -21,7 +21,7 @@ func generateTestAccessToken(userID string) (string, error) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -29,7 +29,7 @@ func generateTestAccessToken(userID string) (string, error) {
 		"scope": "openid profile email",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	return accessToken.SignedString(key.GetPrivateKey())
 }
 
@@ -149,7 +149,7 @@ func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
-		"iss":   config.Get().AppAuthIssuer,
+		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   []string{"wrong-audience"},
 		"sub":   userID,
 		"typ":   "Bearer",
@@ -157,7 +157,7 @@ func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
 		"scope": "openid",
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
-	accessToken.Header["kid"] = config.Get().AuthJwkCertKeyID
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	token, err := accessToken.SignedString(key.GetPrivateKey())
 	assert.NoError(t, err)
 

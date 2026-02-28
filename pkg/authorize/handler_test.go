@@ -64,19 +64,17 @@ func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
-func TestHandleAuthorize_RedirectURINotInAllowedList(t *testing.T) {
+func TestHandleAuthorize_RedirectURIInvalid(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
-	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://notallowed.com/callback&state=xyz123", nil)
+	// A URI with no host is syntactically invalid
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=not-a-valid-uri&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
 func TestHandleAuthorize_InactiveClient(t *testing.T) {
@@ -140,7 +138,7 @@ func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	// Create a user in the DB
@@ -206,7 +204,7 @@ func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-1', 'testuser', 'test@example.com', 'hashed')`)
@@ -241,7 +239,7 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-1', 'testuser', 'test@example.com', 'hashed')`)
@@ -276,7 +274,7 @@ func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)

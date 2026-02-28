@@ -6,9 +6,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	config.Bootstrap.AppURL = "http://localhost:9999"
+	config.Bootstrap.AppOAuthPath = "/oauth2"
+	config.Bootstrap.AppAuthIssuer = "http://localhost:9999/oauth2"
+	config.Bootstrap.AuthJwkCertKeyID = "autentico-key-1"
+}
 
 func TestHandleWellKnownConfig(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)

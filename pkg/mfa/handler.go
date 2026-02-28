@@ -285,7 +285,6 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {
-	cfg := config.Get()
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("error", errorMsg)
@@ -307,6 +306,6 @@ func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge 
 		}
 	}
 
-	redirectURL := cfg.AppOAuthPath + "/authorize?" + params.Encode()
+	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }

@@ -6,6 +6,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
+	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 // Client represents an OAuth2/OIDC client in the database
@@ -23,6 +24,15 @@ type Client struct {
 	IsActive                bool      `db:"is_active"`
 	CreatedAt               time.Time `db:"created_at"`
 	UpdatedAt               time.Time `db:"updated_at"`
+	// Per-client overrides — nil means "use global setting"
+	AccessTokenExpiration       *string `db:"access_token_expiration"`
+	RefreshTokenExpiration      *string `db:"refresh_token_expiration"`
+	AuthorizationCodeExpiration *string `db:"authorization_code_expiration"`
+	AllowedAudiences            *string `db:"allowed_audiences"` // JSON array
+	AllowSelfSignup             *bool   `db:"allow_self_signup"`
+	SsoSessionIdleTimeout       *string `db:"sso_session_idle_timeout"`
+	TrustDeviceEnabled          *bool   `db:"trust_device_enabled"`
+	TrustDeviceExpiration       *string `db:"trust_device_expiration"`
 }
 
 // ClientCreateRequest represents the request body for client registration
@@ -108,6 +118,27 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		TokenEndpointAuthMethod: c.TokenEndpointAuthMethod,
 		IsActive:                c.IsActive,
 	}
+}
+
+// ToOverrides converts the nullable client override fields into a config.ClientOverrides
+// struct, which can be passed to config.GetForClient() to resolve per-client settings.
+func (c *Client) ToOverrides() config.ClientOverrides {
+	overrides := config.ClientOverrides{
+		AccessTokenExpiration:       c.AccessTokenExpiration,
+		RefreshTokenExpiration:      c.RefreshTokenExpiration,
+		AuthorizationCodeExpiration: c.AuthorizationCodeExpiration,
+		AllowSelfSignup:             c.AllowSelfSignup,
+		SsoSessionIdleTimeout:       c.SsoSessionIdleTimeout,
+		TrustDeviceEnabled:          c.TrustDeviceEnabled,
+		TrustDeviceExpiration:       c.TrustDeviceExpiration,
+	}
+	if c.AllowedAudiences != nil {
+		var aud []string
+		if err := json.Unmarshal([]byte(*c.AllowedAudiences), &aud); err == nil {
+			overrides.AllowedAudiences = aud
+		}
+	}
+	return overrides
 }
 
 // ValidateClientCreateRequest validates a client registration request

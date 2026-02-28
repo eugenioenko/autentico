@@ -147,7 +147,22 @@ var createTableSQL = `
 		token_endpoint_auth_method TEXT NOT NULL DEFAULT 'client_secret_basic', -- Authentication method
 		is_active BOOLEAN DEFAULT TRUE,                               -- Whether client is active
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,                -- Creation timestamp
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP                 -- Last update timestamp
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,                -- Last update timestamp
+		-- Per-client overrides (NULL = use global setting)
+		access_token_expiration TEXT,
+		refresh_token_expiration TEXT,
+		authorization_code_expiration TEXT,
+		allowed_audiences TEXT,
+		allow_self_signup INTEGER,
+		sso_session_idle_timeout TEXT,
+		trust_device_enabled INTEGER,
+		trust_device_expiration TEXT
+	);
+
+	CREATE TABLE IF NOT EXISTS settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 `
 
@@ -162,7 +177,32 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS passkey_challenges;
 		DROP TABLE IF EXISTS passkey_credentials;
 		DROP TABLE IF EXISTS clients;
+		DROP TABLE IF EXISTS settings;
 	`
+
+// addColumnIfNotExists runs an ALTER TABLE … ADD COLUMN statement and silently
+// ignores the SQLite "duplicate column name" error for idempotent migrations.
+func addColumnIfNotExists(d *sql.DB, table, column, definition string) {
+	_, err := d.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition)
+	if err != nil {
+		// SQLite returns "duplicate column name" when the column already exists.
+		// Ignore it; any other error is also best-effort for migrations.
+		_ = err
+	}
+}
+
+// migrateDB applies incremental schema changes to existing databases so that
+// new columns added in later versions are present without dropping tables.
+func migrateDB(d *sql.DB) {
+	addColumnIfNotExists(d, "clients", "access_token_expiration", "TEXT")
+	addColumnIfNotExists(d, "clients", "refresh_token_expiration", "TEXT")
+	addColumnIfNotExists(d, "clients", "authorization_code_expiration", "TEXT")
+	addColumnIfNotExists(d, "clients", "allowed_audiences", "TEXT")
+	addColumnIfNotExists(d, "clients", "allow_self_signup", "INTEGER")
+	addColumnIfNotExists(d, "clients", "sso_session_idle_timeout", "TEXT")
+	addColumnIfNotExists(d, "clients", "trust_device_enabled", "INTEGER")
+	addColumnIfNotExists(d, "clients", "trust_device_expiration", "TEXT")
+}
 
 func InitDB(dbFilePath string) (*sql.DB, error) {
 	var err error
@@ -182,6 +222,8 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		log.Fatalf("Failed to create table: %v", err)
 		return nil, err
 	}
+
+	migrateDB(db)
 
 	return db, nil
 }

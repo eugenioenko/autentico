@@ -47,14 +47,13 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
 	})
 
 	form := url.Values{}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect", "http://evil.com/callback")
+	form.Set("redirect", "not-a-valid-uri") // syntactically invalid
 	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -176,7 +175,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ValidationUsernameIsEmail = false
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	form := url.Values{}

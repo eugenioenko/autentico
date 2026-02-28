@@ -78,14 +78,11 @@ func TestHandleLoginUser_ValidationError(t *testing.T) {
 
 func TestHandleLoginUser_InvalidRedirectURI(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthAllowedRedirectURIs = []string{"http://allowed.com"}
-	})
 
 	form := url.Values{}
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
-	form.Add("redirect", "http://notallowed.com/callback")
+	form.Add("redirect", "not-a-valid-uri") // syntactically invalid (no scheme/host)
 	form.Add("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
@@ -190,8 +187,8 @@ func TestHandleLoginUser_SetsIdpSessionCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Values.AuthIdpSessionCookieName = "autentico_idp_session"
-		config.Values.AppOAuthPath = "/oauth2"
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+		config.Bootstrap.AppOAuthPath = "/oauth2"
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")

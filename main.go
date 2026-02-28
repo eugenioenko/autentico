@@ -22,17 +22,12 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
-				Usage: "Initialize the database with an admin user and admin UI client",
+				Usage: "Generate a .env configuration file with secure defaults",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     "email",
-						Usage:    "Admin email address",
-						Required: true,
-					},
-					&cli.StringFlag{
-						Name:     "password",
-						Usage:    "Admin password",
-						Required: true,
+						Name:  "url",
+						Usage: "Application URL (e.g. https://auth.example.com)",
+						Value: "http://localhost:9999",
 					},
 				},
 				Action: appCli.RunInit,

@@ -1,13 +1,17 @@
 package middleware
 
 import (
-	"github.com/eugenioenko/autentico/pkg/config"
+	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/gorilla/csrf"
 )
 
-var CSRFMiddleware = csrf.Protect(
-	[]byte(config.Get().AuthCSRFProtectionSecretKey),
-	csrf.Secure(config.Get().AuthCSRFSecureCookie),
-	csrf.TrustedOrigins([]string{config.Get().AppHost}),
-)
+func CSRFMiddleware(next http.Handler) http.Handler {
+	bs := config.GetBootstrap()
+	return csrf.Protect(
+		[]byte(bs.AuthCSRFProtectionSecretKey),
+		csrf.Secure(bs.AuthCSRFSecureCookie),
+		csrf.TrustedOrigins([]string{bs.AppHost}),
+	)(next)
+}

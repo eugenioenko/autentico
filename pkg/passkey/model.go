@@ -51,10 +51,10 @@ func (u WebAuthnUser) WebAuthnCredentials() []webauthn.Credential { return u.Cre
 
 // NewWebAuthn creates a WebAuthn instance from the current config.
 func NewWebAuthn() (*webauthn.WebAuthn, error) {
-	cfg := config.Get()
+	bs := config.GetBootstrap()
 	return webauthn.New(&webauthn.Config{
-		RPDisplayName: cfg.PasskeyRPName,
-		RPID:          cfg.AppDomain,
-		RPOrigins:     []string{cfg.AppURL},
+		RPDisplayName: config.Get().PasskeyRPName,
+		RPID:          bs.AppDomain,
+		RPOrigins:     []string{bs.AppURL},
 	})
 }
