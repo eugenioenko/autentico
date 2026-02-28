@@ -10,8 +10,30 @@ Autentico ships as a single self-contained binary with no runtime dependencies. 
 <Tabs>
 <TabItem label="Binary">
 
+Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
+
 <Steps>
-1. Download the latest release for your platform from the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
+1. Download the binary for your platform:
+
+   **Linux (amd64)**
+   ```bash
+   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
+   ```
+
+   **Linux (arm64)**
+   ```bash
+   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-arm64 -o autentico
+   ```
+
+   **macOS (Apple Silicon)**
+   ```bash
+   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-arm64 -o autentico
+   ```
+
+   **macOS (Intel)**
+   ```bash
+   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-amd64 -o autentico
+   ```
 
 2. Make the binary executable:
    ```bash
