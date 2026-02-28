@@ -51,6 +51,7 @@ func main() {
 	go reg.runCleanup()
 
 	http.HandleFunc("/launch", reg.handleLaunch)
+	http.HandleFunc("/status", reg.handleStatus)
 	http.HandleFunc("/", reg.handleProxy)
 
 	slog.Info("provisioner listening", "addr", listenAddr, "domain", baseDomain)
@@ -70,6 +71,18 @@ func (r *registry) handleLaunch(w http.ResponseWriter, req *http.Request) {
 	target := instanceURL(inst.slug)
 	slog.Info("launched demo", "slug", inst.slug, "port", inst.port, "expires", inst.expiresAt.Format(time.RFC3339))
 	http.Redirect(w, req, target, http.StatusFound)
+}
+
+func (r *registry) handleStatus(w http.ResponseWriter, req *http.Request) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	fmt.Fprintf(w, "instances: %d\n\n", len(r.instances))
+	for slug, inst := range r.instances {
+		ttl := time.Until(inst.expiresAt).Round(time.Minute)
+		fmt.Fprintf(w, "%s  port=%-6d  expires in %s\n", slug, inst.port, ttl)
+	}
 }
 
 func (r *registry) handleProxy(w http.ResponseWriter, req *http.Request) {
