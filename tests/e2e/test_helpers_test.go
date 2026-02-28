@@ -257,6 +257,64 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	return code
 }
 
+// performSignupFlow drives the GET signup page → POST signup → extract code chain.
+func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirectURI, state string) string {
+	t.Helper()
+
+	// Step 1: GET /oauth2/signup to obtain a CSRF token
+	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
+		"redirect":  {redirectURI},
+		"state":     {state},
+		"client_id": {"test-client"},
+	}.Encode()
+
+	resp, err := ts.Client.Get(signupURL)
+	require.NoError(t, err, "failed to GET /oauth2/signup")
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "failed to read signup page")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "signup page failed: %s", string(body))
+
+	csrfToken := getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken, "CSRF token not found in signup page")
+
+	// Step 2: POST /oauth2/signup with credentials
+	form := url.Values{}
+	form.Set("username", username)
+	form.Set("password", password)
+	form.Set("confirm_password", password)
+	form.Set("redirect", redirectURI)
+	form.Set("state", state)
+	form.Set("client_id", "test-client")
+	form.Set("gorilla.csrf.Token", csrfToken)
+
+	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
+	require.NoError(t, err, "failed to create signup request")
+	signupReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	signupReq.Header.Set("Referer", ts.BaseURL+"/oauth2/signup")
+
+	signupResp, err := ts.Client.Do(signupReq)
+	require.NoError(t, err, "failed to POST /oauth2/signup")
+	defer func() { _ = signupResp.Body.Close() }()
+
+	require.Equal(t, http.StatusFound, signupResp.StatusCode, "signup should redirect with 302")
+
+	location := signupResp.Header.Get("Location")
+	require.NotEmpty(t, location, "missing Location header in signup redirect")
+
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err, "failed to parse redirect URL")
+
+	code := redirectURL.Query().Get("code")
+	require.NotEmpty(t, code, "authorization code not found in redirect URL")
+
+	returnedState := redirectURL.Query().Get("state")
+	require.Equal(t, state, returnedState, "state parameter should be preserved")
+
+	return code
+}
+
 // createTestClient creates an OAuth2 client via the admin API endpoint.
 func createTestClient(t *testing.T, ts *TestServer, adminToken string, reqBody interface{}) map[string]interface{} {
 	t.Helper()
