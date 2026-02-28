@@ -160,7 +160,7 @@ func (r *registry) handleProxy(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	slug := strings.ToUpper(strings.TrimSuffix(strings.ToLower(host), suffix))
+	slug := strings.TrimSuffix(strings.ToLower(host), suffix)
 
 	r.mu.RLock()
 	inst, ok := r.instances[slug]
@@ -263,7 +263,7 @@ func (r *registry) runCleanup() {
 }
 
 func generateSlug() (string, error) {
-	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 6)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
