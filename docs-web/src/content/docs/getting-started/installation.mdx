@@ -45,6 +45,21 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Re
    ```bash
    autentico start
    ```
+   You should see output like this:
+   ```
+     Autentico OIDC Identity Provider
+
+     ONBOARDING: http://localhost:9999/admin/
+
+     Server:    http://localhost:9999
+     Admin UI:  http://localhost:9999/admin/
+     API Docs:  http://localhost:9999/admin/docs/
+     WellKnown: http://localhost:9999/.well-known/openid-configuration
+     JWKS:      http://localhost:9999/.well-known/jwks.json
+     Authorize: http://localhost:9999/oauth2/authorize
+     Token:     http://localhost:9999/oauth2/token
+   ```
+   The `ONBOARDING` line appears only on first run. Visit it to create the admin account.
 </Steps>
 
 </TabItem>
@@ -100,6 +115,7 @@ Requires Go 1.22 or later.
    ./autentico init
    ./autentico start
    ```
+   On first run you'll see an `ONBOARDING` URL — visit it to set up the admin account.
 </Steps>
 
 </TabItem>
