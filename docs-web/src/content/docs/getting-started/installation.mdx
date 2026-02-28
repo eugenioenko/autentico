@@ -13,27 +13,14 @@ Autentico ships as a single self-contained binary with no runtime dependencies. 
 Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
 
 <Steps>
-1. Download the binary for your platform:
+1. Download the binary for your platform from the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases/latest).
 
-   **Linux (amd64)**
+   For example, on Linux (amd64):
    ```bash
    curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
    ```
 
-   **Linux (arm64)**
-   ```bash
-   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-arm64 -o autentico
-   ```
-
-   **macOS (Apple Silicon)**
-   ```bash
-   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-arm64 -o autentico
-   ```
-
-   **macOS (Intel)**
-   ```bash
-   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-amd64 -o autentico
-   ```
+   Builds are also available for Linux arm64, macOS (Intel and Apple Silicon), and Windows amd64.
 
 2. Make the binary executable:
    ```bash
@@ -45,10 +32,34 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Re
    sudo mv autentico /usr/local/bin/
    ```
 
-4. Verify the installation:
+4. Initialize your instance:
    ```bash
-   autentico --version
+   autentico init
    ```
+   This generates a `.env` file in the current directory with all required secrets (RSA signing key, HMAC secrets, CSRF secret). Pass `--url` to set your public URL:
+   ```bash
+   autentico init --url https://auth.example.com
+   ```
+
+5. Start the server:
+   ```bash
+   autentico start
+   ```
+   You should see output like this:
+   ```
+     Autentico OIDC Identity Provider
+
+     ONBOARDING: http://localhost:9999/admin/
+
+     Server:    http://localhost:9999
+     Admin UI:  http://localhost:9999/admin/
+     API Docs:  http://localhost:9999/admin/docs/
+     WellKnown: http://localhost:9999/.well-known/openid-configuration
+     JWKS:      http://localhost:9999/.well-known/jwks.json
+     Authorize: http://localhost:9999/oauth2/authorize
+     Token:     http://localhost:9999/oauth2/token
+   ```
+   The `ONBOARDING` line appears only on first run. Visit it to create the admin account.
 </Steps>
 
 </TabItem>
@@ -99,14 +110,23 @@ Requires Go 1.22 or later.
    # or: go build -o autentico main.go
    ```
 
-3. Run:
+3. Initialize and run:
    ```bash
+   ./autentico init
    ./autentico start
    ```
+   On first run you'll see an `ONBOARDING` URL — visit it to set up the admin account.
 </Steps>
 
 </TabItem>
 </Tabs>
+
+## CLI commands
+
+| Command | Description |
+|---|---|
+| `autentico init` | Generate a `.env` file with all required secrets. Accepts `--url` to set the public URL (default: `http://localhost:9999`). Errors if `.env` already exists. |
+| `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
 
 ## Next steps
 
