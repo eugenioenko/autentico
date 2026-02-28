@@ -41,7 +41,7 @@ jobs:
         run: |
           swag init
           npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
-          cd admin-ui && pnpm run build
+          cd admin-ui && pnpm run build && cd ..
           rm -rf pkg/admin/dist
           cp -r admin-ui/dist pkg/admin/dist
           cp docs/index.html pkg/admin/dist/docs.html
