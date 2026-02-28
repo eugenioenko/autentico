@@ -3,6 +3,7 @@ admin-ui/dist
 autentico
 db/autentico.db
 debug-ui
+docs-web
 coverage.out
 .git
 .env

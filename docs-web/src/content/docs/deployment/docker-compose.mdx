@@ -11,7 +11,7 @@ services:
     image: ghcr.io/eugenioenko/autentico:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"   # bind to localhost only — proxy handles TLS
+      - "127.0.0.1:9999:9999"   # bind to localhost only — proxy handles TLS
     volumes:
       - autentico-data:/data
     environment:
@@ -79,7 +79,7 @@ volumes:
 
 ```
 auth.example.com {
-    reverse_proxy autentico:8080
+    reverse_proxy autentico:9999
 }
 ```
 
