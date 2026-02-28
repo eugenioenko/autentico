@@ -22,6 +22,7 @@ type User struct {
 	LockedUntil         *time.Time
 	TotpSecret          string
 	TotpVerified        bool
+	DeactivatedAt       *time.Time
 }
 
 type UserResponse struct {

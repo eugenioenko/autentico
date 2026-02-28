@@ -44,3 +44,19 @@ func TestEncodeKeyToBase64(t *testing.T) {
 	encoded := EncodeKeyToBase64(pk)
 	assert.NotEmpty(t, encoded)
 }
+
+func TestDecodeBase64PEM(t *testing.T) {
+	pk := GetPrivateKey()
+	encoded := EncodeKeyToBase64(pk)
+	
+	decoded := decodeBase64PEM(encoded)
+	assert.NotNil(t, decoded)
+	assert.Equal(t, pk.N, decoded.N)
+	assert.Equal(t, pk.D, decoded.D)
+}
+
+func TestDecodeBase64PEM_Invalid(t *testing.T) {
+	assert.Nil(t, decodeBase64PEM("invalid-base64"))
+	assert.Nil(t, decodeBase64PEM("bm90LWEtcGVtLWtleQ==")) // "not-a-pem-key" in base64
+}
+

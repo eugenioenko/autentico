@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -141,3 +142,19 @@ func TestRun_EmptyTablesNoError(t *testing.T) {
 	// Should not panic or error on empty tables
 	assert.NotPanics(t, func() { Run(24 * time.Hour) })
 }
+
+func TestStart(t *testing.T) {
+	testutils.WithTestDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	
+	// Start with a very short interval
+	go Start(ctx, 10*time.Millisecond, 24*time.Hour)
+	
+	// Let it run for a bit
+	time.Sleep(50 * time.Millisecond)
+	
+	// Cancel and ensure it stops
+	cancel()
+	time.Sleep(20 * time.Millisecond)
+}
+

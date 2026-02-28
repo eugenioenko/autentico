@@ -252,3 +252,31 @@ func TestHandleLoginUser_NoIdpCookieWhenDisabled(t *testing.T) {
 		assert.NotEqual(t, "autentico_idp_session", c.Name, "IdP session cookie should NOT be set when disabled")
 	}
 }
+
+func TestHandleLoginUser_MfaRedirect(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaEnabled = true
+		config.Values.MfaMethod = "totp"
+		config.Values.AuthMode = "password"
+		config.Bootstrap.AppOAuthPath = "/oauth2"
+
+		_, _ = user.CreateUser("mfauser", "password123", "mfa@example.com")
+
+		form := url.Values{}
+		form.Set("username", "mfauser")
+		form.Set("password", "password123")
+		form.Set("redirect_uri", "http://localhost/callback")
+		form.Set("state", "xyz")
+
+		req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+
+		HandleLoginUser(rr, req)
+
+		assert.Equal(t, http.StatusFound, rr.Code)
+		assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+	})
+}
+
