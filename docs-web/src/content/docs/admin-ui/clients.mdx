@@ -1,0 +1,38 @@
+---
+title: Clients
+description: Managing OAuth2 clients from the Autentico Admin UI.
+---
+
+The Clients section shows all registered OAuth2 clients and lets you create, configure, and deactivate them.
+
+{/* TODO: add screenshot of clients list */}
+
+## Client list
+
+The list shows each client's:
+- Client name and ID
+- Client type (confidential or public)
+- Active status
+- Allowed grant types
+
+## Creating a client
+
+Click **New Client** and fill in:
+
+- **Client name** — displayed in the Admin UI and visible to admins
+- **Redirect URIs** — exact URLs the client may redirect to after authorization
+- **Client type** — `confidential` (has secret) or `public` (no secret, use PKCE)
+- **Grant types** — the flows this client uses
+- **Auth method** — `client_secret_basic`, `client_secret_post`, or `none`
+
+The `client_id` is generated automatically. For confidential clients, the `client_secret` is shown once — copy it immediately.
+
+## Editing a client
+
+Click a client to open its detail view. You can update all fields except `client_id`. Active clients can be deactivated (they stop accepting authorization requests) and reactivated.
+
+## Per-client overrides
+
+The client detail form includes fields for per-client overrides: token lifetimes, session idle timeout, trusted device settings, and self-signup. Overrides left blank inherit the global setting.
+
+See [Per-Client Overrides](/configuration/per-client-overrides/) for the full field reference.

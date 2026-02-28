@@ -1,0 +1,62 @@
+---
+title: Docker
+description: Running Autentico as a Docker container.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Image
+
+```
+ghcr.io/eugenioenko/autentico:latest
+```
+
+The image is a minimal Linux container with just the `autentico` binary. All configuration is via environment variables.
+
+## Run
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 8080:8080 \
+  -v autentico-data:/data \
+  -e AUTENTICO_APP_URL=https://auth.example.com \
+  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
+  -e AUTENTICO_PRIVATE_KEY_PATH=/data/private_key.pem \
+  -e AUTENTICO_COOKIE_SECRET=changeme-at-least-32-chars \
+  -e AUTENTICO_ADMIN_TOKEN=your-secure-admin-token \
+  ghcr.io/eugenioenko/autentico:latest
+```
+
+Mount the `/data` volume to persist the SQLite database and RSA key across container restarts.
+
+## Environment variables
+
+All configuration is done via [Bootstrap Settings](/configuration/bootstrap/). The most important ones:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `AUTENTICO_APP_URL` | Yes | Public-facing URL, used in OIDC discovery and redirects |
+| `AUTENTICO_DB_FILE_PATH` | Yes | Path to SQLite database file inside the container |
+| `AUTENTICO_COOKIE_SECRET` | Yes | At least 32 random characters |
+| `AUTENTICO_ADMIN_TOKEN` | Yes | Bearer token for admin API access |
+| `AUTENTICO_PRIVATE_KEY_PATH` | No | Defaults to `db/private_key.pem`; persist this path |
+| `AUTENTICO_APP_LISTEN_PORT` | No | Defaults to `8080` |
+| `AUTENTICO_ENABLE_CORS` | No | Set to `true` if your SPA frontend is on a different origin |
+
+## Health check
+
+Autentico exposes `/.well-known/openid-configuration` which returns 200 and can be used as a health check:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s \
+  CMD wget -qO- http://localhost:8080/.well-known/openid-configuration || exit 1
+```
+
+## Logs
+
+Autentico logs structured HTTP access logs to stdout. Collect them with your Docker logging driver or forward to a log aggregator.
+
+<Aside type="tip">
+For a complete production setup with a reverse proxy and persistent volumes, see [Docker Compose](/deployment/docker-compose/).
+</Aside>

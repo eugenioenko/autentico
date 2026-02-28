@@ -1,0 +1,28 @@
+---
+title: Clients Overview
+description: OAuth2 clients in Autentico — what they are and how to manage them.
+---
+
+A client (also called a relying party) is any application that authenticates users through Autentico. Each client has a unique `client_id` and optionally a `client_secret`, and is configured with the redirect URIs, grant types, and scopes it's allowed to use.
+
+## Client types
+
+| Type | Secret | Use case |
+|---|---|---|
+| `confidential` | Yes | Server-side web apps, backend services — can securely store a secret |
+| `public` | No | Browser SPAs, mobile apps — cannot securely store a secret, must use PKCE |
+
+See [Client Types](/clients/client-types/) for details.
+
+## Managing clients
+
+Clients can be created and managed via:
+
+- **Admin UI**: Clients section — create, view, edit, deactivate
+- **Admin API**: `POST /oauth2/register`, `GET/PUT /admin/api/clients/{id}`
+
+The `autentico-admin` client is seeded automatically on first startup to power the Admin UI itself.
+
+## Per-client configuration
+
+Each client can override global settings for token lifetimes, session timeouts, trusted devices, and more. See [Per-Client Overrides](/configuration/per-client-overrides/).

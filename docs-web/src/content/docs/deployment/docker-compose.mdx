@@ -1,0 +1,86 @@
+---
+title: Docker Compose
+description: A production-ready Docker Compose setup for Autentico with persistent storage.
+---
+
+The following `docker-compose.yml` runs Autentico with persistent data storage. Add a reverse proxy service (Caddy, nginx, Traefik) in the same compose file for TLS termination.
+
+```yaml
+services:
+  autentico:
+    image: ghcr.io/eugenioenko/autentico:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # bind to localhost only — proxy handles TLS
+    volumes:
+      - autentico-data:/data
+    environment:
+      # Public URL — used in OIDC discovery, token issuer, and redirect validation
+      AUTENTICO_APP_URL: https://auth.example.com
+
+      # Database and key persistence
+      AUTENTICO_DB_FILE_PATH: /data/autentico.db
+      AUTENTICO_PRIVATE_KEY_PATH: /data/private_key.pem
+
+      # Secrets — use Docker secrets or an env file in production
+      AUTENTICO_COOKIE_SECRET: changeme-generate-a-random-32-char-string
+      AUTENTICO_ADMIN_TOKEN: changeme-generate-a-secure-admin-token
+
+      # Optional: SMTP for email OTP MFA
+      # AUTENTICO_SMTP_HOST: smtp.example.com
+      # AUTENTICO_SMTP_PORT: 587
+      # AUTENTICO_SMTP_USERNAME: auth@example.com
+      # AUTENTICO_SMTP_PASSWORD: your-smtp-password
+      # AUTENTICO_SMTP_FROM: auth@example.com
+
+volumes:
+  autentico-data:
+```
+
+## Secrets management
+
+Do not commit secrets in `docker-compose.yml`. Use one of:
+
+- **Docker secrets** (`secrets:` block) — available in Swarm mode
+- **`.env` file** — place next to `docker-compose.yml`, add to `.gitignore`
+- **External secret manager** — Vault, AWS Secrets Manager, etc., injected at deploy time
+
+## Upgrading
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Autentico applies any new database migrations automatically at startup. Back up the SQLite database volume before upgrading.
+
+## Caddy reverse proxy example
+
+Add a Caddy service to the same compose file:
+
+```yaml
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+    depends_on:
+      - autentico
+
+volumes:
+  caddy-data:
+```
+
+`Caddyfile`:
+
+```
+auth.example.com {
+    reverse_proxy autentico:8080
+}
+```
+
+Caddy handles TLS automatically via Let's Encrypt.

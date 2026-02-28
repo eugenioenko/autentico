@@ -1,0 +1,90 @@
+---
+title: Verifying Tokens
+description: How to verify Autentico-issued JWTs in your resource server or backend.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Autentico signs all tokens with RS256 (RSA + SHA-256). Your resource server can verify tokens locally using the public key from the JWKS endpoint — no network call to Autentico is needed per request.
+
+## JWKS endpoint
+
+```
+GET https://auth.example.com/.well-known/jwks.json
+```
+
+Fetch this once at startup and cache it. Refresh it when you encounter an unknown `kid` in a token header.
+
+## Verification steps
+
+For each incoming access token or ID token:
+
+1. Decode the JWT header — get the `kid` (key ID)
+2. Find the matching key in your JWKS cache
+3. Verify the JWT signature using the RSA public key
+4. Check standard claims:
+   - `exp` — token is not expired
+   - `iss` — matches `https://auth.example.com/oauth2`
+   - `aud` — matches your `client_id` (ID tokens) or is acceptable for your resource (access tokens)
+
+## Example: Node.js
+
+<Tabs>
+<TabItem label="jose">
+
+```javascript
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const JWKS = createRemoteJWKSet(
+  new URL('https://auth.example.com/.well-known/jwks.json')
+);
+
+async function verifyToken(token) {
+  const { payload } = await jwtVerify(token, JWKS, {
+    issuer: 'https://auth.example.com/oauth2',
+    audience: 'my-client-id', // for ID tokens
+  });
+  return payload; // { sub, name, email, exp, ... }
+}
+```
+
+</TabItem>
+<TabItem label="jsonwebtoken">
+
+```javascript
+import jwt from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
+
+const client = jwksClient({
+  jwksUri: 'https://auth.example.com/.well-known/jwks.json',
+  cache: true,
+});
+
+function getKey(header, callback) {
+  client.getSigningKey(header.kid, (err, key) => {
+    callback(err, key?.getPublicKey());
+  });
+}
+
+function verifyToken(token) {
+  return new Promise((resolve, reject) => {
+    jwt.verify(token, getKey, {
+      issuer: 'https://auth.example.com/oauth2',
+      algorithms: ['RS256'],
+    }, (err, decoded) => {
+      err ? reject(err) : resolve(decoded);
+    });
+  });
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Token introspection (alternative)
+
+If local verification is not suitable (e.g. you need to check revocation status), use the [introspection endpoint](/protocol/introspection-revocation/) instead. It checks the token against the database and returns `{ "active": true/false }`.
+
+## Claims reference
+
+See [Token Structure & Claims](/protocol/token-structure/) for the full list of claims in access tokens, ID tokens, and refresh tokens.

@@ -1,0 +1,109 @@
+---
+title: Quickstart
+description: Get Autentico running and serving tokens in under five minutes.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+This guide takes you from zero to a running Autentico instance with a registered OAuth2 client. It assumes you want to run the binary directly. For Docker, see [Docker deployment](/deployment/docker/).
+
+<Steps>
+
+1. **Download the binary**
+
+   Grab the latest release for your platform from [GitHub Releases](https://github.com/eugenioenko/autentico/releases).
+
+   ```bash
+   # Linux (amd64)
+   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
+   chmod +x autentico
+   ```
+
+2. **Generate your configuration**
+
+   ```bash
+   ./autentico init --url http://localhost:9999
+   ```
+
+   This creates a `.env` file in the current directory containing a freshly generated RSA private key (base64-encoded), CSRF secret, and token signing secrets. You do not need a separate key file — everything is in `.env`.
+
+   <Aside type="tip">
+   For a production deployment, pass your actual public URL: `./autentico init --url https://auth.example.com`
+   </Aside>
+
+3. **Start the server**
+
+   ```bash
+   ./autentico start
+   ```
+
+   Output:
+   ```
+     Autentico OIDC Identity Provider
+
+     ONBOARDING: http://localhost:9999/admin/
+
+     Server:    http://localhost:9999
+     Admin UI:  http://localhost:9999/admin/
+     WellKnown: http://localhost:9999/.well-known/openid-configuration
+     JWKS:      http://localhost:9999/.well-known/jwks.json
+     Authorize: http://localhost:9999/oauth2/authorize
+     Token:     http://localhost:9999/oauth2/token
+   ```
+
+   The **ONBOARDING** URL is shown until the first administrator account is created.
+
+4. **Complete onboarding**
+
+   Open `http://localhost:9999/admin/` in your browser. You will be guided through creating the first administrator account. This account has full access to the Admin UI.
+
+   {/* TODO: add screenshot of onboarding page */}
+
+5. **Register your first OAuth2 client**
+
+   Log in to the Admin UI and navigate to **Clients → Create Client**, or use the API:
+
+   ```bash
+   # Get an admin token
+   ADMIN_TOKEN=$(curl -s -X POST http://localhost:9999/oauth2/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "grant_type=password&username=admin@example.com&password=YourPassword" \
+     | jq -r '.access_token')
+
+   # Register a public client (SPA/mobile)
+   curl -X POST http://localhost:9999/oauth2/register \
+     -H "Authorization: Bearer $ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "client_name": "My App",
+       "redirect_uris": ["http://localhost:3000/callback"],
+       "grant_types": ["authorization_code", "refresh_token"],
+       "client_type": "public",
+       "token_endpoint_auth_method": "none"
+     }'
+   ```
+
+6. **Start the authorization code flow**
+
+   Point users to the authorization endpoint:
+
+   ```
+   http://localhost:9999/oauth2/authorize
+     ?response_type=code
+     &client_id=<your_client_id>
+     &redirect_uri=http://localhost:3000/callback
+     &scope=openid profile email
+     &state=<random>
+     &code_challenge=<pkce_challenge>
+     &code_challenge_method=S256
+   ```
+
+   After the user authenticates, they are redirected back to your `redirect_uri` with an authorization code. Exchange it at `/oauth2/token`. See [Authorization Code + PKCE](/protocol/authorization-code/) for the full flow.
+
+</Steps>
+
+## What's next?
+
+- [Configuration reference](/configuration/overview/) — understand the three-layer config system
+- [Authentication modes](/authentication/overview/) — password, passkeys, MFA
+- [Registering clients](/clients/registering/) — all registration options

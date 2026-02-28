@@ -1,0 +1,41 @@
+---
+title: Protocol Overview
+description: The OAuth 2.0 and OpenID Connect flows supported by Autentico.
+---
+
+Autentico implements OAuth 2.0 (RFC 6749) and OpenID Connect Core 1.0. This section documents each grant type, the token format, and the supporting protocol endpoints.
+
+## Supported grant types
+
+| Grant type | Use case |
+|---|---|
+| `authorization_code` + PKCE | Browser apps, mobile apps, server-side web apps — the standard secure flow |
+| `refresh_token` | Exchange a refresh token for new access/ID tokens without re-authentication |
+| `password` (ROPC) | Trusted first-party apps only — credentials submitted directly to the token endpoint |
+| `client_credentials` | Machine-to-machine — no user involved |
+
+## Supporting endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `/.well-known/openid-configuration` | OIDC discovery document |
+| `/.well-known/jwks.json` | Public keys for token verification |
+| `/oauth2/authorize` | Authorization endpoint — starts the auth flow |
+| `/oauth2/token` | Token endpoint — exchange codes and refresh tokens |
+| `/oauth2/userinfo` | UserInfo endpoint — user claims for access tokens |
+| `/oauth2/introspect` | Token introspection (RFC 7662) |
+| `/oauth2/revoke` | Token revocation (RFC 7009) |
+| `/oauth2/logout` | Logout — deactivates the SSO session |
+
+Keycloak-compatible aliases are available for the token and userinfo endpoints:
+- `/oauth2/protocol/openid-connect/token`
+- `/oauth2/protocol/openid-connect/userinfo`
+
+The `/oauth2` path prefix is configurable via `AUTENTICO_APP_OAUTH_PATH`.
+
+## Where to go next
+
+- [Authorization Code + PKCE](/protocol/authorization-code/) — the flow most applications use
+- [Token Structure & Claims](/protocol/token-structure/) — what's inside the JWTs
+- [Scopes](/protocol/scopes/) — controlling what claims are included
+- [OIDC Discovery](/protocol/oidc-discovery/) — auto-configuring OIDC clients

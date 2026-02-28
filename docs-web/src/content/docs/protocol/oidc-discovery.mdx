@@ -1,0 +1,70 @@
+---
+title: OIDC Discovery
+description: The OpenID Connect discovery document served by Autentico and how to use it.
+---
+
+Autentico serves the OIDC discovery document at:
+
+```
+GET /.well-known/openid-configuration
+GET /oauth2/.well-known/openid-configuration
+```
+
+Both paths return the same document. Most OIDC client libraries accept this URL and auto-configure themselves from it.
+
+## Discovery document
+
+```json
+{
+  "issuer": "https://auth.example.com/oauth2",
+  "authorization_endpoint": "https://auth.example.com/oauth2/authorize",
+  "token_endpoint": "https://auth.example.com/oauth2/token",
+  "userinfo_endpoint": "https://auth.example.com/oauth2/userinfo",
+  "registration_endpoint": "https://auth.example.com/oauth2/register",
+  "end_session_endpoint": "https://auth.example.com/oauth2/logout",
+  "jwks_uri": "https://auth.example.com/.well-known/jwks.json",
+  "response_types_supported": ["code", "token", "id_token", "code token", "code id_token"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+  "claims_supported": ["sub", "iss", "aud", "exp", "iat", "name", "email"]
+}
+```
+
+## JWKS endpoint
+
+The JSON Web Key Set (public keys for token verification) is at:
+
+```
+GET /.well-known/jwks.json
+```
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "autentico-key",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+The `kid` value is configurable via `AUTENTICO_AUTH_JWK_CERT_KEY_ID` (default: `autentico-key`). Client libraries use this to look up the right key when verifying tokens.
+
+## Configuring an OIDC client library
+
+Most OIDC libraries accept a single discovery URL:
+
+```
+https://auth.example.com/oauth2/.well-known/openid-configuration
+```
+
+The library fetches this document, extracts the endpoint URLs, and uses them for all subsequent requests. No manual endpoint configuration is needed.
+
+See [Connecting an OIDC Client](/integrate/connecting/) for framework-specific examples.

@@ -1,0 +1,75 @@
+---
+title: Introspection & Revocation
+description: Token introspection (RFC 7662) and revocation (RFC 7009) in Autentico.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Token introspection (RFC 7662)
+
+The introspection endpoint lets a resource server verify whether a token is valid without needing the signing key.
+
+```
+POST /oauth2/introspect
+```
+
+**Request:**
+
+```bash
+curl -X POST https://auth.example.com/oauth2/introspect \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Active token response:**
+
+```json
+{
+  "active": true,
+  "sub": "user-uuid",
+  "username": "alice",
+  "exp": 1700000000,
+  "iat": 1699999100,
+  "iss": "https://auth.example.com/oauth2",
+  "aud": "my-client-id"
+}
+```
+
+**Inactive/expired token response:**
+
+```json
+{
+  "active": false
+}
+```
+
+The introspection endpoint is protected by the admin bearer token (`Authorization: Bearer $ADMIN_TOKEN`).
+
+## Token revocation (RFC 7009)
+
+The revocation endpoint invalidates a token immediately.
+
+```
+POST /oauth2/revoke
+```
+
+**Request:**
+
+```bash
+curl -X POST https://auth.example.com/oauth2/revoke \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d "client_id=my-client-id"
+```
+
+Both access tokens and refresh tokens can be revoked. Revoking a refresh token prevents it from being used to obtain new tokens. Revoking an access token marks it as inactive for introspection — it will also fail JWT signature validation at the resource server if the server checks expiry.
+
+**Response:** `200 OK` with an empty body (per RFC 7009 — revocation always returns 200 even if the token was already invalid).
+
+## Implicit revocation
+
+Tokens are also revoked implicitly:
+- When the user logs out (`GET /oauth2/logout`)
+- When an admin deactivates a session via the Admin UI or API
+- When the background cleanup job removes expired records

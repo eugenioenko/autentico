@@ -1,0 +1,50 @@
+---
+title: Per-Client Configuration
+description: Overriding global settings on a per-client basis in Autentico.
+---
+
+Each client can override a subset of global runtime settings. This lets you give different clients different token lifetimes, session policies, and feature flags without changing the global defaults.
+
+See [Per-Client Overrides](/configuration/per-client-overrides/) for the full reference — field names, types, and examples.
+
+## Common use cases
+
+**Long-lived tokens for a mobile app:**
+
+Mobile apps can tolerate longer refresh token windows since they run in a trusted context.
+
+```json
+{
+  "client_name": "My Mobile App",
+  "refresh_token_expiration": "8760h"
+}
+```
+
+**Stricter session idle timeout for a banking app:**
+
+```json
+{
+  "client_name": "Banking Portal",
+  "sso_session_idle_timeout": "15m"
+}
+```
+
+**Trusted devices disabled for a high-security client:**
+
+```json
+{
+  "client_name": "Admin Console",
+  "trust_device_enabled": false
+}
+```
+
+**Self-signup enabled only for one client:**
+
+If global `allow_self_signup` is `false`, you can enable it just for a specific client:
+
+```json
+{
+  "client_name": "Community Forum",
+  "allow_self_signup": true
+}
+```

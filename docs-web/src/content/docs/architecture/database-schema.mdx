@@ -1,0 +1,163 @@
+---
+title: Database Schema
+description: The SQLite database schema used by Autentico.
+---
+
+Autentico uses a single SQLite database file. All tables are created on startup if they don't exist. Schema migrations are applied automatically via `ALTER TABLE … ADD COLUMN` (idempotent).
+
+## Tables
+
+### `users`
+
+Stores all user accounts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | UUID — the `sub` claim in tokens |
+| `username` | TEXT UNIQUE | Login name |
+| `email` | TEXT UNIQUE | Optional; enforced unique if set |
+| `password` | TEXT | bcrypt hash |
+| `role` | TEXT | `user` or `admin` |
+| `totp_secret` | TEXT | base32-encoded TOTP shared secret |
+| `totp_verified` | BOOLEAN | Whether enrollment is complete |
+| `failed_login_attempts` | INTEGER | Resets on successful login |
+| `locked_until` | DATETIME | NULL = not locked |
+| `is_email_verified` | BOOLEAN | |
+| `deactivated_at` | DATETIME | NULL = active |
+| `created_at` | DATETIME | |
+
+### `clients`
+
+Registered OAuth2 clients.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Internal UUID |
+| `client_id` | TEXT UNIQUE | Public identifier |
+| `client_secret` | TEXT | NULL for public clients |
+| `client_name` | TEXT | |
+| `client_type` | TEXT | `confidential` or `public` |
+| `redirect_uris` | TEXT | JSON array |
+| `grant_types` | TEXT | JSON array |
+| `response_types` | TEXT | JSON array |
+| `scopes` | TEXT | Space-separated |
+| `token_endpoint_auth_method` | TEXT | |
+| `is_active` | BOOLEAN | |
+| `access_token_expiration` | TEXT | NULL = use global |
+| `refresh_token_expiration` | TEXT | NULL = use global |
+| `authorization_code_expiration` | TEXT | NULL = use global |
+| `allowed_audiences` | TEXT | JSON array or NULL |
+| `allow_self_signup` | INTEGER | NULL = use global |
+| `sso_session_idle_timeout` | TEXT | NULL = use global |
+| `trust_device_enabled` | INTEGER | NULL = use global |
+| `trust_device_expiration` | TEXT | NULL = use global |
+
+### `tokens`
+
+Issued access and refresh token records.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `user_id` | TEXT FK | → users |
+| `access_token` | TEXT | JWT |
+| `refresh_token` | TEXT | JWT |
+| `access_token_type` | TEXT | `Bearer` |
+| `access_token_expires_at` | DATETIME | |
+| `refresh_token_expires_at` | DATETIME | |
+| `scope` | TEXT | |
+| `grant_type` | TEXT | |
+| `revoked_at` | DATETIME | NULL = not revoked |
+
+### `idp_sessions`
+
+SSO sessions (browser-facing, managed by session cookie).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Stored in browser cookie |
+| `user_id` | TEXT FK | → users |
+| `user_agent` | TEXT | |
+| `ip_address` | TEXT | |
+| `last_activity_at` | DATETIME | Updated on each auto-login |
+| `created_at` | DATETIME | |
+| `deactivated_at` | DATETIME | NULL = active |
+
+### `auth_codes`
+
+Short-lived authorization codes (typically 1-5 min).
+
+| Column | Type | Notes |
+|---|---|---|
+| `code` | TEXT PK | |
+| `user_id` | TEXT FK | → users |
+| `client_id` | TEXT | |
+| `redirect_uri` | TEXT | |
+| `scope` | TEXT | |
+| `nonce` | TEXT | OIDC replay protection |
+| `code_challenge` | TEXT | PKCE |
+| `code_challenge_method` | TEXT | `S256` or `plain` |
+| `expires_at` | DATETIME | |
+| `used` | BOOLEAN | Single-use |
+
+### `mfa_challenges`
+
+Pending MFA challenges (TOTP or email OTP).
+
+| Column | Notes |
+|---|---|
+| `id` | Challenge token — included in redirect URL |
+| `user_id` | |
+| `method` | `totp` or `email` |
+| `code` | OTP code (email OTP only) |
+| `login_state` | JSON blob with OAuth params to resume after MFA |
+| `expires_at` | 5 minutes |
+| `used` | Single-use |
+
+### `trusted_devices`
+
+Trusted device records for MFA bypass.
+
+| Column | Notes |
+|---|---|
+| `id` | Token stored in browser cookie |
+| `user_id` | |
+| `device_name` | User-agent at trust time |
+| `last_used_at` | |
+| `expires_at` | Configurable via `trust_device_expiration` |
+
+### `passkey_challenges`
+
+Pending WebAuthn authentication or registration challenges.
+
+| Column | Notes |
+|---|---|
+| `id` | Challenge ID returned to the browser |
+| `user_id` | |
+| `challenge_data` | JSON `SessionData` from go-webauthn |
+| `type` | `authentication` or `registration` |
+| `login_state` | JSON OAuth params to resume after passkey |
+| `expires_at` | 5 minutes |
+| `used` | Single-use |
+
+### `passkey_credentials`
+
+Registered WebAuthn credentials.
+
+| Column | Notes |
+|---|---|
+| `id` | Credential ID (from WebAuthn) |
+| `user_id` | |
+| `name` | Optional user-visible name |
+| `credential` | JSON blob (full `Credential` from go-webauthn) |
+| `last_used_at` | |
+
+### `settings`
+
+Key-value store for runtime settings.
+
+| Column | Notes |
+|---|---|
+| `key` | Setting name (e.g. `mfa_enabled`) |
+| `value` | String value |
+| `updated_at` | |

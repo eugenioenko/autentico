@@ -1,0 +1,68 @@
+---
+title: Design Decisions
+description: The key architectural choices made in Autentico and the reasoning behind them.
+---
+
+## SQLite as the database
+
+Autentico uses SQLite (via `modernc.org/sqlite` — a pure-Go implementation, no CGo) rather than a separate database server.
+
+**Why:**
+- Zero operational overhead — no database server to deploy, monitor, or back up separately
+- A single file to manage — the entire state of the system is in `autentico.db`
+- SQLite handles concurrent reads well and serializes writes safely
+- For a typical IdP workload (user authentication, not analytics), SQLite scales to tens of thousands of users and hundreds of authentications per second
+- Most OIDC deployments don't need horizontal scaling of the auth server itself — if you do, you're in a different scale class and will need to replace the persistence layer
+
+The tradeoff: you can't run multiple Autentico instances pointing at the same SQLite file. For high-availability setups, use a load balancer with sticky sessions pointing to a single Autentico instance, or migrate to a PostgreSQL backend (not currently implemented).
+
+## RS256 for token signing
+
+Tokens are signed with RSA-SHA256 (asymmetric).
+
+**Why:**
+- Resource servers can verify tokens using only the public key (from `/.well-known/jwks.json`) — they never need access to the private key or to make a network call to Autentico per request
+- OIDC Discovery mandates JWKS exposure; RS256 is the most widely supported algorithm
+- The alternative, HS256 (symmetric), would require sharing the signing secret with every resource server — a credential distribution problem
+
+The RSA key is 4096-bit by default. A new key pair can be generated with `make generate-key`.
+
+## Three-layer configuration
+
+Settings are split across three layers: bootstrap (`.env`), runtime (settings DB), and per-client (clients table).
+
+**Why:**
+- **Bootstrap** settings affect server startup behavior (port, DB path, TLS key path) — these legitimately require a restart to change and are better modeled as environment variables consistent with 12-factor app conventions
+- **Runtime** settings affect behavior that operators need to change without downtime (enabling MFA, adjusting token lifetimes, theming) — storing them in the DB and hot-reloading is the right model
+- **Per-client overrides** allow a single Autentico instance to serve multiple applications with different security policies — a strict banking app can have short session timeouts while a general consumer app has longer ones
+
+The alternative (a single config file or all-env) would require either a restart for every settings change or complex file-watching logic. The DB + hot-reload approach is simpler and more reliable.
+
+## No external dependencies for token issuance
+
+JWT generation and signing are done with the standard library (`crypto/rsa`, `encoding/base64`, `crypto/sha256`) and a minimal JWT library. There's no dependency on a third-party OAuth2 framework.
+
+**Why:**
+- OAuth2 and OIDC are well-defined protocols — implementing them correctly from the spec is straightforward and results in code you own and understand
+- Third-party OAuth2 servers (Keycloak, Hydra) carry significant operational complexity; Autentico's goal is to be the simple alternative
+- Fewer dependencies means fewer supply chain attack surfaces
+
+## Background cleanup goroutine
+
+Expired records (auth codes, MFA challenges, passkey challenges, sessions, tokens, trusted devices) are purged by a background goroutine that runs on a configurable interval.
+
+**Why:**
+- SQLite doesn't have TTL-based auto-expiry
+- Cleanup in-band with requests (on read) would add latency and complexity to the hot path
+- A separate goroutine running every N minutes is simple, observable (logs its work), and keeps the database from growing unboundedly
+
+The interval and retention window are configurable via `cleanup_interval` and `cleanup_retention` settings.
+
+## Embedded Admin UI and Swagger docs
+
+The React admin UI and Swagger docs are embedded in the Go binary using `//go:embed`.
+
+**Why:**
+- Single binary deployment — no need to separately deploy or serve static files
+- The binary is self-contained and versioned as a unit
+- The tradeoff is a larger binary size, which is acceptable for an IdP that runs as a long-lived process

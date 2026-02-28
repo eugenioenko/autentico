@@ -1,0 +1,23 @@
+---
+title: Dashboard
+description: The Autentico Admin UI dashboard — summary statistics at a glance.
+---
+
+The dashboard is the landing page of the Admin UI. It shows a high-level overview of the Autentico instance:
+
+- **Total users** — count of all registered user accounts
+- **Total clients** — count of registered OAuth2 clients
+- **Active sessions** — count of currently active SSO sessions
+
+These counts are fetched from `GET /admin/api/stats` and update on each page load.
+
+{/* TODO: add screenshot of dashboard */}
+
+## Navigation
+
+Use the left sidebar to navigate to the detailed management sections:
+
+- **Users** — full user list with search and actions
+- **Clients** — client registry
+- **Sessions** — live session view
+- **Settings** — runtime configuration editor

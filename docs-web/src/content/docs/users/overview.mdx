@@ -1,0 +1,24 @@
+---
+title: Users Overview
+description: User management in Autentico — the user model, roles, and lifecycle.
+---
+
+Users are the accounts that authenticate through Autentico. Each user has a username, an optional email, a bcrypt-hashed password, and associated MFA state.
+
+## User sections
+
+- [User Model](/users/user-model/) — the fields that make up a user record
+- [Managing Users](/users/managing-users/) — creating, updating, and deactivating users via the Admin UI and API
+- [Self-Signup](/users/self-signup/) — allowing users to register themselves
+- [Account Lockout](/users/account-lockout/) — automatic lockout after failed login attempts
+
+## Roles
+
+Autentico supports two roles:
+
+| Role | Capabilities |
+|---|---|
+| `user` | Standard user — can authenticate, manage their own passkeys and trusted devices |
+| `admin` | Can access the admin API and admin UI |
+
+Roles are assigned at user creation or updated by an admin. The role is not included in tokens by default — it is an internal Autentico concept for access control to the admin API.

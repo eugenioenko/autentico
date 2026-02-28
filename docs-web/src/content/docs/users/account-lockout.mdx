@@ -1,0 +1,56 @@
+---
+title: Account Lockout
+description: How Autentico automatically locks accounts after repeated failed login attempts.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico tracks consecutive failed login attempts and locks the account temporarily after a configurable threshold. This limits the effectiveness of brute-force and credential stuffing attacks.
+
+## How it works
+
+1. Each failed password attempt increments `failed_login_attempts` on the user record
+2. When `failed_login_attempts` reaches `lockout_max_attempts`, the account is locked by setting `locked_until = now + lockout_duration`
+3. Login attempts while the account is locked return an error immediately (no password check)
+4. The counter resets to `0` on a successful login
+
+## Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| `lockout_max_attempts` | `5` | Number of consecutive failures before lockout |
+| `lockout_duration` | `15m` | How long the account stays locked |
+
+Update via Admin UI (Settings) or API:
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"lockout_max_attempts": "10", "lockout_duration": "30m"}'
+```
+
+## Unlocking accounts
+
+Locked accounts unlock automatically when `locked_until` passes. To unlock immediately:
+
+**Admin UI**: Users → (user) → Unlock
+
+**API**:
+
+```bash
+curl -X POST https://auth.example.com/admin/api/users/unlock \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "USER_ID"}'
+```
+
+Unlocking resets `failed_login_attempts` to `0` and clears `locked_until`.
+
+## ROPC grant
+
+Account lockout applies to ROPC (Resource Owner Password Credentials) token requests as well as browser-based logins.
+
+<Aside type="tip">
+If users frequently lock themselves out, consider increasing `lockout_max_attempts` rather than disabling the feature. A threshold of 5-10 is a reasonable starting point for most applications.
+</Aside>

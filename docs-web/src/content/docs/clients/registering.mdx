@@ -1,0 +1,89 @@
+---
+title: Registering a Client
+description: How to register an OAuth2 client in Autentico via the Admin UI or API.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Via Admin UI
+
+Go to **Admin UI → Clients → New Client**. Fill in:
+
+- **Client name**: human-readable label
+- **Redirect URIs**: the exact callback URLs your app will use (no wildcards)
+- **Client type**: `confidential` or `public`
+- **Grant types**: the OAuth2 flows your app uses
+- **Scopes**: optional — defaults to `openid profile email`
+
+The UI generates `client_id` and `client_secret` (for confidential clients) automatically.
+
+## Via API
+
+<Tabs>
+<TabItem label="Public client (SPA/mobile)">
+
+```bash
+curl -X POST https://auth.example.com/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "My SPA",
+    "redirect_uris": ["https://app.example.com/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "client_type": "public",
+    "token_endpoint_auth_method": "none"
+  }'
+```
+
+</TabItem>
+<TabItem label="Confidential client (server-side)">
+
+```bash
+curl -X POST https://auth.example.com/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "My Server App",
+    "redirect_uris": ["https://app.example.com/auth/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "client_type": "confidential",
+    "token_endpoint_auth_method": "client_secret_basic"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+**Response:**
+
+```json
+{
+  "client_id": "a1b2c3d4-...",
+  "client_secret": "sk_live_...",
+  "client_secret_expires_at": 0,
+  "client_name": "My Server App",
+  "client_type": "confidential",
+  "redirect_uris": ["https://app.example.com/auth/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "client_secret_basic"
+}
+```
+
+Store the `client_secret` immediately — it is only returned once at registration time.
+
+## Request fields
+
+| Field | Required | Description |
+|---|---|---|
+| `client_name` | Yes | Human-readable name, shown in Admin UI |
+| `redirect_uris` | Yes | Array of allowed redirect URIs (max 10) |
+| `client_type` | No | `confidential` or `public` (default: `confidential`) |
+| `grant_types` | No | Array: `authorization_code`, `refresh_token`, `password`, `client_credentials` |
+| `response_types` | No | Array: `code`, `token`, `id_token` |
+| `scopes` | No | Space-separated string; defaults to `openid profile email` |
+| `token_endpoint_auth_method` | No | `client_secret_basic`, `client_secret_post`, or `none` |
+| `client_id` | No | Custom client ID; auto-generated if omitted |
+| Per-client overrides | No | See [Per-Client Overrides](/configuration/per-client-overrides/) |

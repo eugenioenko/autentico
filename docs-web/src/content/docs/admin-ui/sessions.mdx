@@ -1,0 +1,35 @@
+---
+title: Sessions
+description: Viewing and revoking active SSO sessions from the Autentico Admin UI.
+---
+
+The Sessions section lists all SSO sessions — both active and recently expired.
+
+{/* TODO: add screenshot of sessions list */}
+
+## Session list
+
+Each session entry shows:
+
+| Field | Description |
+|---|---|
+| User | Username of the authenticated user |
+| IP address | Client IP at login time |
+| User agent | Browser/client user-agent string |
+| Status | `active`, `expired`, or `deactivated` |
+| Created at | When the session was established |
+| Last activity | Most recent authorization request on this session |
+| Expires at | Absolute session expiry |
+
+## Revoking sessions
+
+Click a session and select **Revoke** to immediately deactivate it. The user's next request will require re-authentication.
+
+This is useful for:
+- Forcing a specific user to re-authenticate (e.g. after a password reset)
+- Responding to a suspected account compromise
+- Clearing stale sessions for a user
+
+## Cleanup
+
+Expired and deactivated sessions are removed automatically by the background cleanup job. See [Architecture → Design Decisions](/architecture/design-decisions/) for details on the cleanup interval.

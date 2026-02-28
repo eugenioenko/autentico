@@ -1,0 +1,77 @@
+---
+title: Binary Deployment
+description: Running Autentico as a standalone binary on Linux or macOS.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+The binary is the simplest deployment option — a single executable with no runtime dependencies. Suitable for VMs, bare metal, or any environment where containers aren't preferred.
+
+## Basic setup
+
+<Steps>
+1. Download and install the binary. See [Installation](/getting-started/installation/).
+
+2. Create a `.env` file with your [Bootstrap Settings](/configuration/bootstrap/):
+   ```bash
+   AUTENTICO_APP_URL=https://auth.example.com
+   AUTENTICO_DB_FILE_PATH=/var/lib/autentico/autentico.db
+   AUTENTICO_COOKIE_SECRET=<random-32+-char-string>
+   AUTENTICO_ADMIN_TOKEN=<secure-admin-token>
+   ```
+
+3. Start Autentico:
+   ```bash
+   autentico start
+   ```
+   The server reads its `.env` from the current directory, or from the path in `AUTENTICO_ENV_FILE`.
+</Steps>
+
+## Running as a systemd service
+
+Create `/etc/systemd/system/autentico.service`:
+
+```ini
+[Unit]
+Description=Autentico OIDC Identity Provider
+After=network.target
+
+[Service]
+Type=simple
+User=autentico
+WorkingDirectory=/opt/autentico
+ExecStart=/usr/local/bin/autentico start
+EnvironmentFile=/opt/autentico/.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now autentico
+sudo systemctl status autentico
+```
+
+## Data directory
+
+Autentico writes two persistent files:
+
+| File | Purpose |
+|---|---|
+| `autentico.db` (path from `AUTENTICO_DB_FILE_PATH`) | SQLite database — all users, clients, sessions, settings |
+| `private_key.pem` (path from `AUTENTICO_PRIVATE_KEY_PATH`) | RSA private key for JWT signing |
+
+Back these up. The SQLite database is a single file and can be copied while the server is idle, or use `sqlite3 .backup` for a hot backup.
+
+<Aside type="caution">
+Never expose the SQLite database file or `private_key.pem` to the public internet. Keep them on a volume accessible only by the `autentico` user.
+</Aside>
+
+## Reverse proxy
+
+Autentico listens on HTTP — put it behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik) before exposing it to the internet. See [Reverse Proxy](/deployment/reverse-proxy/).

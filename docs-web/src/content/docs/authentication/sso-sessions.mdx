@@ -1,0 +1,56 @@
+---
+title: SSO Sessions
+description: How Autentico maintains SSO sessions so users don't have to log in for every authorization request.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico maintains SSO sessions so that once a user authenticates, subsequent authorization requests from any registered client are served without re-prompting for credentials — standard single sign-on behavior.
+
+## How SSO sessions work
+
+When a user logs in successfully, Autentico creates a session record and stores a session cookie in the browser. The cookie is scoped to the Autentico domain.
+
+On a new authorization request:
+
+1. Autentico reads the session cookie
+2. Looks up the session record in the database
+3. Checks whether the session is still active and within the idle timeout window
+4. If valid: issues an authorization code without showing the login page
+5. If expired or missing: presents the login page
+
+## Session lifetime and idle timeout
+
+Sessions have two separate lifetime controls:
+
+| Setting | Default | Description |
+|---|---|---|
+| `sso_session_max_age` | `720h` | Absolute maximum session duration — the session expires after this regardless of activity |
+| `sso_session_idle_timeout` | `168h` | If the user has no activity for this long, the session expires |
+
+Both use Go duration format: `24h`, `168h`, `720h`, etc.
+
+The idle timeout can be overridden per-client, so different clients can have stricter session requirements. See [Per-Client Overrides](/configuration/per-client-overrides/).
+
+## Session storage
+
+Sessions are stored in the `sessions` table with the following fields:
+
+| Field | Description |
+|---|---|
+| `id` | Opaque session ID, stored in the browser cookie |
+| `user_id` | The authenticated user |
+| `user_agent` | Browser user-agent string |
+| `ip_address` | Client IP at login time |
+| `last_activity_at` | Updated on each authorization request (used for idle timeout) |
+| `created_at` | Session creation time |
+| `expires_at` | Absolute expiry (`created_at` + `sso_session_max_age`) |
+| `deactivated_at` | Set when the session is explicitly logged out |
+
+## Logout
+
+The `GET /oauth2/logout` endpoint deactivates the current SSO session, clears the session cookie, and redirects the user. After logout, the next authorization request will require re-authentication.
+
+<Aside type="tip">
+If a user's session is still active when they visit `/oauth2/authorize`, they are logged in silently. This is what makes SSO work across multiple applications registered with the same Autentico instance.
+</Aside>

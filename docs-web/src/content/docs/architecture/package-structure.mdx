@@ -1,0 +1,70 @@
+---
+title: Package Structure
+description: The Go package layout and code organization in Autentico.
+---
+
+Autentico follows a feature-based package structure. Each package in `pkg/` owns one feature domain.
+
+## Package layout
+
+```
+autentico/
+├── main.go                   Entry point
+├── pkg/
+│   ├── admin/                Dashboard stats handler; Admin UI embedded FS
+│   ├── appsettings/          Settings DB CRUD + hot-reload into config.Values
+│   ├── auth_code/            Authorization code create/read/mark-used
+│   ├── authorize/            GET /oauth2/authorize — renders login page
+│   ├── cleanup/              Background goroutine to purge expired records
+│   ├── client/               OAuth2 client registration, auth, CRUD
+│   ├── config/               Bootstrap (env) + Values (runtime) config structs
+│   ├── db/                   SQLite init, schema, migrations
+│   ├── introspect/           POST /oauth2/introspect
+│   ├── jwtutil/              JWT validation helpers
+│   ├── key/                  RSA key loading, JWK generation
+│   ├── login/                POST /oauth2/login — credential validation, auth code creation
+│   ├── mfa/                  MFA challenge create/validate (TOTP + email OTP)
+│   ├── middleware/            CSRF, CORS, logging, admin auth middleware
+│   ├── model/                Shared response types (ApiResponse, AuthErrorResponse, WellKnown)
+│   ├── onboarding/           First-run admin account creation flow
+│   ├── passkey/              WebAuthn registration and authentication handlers
+│   ├── session/              SSO session create/read/deactivate + admin API
+│   ├── signup/               Self-signup handler
+│   ├── token/                POST /oauth2/token — all grant types, token generation
+│   ├── trusteddevice/        Trusted device create/read/validate
+│   ├── user/                 User CRUD, authentication, lockout
+│   ├── userinfo/             GET /oauth2/userinfo
+│   └── wellknown/            GET /.well-known/openid-configuration, GET /.well-known/jwks.json
+├── view/                     Server-side HTML templates (login, MFA, signup, onboarding)
+├── admin-ui/                 React SPA source (built artifact embedded in admin package)
+├── docs/                     Swagger-generated API documentation
+└── docs-web/                 Starlight documentation site (this site)
+```
+
+## Conventions within each package
+
+Most feature packages follow a consistent file layout:
+
+| File | Purpose |
+|---|---|
+| `model.go` | Data structs, request/response types, validation |
+| `handler.go` | HTTP handlers with Swagger annotations |
+| `create.go` | Database INSERT operations |
+| `read.go` | Database SELECT operations |
+| `update.go` | Database UPDATE operations |
+| `delete.go` | Database DELETE operations |
+| `service.go` | Business logic that doesn't fit CRUD |
+
+## Config package
+
+The `config` package is the source of truth for all configuration at runtime:
+
+- `config.Bootstrap` — immutable values from `.env`, loaded once at startup
+- `config.Values` — mutable runtime settings, loaded from the `settings` DB table
+- `config.Get()` — returns the current `*config.Values`
+- `config.GetBootstrap()` — returns the `*config.Bootstrap`
+- `config.GetForClient(overrides)` — returns a `config.Values` with per-client overrides applied
+
+## Entry point and routing
+
+`pkg/cli/start.go` `RunStart()` initializes the database, loads settings, registers all HTTP routes on `http.NewServeMux()`, starts the cleanup goroutine, and starts the HTTP server.

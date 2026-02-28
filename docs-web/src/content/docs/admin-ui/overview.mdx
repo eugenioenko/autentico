@@ -1,0 +1,26 @@
+---
+title: Admin UI Overview
+description: The Autentico Admin UI — a web interface for managing users, clients, sessions, and settings.
+---
+
+The Admin UI is a React single-page application embedded in the Autentico binary, served at `/admin/`. It authenticates via OAuth2 using the built-in `autentico-admin` client.
+
+## Accessing the Admin UI
+
+Navigate to `https://auth.example.com/admin/` in your browser. On first access after a fresh installation, you are redirected to the onboarding flow to create the initial admin account.
+
+On subsequent visits, the Admin UI redirects you to the Autentico login page, then back to the admin dashboard after successful authentication.
+
+## Sections
+
+| Section | Description |
+|---|---|
+| [Dashboard](/admin-ui/dashboard/) | Summary statistics — user count, client count, active sessions |
+| [Users](/admin-ui/users/) | Create, view, edit, unlock, and delete user accounts |
+| [Clients](/admin-ui/clients/) | Register, configure, and deactivate OAuth2 clients |
+| [Sessions](/admin-ui/sessions/) | View and revoke active SSO sessions |
+| [Settings](/admin-ui/settings/) | Edit all runtime settings in a form interface |
+
+## API Docs
+
+The Admin UI also provides a link to the embedded Swagger UI at `/admin/docs/`, where you can browse and try all admin API endpoints interactively.

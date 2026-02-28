@@ -1,0 +1,92 @@
+---
+title: Reverse Proxy
+description: Configure nginx or Caddy in front of Autentico for TLS termination.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+Autentico listens on plain HTTP. Always deploy it behind a TLS-terminating reverse proxy in production.
+
+<Aside type="caution">
+Set `AUTENTICO_APP_URL` to your public HTTPS URL — not the internal HTTP address. The issuer claim in tokens and the OIDC discovery document are derived from this value.
+</Aside>
+
+<Tabs>
+<TabItem label="Caddy">
+
+Caddy handles TLS automatically via Let's Encrypt:
+
+```
+auth.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+Or with Docker Compose (Autentico on internal network):
+
+```
+auth.example.com {
+    reverse_proxy autentico:8080
+}
+```
+
+</TabItem>
+<TabItem label="nginx">
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name auth.example.com;
+
+    ssl_certificate     /etc/ssl/certs/auth.example.com.crt;
+    ssl_certificate_key /etc/ssl/private/auth.example.com.key;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name auth.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+</TabItem>
+<TabItem label="Traefik">
+
+Label your Docker container:
+
+```yaml
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.autentico.rule=Host(`auth.example.com`)"
+  - "traefik.http.routers.autentico.entrypoints=websecure"
+  - "traefik.http.routers.autentico.tls.certresolver=letsencrypt"
+  - "traefik.http.services.autentico.loadbalancer.server.port=8080"
+```
+
+</TabItem>
+</Tabs>
+
+## CORS
+
+If your relying party SPA needs to call the token endpoint from a browser, enable CORS:
+
+```
+AUTENTICO_ENABLE_CORS=true
+```
+
+This adds permissive CORS headers to all responses. For tighter control, handle CORS at the reverse proxy level instead.
+
+## Headers
+
+The `X-Forwarded-For` and `X-Real-IP` headers are logged with each request. Ensure your proxy sets them so the logs reflect real client IPs rather than the proxy's IP.

@@ -1,0 +1,65 @@
+---
+title: Scopes
+description: The OAuth 2.0 scopes supported by Autentico and the claims they add to tokens.
+---
+
+Scopes control which claims are included in the ID token and returned from the UserInfo endpoint. Autentico supports the standard OIDC core scopes.
+
+## Supported scopes
+
+| Scope | Claims included |
+|---|---|
+| `openid` | `sub`, `iss`, `aud`, `exp`, `iat` — required for OIDC; also triggers ID token issuance |
+| `profile` | `name` (same as username) |
+| `email` | `email`, `email_verified` |
+
+Always request `openid` to get an ID token. Add `profile` and `email` to include those claims.
+
+## Requesting scopes
+
+Pass scopes as a space-separated string in the authorization request:
+
+```
+GET /oauth2/authorize?
+  response_type=code&
+  client_id=my-client&
+  redirect_uri=https://app.example.com/callback&
+  scope=openid+profile+email&
+  code_challenge=...&
+  code_challenge_method=S256
+```
+
+The scopes are recorded on the authorization code and propagated to the token response.
+
+## Claims in tokens
+
+**ID token** example with all scopes:
+
+```json
+{
+  "iss": "https://auth.example.com/oauth2",
+  "sub": "a3f4e5b6-...",
+  "aud": "my-client-id",
+  "exp": 1700000000,
+  "iat": 1699999100,
+  "sid": "session-id",
+  "name": "alice",
+  "email": "alice@example.com",
+  "email_verified": true
+}
+```
+
+**UserInfo response** for an access token with `profile email` scope:
+
+```json
+{
+  "sub": "a3f4e5b6-...",
+  "name": "alice",
+  "email": "alice@example.com",
+  "email_verified": true
+}
+```
+
+## Default scopes for clients
+
+When registering a client, set its allowed scopes via the `scopes` field. If omitted, the client defaults to `openid profile email`. The authorization request can request any subset of the client's allowed scopes.
