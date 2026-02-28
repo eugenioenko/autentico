@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.4
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Install admin UI dependencies
+        run: cd admin-ui && pnpm install --frozen-lockfile
+
+      - name: Build admin UI + swagger docs
+        run: |
+          swag init
+          npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
+          cd admin-ui && pnpm run build && cd ..
+          rm -rf pkg/admin/dist
+          cp -r admin-ui/dist pkg/admin/dist
+          cp docs/index.html pkg/admin/dist/docs.html
+
+      - name: Build binaries
+        run: |
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o autentico-linux-amd64   main.go
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o autentico-linux-arm64   main.go
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o autentico-darwin-amd64  main.go
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o autentico-darwin-arm64  main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o autentico-windows-amd64.exe main.go
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o provisioner-linux-amd64   ./provisioner/main.go
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o provisioner-linux-arm64   ./provisioner/main.go
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            autentico-linux-amd64
+            autentico-linux-arm64
+            autentico-darwin-amd64
+            autentico-darwin-arm64
+            autentico-windows-amd64.exe
+            provisioner-linux-amd64
+            provisioner-linux-arm64

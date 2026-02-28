@@ -1,0 +1,8 @@
+admin-ui/node_modules
+admin-ui/dist
+autentico
+db/autentico.db
+debug-ui
+coverage.out
+.git
+.env
