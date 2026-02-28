@@ -25,7 +25,7 @@ func TestGenerateTokens(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	tokens, err := GenerateTokens(testUser)
+	tokens, err := GenerateTokens(testUser, "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokens.AccessToken)
 	assert.NotEmpty(t, tokens.RefreshToken)

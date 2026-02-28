@@ -14,7 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
-func GenerateTokens(user user.User) (*AuthToken, error) {
+func GenerateTokens(user user.User, clientID string) (*AuthToken, error) {
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()
@@ -28,12 +28,9 @@ func GenerateTokens(user user.User) (*AuthToken, error) {
 		"aud":       config.Get().AuthAccessTokenAudience,
 		"sub":       user.ID,
 		"typ":       "Bearer",
-		"azp":       config.Get().AuthDefaultClientID,
+		"azp":       firstNonEmpty(clientID, config.Get().AuthDefaultClientID),
 		"sid":       sessionID,
 		"acr":       "password",
-		"realm_access": map[string]interface{}{
-			"roles": config.Get().AuthRealmAccessRoles,
-		},
 		"scope":              "openid profile email",
 		"email_verified":     false,
 		"name":               user.Username,
@@ -131,6 +128,15 @@ func containsScope(scopeStr string, target string) bool {
 		}
 	}
 	return false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {

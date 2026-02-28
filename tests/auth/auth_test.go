@@ -75,7 +75,7 @@ func TestRevokeToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
-	authToken, _ := token.GenerateTokens(*authUser)
+	authToken, _ := token.GenerateTokens(*authUser, "")
 	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
@@ -146,7 +146,7 @@ func TestLogoutEndpoint(t *testing.T) {
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
 
-	authToken, _ := token.GenerateTokens(*authUser)
+	authToken, _ := token.GenerateTokens(*authUser, "")
 	_ = token.CreateToken(token.Token{
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
