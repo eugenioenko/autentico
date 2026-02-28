@@ -1,5 +1,16 @@
 import { useEffect } from "react";
-import { Drawer, Form, Input, Select, Button, Space, message } from "antd";
+import {
+  Drawer,
+  Form,
+  Input,
+  Select,
+  Button,
+  Space,
+  message,
+  Divider,
+  Collapse,
+  Switch,
+} from "antd";
 import { PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { useUpdateClient } from "../../hooks/useClients";
 import type {
@@ -49,6 +60,14 @@ export default function ClientEditForm({
         response_types: client.response_types,
         scopes: client.scopes,
         token_endpoint_auth_method: client.token_endpoint_auth_method,
+        access_token_expiration: client.access_token_expiration,
+        refresh_token_expiration: client.refresh_token_expiration,
+        authorization_code_expiration: client.authorization_code_expiration,
+        allowed_audiences: client.allowed_audiences,
+        allow_self_signup: client.allow_self_signup,
+        sso_session_idle_timeout: client.sso_session_idle_timeout,
+        trust_device_enabled: client.trust_device_enabled,
+        trust_device_expiration: client.trust_device_expiration,
       });
     }
   }, [client, open, form]);
@@ -93,6 +112,13 @@ export default function ClientEditForm({
           rules={[{ required: true, message: "Client name is required" }]}
         >
           <Input />
+        </Form.Item>
+
+        <Form.Item
+          label="Client ID"
+          extra="Client ID cannot be changed after creation."
+        >
+          <Input value={client?.client_id} disabled />
         </Form.Item>
 
         <Form.List name="redirect_uris">
@@ -157,6 +183,82 @@ export default function ClientEditForm({
         >
           <Select options={AUTH_METHOD_OPTIONS} />
         </Form.Item>
+
+        <Divider />
+
+        <Collapse
+          ghost
+          items={[
+            {
+              key: "overrides",
+              label: "Configuration Overrides (Optional)",
+              children: (
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Form.Item
+                    label="Access Token Expiration"
+                    name="access_token_expiration"
+                    extra="Example: 15m, 1h. Leave empty to use global default."
+                  >
+                    <Input placeholder="Global default" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Refresh Token Expiration"
+                    name="refresh_token_expiration"
+                    extra="Example: 720h. Leave empty to use global default."
+                  >
+                    <Input placeholder="Global default" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Auth Code Expiration"
+                    name="authorization_code_expiration"
+                  >
+                    <Input placeholder="Global default (e.g. 10m)" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Allowed Audiences"
+                    name="allowed_audiences"
+                    extra="Specific audiences for tokens issued to this client."
+                  >
+                    <Select mode="tags" placeholder="Add audiences..." />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Allow Self Signup"
+                    name="allow_self_signup"
+                    valuePropName="checked"
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="SSO Session Idle Timeout"
+                    name="sso_session_idle_timeout"
+                  >
+                    <Input placeholder="Global default (e.g. 30m)" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Trust Device Enabled"
+                    name="trust_device_enabled"
+                    valuePropName="checked"
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Trust Device Expiration"
+                    name="trust_device_expiration"
+                  >
+                    <Input placeholder="Global default (e.g. 720h)" />
+                  </Form.Item>
+                </Space>
+              ),
+            },
+          ]}
+        />
       </Form>
     </Drawer>
   );

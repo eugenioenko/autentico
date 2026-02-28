@@ -63,8 +63,7 @@ func handleGetSettings(w http.ResponseWriter, _ *http.Request) {
 	delete(all, "private_key")
 	delete(all, "smtp_password")
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(all)
+	utils.SuccessResponse(w, all, http.StatusOK)
 }
 
 func handlePutSettings(w http.ResponseWriter, r *http.Request) {

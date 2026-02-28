@@ -7,17 +7,23 @@ export type UserResponse = components["schemas"]["user.UserResponse"];
 
 // Not yet in swagger spec — defined manually to match Go UserUpdateRequest
 export interface UserUpdateRequest {
+  username?: string;
+  password?: string;
   email?: string;
   role?: string;
+  is_email_verified?: boolean;
+  totp_verified?: boolean;
 }
 
 // Extended response fields not in swagger spec
 export interface UserResponseExt {
-  id?: string;
-  username?: string;
-  email?: string;
-  created_at?: string;
-  role?: string;
-  failed_login_attempts?: number;
-  locked_until?: string | null;
+  id: string;
+  username: string;
+  email: string;
+  created_at: string;
+  role: string;
+  failed_login_attempts: number;
+  locked_until: string | null;
+  is_email_verified: boolean;
+  totp_verified: boolean;
 }

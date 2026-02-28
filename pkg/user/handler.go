@@ -116,7 +116,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	err = UpdateUser(id, req.Email, req.Role)
+	err = UpdateUser(id, req)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return

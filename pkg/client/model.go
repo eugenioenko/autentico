@@ -37,6 +37,7 @@ type Client struct {
 
 // ClientCreateRequest represents the request body for client registration
 type ClientCreateRequest struct {
+	ClientID                string   `json:"client_id,omitempty"`
 	ClientName              string   `json:"client_name"`
 	RedirectURIs            []string `json:"redirect_uris"`
 	GrantTypes              []string `json:"grant_types,omitempty"`
@@ -44,6 +45,15 @@ type ClientCreateRequest struct {
 	ClientType              string   `json:"client_type,omitempty"`
 	Scopes                  string   `json:"scopes,omitempty"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+	// Per-client overrides
+	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
+	RefreshTokenExpiration      *string  `json:"refresh_token_expiration,omitempty"`
+	AuthorizationCodeExpiration *string  `json:"authorization_code_expiration,omitempty"`
+	AllowedAudiences            []string `json:"allowed_audiences,omitempty"`
+	AllowSelfSignup             *bool    `json:"allow_self_signup,omitempty"`
+	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
+	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
+	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 }
 
 // ClientUpdateRequest represents the request body for updating a client
@@ -55,6 +65,15 @@ type ClientUpdateRequest struct {
 	Scopes                  string   `json:"scopes,omitempty"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
 	IsActive                *bool    `json:"is_active,omitempty"`
+	// Per-client overrides
+	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
+	RefreshTokenExpiration      *string  `json:"refresh_token_expiration,omitempty"`
+	AuthorizationCodeExpiration *string  `json:"authorization_code_expiration,omitempty"`
+	AllowedAudiences            []string `json:"allowed_audiences,omitempty"`
+	AllowSelfSignup             *bool    `json:"allow_self_signup,omitempty"`
+	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
+	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
+	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 }
 
 // ClientResponse represents the response for client operations
@@ -82,6 +101,15 @@ type ClientInfoResponse struct {
 	Scopes                  string   `json:"scopes"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
 	IsActive                bool     `json:"is_active"`
+	// Per-client overrides
+	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
+	RefreshTokenExpiration      *string  `json:"refresh_token_expiration,omitempty"`
+	AuthorizationCodeExpiration *string  `json:"authorization_code_expiration,omitempty"`
+	AllowedAudiences            []string `json:"allowed_audiences,omitempty"`
+	AllowSelfSignup             *bool    `json:"allow_self_signup,omitempty"`
+	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
+	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
+	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 }
 
 // GetRedirectURIs parses and returns the redirect URIs as a slice
@@ -107,7 +135,7 @@ func (c *Client) GetResponseTypes() []string {
 
 // ToInfoResponse converts a Client to a ClientInfoResponse
 func (c *Client) ToInfoResponse() *ClientInfoResponse {
-	return &ClientInfoResponse{
+	resp := &ClientInfoResponse{
 		ClientID:                c.ClientID,
 		ClientName:              c.ClientName,
 		ClientType:              c.ClientType,
@@ -117,7 +145,21 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		Scopes:                  c.Scopes,
 		TokenEndpointAuthMethod: c.TokenEndpointAuthMethod,
 		IsActive:                c.IsActive,
+		AccessTokenExpiration:       c.AccessTokenExpiration,
+		RefreshTokenExpiration:      c.RefreshTokenExpiration,
+		AuthorizationCodeExpiration: c.AuthorizationCodeExpiration,
+		AllowSelfSignup:             c.AllowSelfSignup,
+		SsoSessionIdleTimeout:       c.SsoSessionIdleTimeout,
+		TrustDeviceEnabled:          c.TrustDeviceEnabled,
+		TrustDeviceExpiration:       c.TrustDeviceExpiration,
 	}
+	if c.AllowedAudiences != nil {
+		var aud []string
+		if err := json.Unmarshal([]byte(*c.AllowedAudiences), &aud); err == nil {
+			resp.AllowedAudiences = aud
+		}
+	}
+	return resp
 }
 
 // ToOverrides converts the nullable client override fields into a config.ClientOverrides

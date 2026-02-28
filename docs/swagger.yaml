@@ -15,6 +15,19 @@ definitions:
     type: object
   client.ClientCreateRequest:
     properties:
+      access_token_expiration:
+        description: Per-client overrides
+        type: string
+      allow_self_signup:
+        type: boolean
+      allowed_audiences:
+        items:
+          type: string
+        type: array
+      authorization_code_expiration:
+        type: string
+      client_id:
+        type: string
       client_name:
         type: string
       client_type:
@@ -27,17 +40,36 @@ definitions:
         items:
           type: string
         type: array
+      refresh_token_expiration:
+        type: string
       response_types:
         items:
           type: string
         type: array
       scopes:
         type: string
+      sso_session_idle_timeout:
+        type: string
       token_endpoint_auth_method:
+        type: string
+      trust_device_enabled:
+        type: boolean
+      trust_device_expiration:
         type: string
     type: object
   client.ClientInfoResponse:
     properties:
+      access_token_expiration:
+        description: Per-client overrides
+        type: string
+      allow_self_signup:
+        type: boolean
+      allowed_audiences:
+        items:
+          type: string
+        type: array
+      authorization_code_expiration:
+        type: string
       client_id:
         type: string
       client_name:
@@ -54,13 +86,21 @@ definitions:
         items:
           type: string
         type: array
+      refresh_token_expiration:
+        type: string
       response_types:
         items:
           type: string
         type: array
       scopes:
         type: string
+      sso_session_idle_timeout:
+        type: string
       token_endpoint_auth_method:
+        type: string
+      trust_device_enabled:
+        type: boolean
+      trust_device_expiration:
         type: string
     type: object
   client.ClientResponse:
@@ -94,6 +134,17 @@ definitions:
     type: object
   client.ClientUpdateRequest:
     properties:
+      access_token_expiration:
+        description: Per-client overrides
+        type: string
+      allow_self_signup:
+        type: boolean
+      allowed_audiences:
+        items:
+          type: string
+        type: array
+      authorization_code_expiration:
+        type: string
       client_name:
         type: string
       grant_types:
@@ -106,13 +157,21 @@ definitions:
         items:
           type: string
         type: array
+      refresh_token_expiration:
+        type: string
       response_types:
         items:
           type: string
         type: array
       scopes:
         type: string
+      sso_session_idle_timeout:
+        type: string
       token_endpoint_auth_method:
+        type: string
+      trust_device_enabled:
+        type: boolean
+      trust_device_expiration:
         type: string
     type: object
   introspect.IntrospectRequest:
@@ -305,10 +364,14 @@ definitions:
         type: integer
       id:
         type: string
+      is_email_verified:
+        type: boolean
       locked_until:
         type: string
       role:
         type: string
+      totp_verified:
+        type: boolean
       username:
         type: string
     type: object

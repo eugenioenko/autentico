@@ -55,7 +55,7 @@ func TestHandleUserAdminEndpoint(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	adminUser, _ := CreateUser("admin", "pass123", "admin@example.com")
-	_ = UpdateUser(adminUser.ID, adminUser.Email, "admin")
+	_ = UpdateUser(adminUser.ID, UserUpdateRequest{Email: adminUser.Email, Role: "admin"})
 	token, _ := generateTestAdminToken(adminUser.ID)
 
 	_, _ = CreateUser("user1", "pass123", "user1@example.com")
@@ -112,7 +112,7 @@ func TestHandleUserAdminEndpoint(t *testing.T) {
 func TestHandleUnlockUser(t *testing.T) {
 	testutils.WithTestDB(t)
 	adminUser, _ := CreateUser("admin", "pass123", "admin@example.com")
-	_ = UpdateUser(adminUser.ID, adminUser.Email, "admin")
+	_ = UpdateUser(adminUser.ID, UserUpdateRequest{Email: adminUser.Email, Role: "admin"})
 	token, _ := generateTestAdminToken(adminUser.ID)
 
 	u, _ := CreateUser("lockeduser", "pass123", "locked@example.com")

@@ -48,9 +48,13 @@ func CreateClientWithID(clientID string, request ClientCreateRequest) error {
 func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
 	id := xid.New().String()
 
-	clientID, err := GenerateClientID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate client ID: %w", err)
+	clientID := request.ClientID
+	if clientID == "" {
+		var err error
+		clientID, err = GenerateClientID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate client ID: %w", err)
+		}
 	}
 
 	// Set defaults
@@ -87,6 +91,7 @@ func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
 	var plainSecret string
 	var hashedSecret *string
 	if clientType == "confidential" {
+		var err error
 		plainSecret, err = GenerateClientSecret()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate client secret: %w", err)
@@ -115,12 +120,22 @@ func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
 		return nil, fmt.Errorf("failed to serialize response types: %w", err)
 	}
 
+	var allowedAudJSON *string
+	if request.AllowedAudiences != nil {
+		aud, _ := json.Marshal(request.AllowedAudiences)
+		audStr := string(aud)
+		allowedAudJSON = &audStr
+	}
+
 	query := `
 		INSERT INTO clients (
 			id, client_id, client_secret, client_name, client_type,
 			redirect_uris, grant_types, response_types, scopes,
-			token_endpoint_auth_method, is_active, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			token_endpoint_auth_method, is_active, created_at, updated_at,
+			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
+			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
+			trust_device_enabled, trust_device_expiration
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	now := time.Now().UTC()
@@ -138,6 +153,14 @@ func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
 		true,
 		now,
 		now,
+		request.AccessTokenExpiration,
+		request.RefreshTokenExpiration,
+		request.AuthorizationCodeExpiration,
+		allowedAudJSON,
+		request.AllowSelfSignup,
+		request.SsoSessionIdleTimeout,
+		request.TrustDeviceEnabled,
+		request.TrustDeviceExpiration,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)

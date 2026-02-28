@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ClientsPage from "./pages/ClientsPage";
 import UsersPage from "./pages/UsersPage";
 import SessionsPage from "./pages/SessionsPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="sessions" element={<SessionsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Route>
           </Routes>

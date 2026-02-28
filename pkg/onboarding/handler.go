@@ -119,7 +119,10 @@ func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Grant admin role and mark as onboarded.
-	_ = user.UpdateUser(usr.ID, usr.Email, "admin")
+	_ = user.UpdateUser(usr.ID, user.UserUpdateRequest{
+		Email: usr.Email,
+		Role:  "admin",
+	})
 	_ = appsettings.SetSetting("onboarded", "true")
 	_ = appsettings.LoadIntoConfig()
 

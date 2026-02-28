@@ -27,7 +27,10 @@ func createTestAdmin(t *testing.T, ts *TestServer, username, password, email str
 
 	usr := createTestUser(t, username, password, email)
 
-	err := user.UpdateUser(usr.ID, email, "admin")
+	err := user.UpdateUser(usr.ID, user.UserUpdateRequest{
+		Email: email,
+		Role:  "admin",
+	})
 	require.NoError(t, err, "failed to set admin role")
 	usr.Role = "admin"
 
