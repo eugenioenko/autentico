@@ -9,6 +9,18 @@
 
 ---
 
+## Documentation
+
+Access the full documentation at [docs.autentico.top](https://docs.autentico.top)
+
+## Live Demo
+
+Try Autentico instantly: [Launch a Live Demo](https://demo.autentico.top/launch)
+
+_Each demo session provisions a dedicated, ephemeral Autentico instance—isolated for your use, with all data and configuration automatically purged after 24 hours. No shared state, no persistence, no surprises._
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
@@ -82,17 +94,17 @@
 
 ## Tech Stack
 
-| Layer | Choice | Rationale |
-|---|---|---|
-| Language | Go 1.23 | Single-binary deployment, strong concurrency, type safety |
-| Database | SQLite (`modernc.org/sqlite`) | No CGo, no external server, sufficient for IdP write patterns |
-| JWT Signing | RS256 (RSA 2048) | Asymmetric — relying parties verify without holding secrets |
-| WebAuthn | `go-webauthn/webauthn` | Standards-compliant FIDO2/WebAuthn implementation |
-| TOTP | RFC 6238 compliant | Compatible with Google Authenticator, Authy, 1Password, etc. |
-| CSRF | `gorilla/csrf` | Protects browser-facing form endpoints |
-| Admin UI | React + Ant Design (Vite) | Embedded into the binary via `go:embed` |
-| Testing | Testify + in-memory SQLite | Isolated, fast unit and integration tests |
-| Docs | Swagger/OpenAPI | Interactive API reference |
+| Layer       | Choice                        | Rationale                                                     |
+| ----------- | ----------------------------- | ------------------------------------------------------------- |
+| Language    | Go 1.23                       | Single-binary deployment, strong concurrency, type safety     |
+| Database    | SQLite (`modernc.org/sqlite`) | No CGo, no external server, sufficient for IdP write patterns |
+| JWT Signing | RS256 (RSA 2048)              | Asymmetric — relying parties verify without holding secrets   |
+| WebAuthn    | `go-webauthn/webauthn`        | Standards-compliant FIDO2/WebAuthn implementation             |
+| TOTP        | RFC 6238 compliant            | Compatible with Google Authenticator, Authy, 1Password, etc.  |
+| CSRF        | `gorilla/csrf`                | Protects browser-facing form endpoints                        |
+| Admin UI    | React + Ant Design (Vite)     | Embedded into the binary via `go:embed`                       |
+| Testing     | Testify + in-memory SQLite    | Isolated, fast unit and integration tests                     |
+| Docs        | Swagger/OpenAPI               | Interactive API reference                                     |
 
 ---
 
@@ -102,30 +114,30 @@
 
 Each package in `pkg/` owns a vertical slice of IdP functionality. The convention is consistent: `model.go` for types, `handler.go` for HTTP, `create/read/update/delete.go` for database operations, `service.go` for business logic.
 
-| Package | Role |
-|---|---|
-| `pkg/authorize` | Authorization endpoint — renders login page, validates client and redirect URI |
-| `pkg/login` | Login form submission, credential validation, MFA challenge creation |
-| `pkg/mfa` | MFA challenge verification, TOTP enrollment, email OTP delivery |
-| `pkg/passkey` | WebAuthn registration and authentication ceremony handlers |
-| `pkg/trusteddevice` | Trusted device token issuance and cookie management |
-| `pkg/token` | Token endpoint — authorization code exchange, refresh, revocation |
-| `pkg/session` | OAuth2 session lifecycle and admin session management |
-| `pkg/idpsession` | IdP-level SSO sessions — cross-request browser sessions |
-| `pkg/client` | OAuth2 client registration, CRUD, and authentication |
-| `pkg/user` | User identity management — CRUD, authentication, lockout |
-| `pkg/signup` | Self-service user registration flow |
-| `pkg/onboarding` | First-run admin account creation |
-| `pkg/appsettings` | Runtime settings — DB persistence, loading into config |
-| `pkg/introspect` | Token introspection endpoint |
-| `pkg/userinfo` | UserInfo endpoint |
-| `pkg/wellknown` | OIDC discovery document and JWKS |
-| `pkg/middleware` | CORS, CSRF, logging, admin auth, audience validation |
-| `pkg/cleanup` | Background goroutine for expired record purging |
-| `pkg/admin` | Embedded Admin UI (static files + stats handler) |
-| `pkg/config` | Bootstrap and runtime configuration |
-| `pkg/db` | SQLite initialization, schema, and incremental migrations |
-| `pkg/key` | RSA key loading (env or ephemeral) and JWK Set generation |
+| Package             | Role                                                                           |
+| ------------------- | ------------------------------------------------------------------------------ |
+| `pkg/authorize`     | Authorization endpoint — renders login page, validates client and redirect URI |
+| `pkg/login`         | Login form submission, credential validation, MFA challenge creation           |
+| `pkg/mfa`           | MFA challenge verification, TOTP enrollment, email OTP delivery                |
+| `pkg/passkey`       | WebAuthn registration and authentication ceremony handlers                     |
+| `pkg/trusteddevice` | Trusted device token issuance and cookie management                            |
+| `pkg/token`         | Token endpoint — authorization code exchange, refresh, revocation              |
+| `pkg/session`       | OAuth2 session lifecycle and admin session management                          |
+| `pkg/idpsession`    | IdP-level SSO sessions — cross-request browser sessions                        |
+| `pkg/client`        | OAuth2 client registration, CRUD, and authentication                           |
+| `pkg/user`          | User identity management — CRUD, authentication, lockout                       |
+| `pkg/signup`        | Self-service user registration flow                                            |
+| `pkg/onboarding`    | First-run admin account creation                                               |
+| `pkg/appsettings`   | Runtime settings — DB persistence, loading into config                         |
+| `pkg/introspect`    | Token introspection endpoint                                                   |
+| `pkg/userinfo`      | UserInfo endpoint                                                              |
+| `pkg/wellknown`     | OIDC discovery document and JWKS                                               |
+| `pkg/middleware`    | CORS, CSRF, logging, admin auth, audience validation                           |
+| `pkg/cleanup`       | Background goroutine for expired record purging                                |
+| `pkg/admin`         | Embedded Admin UI (static files + stats handler)                               |
+| `pkg/config`        | Bootstrap and runtime configuration                                            |
+| `pkg/db`            | SQLite initialization, schema, and incremental migrations                      |
+| `pkg/key`           | RSA key loading (env or ephemeral) and JWK Set generation                      |
 
 ### Design Philosophy
 
@@ -140,6 +152,7 @@ SQLite is an intentional architectural choice. For identity workloads at this sc
 When load characteristics genuinely justify migration, the `pkg/db` boundary makes that tractable. Until then, the operational simplicity is worth considerably more than theoretical headroom.
 
 **Observed performance** (2024 M1 MacBook Pro, 16GB RAM):
+
 - Token issuance: ~2,500/sec/core
 - Authorization code validation: < 5ms p99
 - Session lookup: < 2ms p95
@@ -219,20 +232,20 @@ Auténtico uses a three-layer configuration system, ordered from most to least i
 
 These are infrastructure-level settings read once at startup. Changing them requires a server restart. Generated by `autentico init`.
 
-| Variable | Description | Default |
-|---|---|---|
-| `AUTENTICO_APP_URL` | Base URL (used to derive issuer, domain, port) | `http://localhost:9999` |
-| `AUTENTICO_APP_OAUTH_PATH` | Path prefix for OAuth2 endpoints | `/oauth2` |
-| `AUTENTICO_APP_ENABLE_CORS` | Enable CORS middleware | `true` |
-| `AUTENTICO_DB_FILE_PATH` | SQLite database file path | `./db/autentico.db` |
-| `AUTENTICO_PRIVATE_KEY` | Base64-encoded RSA private key PEM | *(generated by init)* |
-| `AUTENTICO_ACCESS_TOKEN_SECRET` | HMAC secret for access token signing | *(generated by init)* |
-| `AUTENTICO_REFRESH_TOKEN_SECRET` | HMAC secret for refresh token signing | *(generated by init)* |
-| `AUTENTICO_CSRF_SECRET_KEY` | Secret for CSRF token generation | *(generated by init)* |
-| `AUTENTICO_CSRF_SECURE_COOKIE` | Require Secure flag on CSRF cookie | `false` |
-| `AUTENTICO_REFRESH_TOKEN_SECURE` | Require Secure flag on refresh token cookie | `false` |
-| `AUTENTICO_IDP_SESSION_SECURE` | Require Secure flag on IdP session cookie | `false` |
-| `AUTENTICO_JWK_CERT_KEY_ID` | Key ID (`kid`) in the JWK Set | `autentico-key-1` |
+| Variable                         | Description                                    | Default                 |
+| -------------------------------- | ---------------------------------------------- | ----------------------- |
+| `AUTENTICO_APP_URL`              | Base URL (used to derive issuer, domain, port) | `http://localhost:9999` |
+| `AUTENTICO_APP_OAUTH_PATH`       | Path prefix for OAuth2 endpoints               | `/oauth2`               |
+| `AUTENTICO_APP_ENABLE_CORS`      | Enable CORS middleware                         | `true`                  |
+| `AUTENTICO_DB_FILE_PATH`         | SQLite database file path                      | `./db/autentico.db`     |
+| `AUTENTICO_PRIVATE_KEY`          | Base64-encoded RSA private key PEM             | _(generated by init)_   |
+| `AUTENTICO_ACCESS_TOKEN_SECRET`  | HMAC secret for access token signing           | _(generated by init)_   |
+| `AUTENTICO_REFRESH_TOKEN_SECRET` | HMAC secret for refresh token signing          | _(generated by init)_   |
+| `AUTENTICO_CSRF_SECRET_KEY`      | Secret for CSRF token generation               | _(generated by init)_   |
+| `AUTENTICO_CSRF_SECURE_COOKIE`   | Require Secure flag on CSRF cookie             | `false`                 |
+| `AUTENTICO_REFRESH_TOKEN_SECURE` | Require Secure flag on refresh token cookie    | `false`                 |
+| `AUTENTICO_IDP_SESSION_SECURE`   | Require Secure flag on IdP session cookie      | `false`                 |
+| `AUTENTICO_JWK_CERT_KEY_ID`      | Key ID (`kid`) in the JWK Set                  | `autentico-key-1`       |
 
 > In production, set all `*_SECURE` flags to `true` once you have TLS.
 
@@ -240,54 +253,54 @@ These are infrastructure-level settings read once at startup. Changing them requ
 
 These live in the `settings` database table and are loaded into memory at startup. They can be updated via the Admin UI or `PUT /admin/api/settings` without restarting the server — changes take effect on the next request.
 
-| Setting Key | Description | Default |
-|---|---|---|
-| `access_token_expiration` | Access token lifetime | `15m` |
-| `refresh_token_expiration` | Refresh token lifetime | `720h` (30 days) |
-| `authorization_code_expiration` | Auth code lifetime | `10m` |
-| `access_token_audience` | JWT `aud` claim (JSON array) | `[]` |
-| `auth_mode` | `password` \| `password_and_passkey` \| `passkey_only` | `password` |
-| `mfa_enabled` | Require MFA for all users | `false` |
-| `mfa_method` | `totp` \| `email` | `totp` |
-| `trust_device_enabled` | Allow users to bypass MFA on trusted devices | `false` |
-| `trust_device_expiration` | Trusted device token lifetime | `720h` (30 days) |
-| `sso_session_idle_timeout` | IdP session idle timeout (`0` = disabled) | `0` |
-| `allow_self_signup` | Allow end users to register their own accounts | `false` |
-| `account_lockout_max_attempts` | Failed logins before account lock | `5` |
-| `account_lockout_duration` | How long the account stays locked | `15m` |
-| `passkey_rp_name` | WebAuthn relying party name shown to users | `Autentico` |
-| `cleanup_interval` | How often expired records are purged | `6h` |
-| `cleanup_retention` | Minimum age for a record to be eligible for cleanup | `24h` |
-| `validation_min_username_length` | Minimum username length | `4` |
-| `validation_max_username_length` | Maximum username length | `64` |
-| `validation_min_password_length` | Minimum password length | `6` |
-| `validation_max_password_length` | Maximum password length | `64` |
-| `validation_username_is_email` | Require username to be a valid email format | `false` |
-| `validation_email_required` | Require email field at registration | `false` |
-| `smtp_host` | SMTP server hostname | *(empty)* |
-| `smtp_port` | SMTP server port | `587` |
-| `smtp_username` | SMTP authentication username | *(empty)* |
-| `smtp_password` | SMTP authentication password | *(empty)* |
-| `smtp_from` | From address for outbound email | *(empty)* |
-| `theme_title` | Page title shown on login/MFA pages | `Autentico` |
-| `theme_logo_url` | URL to a logo image displayed on login page | *(empty)* |
-| `theme_css_inline` | Inline CSS injected into login page `<style>` | *(empty)* |
-| `theme_css_file` | Path to a CSS file loaded at runtime | *(empty)* |
+| Setting Key                      | Description                                            | Default          |
+| -------------------------------- | ------------------------------------------------------ | ---------------- |
+| `access_token_expiration`        | Access token lifetime                                  | `15m`            |
+| `refresh_token_expiration`       | Refresh token lifetime                                 | `720h` (30 days) |
+| `authorization_code_expiration`  | Auth code lifetime                                     | `10m`            |
+| `access_token_audience`          | JWT `aud` claim (JSON array)                           | `[]`             |
+| `auth_mode`                      | `password` \| `password_and_passkey` \| `passkey_only` | `password`       |
+| `mfa_enabled`                    | Require MFA for all users                              | `false`          |
+| `mfa_method`                     | `totp` \| `email`                                      | `totp`           |
+| `trust_device_enabled`           | Allow users to bypass MFA on trusted devices           | `false`          |
+| `trust_device_expiration`        | Trusted device token lifetime                          | `720h` (30 days) |
+| `sso_session_idle_timeout`       | IdP session idle timeout (`0` = disabled)              | `0`              |
+| `allow_self_signup`              | Allow end users to register their own accounts         | `false`          |
+| `account_lockout_max_attempts`   | Failed logins before account lock                      | `5`              |
+| `account_lockout_duration`       | How long the account stays locked                      | `15m`            |
+| `passkey_rp_name`                | WebAuthn relying party name shown to users             | `Autentico`      |
+| `cleanup_interval`               | How often expired records are purged                   | `6h`             |
+| `cleanup_retention`              | Minimum age for a record to be eligible for cleanup    | `24h`            |
+| `validation_min_username_length` | Minimum username length                                | `4`              |
+| `validation_max_username_length` | Maximum username length                                | `64`             |
+| `validation_min_password_length` | Minimum password length                                | `6`              |
+| `validation_max_password_length` | Maximum password length                                | `64`             |
+| `validation_username_is_email`   | Require username to be a valid email format            | `false`          |
+| `validation_email_required`      | Require email field at registration                    | `false`          |
+| `smtp_host`                      | SMTP server hostname                                   | _(empty)_        |
+| `smtp_port`                      | SMTP server port                                       | `587`            |
+| `smtp_username`                  | SMTP authentication username                           | _(empty)_        |
+| `smtp_password`                  | SMTP authentication password                           | _(empty)_        |
+| `smtp_from`                      | From address for outbound email                        | _(empty)_        |
+| `theme_title`                    | Page title shown on login/MFA pages                    | `Autentico`      |
+| `theme_logo_url`                 | URL to a logo image displayed on login page            | _(empty)_        |
+| `theme_css_inline`               | Inline CSS injected into login page `<style>`          | _(empty)_        |
+| `theme_css_file`                 | Path to a CSS file loaded at runtime                   | _(empty)_        |
 
 ### Per-Client Overrides
 
 Each registered client can override a subset of global settings. Unset fields fall through to the global value — there is no need to repeat the default. Overrides are managed via the client registration API or Admin UI.
 
-| Field | Description |
-|---|---|
-| `access_token_expiration` | Token lifetime for this client's tokens |
-| `refresh_token_expiration` | Refresh token lifetime for this client |
-| `authorization_code_expiration` | Auth code TTL |
-| `allowed_audiences` | Additional `aud` values in tokens for this client |
-| `allow_self_signup` | Override self-signup for this client's login page |
-| `sso_session_idle_timeout` | Override idle timeout for sessions originating from this client |
-| `trust_device_enabled` | Enable or disable trusted devices for this client |
-| `trust_device_expiration` | Trust duration for this client's users |
+| Field                           | Description                                                     |
+| ------------------------------- | --------------------------------------------------------------- |
+| `access_token_expiration`       | Token lifetime for this client's tokens                         |
+| `refresh_token_expiration`      | Refresh token lifetime for this client                          |
+| `authorization_code_expiration` | Auth code TTL                                                   |
+| `allowed_audiences`             | Additional `aud` values in tokens for this client               |
+| `allow_self_signup`             | Override self-signup for this client's login page               |
+| `sso_session_idle_timeout`      | Override idle timeout for sessions originating from this client |
+| `trust_device_enabled`          | Enable or disable trusted devices for this client               |
+| `trust_device_expiration`       | Trust duration for this client's users                          |
 
 ---
 
@@ -295,11 +308,11 @@ Each registered client can override a subset of global settings. Unset fields fa
 
 Auténtico's `auth_mode` setting controls which credential types are accepted. It can be changed at runtime.
 
-| Mode | Behavior |
-|---|---|
-| `password` | Standard username + password. MFA is applied on top if `mfa_enabled` is true. |
-| `password_and_passkey` | Users can authenticate with either password or a registered passkey. Password flow optionally includes MFA. |
-| `passkey_only` | Password authentication is disabled. Users authenticate exclusively with passkeys. First-time users are guided through passkey registration during their first login attempt. |
+| Mode                   | Behavior                                                                                                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `password`             | Standard username + password. MFA is applied on top if `mfa_enabled` is true.                                                                                                 |
+| `password_and_passkey` | Users can authenticate with either password or a registered passkey. Password flow optionally includes MFA.                                                                   |
+| `passkey_only`         | Password authentication is disabled. Users authenticate exclusively with passkeys. First-time users are guided through passkey registration during their first login attempt. |
 
 ---
 
@@ -308,12 +321,14 @@ Auténtico's `auth_mode` setting controls which credential types are accepted. I
 When `mfa_enabled` is `true`, all users must complete an MFA step after password authentication.
 
 **TOTP**
+
 - Users who have not yet enrolled are shown a QR code on their next login
 - The QR code can be scanned with any TOTP app (Google Authenticator, Authy, 1Password, Bitwarden, etc.)
 - Once enrolled, TOTP is required on every subsequent login (unless on a trusted device)
 - The secret is stored per-user in the database; enrollment happens in-browser without any email or out-of-band step
 
 **Email OTP**
+
 - A one-time code is generated and emailed to the user on each login
 - Requires SMTP settings (`smtp_host`, `smtp_port`, `smtp_username`, `smtp_password`, `smtp_from`) to be configured
 - No enrollment step — the code is sent immediately
@@ -338,7 +353,9 @@ The login, MFA, and signup pages are server-rendered HTML. The visual appearance
 :root {
   /* Typography */
   --font-size: 16px;
-  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
 
   /* Colors — Light Mode */
   --color-primary: #2e5bff;
@@ -394,10 +411,12 @@ The Admin UI is a React application (built with Ant Design) embedded into the Go
 ### Pages
 
 **Dashboard**
+
 - Live stats: total users, active clients, active sessions, recent logins (last 24h)
 - Quick action buttons: Create User, Create Client
 
 **Users**
+
 - Full user list with username, email, role, status (active, locked, failed attempts), and creation date
 - Create users with role selection
 - Edit user details and role
@@ -405,6 +424,7 @@ The Admin UI is a React application (built with Ant Design) embedded into the Go
 - Unlock accounts that have been locked by the account lockout policy
 
 **Clients**
+
 - Full client list with name, client ID, type (confidential/public), grant types, and status
 - Create clients with all registration options (redirect URIs, grant types, response types, scopes, auth method, client type)
 - Edit client configuration
@@ -412,6 +432,7 @@ The Admin UI is a React application (built with Ant Design) embedded into the Go
 - Deactivate clients
 
 **Sessions**
+
 - Session list with ID, user, IP address, user agent, creation time, expiry, and status (active/expired/deactivated)
 - Filter by user ID or status
 - Deactivate individual sessions (forces logout)
@@ -463,70 +484,70 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 
 ### OIDC Discovery & Identity
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/.well-known/openid-configuration` | GET | OIDC discovery document |
-| `/.well-known/jwks.json` | GET | JWK Set — public keys for token verification |
-| `/oauth2/certs` | GET | Alias for JWKS (legacy path) |
-| `/oauth2/authorize` | GET | Authorization endpoint — renders login page |
-| `/oauth2/token` | POST | Token endpoint — code exchange, refresh, ROPC |
-| `/oauth2/protocol/openid-connect/token` | POST | Keycloak-compatible token path |
-| `/oauth2/userinfo` | GET/POST | UserInfo endpoint |
-| `/oauth2/protocol/openid-connect/userinfo` | GET/POST | Keycloak-compatible userinfo path |
-| `/oauth2/introspect` | POST | Token introspection (RFC 7662) |
-| `/oauth2/revoke` | POST | Token revocation (RFC 7009) |
-| `/oauth2/logout` | POST | Session logout |
+| Endpoint                                   | Method   | Description                                   |
+| ------------------------------------------ | -------- | --------------------------------------------- |
+| `/.well-known/openid-configuration`        | GET      | OIDC discovery document                       |
+| `/.well-known/jwks.json`                   | GET      | JWK Set — public keys for token verification  |
+| `/oauth2/certs`                            | GET      | Alias for JWKS (legacy path)                  |
+| `/oauth2/authorize`                        | GET      | Authorization endpoint — renders login page   |
+| `/oauth2/token`                            | POST     | Token endpoint — code exchange, refresh, ROPC |
+| `/oauth2/protocol/openid-connect/token`    | POST     | Keycloak-compatible token path                |
+| `/oauth2/userinfo`                         | GET/POST | UserInfo endpoint                             |
+| `/oauth2/protocol/openid-connect/userinfo` | GET/POST | Keycloak-compatible userinfo path             |
+| `/oauth2/introspect`                       | POST     | Token introspection (RFC 7662)                |
+| `/oauth2/revoke`                           | POST     | Token revocation (RFC 7009)                   |
+| `/oauth2/logout`                           | POST     | Session logout                                |
 
 ### Authentication Flows
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/oauth2/login` | POST | Username/password form submission |
-| `/oauth2/mfa` | GET/POST | MFA challenge render and verification |
-| `/oauth2/signup` | GET/POST | Self-service user registration (when enabled) |
-| `/oauth2/onboard` | GET/POST | First-run admin onboarding |
-| `/oauth2/passkey/login/begin` | GET | Begin WebAuthn authentication/registration ceremony |
-| `/oauth2/passkey/login/finish` | POST | Complete WebAuthn authentication ceremony |
-| `/oauth2/passkey/register/finish` | POST | Complete WebAuthn registration ceremony |
+| Endpoint                          | Method   | Description                                         |
+| --------------------------------- | -------- | --------------------------------------------------- |
+| `/oauth2/login`                   | POST     | Username/password form submission                   |
+| `/oauth2/mfa`                     | GET/POST | MFA challenge render and verification               |
+| `/oauth2/signup`                  | GET/POST | Self-service user registration (when enabled)       |
+| `/oauth2/onboard`                 | GET/POST | First-run admin onboarding                          |
+| `/oauth2/passkey/login/begin`     | GET      | Begin WebAuthn authentication/registration ceremony |
+| `/oauth2/passkey/login/finish`    | POST     | Complete WebAuthn authentication ceremony           |
+| `/oauth2/passkey/register/finish` | POST     | Complete WebAuthn registration ceremony             |
 
 ### Client Registration (Admin Only)
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/oauth2/register` | POST | Register a new OAuth2 client |
-| `/oauth2/register` | GET | List all registered clients |
-| `/oauth2/register/{client_id}` | GET | Get a specific client |
-| `/oauth2/register/{client_id}` | PUT | Update a client's configuration |
-| `/oauth2/register/{client_id}` | DELETE | Deactivate a client |
+| Endpoint                       | Method | Description                     |
+| ------------------------------ | ------ | ------------------------------- |
+| `/oauth2/register`             | POST   | Register a new OAuth2 client    |
+| `/oauth2/register`             | GET    | List all registered clients     |
+| `/oauth2/register/{client_id}` | GET    | Get a specific client           |
+| `/oauth2/register/{client_id}` | PUT    | Update a client's configuration |
+| `/oauth2/register/{client_id}` | DELETE | Deactivate a client             |
 
 ### Admin API (Admin Auth Required)
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/admin/api/users` | GET/POST | List or create users |
-| `/admin/api/users` | PUT/DELETE | Update or deactivate users |
-| `/admin/api/users/unlock` | POST | Unlock a locked user account |
-| `/admin/api/clients` | GET/POST/PUT/DELETE | Client management |
-| `/admin/api/sessions` | GET/DELETE | Session management |
-| `/admin/api/stats` | GET | Dashboard statistics |
-| `/admin/api/settings` | GET/PUT | Read/update runtime settings |
-| `/admin/api/onboarding` | GET | Onboarding status (public) |
+| Endpoint                  | Method              | Description                  |
+| ------------------------- | ------------------- | ---------------------------- |
+| `/admin/api/users`        | GET/POST            | List or create users         |
+| `/admin/api/users`        | PUT/DELETE          | Update or deactivate users   |
+| `/admin/api/users/unlock` | POST                | Unlock a locked user account |
+| `/admin/api/clients`      | GET/POST/PUT/DELETE | Client management            |
+| `/admin/api/sessions`     | GET/DELETE          | Session management           |
+| `/admin/api/stats`        | GET                 | Dashboard statistics         |
+| `/admin/api/settings`     | GET/PUT             | Read/update runtime settings |
+| `/admin/api/onboarding`   | GET                 | Onboarding status (public)   |
 
 ### User Self-Service
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/user` | POST | Create a user (for API-driven provisioning) |
+| Endpoint | Method | Description                                 |
+| -------- | ------ | ------------------------------------------- |
+| `/user`  | POST   | Create a user (for API-driven provisioning) |
 
 ---
 
 ## Supported Grant Types
 
-| Grant Type | Use Case |
-|---|---|
-| `authorization_code` (+ PKCE) | Web apps, SPAs, native apps. The recommended default. |
-| `refresh_token` | Obtaining new access tokens without re-authenticating the user. |
-| `password` (ROPC) | Legacy clients and trusted internal tooling. Use with caution. |
+| Grant Type                    | Use Case                                                        |
+| ----------------------------- | --------------------------------------------------------------- |
+| `authorization_code` (+ PKCE) | Web apps, SPAs, native apps. The recommended default.           |
+| `refresh_token`               | Obtaining new access tokens without re-authenticating the user. |
+| `password` (ROPC)             | Legacy clients and trusted internal tooling. Use with caution.  |
 
 ---
 
@@ -579,14 +600,18 @@ function generateCodeVerifier() {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return btoa(String.fromCharCode(...array))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 async function generateCodeChallenge(verifier) {
   const data = new TextEncoder().encode(verifier);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 const codeVerifier = generateCodeVerifier();
@@ -741,19 +766,19 @@ Auténtico maintains comprehensive test coverage with **464+ test functions** ac
 
 ### Coverage by Package
 
-| Package | Coverage | Tests | Focus |
-|---|---|---|---|
-| `pkg/config` | 100.0% | 8 | Configuration management |
-| `pkg/model` | 100.0% | 6 | Data validation |
-| `pkg/wellknown` | 100.0% | 4 | OIDC discovery |
-| `pkg/idpsession` | 96.3% | 15 | SSO session lifecycle |
-| `pkg/jwtutil` | 95.2% | 10 | JWT validation |
-| `pkg/authorize` | 93.3% | 13 | Authorization flow |
-| `pkg/middleware` | 93.4% | 21 | Security middleware |
-| `pkg/user` | 92.3% | 46 | User management |
-| `pkg/auth_code` | 90.9% | 16 | Authorization codes |
-| `pkg/session` | 90.7% | 13 | Session lifecycle |
-| `pkg/introspect` | 89.4% | 13 | Token introspection |
+| Package          | Coverage | Tests | Focus                    |
+| ---------------- | -------- | ----- | ------------------------ |
+| `pkg/config`     | 100.0%   | 8     | Configuration management |
+| `pkg/model`      | 100.0%   | 6     | Data validation          |
+| `pkg/wellknown`  | 100.0%   | 4     | OIDC discovery           |
+| `pkg/idpsession` | 96.3%    | 15    | SSO session lifecycle    |
+| `pkg/jwtutil`    | 95.2%    | 10    | JWT validation           |
+| `pkg/authorize`  | 93.3%    | 13    | Authorization flow       |
+| `pkg/middleware` | 93.4%    | 21    | Security middleware      |
+| `pkg/user`       | 92.3%    | 46    | User management          |
+| `pkg/auth_code`  | 90.9%    | 16    | Authorization codes      |
+| `pkg/session`    | 90.7%    | 13    | Session lifecycle        |
+| `pkg/introspect` | 89.4%    | 13    | Token introspection      |
 
 ### Running Tests
 

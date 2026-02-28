@@ -1,1 +1,13 @@
+@media (min-width: 72rem) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+}
 
+.hero {
+  min-height: min(50vh, 400px);
+}
+
+.hero .tagline {
+  margin-inline: 0 !important;
+}

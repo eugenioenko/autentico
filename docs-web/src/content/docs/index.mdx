@@ -1,21 +1,24 @@
 ---
 title: Autentico
-description: A self-hosted OpenID Connect Identity Provider. Single binary, SQLite-backed, zero external dependencies.
 template: splash
 hero:
-  tagline: Self-hosted OIDC Identity Provider. Single binary, SQLite-backed, zero external dependencies.
+  tagline: Simple. Safe. Self-hosted. Identity on your terms.
   actions:
     - text: Quickstart
       link: /getting-started/quickstart/
       icon: right-arrow
       variant: primary
+    - text: Try Live
+      link: https://demo.autentico.top/launch
+      icon: external
+      variant: secondary
     - text: GitHub
       link: https://github.com/eugenioenko/autentico
       icon: external
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
@@ -23,31 +26,40 @@ Autentico is a standards-compliant OpenID Connect (OIDC) Identity Provider built
 
 There is no external database to provision, no connection pool to tune, and no infrastructure to manage beyond the binary itself. You run it, point your applications at it, and it works.
 
+## Try it live
+
+A fresh, dedicated Autentico instance is provisioned just for you—[**Launch a Live Demo →**](https://demo.autentico.top/launch)
+
+_Each demo session provisions an isolated, ephemeral instance. All data and configuration are automatically purged after 24 hours. No shared state, no persistence, no surprises._
+
 ## Features
 
 <CardGrid>
   <Card title="OIDC & OAuth2" icon="document">
-    Authorization Code Flow with PKCE, Refresh Tokens, ROPC, Token Introspection (RFC 7662), Token Revocation (RFC 7009), and a full OIDC Discovery document.
+    Authorization Code Flow with PKCE, Refresh Tokens, ROPC, Token Introspection
+    (RFC 7662), Token Revocation (RFC 7009), and a full OIDC Discovery document.
   </Card>
   <Card title="Passkeys & MFA" icon="approve-check-circle">
-    WebAuthn/FIDO2 passkey authentication, TOTP with in-browser QR enrollment, Email OTP, and trusted device recognition to reduce MFA friction on known devices.
+    WebAuthn/FIDO2 passkey authentication, TOTP with in-browser QR enrollment,
+    Email OTP, and trusted device recognition to reduce MFA friction on known
+    devices.
   </Card>
   <Card title="Admin UI" icon="laptop">
-    A built-in React dashboard for managing users, clients, and sessions. Runtime settings update without restarting the server.
+    A built-in React dashboard for managing users, clients, and sessions.
+    Runtime settings update without restarting the server.
   </Card>
   <Card title="Zero Dependencies" icon="rocket">
-    Single Go binary with embedded SQLite. No Postgres, no Redis, no sidecars. Deploy anywhere a binary can run.
+    Single Go binary with embedded SQLite. No Postgres, no Redis, no sidecars.
+    Deploy anywhere a binary can run.
   </Card>
   <Card title="Three-Layer Config" icon="setting">
-    Immutable bootstrap settings from `.env`, runtime settings in the database (hot-reloadable), and per-client overrides for token TTLs, auth modes, and more.
+    Immutable bootstrap settings from `.env`, runtime settings in the database
+    (hot-reloadable), and per-client overrides for token TTLs, auth modes, and
+    more.
   </Card>
   <Card title="Production Ready" icon="shield">
-    RS256 JWT signing, CSRF protection, bcrypt password and secret hashing, account lockout, configurable session idle timeouts, and a background cleanup service.
+    RS256 JWT signing, CSRF protection, bcrypt password and secret hashing,
+    account lockout, configurable session idle timeouts, and a background
+    cleanup service.
   </Card>
 </CardGrid>
-
-## Try it live
-
-A fresh, isolated Autentico instance is provisioned just for you — [**Launch a Live Demo →**](https://demo.autentico.top/launch)
-
-The first account you create becomes the administrator. Instances are automatically cleaned up after 24 hours.
