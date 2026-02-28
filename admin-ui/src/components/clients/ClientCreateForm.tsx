@@ -10,6 +10,9 @@ import {
   Typography,
   Alert,
   message,
+  Divider,
+  Collapse,
+  Switch,
 } from "antd";
 import {
   PlusOutlined,
@@ -58,6 +61,8 @@ export default function ClientCreateForm({
 
   const handleSubmit = async (values: ClientCreateRequest) => {
     try {
+      // Process allowed_audiences from string if needed, but Form.List handles it if used.
+      // Here we will use a simple Select mode="tags" for audiences.
       const result = await createClient.mutateAsync(values);
       form.resetFields();
       onClose();
@@ -117,6 +122,14 @@ export default function ClientCreateForm({
             rules={[{ required: true, message: "Client name is required" }]}
           >
             <Input placeholder="My Application" />
+          </Form.Item>
+
+          <Form.Item
+            name="client_id"
+            label="Client ID"
+            extra="Optional. Leave empty to auto-generate."
+          >
+            <Input placeholder="my-custom-client-id" />
           </Form.Item>
 
           <Form.Item name="client_type" label="Client Type">
@@ -199,6 +212,82 @@ export default function ClientCreateForm({
           >
             <Select options={AUTH_METHOD_OPTIONS} />
           </Form.Item>
+
+          <Divider />
+
+          <Collapse
+            ghost
+            items={[
+              {
+                key: "overrides",
+                label: "Configuration Overrides (Optional)",
+                children: (
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Form.Item
+                      label="Access Token Expiration"
+                      name="access_token_expiration"
+                      extra="Example: 15m, 1h. Leave empty to use global default."
+                    >
+                      <Input placeholder="Global default" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Refresh Token Expiration"
+                      name="refresh_token_expiration"
+                      extra="Example: 720h. Leave empty to use global default."
+                    >
+                      <Input placeholder="Global default" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Auth Code Expiration"
+                      name="authorization_code_expiration"
+                    >
+                      <Input placeholder="Global default (e.g. 10m)" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Allowed Audiences"
+                      name="allowed_audiences"
+                      extra="Specific audiences for tokens issued to this client."
+                    >
+                      <Select mode="tags" placeholder="Add audiences..." />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Allow Self Signup"
+                      name="allow_self_signup"
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="SSO Session Idle Timeout"
+                      name="sso_session_idle_timeout"
+                    >
+                      <Input placeholder="Global default (e.g. 30m)" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Trust Device Enabled"
+                      name="trust_device_enabled"
+                      valuePropName="checked"
+                    >
+                      <Switch />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Trust Device Expiration"
+                      name="trust_device_expiration"
+                    >
+                      <Input placeholder="Global default (e.g. 720h)" />
+                    </Form.Item>
+                  </Space>
+                ),
+              },
+            ]}
+          />
         </Form>
       </Drawer>
 

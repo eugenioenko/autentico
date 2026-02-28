@@ -22,6 +22,7 @@ type User struct {
 	LockedUntil         *time.Time
 	TotpSecret          string
 	TotpVerified        bool
+	IsEmailVerified     bool
 	DeactivatedAt       *time.Time
 }
 
@@ -33,6 +34,8 @@ type UserResponse struct {
 	Role                string     `json:"role"`
 	FailedLoginAttempts int        `json:"failed_login_attempts"`
 	LockedUntil         *time.Time `json:"locked_until,omitempty"`
+	IsEmailVerified     bool       `json:"is_email_verified"`
+	TotpVerified        bool       `json:"totp_verified"`
 }
 
 func (u *User) ToResponse() UserResponse {
@@ -44,6 +47,8 @@ func (u *User) ToResponse() UserResponse {
 		Role:                u.Role,
 		FailedLoginAttempts: u.FailedLoginAttempts,
 		LockedUntil:         u.LockedUntil,
+		IsEmailVerified:     u.IsEmailVerified,
+		TotpVerified:        u.TotpVerified,
 	}
 }
 
@@ -61,11 +66,25 @@ type UserCreateRequest struct {
 }
 
 type UserUpdateRequest struct {
-	Email string `json:"email,omitempty"`
-	Role  string `json:"role,omitempty"`
+	Username        string `json:"username,omitempty"`
+	Password        string `json:"password,omitempty"`
+	Email           string `json:"email,omitempty"`
+	Role            string `json:"role,omitempty"`
+	IsEmailVerified *bool  `json:"is_email_verified,omitempty"`
+	TotpVerified    *bool  `json:"totp_verified,omitempty"`
 }
 
 func ValidateUserUpdateRequest(input UserUpdateRequest) error {
+	if input.Username != "" {
+		if err := validation.Validate(input.Username, validation.Length(config.Get().ValidationMinUsernameLength, config.Get().ValidationMaxUsernameLength)); err != nil {
+			return fmt.Errorf("username is invalid: %w", err)
+		}
+	}
+	if input.Password != "" {
+		if err := validation.Validate(input.Password, validation.Length(config.Get().ValidationMinPasswordLength, config.Get().ValidationMaxPasswordLength)); err != nil {
+			return fmt.Errorf("password is invalid: %w", err)
+		}
+	}
 	if input.Email != "" {
 		if err := validation.Validate(input.Email, is.Email); err != nil {
 			return fmt.Errorf("email is invalid: %w", err)

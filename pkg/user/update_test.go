@@ -16,7 +16,7 @@ func TestUpdateUser(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update the user's email and role
-	err = UpdateUser(user.ID, "newemail@example.com", user.Role)
+	err = UpdateUser(user.ID, UserUpdateRequest{Email: "newemail@example.com", Role: user.Role})
 	assert.NoError(t, err)
 
 	// Verify the email was updated

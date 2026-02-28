@@ -1909,6 +1909,25 @@ const docTemplate = `{
         "client.ClientCreateRequest": {
             "type": "object",
             "properties": {
+                "access_token_expiration": {
+                    "description": "Per-client overrides",
+                    "type": "string"
+                },
+                "allow_self_signup": {
+                    "type": "boolean"
+                },
+                "allowed_audiences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "authorization_code_expiration": {
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string"
+                },
                 "client_name": {
                     "type": "string"
                 },
@@ -1927,6 +1946,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "refresh_token_expiration": {
+                    "type": "string"
+                },
                 "response_types": {
                     "type": "array",
                     "items": {
@@ -1936,7 +1958,16 @@ const docTemplate = `{
                 "scopes": {
                     "type": "string"
                 },
+                "sso_session_idle_timeout": {
+                    "type": "string"
+                },
                 "token_endpoint_auth_method": {
+                    "type": "string"
+                },
+                "trust_device_enabled": {
+                    "type": "boolean"
+                },
+                "trust_device_expiration": {
                     "type": "string"
                 }
             }
@@ -1944,6 +1975,22 @@ const docTemplate = `{
         "client.ClientInfoResponse": {
             "type": "object",
             "properties": {
+                "access_token_expiration": {
+                    "description": "Per-client overrides",
+                    "type": "string"
+                },
+                "allow_self_signup": {
+                    "type": "boolean"
+                },
+                "allowed_audiences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "authorization_code_expiration": {
+                    "type": "string"
+                },
                 "client_id": {
                     "type": "string"
                 },
@@ -1968,6 +2015,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "refresh_token_expiration": {
+                    "type": "string"
+                },
                 "response_types": {
                     "type": "array",
                     "items": {
@@ -1977,7 +2027,16 @@ const docTemplate = `{
                 "scopes": {
                     "type": "string"
                 },
+                "sso_session_idle_timeout": {
+                    "type": "string"
+                },
                 "token_endpoint_auth_method": {
+                    "type": "string"
+                },
+                "trust_device_enabled": {
+                    "type": "boolean"
+                },
+                "trust_device_expiration": {
                     "type": "string"
                 }
             }
@@ -2029,6 +2088,22 @@ const docTemplate = `{
         "client.ClientUpdateRequest": {
             "type": "object",
             "properties": {
+                "access_token_expiration": {
+                    "description": "Per-client overrides",
+                    "type": "string"
+                },
+                "allow_self_signup": {
+                    "type": "boolean"
+                },
+                "allowed_audiences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "authorization_code_expiration": {
+                    "type": "string"
+                },
                 "client_name": {
                     "type": "string"
                 },
@@ -2047,6 +2122,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "refresh_token_expiration": {
+                    "type": "string"
+                },
                 "response_types": {
                     "type": "array",
                     "items": {
@@ -2056,7 +2134,16 @@ const docTemplate = `{
                 "scopes": {
                     "type": "string"
                 },
+                "sso_session_idle_timeout": {
+                    "type": "string"
+                },
                 "token_endpoint_auth_method": {
+                    "type": "string"
+                },
+                "trust_device_enabled": {
+                    "type": "boolean"
+                },
+                "trust_device_expiration": {
                     "type": "string"
                 }
             }
@@ -2342,11 +2429,17 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
                 "locked_until": {
                     "type": "string"
                 },
                 "role": {
                     "type": "string"
+                },
+                "totp_verified": {
+                    "type": "boolean"
                 },
                 "username": {
                     "type": "string"

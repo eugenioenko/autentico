@@ -1,4 +1,4 @@
-import { Drawer, Descriptions, Tag, Space } from "antd";
+import { Drawer, Descriptions, Tag, Space, Typography } from "antd";
 import type { ClientInfoResponse } from "../../types/client";
 
 interface ClientDetailProps {
@@ -64,6 +64,63 @@ export default function ClientDetail({
           {client.token_endpoint_auth_method}
         </Descriptions.Item>
       </Descriptions>
+
+      {(client.access_token_expiration ||
+        client.refresh_token_expiration ||
+        client.authorization_code_expiration ||
+        client.allowed_audiences?.length ||
+        client.allow_self_signup !== undefined ||
+        client.sso_session_idle_timeout ||
+        client.trust_device_enabled !== undefined ||
+        client.trust_device_expiration) && (
+        <>
+          <Typography.Title level={5} style={{ marginTop: 24 }}>
+            Overrides
+          </Typography.Title>
+          <Descriptions column={1} bordered size="small">
+            {client.access_token_expiration && (
+              <Descriptions.Item label="Access Token TTL">
+                {client.access_token_expiration}
+              </Descriptions.Item>
+            )}
+            {client.refresh_token_expiration && (
+              <Descriptions.Item label="Refresh Token TTL">
+                {client.refresh_token_expiration}
+              </Descriptions.Item>
+            )}
+            {client.authorization_code_expiration && (
+              <Descriptions.Item label="Auth Code TTL">
+                {client.authorization_code_expiration}
+              </Descriptions.Item>
+            )}
+            {client.allowed_audiences?.length ? (
+              <Descriptions.Item label="Allowed Audiences">
+                {client.allowed_audiences.join(", ")}
+              </Descriptions.Item>
+            ) : null}
+            {client.allow_self_signup !== undefined && (
+              <Descriptions.Item label="Self Signup">
+                {client.allow_self_signup ? "Allowed" : "Disabled"}
+              </Descriptions.Item>
+            )}
+            {client.sso_session_idle_timeout && (
+              <Descriptions.Item label="SSO Idle Timeout">
+                {client.sso_session_idle_timeout}
+              </Descriptions.Item>
+            )}
+            {client.trust_device_enabled !== undefined && (
+              <Descriptions.Item label="Trust Device">
+                {client.trust_device_enabled ? "Enabled" : "Disabled"}
+              </Descriptions.Item>
+            )}
+            {client.trust_device_expiration && (
+              <Descriptions.Item label="Trust Device TTL">
+                {client.trust_device_expiration}
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+        </>
+      )}
     </Drawer>
   );
 }

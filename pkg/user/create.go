@@ -30,10 +30,13 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 	}
 
 	user := &UserResponse{
-		ID:        id,
-		Username:  username,
-		Email:     email,
-		CreatedAt: createdAt,
+		ID:              id,
+		Username:        username,
+		Email:           email,
+		CreatedAt:       createdAt,
+		Role:            "user", // default role
+		IsEmailVerified: false,
+		TotpVerified:    false,
 	}
 
 	return user, nil

@@ -4,11 +4,61 @@ import (
 	"fmt"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func UpdateUser(id, newEmail, newRole string) error {
-	query := `UPDATE users SET email = ?, role = ? WHERE id = ?`
-	_, err := db.GetDB().Exec(query, newEmail, newRole, id)
+func UpdateUser(id string, req UserUpdateRequest) error {
+	// Get existing user to preserve values
+	usr, err := UserByID(id)
+	if err != nil {
+		return err
+	}
+
+	newUsername := usr.Username
+	if req.Username != "" {
+		newUsername = req.Username
+	}
+
+	newEmail := usr.Email
+	if req.Email != "" {
+		newEmail = req.Email
+	}
+
+	newRole := usr.Role
+	if req.Role != "" {
+		newRole = req.Role
+	}
+
+	newPassword := usr.Password
+	if req.Password != "" {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+		newPassword = string(hashed)
+	}
+
+	newIsEmailVerified := usr.IsEmailVerified
+	if req.IsEmailVerified != nil {
+		newIsEmailVerified = *req.IsEmailVerified
+	}
+
+	newTotpVerified := usr.TotpVerified
+	if req.TotpVerified != nil {
+		newTotpVerified = *req.TotpVerified
+	}
+
+	query := `
+		UPDATE users SET 
+			username = ?,
+			email = ?, 
+			role = ?, 
+			password = ?,
+			is_email_verified = ?,
+			totp_verified = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`
+	_, err = db.GetDB().Exec(query, newUsername, newEmail, newRole, newPassword, newIsEmailVerified, newTotpVerified, id)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %v", err)
 	}

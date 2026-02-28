@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -51,11 +52,11 @@ func TestHandleSettings_Get(t *testing.T) {
 	HandleSettings(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp map[string]string
+	var resp model.ApiResponse[map[string]string]
 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	assert.NoError(t, err)
-	assert.Equal(t, "test_value", resp["test_key"])
-	assert.NotContains(t, resp, "smtp_password")
+	assert.Equal(t, "test_value", resp.Data["test_key"])
+	assert.NotContains(t, resp.Data, "smtp_password")
 }
 
 func TestHandleSettings_Put(t *testing.T) {

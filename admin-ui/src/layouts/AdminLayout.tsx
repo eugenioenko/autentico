@@ -7,6 +7,7 @@ import {
   UserOutlined,
   DesktopOutlined,
   FileTextOutlined,
+  SettingOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -21,6 +22,7 @@ const menuItems = [
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
+  { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
   { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
   { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
 ];

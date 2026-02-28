@@ -81,6 +81,26 @@ export default function UsersPage() {
       ),
     },
     {
+      title: "MFA",
+      dataIndex: "totp_verified",
+      key: "mfa",
+      render: (verified: boolean) => (
+        <Tag color={verified ? "success" : "default"}>
+          {verified ? "Enrolled" : "No"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Verified",
+      dataIndex: "is_email_verified",
+      key: "verified",
+      render: (verified: boolean) => (
+        <Tag color={verified ? "success" : "warning"}>
+          {verified ? "Yes" : "No"}
+        </Tag>
+      ),
+    },
+    {
       title: "Status",
       key: "status",
       render: (_, record) => {
