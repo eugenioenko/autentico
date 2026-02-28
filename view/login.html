@@ -11,8 +11,13 @@
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <div class="control">
+    {{if .UsernameIsEmail}}
+    <label for="username">Email</label>
+    <input type="email" id="username" name="username" required autocomplete="email" />
+    {{else}}
     <label for="username">Username</label>
     <input type="text" id="username" name="username" required autocomplete="username" />
+    {{end}}
   </div>
   {{if ne .AuthMode "passkey_only"}}
   <div class="control">
@@ -38,6 +43,9 @@
     </svg>
     Sign in with passkey
   </button>
+  {{end}}
+  {{if .AllowSelfSignup}}
+  <div class="auth-link">Don't have an account? <a href="/oauth2/signup?state={{.State}}&redirect={{.Redirect}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create one</a></div>
   {{end}}
 </form>
 {{end}}

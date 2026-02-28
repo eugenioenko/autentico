@@ -25,11 +25,12 @@
   "validationMaxUsernameLength": 64,
   "validationMinPasswordLength": 6,
   "validationMaxPasswordLength": 64,
-  "validationUsernameIsEmail": true,
+  "validationUsernameIsEmail": false,
   "validationEmailRequired": false,
   "authAccessTokenAudience": [
     "el_autentico_!"
   ],
+  "authAllowSelfSignup": true,
   "authSsoSessionIdleTimeout": "1h",
   "authIdpSessionCookieName": "autentico_idp_session",
   "authIdpSessionSecureCookie": false,

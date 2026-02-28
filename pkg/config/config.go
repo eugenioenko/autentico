@@ -48,6 +48,7 @@ type Config struct {
 	ValidationUsernameIsEmail          bool          `json:"validationUsernameIsEmail"`
 	ValidationEmailRequired            bool          `json:"validationEmailRequired"`
 	AuthAccessTokenAudience            []string      `json:"authAccessTokenAudience"`
+	AuthAllowSelfSignup                bool          `json:"authAllowSelfSignup"`
 	AuthSsoSessionIdleTimeout          time.Duration `json:"-"`
 	AuthSsoSessionIdleTimeoutStr       string        `json:"authSsoSessionIdleTimeout"`
 	AuthIdpSessionCookieName           string        `json:"authIdpSessionCookieName"`
@@ -111,6 +112,7 @@ var defaultConfig = Config{
 	AuthAccessTokenAudience: []string{
 		"el_autentico_!",
 	},
+	AuthAllowSelfSignup:  false,
 	AuthSsoSessionIdleTimeout:    0,
 	AuthSsoSessionIdleTimeoutStr: "0",
 	AuthIdpSessionCookieName:        "autentico_idp_session",

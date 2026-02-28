@@ -140,6 +140,8 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"CodeChallengeMethod": request.CodeChallengeMethod,
 		"Error":               errorMsg,
 		"AuthMode":            cfg.AuthMode,
+		"AllowSelfSignup":     cfg.AuthAllowSelfSignup,
+		"UsernameIsEmail":     cfg.ValidationUsernameIsEmail,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
