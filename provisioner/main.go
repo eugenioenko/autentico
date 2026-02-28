@@ -18,11 +18,13 @@ import (
 )
 
 var (
-	baseDomain = getEnv("BASE_DOMAIN", "demo.autentico.top")
-	binary     = getEnv("AUTENTICO_BINARY", "./autentico")
-	dataDir    = getEnv("DATA_DIR", "./demos")
-	listenAddr = getEnv("LISTEN_ADDR", ":8080")
-	demoTTL    = parseDuration(getEnv("DEMO_TTL", "24h"), 24*time.Hour)
+	baseDomain  = getEnv("BASE_DOMAIN", "demo.autentico.top")
+	baseScheme  = getEnv("BASE_SCHEME", "https") // set to "http" for local testing
+	basePort    = getEnv("BASE_PORT", "")         // set to "8080" for local testing
+	binary      = getEnv("AUTENTICO_BINARY", "./autentico")
+	dataDir     = getEnv("DATA_DIR", "./demos")
+	listenAddr  = getEnv("LISTEN_ADDR", ":8080")
+	demoTTL     = parseDuration(getEnv("DEMO_TTL", "24h"), 24*time.Hour)
 )
 
 type instance struct {
@@ -65,7 +67,7 @@ func (r *registry) handleLaunch(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "failed to launch demo — please try again", http.StatusInternalServerError)
 		return
 	}
-	target := fmt.Sprintf("https://%s.%s", inst.slug, baseDomain)
+	target := instanceURL(inst.slug)
 	slog.Info("launched demo", "slug", inst.slug, "port", inst.port, "expires", inst.expiresAt.Format(time.RFC3339))
 	http.Redirect(w, req, target, http.StatusFound)
 }
@@ -117,10 +119,10 @@ func (r *registry) launch() (*instance, error) {
 		return nil, fmt.Errorf("create log file: %w", err)
 	}
 
-	instanceURL := fmt.Sprintf("https://%s.%s", slug, baseDomain)
+	publicURL := instanceURL(slug)
 	cmd := exec.Command(binary, "start")
 	cmd.Env = append(os.Environ(),
-		"AUTENTICO_APP_URL="+instanceURL,
+		"AUTENTICO_APP_URL="+publicURL,
 		fmt.Sprintf("AUTENTICO_LISTEN_PORT=%d", port),
 		"AUTENTICO_DB_FILE_PATH="+filepath.Join(dir, "db", "autentico.db"),
 		"AUTENTICO_ACCESS_TOKEN_SECRET="+randomHex(32),
@@ -235,6 +237,16 @@ func expiredPage(w http.ResponseWriter, domain string) {
   <p><a href="https://%s/launch">Start a new demo</a></p>
 </body>
 </html>`, domain)
+}
+
+// instanceURL builds the public-facing URL for a demo slug.
+// Uses BASE_SCHEME and BASE_PORT so local testing works without TLS.
+func instanceURL(slug string) string {
+	host := slug + "." + baseDomain
+	if basePort != "" {
+		host = host + ":" + basePort
+	}
+	return baseScheme + "://" + host
 }
 
 func getEnv(key, fallback string) string {
