@@ -1,0 +1,64 @@
+---
+title: Connecting an OIDC Client
+description: How to point any OIDC library at Autentico using the discovery document.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Any OIDC-compliant library or framework can use Autentico as its identity provider. The process is the same regardless of language or framework: point the library at the discovery URL, provide client credentials, and let the library handle the protocol.
+
+## Discovery URL
+
+```
+https://auth.example.com/oauth2/.well-known/openid-configuration
+```
+
+Most OIDC libraries accept this URL and auto-configure all endpoints from it.
+
+## What you need
+
+| Item | Where to find it |
+|---|---|
+| Discovery URL | `https://<your-autentico-host>/oauth2/.well-known/openid-configuration` |
+| `client_id` | Returned when you register the client |
+| `client_secret` | Returned once at client registration (confidential clients only) |
+| Redirect URI | The callback URL you registered for this client |
+
+## General configuration steps
+
+1. **Register the client** in the Admin UI or via `POST /oauth2/register`. Note the `client_id` and `client_secret`.
+
+2. **Configure your library** with:
+   - The discovery URL (or individual endpoint URLs)
+   - `client_id`
+   - `client_secret` (if confidential)
+   - The redirect URI you registered
+
+3. **Initiate the authorization flow** — your library will redirect users to Autentico's login page, handle the callback, and exchange the authorization code for tokens.
+
+4. **Verify the `iss` claim** in received ID tokens matches `https://auth.example.com/oauth2` (or your configured issuer).
+
+## Scopes to request
+
+```
+openid profile email
+```
+
+- `openid` — required; triggers ID token issuance
+- `profile` — includes `name` claim
+- `email` — includes `email` and `email_verified` claims
+
+## Keycloak compatibility
+
+Autentico exposes Keycloak-compatible endpoint aliases:
+
+```
+/oauth2/protocol/openid-connect/token
+/oauth2/protocol/openid-connect/userinfo
+```
+
+If your library or application is pre-configured for Keycloak, these aliases let you point it at Autentico with minimal configuration changes.
+
+<Aside type="tip">
+The quickest way to test connectivity is to fetch the discovery document and confirm it returns valid JSON, then attempt a full authorization code flow using the [PKCE walkthrough](/integrate/pkce-walkthrough/).
+</Aside>

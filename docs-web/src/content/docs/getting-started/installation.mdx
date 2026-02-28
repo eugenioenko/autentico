@@ -1,0 +1,91 @@
+---
+title: Installation
+description: How to install Autentico — binary download, Docker image, or build from source.
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Autentico ships as a single self-contained binary with no runtime dependencies. Choose the method that fits your environment.
+
+<Tabs>
+<TabItem label="Binary">
+
+<Steps>
+1. Download the latest release for your platform from the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
+
+2. Make the binary executable:
+   ```bash
+   chmod +x autentico
+   ```
+
+3. Move it somewhere on your `$PATH`:
+   ```bash
+   sudo mv autentico /usr/local/bin/
+   ```
+
+4. Verify the installation:
+   ```bash
+   autentico --version
+   ```
+</Steps>
+
+</TabItem>
+<TabItem label="Docker">
+
+Pull the latest image:
+
+```bash
+docker pull ghcr.io/eugenioenko/autentico:latest
+```
+
+Run with environment variables:
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 8080:8080 \
+  -v /data/autentico:/data \
+  -e AUTENTICO_APP_URL=https://auth.example.com \
+  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
+  -e AUTENTICO_COOKIE_SECRET=changeme-at-least-32-chars \
+  -e AUTENTICO_ADMIN_TOKEN=your-secure-admin-token \
+  ghcr.io/eugenioenko/autentico:latest
+```
+
+See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
+
+</TabItem>
+<TabItem label="Docker Compose">
+
+See [Docker Compose](/deployment/docker-compose/) for a full annotated `docker-compose.yml` that mounts persistent storage, configures SMTP, and sits behind a reverse proxy.
+
+</TabItem>
+<TabItem label="From Source">
+
+Requires Go 1.22 or later.
+
+<Steps>
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/eugenioenko/autentico.git
+   cd autentico
+   ```
+
+2. Build the binary:
+   ```bash
+   make build
+   # or: go build -o autentico main.go
+   ```
+
+3. Run:
+   ```bash
+   ./autentico start
+   ```
+</Steps>
+
+</TabItem>
+</Tabs>
+
+## Next steps
+
+Once Autentico is installed, follow the [Quickstart](/getting-started/quickstart/) to initialize your instance, complete onboarding, and register your first client.

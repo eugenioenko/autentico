@@ -1,0 +1,112 @@
+---
+title: PKCE Flow Walkthrough
+description: A step-by-step walkthrough of the Authorization Code + PKCE flow against Autentico.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+This walkthrough shows the complete PKCE flow using raw HTTP requests — useful for debugging, testing, or understanding what your OIDC library does under the hood.
+
+## Prerequisites
+
+- A running Autentico instance
+- A registered public client with `authorization_code` grant type and a known redirect URI
+- A user account to authenticate with
+
+## Step 1: Generate PKCE parameters
+
+```javascript
+// In a browser or Node.js environment
+const codeVerifier = generateCodeVerifier(); // 43-128 random URL-safe chars
+
+async function generateCodeVerifier() {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generateCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+const verifier = await generateCodeVerifier();
+const challenge = await generateCodeChallenge(verifier);
+```
+
+## Step 2: Build the authorization URL
+
+```
+GET https://auth.example.com/oauth2/authorize?
+  response_type=code&
+  client_id=YOUR_CLIENT_ID&
+  redirect_uri=https://app.example.com/callback&
+  scope=openid+profile+email&
+  code_challenge=BASE64URL_SHA256_OF_VERIFIER&
+  code_challenge_method=S256&
+  state=RANDOM_STATE_VALUE
+```
+
+Redirect the user's browser to this URL. Autentico shows the login page.
+
+## Step 3: User authenticates
+
+The user enters their credentials on the Autentico login page. If MFA is enabled, they complete the MFA challenge. Autentico then redirects to:
+
+```
+https://app.example.com/callback?code=AUTH_CODE&state=RANDOM_STATE_VALUE
+```
+
+Verify `state` matches what you sent to prevent CSRF.
+
+## Step 4: Exchange the code for tokens
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=AUTH_CODE" \
+  -d "redirect_uri=https://app.example.com/callback" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "code_verifier=YOUR_CODE_VERIFIER"
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "scope": "openid profile email"
+}
+```
+
+## Step 5: Verify the ID token
+
+Fetch the JWKS from `/.well-known/jwks.json` and verify the ID token signature using the public key. Check:
+
+- `iss` matches `https://auth.example.com/oauth2`
+- `aud` matches your `client_id`
+- `exp` is in the future
+
+The `sub` claim is the user's unique ID. Use it to identify the user in your application.
+
+## Step 6: Refresh the access token
+
+When the access token expires (`expires_in` seconds), use the refresh token:
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "refresh_token=YOUR_REFRESH_TOKEN" \
+  -d "client_id=YOUR_CLIENT_ID"
+```
+
+Store the new refresh token from the response — the old one is invalidated.

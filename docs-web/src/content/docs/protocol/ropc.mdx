@@ -1,0 +1,60 @@
+---
+title: Resource Owner Password Credentials
+description: The ROPC grant type in Autentico — when to use it and how it works.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The Resource Owner Password Credentials (ROPC) grant allows a client to exchange a username and password directly for tokens, without going through the browser authorization flow.
+
+<Aside type="caution">
+ROPC is a legacy grant type. It requires the client to handle user credentials directly, which means it cannot support MFA, passkeys, or SSO sessions. Only use it for trusted first-party CLI tools or migration scenarios where a browser redirect is not possible.
+</Aside>
+
+## Request
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "username=alice" \
+  -d "password=secret" \
+  -d "client_id=my-client-id" \
+  -d "scope=openid profile email"
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "scope": "openid profile email"
+}
+```
+
+## Enabling for a client
+
+The client must have `password` in its `grant_types`. When registering:
+
+```bash
+curl -X POST https://auth.example.com/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "My CLI Tool",
+    "redirect_uris": ["http://localhost"],
+    "grant_types": ["password", "refresh_token"],
+    "client_type": "public"
+  }'
+```
+
+## Limitations
+
+- MFA is not enforced — even if `mfa_enabled` is `true` globally, the ROPC flow bypasses the MFA challenge
+- Passkey authentication is not available — ROPC only supports username/password
+- No SSO session is created — each ROPC token exchange is independent
+- Account lockout still applies — repeated failed password attempts will lock the account

@@ -1,0 +1,49 @@
+---
+title: Incident Response
+description: Steps to take when responding to a security incident affecting your Autentico deployment.
+---
+
+## Suspected account compromise
+
+If a user account may be compromised:
+
+1. **Revoke all sessions** for the user — Admin UI → Sessions → filter by user → revoke all active sessions
+2. **Reset the password** — Admin UI → Users → edit → set new password
+3. **Reset MFA** — set `totp_verified = false` so the user must re-enroll with a new TOTP secret
+4. **Revoke passkeys** — delete any passkey credentials associated with the account
+5. **Notify the user** out-of-band and require them to verify their identity before restoring access
+
+## Suspected admin token compromise
+
+If `AUTENTICO_ADMIN_TOKEN` may be exposed:
+
+1. **Rotate the token immediately** — update `AUTENTICO_ADMIN_TOKEN` in your environment and restart Autentico
+2. **Review admin API logs** for any unauthorized operations (user creation, settings changes, client registration)
+3. **Check for new admin users** — review the user list for accounts with `role = admin` you didn't create
+4. **Check for unexpected clients** — review the client list for unfamiliar registrations
+
+## Suspected private key compromise
+
+If `private_key.pem` may be exposed:
+
+1. **Generate a new RSA key**: `make generate-key` or `openssl genrsa -out private_key.pem 4096`
+2. **Replace the key** at `AUTENTICO_PRIVATE_KEY_PATH` and restart Autentico
+3. **All existing tokens are now invalid** — users will need to re-authenticate. This is intentional: the old key can no longer be used to issue valid tokens.
+4. **Update `AUTENTICO_AUTH_JWK_CERT_KEY_ID`** if your clients cache the JWKS by key ID
+
+## Data breach
+
+If the SQLite database is accessed by an unauthorized party:
+
+- **Passwords**: bcrypt-hashed, no plaintext exposure. Users' passwords themselves are not directly compromised.
+- **TOTP secrets**: stored in the database. Affected users should be directed to re-enroll TOTP with new secrets.
+- **Session tokens**: revoke all active sessions immediately.
+- **Refresh tokens**: all existing refresh tokens should be considered compromised. Consider rotating the RSA key to invalidate all tokens.
+- **Notify affected users** per your legal and regulatory obligations.
+
+## Denial of service
+
+Autentico does not have built-in rate limiting beyond account lockout. For DoS mitigation:
+
+- Configure rate limiting at the reverse proxy level (nginx `limit_req`, Caddy `rate_limit`, Traefik `ratelimit`)
+- Restrict access to the admin API endpoints by IP at the firewall or proxy level

@@ -1,0 +1,36 @@
+---
+title: Users
+description: Managing user accounts from the Autentico Admin UI.
+---
+
+The Users section lists all registered user accounts and provides tools for managing them.
+
+{/* TODO: add screenshot of users list */}
+
+## User list
+
+The user list shows:
+- Username, email, role
+- Account status (active, locked, deactivated)
+- TOTP enrollment status
+- Creation date
+
+Use the search box to filter by username or email.
+
+## Actions
+
+| Action | Description |
+|---|---|
+| **New User** | Create a new account with username, password, optional email and role |
+| **Edit** | Update username, email, password, role, or verification flags |
+| **Unlock** | Clear a lockout — resets `failed_login_attempts` and `locked_until` |
+| **Reset TOTP** | Set `totp_verified = false` so the user re-enrolls on next login |
+| **Delete** | Permanently remove the account and all associated data |
+
+## Bulk operations
+
+The API supports operations on individual users by ID. For bulk user management (import/export), use the admin API directly against the SQLite database or script calls to `POST /admin/api/users`.
+
+## Deactivated users
+
+Users with `deactivated_at` set cannot log in. Deactivated accounts remain in the list and can be reactivated by clearing `deactivated_at` via the API.

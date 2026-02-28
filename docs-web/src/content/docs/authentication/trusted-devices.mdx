@@ -1,0 +1,66 @@
+---
+title: Trusted Devices
+description: How Autentico's trusted device feature lets users skip MFA on recognized browsers.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When MFA is enabled, users can check **"Trust this device"** after a successful MFA verification. Autentico sets a long-lived cookie on the browser — on future logins from the same browser, the MFA step is skipped automatically.
+
+## How it works
+
+1. User completes MFA successfully
+2. User checks the **"Trust this device"** checkbox before submitting the MFA form
+3. Autentico creates a `trusted_devices` record tied to the user and stores a signed token in a cookie
+4. On subsequent logins from the same browser, Autentico finds the cookie, looks up the trusted device record, validates it, and bypasses the MFA challenge
+
+The trusted device token is stored in the `trusted_devices` table with:
+
+| Field | Description |
+|---|---|
+| `id` | Opaque token stored in the cookie |
+| `user_id` | User the device is trusted for |
+| `device_name` | User-agent string at trust time |
+| `created_at` | When the device was first trusted |
+| `last_used_at` | Last time the device skipped MFA |
+| `expires_at` | Expiry — after this the device must re-verify MFA |
+
+## Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| `trust_device_enabled` | `false` | Enable or disable the trusted device feature globally |
+| `trust_device_expiration` | `720h` | How long a trusted device remains valid (e.g. `168h` = 7 days) |
+
+Both settings can be overridden per-client. See [Per-Client Overrides](/configuration/per-client-overrides/).
+
+## Enabling trusted devices
+
+In the Admin UI: Settings → set `trust_device_enabled` to `true`.
+
+Via API:
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"trust_device_enabled": "true", "trust_device_expiration": "720h"}'
+```
+
+Once enabled, a "Trust this device" checkbox appears on the MFA page.
+
+## Managing trusted devices
+
+Trusted devices are cleared when:
+- The device record expires (`expires_at` passes)
+- The user explicitly logs out
+- An admin deactivates the user's sessions
+- The background cleanup job removes expired records
+
+<Aside type="tip">
+Trusted devices are per-user and per-browser. If a user logs in on a new browser or clears their cookies, they will be prompted for MFA again.
+</Aside>
+
+<Aside type="caution">
+Trusted device cookies are HttpOnly and Secure. However, if an attacker gains physical or remote access to a trusted browser, they can bypass MFA for the duration of the trust window. Keep the trust expiration short for high-security environments.
+</Aside>

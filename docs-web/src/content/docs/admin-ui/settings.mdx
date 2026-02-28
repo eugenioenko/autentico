@@ -1,0 +1,47 @@
+---
+title: Settings
+description: Editing runtime settings from the Autentico Admin UI.
+---
+
+The Settings section provides a form interface for all runtime settings stored in the `settings` database table. Changes take effect immediately — no restart required.
+
+{/* TODO: add screenshot of settings page */}
+
+## Settings categories
+
+Settings are grouped by category:
+
+| Category | Examples |
+|---|---|
+| **Authentication** | `auth_mode`, `mfa_enabled`, `mfa_method` |
+| **Token lifetimes** | `access_token_expiration`, `refresh_token_expiration` |
+| **SSO sessions** | `sso_session_max_age`, `sso_session_idle_timeout` |
+| **Account security** | `lockout_max_attempts`, `lockout_duration` |
+| **SMTP** | `smtp_host`, `smtp_port`, `smtp_username`, `smtp_from` |
+| **Trusted devices** | `trust_device_enabled`, `trust_device_expiration` |
+| **Passkeys** | `passkey_rp_name` |
+| **Validation** | `validation_min_username_length`, `validation_email_required` |
+| **Theming** | `theme_title`, `theme_css_inline`, `theme_logo_url` |
+| **Cleanup** | `cleanup_interval`, `cleanup_retention` |
+
+## Saving changes
+
+Click **Save** to write changes to the settings table. The running server reads the new values immediately — settings are hot-reloaded without a restart.
+
+## API
+
+All settings can also be managed via the API:
+
+```bash
+# Get all settings
+curl https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+
+# Update one or more settings
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mfa_enabled": "true", "mfa_method": "totp"}'
+```
+
+See [Runtime Settings](/configuration/runtime-settings/) for the full reference table.

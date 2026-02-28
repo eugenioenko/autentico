@@ -1,0 +1,83 @@
+---
+title: Token Structure & Claims
+description: The structure of ID tokens and access tokens issued by Autentico, including all JWT claims.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico issues three types of tokens: **ID tokens**, **access tokens**, and **refresh tokens**. All are JWTs.
+
+## ID token
+
+The ID token is a JWT signed with the server's RSA private key (RS256). It is returned in the token response alongside the access token when the `openid` scope is requested.
+
+**Header:**
+```json
+{
+  "alg": "RS256",
+  "typ": "JWT",
+  "kid": "autentico-key-1"
+}
+```
+
+**Payload claims:**
+
+| Claim | Description |
+|---|---|
+| `iss` | Issuer — the value of `AUTENTICO_APP_URL + AUTENTICO_APP_OAUTH_PATH`. Example: `https://auth.example.com/oauth2` |
+| `sub` | Subject — the user's unique ID |
+| `aud` | Audience — the `client_id` of the requesting relying party |
+| `exp` | Expiration timestamp (Unix) |
+| `iat` | Issued-at timestamp (Unix) |
+| `nonce` | The `nonce` value from the authorization request, if provided. Used by relying parties to prevent replay attacks. |
+
+Relying parties verify the ID token signature using the public JWK Set at `/.well-known/jwks.json`. The `kid` header identifies which key to use.
+
+## Access token
+
+The access token is a JWT used to authenticate API requests. It is passed as a `Bearer` token in the `Authorization` header.
+
+**Payload claims:**
+
+| Claim | Description |
+|---|---|
+| `iss` | Issuer — same as ID token |
+| `sub` | Subject — user ID |
+| `aud` | Audience — configured via `access_token_audience` setting or per-client `allowed_audiences` override |
+| `exp` | Expiration timestamp |
+| `iat` | Issued-at timestamp |
+| `sid` | Session ID — correlates the token to a specific session |
+| `scope` | Space-separated scopes granted for this token |
+
+<Aside type="tip">
+Access tokens are also RS256-signed. Resource servers can verify them locally using the JWKS without calling Autentico, or use the [introspection endpoint](/protocol/introspection-revocation/) for active validation.
+</Aside>
+
+## Refresh token
+
+The refresh token is a JWT used to obtain new access tokens without re-authenticating the user. It is signed with the `AUTENTICO_REFRESH_TOKEN_SECRET` (HMAC-SHA256).
+
+| Claim | Description |
+|---|---|
+| `sub` | User ID |
+| `sid` | Session ID |
+| `iat` | Issued-at timestamp |
+| `exp` | Expiration timestamp |
+
+Refresh tokens are opaque to relying parties — do not parse or depend on their internal structure.
+
+## Token verification
+
+Verify ID and access tokens using the public keys at:
+
+```
+GET /.well-known/jwks.json
+```
+
+Most OIDC libraries do this automatically when you point them at the discovery endpoint:
+
+```
+GET /.well-known/openid-configuration
+```
+
+For manual verification using a JWT library, the algorithm is always `RS256` and the key ID is in the `kid` header.

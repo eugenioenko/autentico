@@ -1,0 +1,83 @@
+---
+title: Per-Client Overrides
+description: How to configure token TTLs, audiences, and authentication behavior individually per OAuth2 client.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Each registered OAuth2 client can override a subset of the global runtime settings. Overrides are stored in the `clients` table and applied per-request based on the `client_id` in the authorization request.
+
+Unset overrides (null) fall through to the current global runtime settings. There is no need to repeat the global default — only set what differs.
+
+## Available overrides
+
+| Field | Type | Description |
+|---|---|---|
+| `access_token_expiration` | duration string | Access token lifetime for tokens issued to this client. Example: `"30m"`. |
+| `refresh_token_expiration` | duration string | Refresh token lifetime for this client. Example: `"168h"` (7 days). |
+| `authorization_code_expiration` | duration string | Auth code TTL for this client. |
+| `allowed_audiences` | string array | Additional `aud` values added to access tokens for this client. Example: `["https://api.example.com"]`. |
+| `allow_self_signup` | boolean | Override the global `allow_self_signup` setting for this client's login page. |
+| `sso_session_idle_timeout` | duration string | Override the IdP session idle timeout for sessions originating from this client. |
+| `trust_device_enabled` | boolean | Enable or disable trusted devices for users authenticating through this client. |
+| `trust_device_expiration` | duration string | Override trusted device token lifetime for this client. |
+
+## Setting overrides
+
+**Via Admin UI**: Clients → select a client → Edit → expand the Overrides section.
+
+{/* TODO: add screenshot of client edit form showing override fields */}
+
+**Via API** at registration:
+
+```bash
+curl -X POST https://auth.example.com/oauth2/register \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_name": "Mobile App",
+    "client_type": "public",
+    "redirect_uris": ["myapp://callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "access_token_expiration": "30m",
+    "refresh_token_expiration": "168h",
+    "trust_device_enabled": true,
+    "trust_device_expiration": "720h"
+  }'
+```
+
+**Via API** on an existing client:
+
+```bash
+curl -X PUT https://auth.example.com/oauth2/register/YOUR_CLIENT_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "access_token_expiration": "1h",
+    "allowed_audiences": ["https://api.example.com", "https://other-api.example.com"]
+  }'
+```
+
+<Aside type="tip">
+Duration strings use Go's `time.Duration` format: `"15m"`, `"1h"`, `"720h"`, `"30s"`. A value of `"0"` disables the feature (e.g. `sso_session_idle_timeout: "0"` disables IdP sessions for that client).
+</Aside>
+
+## Precedence example
+
+Given this global configuration:
+
+```
+access_token_expiration = 15m
+trust_device_enabled = false
+```
+
+And a client configured with:
+
+```json
+{
+  "access_token_expiration": "1h",
+  "trust_device_enabled": true
+}
+```
+
+Requests from that client will produce access tokens valid for 1 hour, with trusted device support enabled, while all other clients continue to use the 15-minute default with trusted devices disabled.

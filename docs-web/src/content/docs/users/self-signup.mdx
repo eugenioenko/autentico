@@ -1,0 +1,50 @@
+---
+title: Self-Signup
+description: Allowing users to create their own accounts in Autentico.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+By default, Autentico operates as a closed system — only admins can create user accounts. Self-signup allows users to register their own accounts from the login page.
+
+## Enabling self-signup
+
+Self-signup is controlled by the `allow_self_signup` runtime setting:
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"allow_self_signup": "true"}'
+```
+
+When enabled, a **Create account** link appears on the login page, pointing to `/oauth2/signup`.
+
+## Per-client control
+
+Self-signup can be enabled for specific clients only while remaining disabled globally:
+
+```json
+{
+  "client_name": "Community Forum",
+  "allow_self_signup": true
+}
+```
+
+The signup page checks the `allow_self_signup` setting for the originating client. If no per-client override is set, it falls back to the global setting.
+
+## Signup flow
+
+1. User clicks **Create account** on the login page
+2. User fills in username, password, and (if `validation_email_required` is `true`) email
+3. Autentico validates the input against the configured validation rules
+4. If valid: creates the user account and redirects back to the login page
+5. User logs in with their new credentials
+
+## Validation rules
+
+The same username and password validation rules apply at signup as at admin-created accounts. See [Password Authentication](/authentication/password/) for the validation settings reference.
+
+<Aside type="caution">
+Enabling self-signup means anyone can create an account. Consider pairing it with email verification (`validation_email_required = true`) or manual review before allowing access to sensitive clients.
+</Aside>

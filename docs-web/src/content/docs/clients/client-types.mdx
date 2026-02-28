@@ -1,0 +1,57 @@
+---
+title: Client Types
+description: Confidential vs public OAuth2 clients in Autentico and their authentication methods.
+---
+
+## Confidential clients
+
+A **confidential** client can securely store a secret — typically a server-side application where the secret is never exposed to the browser.
+
+- `client_type`: `confidential`
+- Authenticates at the token endpoint using a `client_secret`
+- Two authentication methods:
+  - `client_secret_basic`: credentials in `Authorization: Basic <base64(client_id:client_secret)>` header
+  - `client_secret_post`: credentials in the POST body as `client_id` and `client_secret` form fields
+
+**Token exchange example (Basic auth):**
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -u "my-client-id:my-client-secret" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=AUTH_CODE" \
+  -d "redirect_uri=https://app.example.com/callback" \
+  -d "code_verifier=CODE_VERIFIER"
+```
+
+## Public clients
+
+A **public** client cannot store a secret securely — a browser SPA or mobile app where any embedded secret would be visible.
+
+- `client_type`: `public`
+- `token_endpoint_auth_method`: `none`
+- **Must use PKCE** — the `code_challenge` / `code_verifier` pair substitutes for the client secret
+
+No `client_secret` is issued for public clients.
+
+**Token exchange example (PKCE, no secret):**
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=AUTH_CODE" \
+  -d "redirect_uri=https://app.example.com/callback" \
+  -d "client_id=my-client-id" \
+  -d "code_verifier=CODE_VERIFIER"
+```
+
+## Summary
+
+| | Confidential | Public |
+|---|---|---|
+| Has `client_secret` | Yes | No |
+| Auth method | `client_secret_basic` or `client_secret_post` | `none` |
+| PKCE required | Recommended | Required |
+| Typical use case | Server-side apps, APIs | SPAs, mobile apps, CLIs |

@@ -1,0 +1,91 @@
+---
+title: Managing Users
+description: Creating, updating, and deactivating users via the Autentico Admin UI and API.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Creating users
+
+<Tabs>
+<TabItem label="Admin UI">
+
+Go to **Admin UI → Users → New User**. Fill in username, password, and optionally email and role.
+
+</TabItem>
+<TabItem label="API">
+
+```bash
+curl -X POST https://auth.example.com/admin/api/users \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "alice",
+    "password": "secure-password",
+    "email": "alice@example.com",
+    "role": "user"
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+## Listing users
+
+```bash
+curl https://auth.example.com/admin/api/users \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+Returns a paginated list of user objects (without password hashes or TOTP secrets).
+
+## Updating a user
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/users/USER_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "alice-new@example.com",
+    "role": "admin"
+  }'
+```
+
+All fields are optional in the update request — only provided fields are changed.
+
+Updatable fields: `username`, `password`, `email`, `role`, `is_email_verified`, `totp_verified`.
+
+## Resetting MFA
+
+To force a user to re-enroll TOTP (e.g. they lost their authenticator app):
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/users/USER_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"totp_verified": false}'
+```
+
+On their next login, they will be shown the TOTP enrollment QR code again.
+
+## Unlocking a locked account
+
+If a user is locked out after too many failed attempts:
+
+```bash
+curl -X POST https://auth.example.com/admin/api/users/unlock \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "USER_ID"}'
+```
+
+Or via **Admin UI → Users → (user) → Unlock**.
+
+## Deleting users
+
+```bash
+curl -X DELETE https://auth.example.com/admin/api/users/USER_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+This permanently removes the user and their associated data (sessions, tokens, passkeys, trusted devices).
