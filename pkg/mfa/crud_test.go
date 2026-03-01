@@ -10,6 +10,7 @@ import (
 
 func TestMfaChallengeCRUD(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user1")
 
 	c := MfaChallenge{
 		ID:         "chall1",

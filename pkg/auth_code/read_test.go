@@ -11,6 +11,7 @@ import (
 
 func TestAuthCodeByCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	// Insert a test auth code
 	_, err := db.GetDB().Exec(`
@@ -37,6 +38,7 @@ func TestAuthCodeByCode_NotFound(t *testing.T) {
 
 func TestAuthCodeByCode_WithClientID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	// Insert a test auth code with client_id
 	_, err := db.GetDB().Exec(`

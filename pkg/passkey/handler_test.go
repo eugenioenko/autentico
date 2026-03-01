@@ -204,6 +204,7 @@ func TestHandleLoginFinish_InvalidChallengeID(t *testing.T) {
 
 func TestHandleLoginFinish_ExpiredChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "expired-login-challenge",
@@ -226,6 +227,7 @@ func TestHandleLoginFinish_ExpiredChallenge(t *testing.T) {
 
 func TestHandleLoginFinish_AlreadyUsed(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "used-login-challenge",
@@ -249,6 +251,7 @@ func TestHandleLoginFinish_AlreadyUsed(t *testing.T) {
 
 func TestHandleLoginFinish_WrongType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	// Registration challenge presented to login/finish
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -300,6 +303,7 @@ func TestHandleRegisterFinish_InvalidChallengeID(t *testing.T) {
 
 func TestHandleRegisterFinish_ExpiredChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "expired-reg-challenge",
@@ -322,6 +326,7 @@ func TestHandleRegisterFinish_ExpiredChallenge(t *testing.T) {
 
 func TestHandleRegisterFinish_AlreadyUsed(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "used-reg-challenge",
@@ -345,6 +350,7 @@ func TestHandleRegisterFinish_AlreadyUsed(t *testing.T) {
 
 func TestHandleRegisterFinish_WrongType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	// Authentication challenge presented to register/finish
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{

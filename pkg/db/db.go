@@ -219,9 +219,18 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// SQLite is single-writer; one connection avoids "database is locked" races
+	// and ensures PRAGMAs set below apply to every query.
+	db.SetMaxOpenConns(1)
+
 	_, err = db.Exec("PRAGMA busy_timeout = 5000;") // 5000ms timeout
 	if err != nil {
 		panic("Failed to set SQLite busy timeout: " + err.Error())
+	}
+
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		panic("Failed to enable SQLite foreign keys: " + err.Error())
 	}
 
 	_, err = db.Exec(createTableSQL)
@@ -244,9 +253,16 @@ func InitTestDB() (*sql.DB, error) {
 		return nil, err
 	}
 
+	db.SetMaxOpenConns(1)
+
 	_, err = db.Exec("PRAGMA busy_timeout = 5000;") // 5000ms timeout
 	if err != nil {
 		panic("Failed to set SQLite busy timeout: " + err.Error())
+	}
+
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		panic("Failed to enable SQLite foreign keys: " + err.Error())
 	}
 
 	_, err = db.Exec(dropTableSQL)

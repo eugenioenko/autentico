@@ -11,6 +11,7 @@ import (
 
 func TestSessionByID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "test-user-id")
 
 	testSession := Session{
 		ID:           "test-session-id",
@@ -55,6 +56,7 @@ func TestSessionByID_NotFound(t *testing.T) {
 
 func TestSessionByAccessToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "test-user-id")
 
 	testSession := Session{
 		ID:           "token-session-id",

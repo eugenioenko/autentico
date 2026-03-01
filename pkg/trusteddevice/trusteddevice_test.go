@@ -24,6 +24,7 @@ func sampleDevice(id, userID string) TrustedDevice {
 
 func TestCreateTrustedDevice(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-create-1", "user-1")
 	err := CreateTrustedDevice(dev)
 	require.NoError(t, err)
@@ -31,6 +32,7 @@ func TestCreateTrustedDevice(t *testing.T) {
 
 func TestCreateTrustedDeviceDuplicateID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-dup-1", "user-1")
 	require.NoError(t, CreateTrustedDevice(dev))
 	err := CreateTrustedDevice(dev)
@@ -41,6 +43,7 @@ func TestCreateTrustedDeviceDuplicateID(t *testing.T) {
 
 func TestTrustedDeviceByID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-read-1")
 	dev := sampleDevice("dev-read-1", "user-read-1")
 	require.NoError(t, CreateTrustedDevice(dev))
 
@@ -61,6 +64,7 @@ func TestTrustedDeviceByIDNotFound(t *testing.T) {
 
 func TestUpdateLastUsed(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-update-1", "user-1")
 	require.NoError(t, CreateTrustedDevice(dev))
 
@@ -83,6 +87,7 @@ func TestUpdateLastUsedNonexistent(t *testing.T) {
 
 func TestIsDeviceTrustedValid(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-trusted-1")
 	dev := sampleDevice("dev-trusted-1", "user-trusted-1")
 	require.NoError(t, CreateTrustedDevice(dev))
 
@@ -94,6 +99,7 @@ func TestIsDeviceTrustedValid(t *testing.T) {
 
 func TestIsDeviceTrustedWrongUser(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-a")
 	dev := sampleDevice("dev-trusted-2", "user-a")
 	require.NoError(t, CreateTrustedDevice(dev))
 
@@ -105,6 +111,7 @@ func TestIsDeviceTrustedWrongUser(t *testing.T) {
 
 func TestIsDeviceTrustedExpired(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-exp-1")
 	dev := TrustedDevice{
 		ID:         "dev-expired-1",
 		UserID:     "user-exp-1",

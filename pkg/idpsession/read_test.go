@@ -11,6 +11,7 @@ import (
 
 func TestIdpSessionByID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-read-1",
@@ -40,6 +41,7 @@ func TestIdpSessionByID_NotFound(t *testing.T) {
 
 func TestIdpSessionByID_Deactivated(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-deactivated-1",

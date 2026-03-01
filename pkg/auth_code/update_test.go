@@ -11,6 +11,7 @@ import (
 
 func TestMarkAuthCodeAsUsed(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	// Insert a test auth code
 	_, err := db.GetDB().Exec(`

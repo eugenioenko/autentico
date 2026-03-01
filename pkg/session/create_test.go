@@ -12,6 +12,7 @@ import (
 
 func TestCreateSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := Session{
 		ID:           "session-1",
