@@ -164,6 +164,13 @@ var createTableSQL = `
 		value TEXT NOT NULL,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens(refresh_token);
+	CREATE INDEX IF NOT EXISTS idx_tokens_access_token ON tokens(access_token);
+	CREATE INDEX IF NOT EXISTS idx_sessions_access_token ON sessions(access_token);
+	CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+	CREATE INDEX IF NOT EXISTS idx_idp_sessions_user_id ON idp_sessions(user_id);
+	CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user_id ON passkey_credentials(user_id);
 `
 
 var dropTableSQL = `
