@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/login"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/ratelimit"
 	"github.com/eugenioenko/autentico/pkg/onboarding"
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -62,25 +64,29 @@ func RunStart(_ *cli.Context) error {
 	oauth := bs.AppOAuthPath
 	mux := http.NewServeMux()
 
+	// Per-IP rate limiter for authentication endpoints (rps=0 disables)
+	limiterStore := ratelimit.NewStore(bs.RateLimitRPS, bs.RateLimitBurst, bs.RateLimitRPM, bs.RateLimitRPMBurst)
+	rateLimited := middleware.RateLimitMiddleware(limiterStore)
+
 	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/authorize/", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
-	mux.Handle(oauth+"/login", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
-	mux.Handle(oauth+"/login/", middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle(oauth+"/login", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
+	mux.Handle(oauth+"/login/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
 	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
 	mux.Handle(oauth+"/signup/", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
 	mux.Handle(oauth+"/onboard", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
 	mux.Handle(oauth+"/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
-	mux.Handle(oauth+"/mfa", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
-	mux.Handle(oauth+"/mfa/", middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa)))
+	mux.Handle(oauth+"/mfa", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
+	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
-	mux.HandleFunc("POST "+oauth+"/passkey/login/finish", passkey.HandleLoginFinish)
+	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
-	mux.HandleFunc(oauth+"/token", token.HandleToken)
-	mux.HandleFunc(oauth+"/protocol/openid-connect/token", token.HandleToken)
+	mux.Handle(oauth+"/token", rateLimited(http.HandlerFunc(token.HandleToken)))
+	mux.Handle(oauth+"/protocol/openid-connect/token", rateLimited(http.HandlerFunc(token.HandleToken)))
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
@@ -108,7 +114,9 @@ func RunStart(_ *cli.Context) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	cleanup.Start(ctx, cfg.CleanupInterval, cfg.CleanupRetention)
+	cleanup.Start(ctx, cfg.CleanupInterval, cfg.CleanupRetention, func() {
+		limiterStore.Cleanup(10 * time.Minute)
+	})
 
 	baseURL := bs.AppURL
 	fmt.Println()
