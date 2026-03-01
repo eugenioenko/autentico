@@ -38,6 +38,7 @@ func sampleCredentialJSON() string {
 
 func TestCreatePasskeyChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	challenge := PasskeyChallenge{
 		ID:            "challenge-1",
@@ -60,6 +61,7 @@ func TestCreatePasskeyChallenge(t *testing.T) {
 
 func TestCreatePasskeyChallenge_DuplicateID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	challenge := PasskeyChallenge{
 		ID:            "dup-challenge",
@@ -79,6 +81,7 @@ func TestCreatePasskeyChallenge_DuplicateID(t *testing.T) {
 
 func TestCreatePasskeyCredential(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	cred := PasskeyCredential{
 		ID:         "cred-1",
@@ -98,6 +101,7 @@ func TestCreatePasskeyCredential(t *testing.T) {
 
 func TestCreatePasskeyCredential_DuplicateID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	cred := PasskeyCredential{
 		ID:         "dup-cred",
@@ -114,6 +118,7 @@ func TestCreatePasskeyCredential_DuplicateID(t *testing.T) {
 
 func TestPasskeyChallengeByID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	challenge := PasskeyChallenge{
 		ID:            "read-challenge-1",
@@ -146,6 +151,8 @@ func TestPasskeyChallengeByID_NotFound(t *testing.T) {
 
 func TestPasskeyCredentialsByUserID(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-x")
+	testutils.InsertTestUser(t, "user-y")
 
 	for _, id := range []string{"cred-a", "cred-b"} {
 		require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
@@ -198,6 +205,7 @@ func TestCredentialsToWebAuthn_Empty(t *testing.T) {
 
 func TestMarkPasskeyChallengeUsed(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	challenge := PasskeyChallenge{
 		ID:            "used-challenge",
@@ -222,6 +230,7 @@ func TestMarkPasskeyChallengeUsed(t *testing.T) {
 
 func TestUpdatePasskeyCredential(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
 		ID:         "update-cred",
@@ -247,6 +256,7 @@ func TestUpdatePasskeyCredential(t *testing.T) {
 
 func TestDeletePasskeyCredential(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-del")
 
 	require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
 		ID:         "delete-cred",

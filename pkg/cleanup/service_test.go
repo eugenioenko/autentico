@@ -67,6 +67,7 @@ func rowExists(t *testing.T, table, idCol, id string) bool {
 
 func TestRun_DeletesExpiredAuthCodes(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	old := xid.New().String()
 	recent := xid.New().String()
 
@@ -81,6 +82,7 @@ func TestRun_DeletesExpiredAuthCodes(t *testing.T) {
 
 func TestRun_DeletesExpiredSessions(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	old := xid.New().String()
 	recent := xid.New().String()
 
@@ -95,6 +97,7 @@ func TestRun_DeletesExpiredSessions(t *testing.T) {
 
 func TestRun_DeletesExpiredTrustedDevices(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	old := xid.New().String()
 	recent := xid.New().String()
 
@@ -109,6 +112,7 @@ func TestRun_DeletesExpiredTrustedDevices(t *testing.T) {
 
 func TestRun_DeletesDeactivatedIdpSessions(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	old := xid.New().String()
 	recent := xid.New().String()
 
@@ -123,6 +127,7 @@ func TestRun_DeletesDeactivatedIdpSessions(t *testing.T) {
 
 func TestRun_KeepsActiveIdpSessions(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 	id := xid.New().String()
 
 	// Active session: no deactivated_at, no expires_at

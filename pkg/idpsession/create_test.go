@@ -11,6 +11,7 @@ import (
 
 func TestCreateIdpSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-session-1",
@@ -31,6 +32,7 @@ func TestCreateIdpSession(t *testing.T) {
 
 func TestCreateIdpSession_Duplicate(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-session-dup",

@@ -14,6 +14,8 @@ import (
 
 func TestHandleSessionAdminEndpoint(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user1")
+	testutils.InsertTestUser(t, "user2")
 
 	// Create some test sessions
 	s1 := Session{

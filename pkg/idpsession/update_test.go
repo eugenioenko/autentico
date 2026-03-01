@@ -12,6 +12,7 @@ import (
 
 func TestUpdateLastActivity(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-activity-1",
@@ -42,6 +43,7 @@ func TestUpdateLastActivity(t *testing.T) {
 
 func TestDeactivateIdpSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-deactivate-1",
@@ -69,6 +71,7 @@ func TestDeactivateIdpSession(t *testing.T) {
 
 func TestDeactivateIdpSession_AlreadyDeactivated(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	session := IdpSession{
 		ID:        "idp-double-deactivate",

@@ -12,6 +12,7 @@ import (
 
 func TestCreateToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	token := Token{
 		UserID:                "user-1",

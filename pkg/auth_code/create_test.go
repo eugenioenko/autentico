@@ -12,6 +12,7 @@ import (
 
 func TestCreateAuthCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	authCode := AuthCode{
 		Code:        "test-code",
@@ -35,6 +36,7 @@ func TestCreateAuthCode(t *testing.T) {
 
 func TestCreateAuthCode_DuplicateCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
 
 	authCode := AuthCode{
 		Code:        "duplicate-code",
