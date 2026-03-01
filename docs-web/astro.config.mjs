@@ -9,6 +9,24 @@ export default defineConfig({
 	site: 'https://docs.autentico.top',
 	integrations: [
 		starlight({
+			head: [
+				{
+					tag: 'script',
+					attrs: {
+						src: 'https://www.googletagmanager.com/gtag/js?id=G-B4MMCJ2QP2',
+						async: true,
+					},
+				},
+				{
+					tag: 'script',
+					content: `
+						window.dataLayer = window.dataLayer || [];
+						function gtag(){dataLayer.push(arguments);}
+						gtag('js', new Date());
+						gtag('config', 'G-B4MMCJ2QP2');
+					`,
+				},
+			],
 			title: 'Autentico',
 			description: 'Documentation for the Autentico OpenID Connect Identity Provider',
 			favicon: '/favicon.svg',
