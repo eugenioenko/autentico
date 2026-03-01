@@ -15,7 +15,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 - **Cookie secret**: `AUTENTICO_COOKIE_SECRET` must be at least 32 random bytes. Generate it with `openssl rand -base64 32`.
 - **Admin token**: `AUTENTICO_ADMIN_TOKEN` should be a long random string. Treat it like a root password — rotate it on suspicion of compromise.
-- **Private key**: `private_key.pem` is the trust anchor for all issued tokens. Store it on an encrypted volume, back it up securely, and never commit it to source control.
+- **Private key**: `AUTENTICO_PRIVATE_KEY` (a base64-encoded RSA PEM) is the trust anchor for all issued tokens. Store it in a secrets manager, back it up securely, and never commit it to source control.
 - **Secrets rotation**: Rotating `AUTENTICO_COOKIE_SECRET` invalidates all active SSO session cookies (users must re-login). Rotating the RSA private key invalidates all issued tokens (users must re-authenticate). Plan rotations for low-traffic windows.
 
 ## Authentication

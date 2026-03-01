@@ -25,7 +25,7 @@ Tokens are signed with RSA-SHA256 (asymmetric).
 - OIDC Discovery mandates JWKS exposure; RS256 is the most widely supported algorithm
 - The alternative, HS256 (symmetric), would require sharing the signing secret with every resource server — a credential distribution problem
 
-The RSA key is 4096-bit by default. A new key pair can be generated with `make generate-key`.
+The RSA key is 2048-bit. A new key pair for production is generated with `autentico init`, which outputs a base64-encoded PEM suitable for the `AUTENTICO_PRIVATE_KEY` environment variable.
 
 ## Three-layer configuration
 

@@ -24,12 +24,12 @@ If `AUTENTICO_ADMIN_TOKEN` may be exposed:
 
 ## Suspected private key compromise
 
-If `private_key.pem` may be exposed:
+If the value of `AUTENTICO_PRIVATE_KEY` may be exposed:
 
-1. **Generate a new RSA key**: `make generate-key` or `openssl genrsa -out private_key.pem 4096`
-2. **Replace the key** at `AUTENTICO_PRIVATE_KEY_PATH` and restart Autentico
+1. **Generate a new RSA key**: run `autentico init` (or `openssl genrsa 4096 | base64 -w 0` for a raw key) to produce a new base64-encoded PEM
+2. **Replace `AUTENTICO_PRIVATE_KEY`** in your environment or secrets manager and restart Autentico
 3. **All existing tokens are now invalid** — users will need to re-authenticate. This is intentional: the old key can no longer be used to issue valid tokens.
-4. **Update `AUTENTICO_AUTH_JWK_CERT_KEY_ID`** if your clients cache the JWKS by key ID
+4. **Update `AUTENTICO_JWK_CERT_KEY_ID`** if your clients cache the JWKS by key ID
 
 ## Data breach
 
