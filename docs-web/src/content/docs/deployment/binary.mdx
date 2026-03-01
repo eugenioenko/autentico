@@ -59,17 +59,18 @@ sudo systemctl status autentico
 
 ## Data directory
 
-Autentico writes two persistent files:
+Autentico writes one persistent file:
 
 | File | Purpose |
 |---|---|
 | `autentico.db` (path from `AUTENTICO_DB_FILE_PATH`) | SQLite database — all users, clients, sessions, settings |
-| `private_key.pem` (path from `AUTENTICO_PRIVATE_KEY_PATH`) | RSA private key for JWT signing |
 
-Back these up. The SQLite database is a single file and can be copied while the server is idle, or use `sqlite3 .backup` for a hot backup.
+The RSA private key is passed as the `AUTENTICO_PRIVATE_KEY` environment variable (a base64-encoded PEM string). It is not written to disk. Store it in your secrets manager or `.env` file alongside your other bootstrap secrets.
+
+Back up the database file. Use `sqlite3 .backup` for a hot backup while the server is running.
 
 <Aside type="caution">
-Never expose the SQLite database file or `private_key.pem` to the public internet. Keep them on a volume accessible only by the `autentico` user.
+Never expose the SQLite database file to the public internet. Keep it on a volume accessible only by the `autentico` user. Treat `AUTENTICO_PRIVATE_KEY` as a secret — back it up securely and never commit it to source control.
 </Aside>
 
 ## Reverse proxy
