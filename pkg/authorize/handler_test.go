@@ -270,6 +270,48 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "username")
 }
 
+func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
+	testutils.WithTestDB(t)
+	// AuthPKCEEnforceSHA256 defaults to true — plain must be rejected
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=abc&code_challenge_method=plain", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Contains(t, rr.Body.String(), "plain")
+}
+
+func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthPKCEEnforceSHA256 = false
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=abc&code_challenge_method=plain", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// Should render login form, not an error
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "form")
+}
+
+func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "form")
+}
+
 func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

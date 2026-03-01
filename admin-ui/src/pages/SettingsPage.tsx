@@ -20,10 +20,14 @@ import { useEffect } from "react";
 
 const { Title, Text } = Typography;
 
+// getValueProps for Switch: API sends strings, Switch stores booleans after toggle
+const boolProp = (value: unknown) => ({ checked: value === true || value === "true" });
+
 export default function SettingsPage() {
   const { data: settings, isLoading, error } = useSettings();
   const updateSettings = useUpdateSettings();
   const [form] = Form.useForm();
+  const pkceEnforced = Form.useWatch("pkce_enforce_s256", form);
 
   useEffect(() => {
     if (settings) {
@@ -91,7 +95,7 @@ export default function SettingsPage() {
                     label="Allow Self Signup"
                     name="allow_self_signup"
                     valuePropName="checked"
-                    getValueProps={(value) => ({ checked: value === "true" })}
+                    getValueProps={boolProp}
                   >
                     <Switch />
                   </Form.Item>
@@ -103,7 +107,7 @@ export default function SettingsPage() {
                     label="Enable MFA"
                     name="mfa_enabled"
                     valuePropName="checked"
-                    getValueProps={(value) => ({ checked: value === "true" })}
+                    getValueProps={boolProp}
                   >
                     <Switch />
                   </Form.Item>
@@ -131,7 +135,7 @@ export default function SettingsPage() {
                     label="Trust Device Enabled"
                     name="trust_device_enabled"
                     valuePropName="checked"
-                    getValueProps={(value) => ({ checked: value === "true" })}
+                    getValueProps={boolProp}
                   >
                     <Switch />
                   </Form.Item>
@@ -174,7 +178,7 @@ export default function SettingsPage() {
                     label="Username is Email"
                     name="validation_username_is_email"
                     valuePropName="checked"
-                    getValueProps={(value) => ({ checked: value === "true" })}
+                    getValueProps={boolProp}
                   >
                     <Switch />
                   </Form.Item>
@@ -183,7 +187,7 @@ export default function SettingsPage() {
                     label="Email Required"
                     name="validation_email_required"
                     valuePropName="checked"
-                    getValueProps={(value) => ({ checked: value === "true" })}
+                    getValueProps={boolProp}
                   >
                     <Switch />
                   </Form.Item>
@@ -191,8 +195,8 @@ export default function SettingsPage() {
                   <Divider />
 
                   <Title level={5}>Account Lockout</Title>
-                  <Form.Item 
-                    label="Max Failed Attempts" 
+                  <Form.Item
+                    label="Max Failed Attempts"
                     name="account_lockout_max_attempts"
                     extra="0 to disable lockout"
                   >
@@ -201,6 +205,36 @@ export default function SettingsPage() {
                   <Form.Item label="Lockout Duration" name="account_lockout_duration">
                     <Input placeholder="15m" />
                   </Form.Item>
+
+                  <Divider />
+
+                  <Title level={5}>PKCE</Title>
+                  <Form.Item
+                    label="Enforce S256 Code Challenge"
+                    name="pkce_enforce_s256"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                  >
+                    <Switch />
+                  </Form.Item>
+                  {(pkceEnforced === false || pkceEnforced === "false") && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Security Warning"
+                      description={
+                        <>
+                          Clients may now use{" "}
+                          <code>code_challenge_method=plain</code>, which provides no
+                          security benefit — the verifier equals the challenge and is
+                          visible in the authorization request. Only disable for
+                          backward compatibility with legacy clients that cannot
+                          support S256 (RFC 7636).
+                        </>
+                      }
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
                 </Card>
               ),
             },
