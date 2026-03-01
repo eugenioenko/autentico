@@ -30,6 +30,7 @@ var defaults = map[string]string{
 	"trust_device_expiration":        "720h",
 	"cleanup_interval":               "6h",
 	"cleanup_retention":              "24h",
+	"pkce_enforce_s256":              "true",
 	"mfa_enabled":                    "false",
 	"mfa_method":                     "totp",
 	"smtp_port":                      "587",
@@ -139,6 +140,9 @@ func LoadIntoConfig() error {
 	if v, ok := all["cleanup_retention"]; ok {
 		cfg.CleanupRetentionStr = v
 		cfg.CleanupRetention = config.ParseDuration(v, cfg.CleanupRetention)
+	}
+	if v, ok := all["pkce_enforce_s256"]; ok {
+		cfg.AuthPKCEEnforceSHA256 = parseBool(v, true)
 	}
 	if v, ok := all["mfa_enabled"]; ok {
 		cfg.MfaEnabled = parseBool(v, false)

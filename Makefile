@@ -1,5 +1,6 @@
 # Variables
 APP_NAME=autentico
+SWAG=$(shell go env GOPATH)/bin/swag
 
 # Default target
 all: build
@@ -32,7 +33,7 @@ lint:
 
 # Generate swagger docs
 generate-docs:
-	swag init
+	$(SWAG) init
 	npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 
 # Build admin UI and copy to pkg/admin/dist
@@ -49,5 +50,8 @@ docker-build:
 docker-compose:
 	docker compose up -d
 
-generate-key:
-	openssl genpkey -algorithm RSA -out ./db/private_key.pem -pkeyopt rsa_keygen_bits:2048
+# Fresh start: wipe local DB, rebuild, init, and launch
+fresh: build
+	rm -f ./db/autentico.db .env
+	./$(APP_NAME) init
+	./$(APP_NAME) start

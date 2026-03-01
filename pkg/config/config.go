@@ -74,6 +74,7 @@ type Config struct {
 	CleanupIntervalStr                 string
 	CleanupRetention                   time.Duration
 	CleanupRetentionStr                string
+	AuthPKCEEnforceSHA256              bool
 	MfaEnabled                         bool
 	MfaMethod                          string
 	SmtpHost                           string
@@ -114,6 +115,7 @@ var defaultConfig = Config{
 	CleanupIntervalStr:                 "6h",
 	CleanupRetention:                   24 * time.Hour,
 	CleanupRetentionStr:                "24h",
+	AuthPKCEEnforceSHA256:              true,
 	MfaEnabled:                         false,
 	MfaMethod:                          "totp",
 	SmtpPort:                           "587",

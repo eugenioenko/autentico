@@ -52,6 +52,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
+	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
+		return
+	}
+
 	// Support prompt=signup to automatically go to the signup/onboarding page while preserving OIDC state
 	if q.Get("prompt") == "signup" {
 		target := "/signup"
