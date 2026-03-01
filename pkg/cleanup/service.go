@@ -40,18 +40,26 @@ func Run(retention time.Duration) {
 }
 
 // Start launches a background goroutine that calls Run every interval.
+// Optional hooks are called on every tick alongside the DB cleanup.
 // It stops when ctx is cancelled.
-func Start(ctx context.Context, interval, retention time.Duration) {
+func Start(ctx context.Context, interval, retention time.Duration, hooks ...func()) {
+	runAll := func() {
+		Run(retention)
+		for _, h := range hooks {
+			h()
+		}
+	}
+
 	go func() {
 		// Run once immediately on startup to clean up any backlog.
-		Run(retention)
+		runAll()
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				Run(retention)
+				runAll()
 			case <-ctx.Done():
 				return
 			}

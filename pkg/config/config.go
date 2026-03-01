@@ -39,6 +39,11 @@ type BootstrapConfig struct {
 	AuthIdpSessionSecureCookie     bool
 	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
 	PrivateKeyBase64 string
+	// Rate limiting (per-IP, applied to auth endpoints). RPS <= 0 disables.
+	RateLimitRPS       float64
+	RateLimitBurst     int
+	RateLimitRPM       float64
+	RateLimitRPMBurst  int
 }
 
 // ThemeConfig holds theme-related display settings.
@@ -147,6 +152,10 @@ var (
 		AuthRefreshTokenAsSecureCookie: false,
 		AuthIdpSessionCookieName:       "autentico_idp_session",
 		AuthIdpSessionSecureCookie:     false,
+		RateLimitRPS:                   5,
+		RateLimitBurst:                 10,
+		RateLimitRPM:                   20,
+		RateLimitRPMBurst:              20,
 	}
 	Values = defaultConfig
 )
@@ -214,6 +223,10 @@ func InitBootstrap() {
 		AuthRefreshTokenAsSecureCookie: getEnvBool("AUTENTICO_REFRESH_TOKEN_SECURE", false),
 		AuthIdpSessionCookieName:       getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
 		AuthIdpSessionSecureCookie:     getEnvBool("AUTENTICO_IDP_SESSION_SECURE", false),
+		RateLimitRPS:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPS", 5),
+		RateLimitBurst:                 getEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
+		RateLimitRPM:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPM", 20),
+		RateLimitRPMBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
 	}
 }
 
@@ -280,4 +293,30 @@ func getEnvBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return b
+}
+
+// getEnvFloat parses a float64 environment variable with a fallback.
+func getEnvFloat(key string, fallback float64) float64 {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return fallback
+	}
+	return f
+}
+
+// getEnvInt parses an int environment variable with a fallback.
+func getEnvInt(key string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

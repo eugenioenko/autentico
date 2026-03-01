@@ -32,6 +32,14 @@ import { Aside } from '@astrojs/starlight/components';
 - **Rotate client secrets**: Rotate `client_secret` for confidential clients periodically or after any suspected exposure.
 - **Disable unused clients**: Deactivate clients that are no longer in use.
 
+## Rate limiting
+
+Autentico includes a built-in per-IP token-bucket rate limiter on all authentication endpoints (`/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, `/oauth2/passkey/login/finish`). It is enabled by default at 5 requests/second with a burst of 10.
+
+- **Two tiers**: the per-second limiter (`AUTENTICO_RATE_LIMIT_RPS`, default 5; burst `AUTENTICO_RATE_LIMIT_BURST`, default 10) stops rapid automated bursts. The per-minute limiter (`AUTENTICO_RATE_LIMIT_RPM`, default 20; burst `AUTENTICO_RATE_LIMIT_RPM_BURST`, default 20) caps sustained enumeration from attackers who space requests to avoid the per-second limit. A request must pass both.
+- **Disabling**: set `AUTENTICO_RATE_LIMIT_RPS=0` if your reverse proxy or WAF already handles rate limiting — no need to double-count.
+- **Scope**: limits are per source IP (extracted from `X-Forwarded-For` when behind a proxy). The limiter complements account lockout — lockout stops single-account brute force, rate limiting stops IP-level enumeration and MFA hammering.
+
 ## Network
 
 - **Firewall the admin port**: If `AUTENTICO_APP_LISTEN_PORT` is not behind a proxy, firewall it so only your proxy can reach it.

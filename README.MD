@@ -55,7 +55,7 @@ _Each demo session provisions a dedicated, ephemeral Autentico instance—isolat
 - **OIDC Discovery** — publishes `/.well-known/openid-configuration` so relying parties auto-configure without hardcoding endpoints
 - **JWK Set** — exposes public signing keys at `/.well-known/jwks.json` for independent token verification
 - **RS256 JWT Signing** — asymmetric signing; the private key never leaves the IdP
-- **Authorization Code Flow + PKCE** (RFC 7636, S256 and plain) — the right default for web and native apps
+- **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
 - **Refresh Token Grant** — long-lived sessions without re-authentication
 - **Token Introspection** (RFC 7662) — for resource servers to validate opaque tokens
@@ -246,6 +246,10 @@ These are infrastructure-level settings read once at startup. Changing them requ
 | `AUTENTICO_REFRESH_TOKEN_SECURE` | Require Secure flag on refresh token cookie    | `false`                 |
 | `AUTENTICO_IDP_SESSION_SECURE`   | Require Secure flag on IdP session cookie      | `false`                 |
 | `AUTENTICO_JWK_CERT_KEY_ID`      | Key ID (`kid`) in the JWK Set                  | `autentico-key-1`       |
+| `AUTENTICO_RATE_LIMIT_RPS`       | Sustained requests/sec per IP on auth endpoints (0 = disabled) | `5` |
+| `AUTENTICO_RATE_LIMIT_BURST`     | Burst size for the per-second limiter          | `10`                    |
+| `AUTENTICO_RATE_LIMIT_RPM`       | Sustained requests/min per IP (long-term cap)  | `20`                    |
+| `AUTENTICO_RATE_LIMIT_RPM_BURST` | Burst size for the per-minute limiter          | `20`                    |
 
 > In production, set all `*_SECURE` flags to `true` once you have TLS.
 
@@ -660,7 +664,8 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **Redirect URI validation** — redirect URIs are strictly matched against registered client URIs. Wildcards are not supported.
 - **Client secrets** — stored as bcrypt hashes. The plaintext is only available at registration time.
 - **Password hashing** — user passwords are bcrypt-hashed.
-- **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit brute-force exposure. Pair with rate limiting at the reverse proxy layer.
+- **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit single-account brute-force exposure.
+- **Rate limiting** — built-in two-tier per-IP rate limiter on `/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, and `/oauth2/passkey/login/finish`. A per-second limit (default 5 rps / burst 10) stops rapid bursts; a per-minute limit (default 20 rpm / burst 20) caps sustained enumeration. Set `AUTENTICO_RATE_LIMIT_RPS=0` to disable both.
 - **RS256 signing** — the RSA private key never leaves the server. Relying parties verify tokens using the public JWKS.
 - **ROPC scope** — restrict the password grant to only clients that genuinely need it by omitting `"password"` from other clients' `grant_types`.
 
