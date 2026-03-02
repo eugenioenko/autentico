@@ -78,33 +78,36 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If client_id is provided, validate against registered clients
-	var registeredClient *client.Client
-	if request.ClientID != "" {
-		registeredClient, err = client.ClientByClientID(request.ClientID)
-		if err != nil {
-			// Client not found - for backward compatibility, allow if no clients registered
-			// This maintains existing behavior for deployments without registered clients
-		} else {
-			// Client found - validate redirect_uri and response_type
-			if !registeredClient.IsActive {
-				slog.Warn("authorize: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-				renderError(w, "Client is inactive")
-				return
-			}
+	// Validate client_id against registered clients
+	registeredClient, err := client.ClientByClientID(request.ClientID)
+	if err != nil {
+		slog.Warn("authorize: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		renderError(w, "Unknown client_id")
+		return
+	}
 
-			if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
-				slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
-				renderError(w, "Redirect URI not allowed for this client")
-				return
-			}
+	if !registeredClient.IsActive {
+		slog.Warn("authorize: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		renderError(w, "Client is inactive")
+		return
+	}
 
-			if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
-				slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
-				renderError(w, "Response type not allowed for this client")
-				return
-			}
-		}
+	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
+		slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
+		renderError(w, "Redirect URI not allowed for this client")
+		return
+	}
+
+	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
+		slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
+		renderError(w, "Response type not allowed for this client")
+		return
+	}
+
+	if !client.ValidateScopes(registeredClient, request.Scope) {
+		slog.Warn("authorize: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
+		renderError(w, "One or more requested scopes are not allowed for this client")
+		return
 	}
 
 	// Check for valid IdP session (auto-login)

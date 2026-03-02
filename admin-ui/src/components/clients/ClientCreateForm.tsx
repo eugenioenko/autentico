@@ -51,6 +51,15 @@ const AUTH_METHOD_OPTIONS = [
   { label: "None", value: "none" },
 ];
 
+const SCOPE_OPTIONS = [
+  { label: "openid", value: "openid" },
+  { label: "profile", value: "profile" },
+  { label: "email", value: "email" },
+  { label: "address", value: "address" },
+  { label: "phone", value: "phone" },
+  { label: "offline_access", value: "offline_access" },
+];
+
 export default function ClientCreateForm({
   open,
   onClose,
@@ -59,11 +68,14 @@ export default function ClientCreateForm({
   const createClient = useCreateClient();
   const [secretModal, setSecretModal] = useState<ClientResponse | null>(null);
 
-  const handleSubmit = async (values: ClientCreateRequest) => {
+  const handleSubmit = async (
+    values: Omit<ClientCreateRequest, "scopes"> & { scopes?: string[] },
+  ) => {
     try {
-      // Process allowed_audiences from string if needed, but Form.List handles it if used.
-      // Here we will use a simple Select mode="tags" for audiences.
-      const result = await createClient.mutateAsync(values);
+      const result = await createClient.mutateAsync({
+        ...values,
+        scopes: values.scopes?.join(" "),
+      });
       form.resetFields();
       onClose();
       if (result.client_secret) {
@@ -112,7 +124,7 @@ export default function ClientCreateForm({
             grant_types: ["authorization_code"],
             response_types: ["code"],
             token_endpoint_auth_method: "client_secret_basic",
-            scopes: "openid profile email",
+            scopes: ["openid", "profile", "email", "offline_access"],
             redirect_uris: [""],
           }}
         >
@@ -202,8 +214,16 @@ export default function ClientCreateForm({
             <Select mode="multiple" options={RESPONSE_TYPE_OPTIONS} />
           </Form.Item>
 
-          <Form.Item name="scopes" label="Scopes">
-            <Input placeholder="openid profile email" />
+          <Form.Item
+            name="scopes"
+            label="Scopes"
+            extra="Select standard OIDC scopes or type to add custom ones."
+          >
+            <Select
+              mode="tags"
+              options={SCOPE_OPTIONS}
+              placeholder="Select or type scopes..."
+            />
           </Form.Item>
 
           <Form.Item

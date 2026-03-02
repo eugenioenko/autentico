@@ -34,6 +34,7 @@ type TokenRequest struct {
 	Username     string `json:"username,omitempty"`      // The username for the resource owner (used in password grant type)
 	Password     string `json:"password,omitempty"`      // The password for the resource owner (used in password grant type)
 	RefreshToken string `json:"refresh_token,omitempty"` // The refresh token (used in refresh token grant type)
+	Scope        string `json:"scope,omitempty"`         // The requested scope (used in password grant type)
 }
 
 type RefreshTokenClaims struct {

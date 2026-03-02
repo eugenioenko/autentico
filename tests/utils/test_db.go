@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -16,6 +17,20 @@ func WithTestDB(t *testing.T) {
 	t.Cleanup(func() {
 		db.CloseDB()
 	})
+}
+
+// InsertTestClient inserts a minimal active OAuth2 client row for tests.
+// redirectURIs is the list of allowed redirect URIs for the client.
+func InsertTestClient(t *testing.T, clientID string, redirectURIs []string) {
+	t.Helper()
+	urisJSON, err := json.Marshal(redirectURIs)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
+		 VALUES (?, ?, 'Test Client', 'public', ?, TRUE)`,
+		"id-"+clientID, clientID, string(urisJSON),
+	)
+	require.NoError(t, err)
 }
 
 // InsertTestUser inserts a minimal valid user row so that foreign-key

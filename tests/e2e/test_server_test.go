@@ -43,6 +43,15 @@ func startTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to initialize test database: %v", err)
 	}
 
+	// Seed the shared "test-client" used across E2E tests
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
+		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to seed test-client: %v", err)
+	}
+
 	// Ensure RSA keys are loaded (generates if no file found)
 	key.GetPrivateKey()
 

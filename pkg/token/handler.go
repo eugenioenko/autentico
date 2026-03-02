@@ -64,6 +64,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		Username:     r.FormValue("username"),
 		Password:     r.FormValue("password"),
 		RefreshToken: r.FormValue("refresh_token"),
+		Scope:        r.FormValue("scope"),
 	}
 
 	err = ValidateTokenRequest(request)
@@ -121,7 +122,21 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
-		codeScope = "openid profile email"
+		// Determine effective scope.
+		// If no scope was requested, fall back to the client's full allowed scopes.
+		requestedScope := request.Scope
+		if requestedScope == "" && authenticatedClient != nil && authenticatedClient.Scopes != "" {
+			requestedScope = authenticatedClient.Scopes
+		}
+		if requestedScope == "" {
+			requestedScope = "openid profile email"
+		}
+		if !client.ValidateScopes(authenticatedClient, requestedScope) {
+			slog.Warn("token: invalid scope for client (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", requestedScope)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
+			return
+		}
+		codeScope = requestedScope
 
 	case "refresh_token":
 		usr, err = UserByRefreshToken(w, request)

@@ -43,6 +43,15 @@ const AUTH_METHOD_OPTIONS = [
   { label: "None", value: "none" },
 ];
 
+const SCOPE_OPTIONS = [
+  { label: "openid", value: "openid" },
+  { label: "profile", value: "profile" },
+  { label: "email", value: "email" },
+  { label: "address", value: "address" },
+  { label: "phone", value: "phone" },
+  { label: "offline_access", value: "offline_access" },
+];
+
 export default function ClientEditForm({
   open,
   client,
@@ -58,7 +67,7 @@ export default function ClientEditForm({
         redirect_uris: client.redirect_uris,
         grant_types: client.grant_types,
         response_types: client.response_types,
-        scopes: client.scopes,
+        scopes: client.scopes?.split(" ").filter(Boolean) ?? [],
         token_endpoint_auth_method: client.token_endpoint_auth_method,
         access_token_expiration: client.access_token_expiration,
         refresh_token_expiration: client.refresh_token_expiration,
@@ -72,12 +81,14 @@ export default function ClientEditForm({
     }
   }, [client, open, form]);
 
-  const handleSubmit = async (values: ClientUpdateRequest) => {
+  const handleSubmit = async (
+    values: Omit<ClientUpdateRequest, "scopes"> & { scopes?: string[] },
+  ) => {
     if (!client?.client_id) return;
     try {
       await updateClient.mutateAsync({
         clientId: client.client_id,
-        data: values,
+        data: { ...values, scopes: values.scopes?.join(" ") },
       });
       message.success("Client updated successfully");
       onClose();
@@ -173,8 +184,16 @@ export default function ClientEditForm({
           <Select mode="multiple" options={RESPONSE_TYPE_OPTIONS} />
         </Form.Item>
 
-        <Form.Item name="scopes" label="Scopes">
-          <Input />
+        <Form.Item
+          name="scopes"
+          label="Scopes"
+          extra="Select standard OIDC scopes or type to add custom ones."
+        >
+          <Select
+            mode="tags"
+            options={SCOPE_OPTIONS}
+            placeholder="Select or type scopes..."
+          />
         </Form.Item>
 
         <Form.Item

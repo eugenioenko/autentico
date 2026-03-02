@@ -523,6 +523,107 @@ func TestHandleToken_WithBasicAuth(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "invalid_client")
 }
 
+func TestHandleToken_PasswordGrant_InvalidScope(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, grant_types, is_active)
+		VALUES ('id-scoped', 'scoped-client', 'Scoped Client', 'public', '["http://localhost/callback"]', 'openid profile', '["password","refresh_token"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "scoped-client")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+	form.Add("scope", "offline_access") // not allowed for this client
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_scope")
+}
+
+func TestHandleToken_PasswordGrant_DefaultsToClientScopes(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, grant_types, is_active)
+		VALUES ('id-scoped2', 'scoped-client2', 'Scoped Client 2', 'public', '["http://localhost/callback"]', 'openid profile', '["password","refresh_token"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	// No scope requested — should default to the client's configured scopes
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "scoped-client2")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+	assert.Equal(t, "openid profile", tokenResp.Scope)
+}
+
+func TestHandleToken_PasswordGrant_AllowedScope(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, grant_types, is_active)
+		VALUES ('id-scoped3', 'scoped-client3', 'Scoped Client 3', 'public', '["http://localhost/callback"]', 'openid profile', '["password","refresh_token"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "scoped-client3")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+	form.Add("scope", "openid") // subset of allowed scopes
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+	assert.Equal(t, "openid", tokenResp.Scope)
+}
+
 func TestHandleToken_WithRegisteredClient_DisallowedGrantType(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

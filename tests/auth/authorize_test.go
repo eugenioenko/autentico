@@ -12,7 +12,10 @@ import (
 )
 
 func TestAuthorizeRequest(t *testing.T) {
-	url := `/oauth2/authorize?response_type=code&redirect_uri=https://client.example.com/callback&scope=openid`
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"https://client.example.com/callback"})
+
+	url := `/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=https://client.example.com/callback&scope=openid`
 	res := testutils.MockJSONRequest(t, "", http.MethodGet, url, authorize.HandleAuthorize)
 	doc := string(res)
 
