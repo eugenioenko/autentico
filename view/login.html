@@ -77,7 +77,7 @@
   }
   async function startPasskeyLogin() {
     const username = document.getElementById('username').value.trim();
-    if (!username) { showPasskeyError('Please enter your username first.'); return; }
+    if (!username) { showPasskeyError('Please enter your {{if .UsernameIsEmail}}email{{else}}username{{end}} first.'); return; }
     const params = new URLSearchParams({
       username,
       redirect_uri: document.querySelector('[name=redirect_uri]').value,

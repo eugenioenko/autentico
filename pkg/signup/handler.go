@@ -85,6 +85,23 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
 	email := r.FormValue("email")
+	// When username is used as email, the form submits it under the "username" key.
+	// Populate email from username so the DB unique constraint is satisfied.
+	if config.Get().ValidationUsernameIsEmail && email == "" {
+		email = username
+	}
+
+	// In passkey-only mode the form has no password fields; generate a random
+	// secure password so the account can be created without one.
+	if config.Get().AuthMode == "passkey_only" && password == "" {
+		generated, err := authcode.GenerateSecureCode()
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "failed to generate credentials")
+			return
+		}
+		password = generated
+		confirmPassword = generated
+	}
 
 	if password != confirmPassword {
 		renderSignup(w, r, params, "Passwords do not match")
@@ -123,6 +140,25 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// In passkey-only mode render the passkey registration step inline.
+	// The template JS will call /oauth2/passkey/login/begin (which returns a
+	// registration challenge for a user with no credentials) and complete the
+	// ceremony, ending with the auth code redirect handled by HandleRegisterFinish.
+	if config.Get().AuthMode == "passkey_only" {
+		renderSignup(w, r, signupParams{
+			State:               params.State,
+			RedirectURI:         params.RedirectURI,
+			ClientID:            params.ClientID,
+			Scope:               params.Scope,
+			Nonce:               params.Nonce,
+			CodeChallenge:       params.CodeChallenge,
+			CodeChallengeMethod: params.CodeChallengeMethod,
+			PasskeyPending:      true,
+			PendingUsername:     username,
+		}, "")
+		return
+	}
+
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
@@ -159,6 +195,8 @@ type signupParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	PasskeyPending      bool
+	PendingUsername     string
 }
 
 func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, errMsg string) {
@@ -178,6 +216,9 @@ func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, e
 		"CodeChallenge":       params.CodeChallenge,
 		"CodeChallengeMethod": params.CodeChallengeMethod,
 		"Error":               errMsg,
+		"AuthMode":            cfg.AuthMode,
+		"PasskeyPending":      params.PasskeyPending,
+		"PendingUsername":     params.PendingUsername,
 		"UsernameIsEmail":     cfg.ValidationUsernameIsEmail,
 		"EmailRequired":       cfg.ValidationEmailRequired && !cfg.ValidationUsernameIsEmail,
 		csrf.TemplateTag:      csrf.TemplateField(r),

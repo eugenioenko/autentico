@@ -48,17 +48,21 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 		newTotpVerified = *req.TotpVerified
 	}
 
+	var emailParam interface{}
+	if newEmail != "" {
+		emailParam = newEmail
+	}
 	query := `
-		UPDATE users SET 
+		UPDATE users SET
 			username = ?,
-			email = ?, 
-			role = ?, 
+			email = ?,
+			role = ?,
 			password = ?,
 			is_email_verified = ?,
 			totp_verified = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
-	_, err = db.GetDB().Exec(query, newUsername, newEmail, newRole, newPassword, newIsEmailVerified, newTotpVerified, id)
+	_, err = db.GetDB().Exec(query, newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified, id)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %v", err)
 	}

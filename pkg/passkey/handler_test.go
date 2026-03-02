@@ -100,7 +100,6 @@ func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
 
 func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 	testutils.WithTestDB(t)
-	withPasskeyConfig(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "passkey_only" })
 
 	_, username := setupPasskeyTestUser(t)
@@ -111,12 +110,12 @@ func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp map[string]any
+	// Passkey registration is only allowed during signup, not login.
+	// A user with no passkeys must always get an error, regardless of auth mode.
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Equal(t, "registration", resp["type"])
-	assert.NotEmpty(t, resp["challenge_id"])
-	assert.NotNil(t, resp["options"])
+	assert.Contains(t, resp["error"], "no passkeys registered")
 }
 
 func TestHandleLoginBegin_WithCreds(t *testing.T) {
@@ -145,13 +144,18 @@ func TestHandleLoginBegin_WithCreds(t *testing.T) {
 	assert.NotNil(t, resp["options"])
 }
 
-// TestHandleLoginBegin_PasskeyOnly_CreatesChallenge checks that the challenge is persisted in the DB.
-func TestHandleLoginBegin_PasskeyOnly_CreatesChallenge(t *testing.T) {
+// TestHandleLoginBegin_WithCreds_CreatesChallenge checks that an authentication challenge is persisted in the DB.
+func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
 	withPasskeyConfig(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "passkey_only" })
 
-	_, username := setupPasskeyTestUser(t)
+	userID, username := setupPasskeyTestUser(t)
+	require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
+		ID:         "chal-test-cred",
+		UserID:     userID,
+		Credential: sampleCredentialJSON(),
+	}))
 
 	req := httptest.NewRequest(http.MethodGet,
 		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
@@ -166,10 +170,10 @@ func TestHandleLoginBegin_PasskeyOnly_CreatesChallenge(t *testing.T) {
 	challengeID, _ := resp["challenge_id"].(string)
 	require.NotEmpty(t, challengeID)
 
-	// The challenge must exist in DB and not yet be used
+	// The challenge must exist in DB, be of type authentication, and not yet used
 	challenge, err := PasskeyChallengeByID(challengeID)
 	require.NoError(t, err)
-	assert.Equal(t, "registration", challenge.Type)
+	assert.Equal(t, "authentication", challenge.Type)
 	assert.False(t, challenge.Used)
 	assert.True(t, time.Now().Before(challenge.ExpiresAt))
 }

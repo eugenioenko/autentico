@@ -1167,8 +1167,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Initiates a WebAuthn authentication ceremony. Returns the options
-        for the navigator.credentials.get call.
+      description: Initiates a WebAuthn authentication ceremony. The user must already
+        have a registered passkey. Returns the options for the navigator.credentials.get
+        call.
       parameters:
       - description: User's username
         in: query

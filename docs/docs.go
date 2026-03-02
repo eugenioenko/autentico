@@ -1200,7 +1200,7 @@ const docTemplate = `{
         },
         "/oauth2/passkey/login/begin": {
             "get": {
-                "description": "Initiates a WebAuthn authentication ceremony. Returns the options for the navigator.credentials.get call.",
+                "description": "Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.",
                 "consumes": [
                     "application/json"
                 ],

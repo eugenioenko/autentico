@@ -7,6 +7,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+func nullStringToString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
+}
+
 func ListUsers() ([]*User, error) {
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
@@ -21,9 +28,11 @@ func ListUsers() ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &u.Email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified, &u.IsEmailVerified, &u.DeactivatedAt); err != nil {
+		var email sql.NullString
+		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified, &u.IsEmailVerified, &u.DeactivatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
+		u.Email = nullStringToString(email)
 		users = append(users, &u)
 	}
 	return users, rows.Err()
@@ -31,6 +40,7 @@ func ListUsers() ([]*User, error) {
 
 func UserByUsername(username string) (*User, error) {
 	var user User
+	var email sql.NullString
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
 		FROM users WHERE username = ? AND deactivated_at IS NULL
@@ -40,7 +50,7 @@ func UserByUsername(username string) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Password,
-		&user.Email,
+		&email,
 		&user.Role,
 		&user.CreatedAt,
 		&user.FailedLoginAttempts,
@@ -56,11 +66,13 @@ func UserByUsername(username string) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
+	user.Email = nullStringToString(email)
 	return &user, nil
 }
 
 func UserByID(userID string) (*User, error) {
 	var user User
+	var email sql.NullString
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
 		FROM users WHERE id = ? AND deactivated_at IS NULL
@@ -70,7 +82,7 @@ func UserByID(userID string) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Password,
-		&user.Email,
+		&email,
 		&user.Role,
 		&user.CreatedAt,
 		&user.FailedLoginAttempts,
@@ -86,7 +98,7 @@ func UserByID(userID string) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-
+	user.Email = nullStringToString(email)
 	return &user, nil
 }
 
@@ -94,6 +106,7 @@ func UserByID(userID string) (*User, error) {
 // Only returns users with is_email_verified = TRUE and no deactivated_at.
 func UserByEmail(email string) (*User, error) {
 	var user User
+	var emailNull sql.NullString
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
 		FROM users WHERE email = ? AND deactivated_at IS NULL AND is_email_verified = TRUE
@@ -103,7 +116,7 @@ func UserByEmail(email string) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Password,
-		&user.Email,
+		&emailNull,
 		&user.Role,
 		&user.CreatedAt,
 		&user.FailedLoginAttempts,
@@ -119,6 +132,7 @@ func UserByEmail(email string) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
+	user.Email = nullStringToString(emailNull)
 	return &user, nil
 }
 

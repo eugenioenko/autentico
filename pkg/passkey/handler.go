@@ -17,9 +17,9 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
-// HandleLoginBegin starts a passkey authentication (or registration in passkey_only mode).
+// HandleLoginBegin starts a passkey authentication ceremony.
 // @Summary Begin passkey login
-// @Description Initiates a WebAuthn authentication ceremony. Returns the options for the navigator.credentials.get call.
+// @Description Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.
 // @Tags passkey
 // @Accept json
 // @Produce json
@@ -45,6 +45,10 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	creds, _ := PasskeyCredentialsByUserID(usr.ID)
+	if len(creds) == 0 {
+		writeJSONError(w, http.StatusBadRequest, "no passkeys registered for this user")
+		return
+	}
 
 	loginState := LoginState{
 		RedirectURI:            q.Get("redirect_uri"),
@@ -72,47 +76,6 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	challengeID, err := authcode.GenerateSecureCode()
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
-		return
-	}
-
-	cfg := config.Get()
-
-	if len(creds) == 0 {
-		if cfg.AuthMode != "passkey_only" {
-			writeJSONError(w, http.StatusBadRequest, "no passkeys registered for this user")
-			return
-		}
-		// passkey_only, first login: begin registration
-		wUser := WebAuthnUser{
-			ID:          []byte(usr.ID),
-			Name:        usr.Username,
-			Credentials: []webauthn.Credential{},
-		}
-		creation, session, err := wauthn.BeginRegistration(wUser)
-		if err != nil {
-			slog.Error("passkey: failed to begin registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			writeJSONError(w, http.StatusInternalServerError, "server_error")
-			return
-		}
-		sessionJSON, _ := json.Marshal(session)
-		challenge := PasskeyChallenge{
-			ID:            challengeID,
-			UserID:        usr.ID,
-			ChallengeData: string(sessionJSON),
-			Type:          "registration",
-			LoginState:    string(stateJSON),
-			ExpiresAt:     time.Now().Add(5 * time.Minute),
-		}
-		if err := CreatePasskeyChallenge(challenge); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "server_error")
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"type":         "registration",
-			"challenge_id": challengeID,
-			"options":      creation,
-		})
 		return
 	}
 

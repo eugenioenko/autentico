@@ -21,8 +21,12 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 	}
 	hashedPasswordStr := string(hashedPassword)
 
+	var emailParam interface{}
+	if email != "" {
+		emailParam = email
+	}
 	query := `INSERT INTO users (id, username, password, email) VALUES (?, ?, ?, ?) RETURNING created_at`
-	row := db.GetDB().QueryRow(query, id, username, hashedPasswordStr, email)
+	row := db.GetDB().QueryRow(query, id, username, hashedPasswordStr, emailParam)
 	err = row.Scan(&createdAt)
 	if err != nil {
 		err = fmt.Errorf("failed to create user: %w", err)

@@ -12,7 +12,7 @@ var createTableSQL = `
 	CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY,                     -- Unique user ID (UUID or other format)
 		username TEXT UNIQUE NOT NULL,           -- User's unique username
-		email TEXT UNIQUE NOT NULL,              -- User's email (enforce uniqueness)
+		email TEXT UNIQUE,                       -- User's email (optional, enforce uniqueness when present)
 		password TEXT NOT NULL,                  -- Hashed password
 		role TEXT NOT NULL DEFAULT 'user',       -- User role (e.g., 'admin', 'user', 'moderator')
 		two_factor_enabled BOOLEAN DEFAULT FALSE, -- If 2FA is enabled

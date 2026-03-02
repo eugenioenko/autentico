@@ -235,6 +235,58 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	assert.Contains(t, string(respBody), "Could not create account")
 }
 
+// TestSelfSignup_UsernameIsEmail verifies that when ValidationUsernameIsEmail is true
+// the signup handler uses the username value as the email for storage, so multiple
+// users can register without hitting the unique email constraint.
+func TestSelfSignup_UsernameIsEmail(t *testing.T) {
+	ts := startTestServer(t)
+	config.Values.AuthAllowSelfSignup = true
+	config.Values.ValidationUsernameIsEmail = true
+	redirectURI := "http://localhost:3000/callback"
+
+	// First signup — email-format username, no separate email field
+	firstCode := performSignupFlow(t, ts, "alice@example.com", "password123", redirectURI, "s1")
+	require.NotEmpty(t, firstCode, "first signup should produce an auth code")
+
+	// Use a fresh client so the IdP session cookie doesn't cause auto-login
+	freshClient := newClientWithJar()
+	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
+		"redirect_uri": {redirectURI},
+		"state":        {"s2"},
+		"client_id":    {"test-client"},
+	}.Encode()
+	resp, err := freshClient.Get(signupURL)
+	require.NoError(t, err)
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	csrfToken := getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	// Second signup with a different email — must succeed without hitting unique constraint
+	form := url.Values{}
+	form.Set("username", "bob@example.com")
+	form.Set("password", "password456")
+	form.Set("confirm_password", "password456")
+	form.Set("redirect_uri", redirectURI)
+	form.Set("state", "s2")
+	form.Set("client_id", "test-client")
+	form.Set("gorilla.csrf.Token", csrfToken)
+
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", ts.BaseURL+"/oauth2/signup")
+
+	postResp, err := freshClient.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = postResp.Body.Close() }()
+
+	respBody, _ := io.ReadAll(postResp.Body)
+	assert.Equal(t, http.StatusFound, postResp.StatusCode, "second signup should succeed: %s", string(respBody))
+	assert.NotEmpty(t, postResp.Header.Get("Location"))
+	assert.Contains(t, postResp.Header.Get("Location"), "code=")
+}
+
 func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true

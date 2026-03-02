@@ -20,6 +20,7 @@ var ErrAccountLocked = errors.New("account is temporarily locked due to too many
 func AuthenticateUser(username, password string) (*User, error) {
 	var user User
 	var lockedUntil *time.Time
+	var email sql.NullString
 	query := `
 		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified
 		FROM users WHERE username = ?
@@ -29,7 +30,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Password,
-		&user.Email,
+		&email,
 		&user.CreatedAt,
 		&user.Role,
 		&user.FailedLoginAttempts,
@@ -37,6 +38,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 		&user.TotpSecret,
 		&user.TotpVerified,
 	)
+	user.Email = nullStringToString(email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("invalid username or password")

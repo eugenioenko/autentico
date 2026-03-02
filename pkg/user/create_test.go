@@ -19,6 +19,18 @@ func TestCreateUser(t *testing.T) {
 	assert.False(t, user.CreatedAt.IsZero())
 }
 
+func TestCreateUser_NoEmail(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, err := CreateUser("user1", "password123", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "", u1.Email)
+
+	u2, err := CreateUser("user2", "password456", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "", u2.Email)
+}
+
 func TestCreateUser_DuplicateUsername(t *testing.T) {
 	testutils.WithTestDB(t)
 
