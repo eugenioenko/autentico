@@ -156,7 +156,8 @@ var createTableSQL = `
 		allow_self_signup INTEGER,
 		sso_session_idle_timeout TEXT,
 		trust_device_enabled INTEGER,
-		trust_device_expiration TEXT
+		trust_device_expiration TEXT,
+		post_logout_redirect_uris TEXT DEFAULT '[]'                   -- JSON array of allowed post-logout redirect URIs
 	);
 
 	CREATE TABLE IF NOT EXISTS settings (
@@ -236,6 +237,7 @@ func migrateDB(d *sql.DB) {
 	addColumnIfNotExists(d, "clients", "sso_session_idle_timeout", "TEXT")
 	addColumnIfNotExists(d, "clients", "trust_device_enabled", "INTEGER")
 	addColumnIfNotExists(d, "clients", "trust_device_expiration", "TEXT")
+	addColumnIfNotExists(d, "clients", "post_logout_redirect_uris", "TEXT DEFAULT '[]'")
 }
 
 func InitDB(dbFilePath string) (*sql.DB, error) {

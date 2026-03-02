@@ -1994,6 +1994,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "post_logout_redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "redirect_uris": {
                     "type": "array",
                     "items": {
@@ -2063,6 +2069,12 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean"
                 },
+                "post_logout_redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "redirect_uris": {
                     "type": "array",
                     "items": {
@@ -2119,6 +2131,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "post_logout_redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "redirect_uris": {
                     "type": "array",
                     "items": {
@@ -2169,6 +2187,12 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                },
+                "post_logout_redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "redirect_uris": {
                     "type": "array",

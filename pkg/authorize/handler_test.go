@@ -95,8 +95,8 @@ func TestHandleAuthorize_InactiveClient(t *testing.T) {
 
 	// Insert an inactive client
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
-		VALUES ('id-1', 'inactive-client', 'Test Client', 'public', '["http://localhost/callback"]', FALSE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, is_active)
+		VALUES ('id-1', 'inactive-client', 'Test Client', 'public', '["http://localhost/callback"]', '[]', FALSE)
 	`)
 	assert.NoError(t, err)
 
@@ -114,8 +114,8 @@ func TestHandleAuthorize_RedirectURINotAllowed(t *testing.T) {
 
 	// Insert a client with specific allowed redirect URIs
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
-		VALUES ('id-2', 'strict-client', 'Test Client', 'confidential', '["http://allowed.com/callback"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, is_active)
+		VALUES ('id-2', 'strict-client', 'Test Client', 'confidential', '["http://allowed.com/callback"]', '[]', TRUE)
 	`)
 	assert.NoError(t, err)
 
@@ -133,8 +133,8 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 
 	// Insert a client with only token response type allowed
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, response_types, is_active)
-		VALUES ('id-3', 'token-only-client', 'Test Client', 'public', '["http://localhost/callback"]', '["token"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, response_types, is_active)
+		VALUES ('id-3', 'token-only-client', 'Test Client', 'public', '["http://localhost/callback"]', '[]', '["token"]', TRUE)
 	`)
 	assert.NoError(t, err)
 
@@ -335,8 +335,8 @@ func TestHandleAuthorize_InvalidScope(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
-		VALUES ('id-scoped', 'scoped-client', 'Scoped Client', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped', 'scoped-client', 'Scoped Client', 'public', '["http://localhost/callback"]', '[]', 'openid profile', '["code"]', TRUE)
 	`)
 	assert.NoError(t, err)
 
@@ -353,8 +353,8 @@ func TestHandleAuthorize_PartiallyInvalidScope(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
-		VALUES ('id-scoped2', 'scoped-client2', 'Scoped Client 2', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped2', 'scoped-client2', 'Scoped Client 2', 'public', '["http://localhost/callback"]', '[]', 'openid profile', '["code"]', TRUE)
 	`)
 	assert.NoError(t, err)
 
@@ -371,8 +371,8 @@ func TestHandleAuthorize_AllowedScope(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
-		VALUES ('id-scoped3', 'scoped-client3', 'Scoped Client 3', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped3', 'scoped-client3', 'Scoped Client 3', 'public', '["http://localhost/callback"]', '[]', 'openid profile', '["code"]', TRUE)
 	`)
 	assert.NoError(t, err)
 

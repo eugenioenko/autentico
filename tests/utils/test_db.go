@@ -26,8 +26,8 @@ func InsertTestClient(t *testing.T, clientID string, redirectURIs []string) {
 	urisJSON, err := json.Marshal(redirectURIs)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(
-		`INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
-		 VALUES (?, ?, 'Test Client', 'public', ?, TRUE)`,
+		`INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, is_active)
+		 VALUES (?, ?, 'Test Client', 'public', ?, '[]', TRUE)`,
 		"id-"+clientID, clientID, string(urisJSON),
 	)
 	require.NoError(t, err)

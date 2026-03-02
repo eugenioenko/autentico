@@ -127,7 +127,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response, err := UpdateClient(clientID, request)
+	err := UpdateClient(clientID, request)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
@@ -137,7 +137,8 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteApiResponse(w, response, http.StatusOK)
+	updated, _ := ClientByClientID(clientID)
+	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
 
 // HandleDeleteClient handles DELETE /oauth2/register/{client_id} - deactivates a client

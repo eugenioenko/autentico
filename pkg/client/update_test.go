@@ -19,20 +19,23 @@ func TestUpdateClient(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update the client
-	updated, err := UpdateClient(created.ClientID, ClientUpdateRequest{
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
 		ClientName: "Updated Name",
 	})
 	assert.NoError(t, err)
+
+	updated, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
 	assert.Equal(t, "Updated Name", updated.ClientName)
 	// Original values should be preserved
-	assert.Equal(t, []string{"http://localhost:3000/callback"}, updated.RedirectURIs)
-	assert.Equal(t, []string{"authorization_code"}, updated.GrantTypes)
+	assert.Equal(t, []string{"http://localhost:3000/callback"}, updated.GetRedirectURIs())
+	assert.Equal(t, []string{"authorization_code"}, updated.GetGrantTypes())
 }
 
 func TestUpdateClient_NotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	_, err := UpdateClient("nonexistent", ClientUpdateRequest{
+	err := UpdateClient("nonexistent", ClientUpdateRequest{
 		ClientName: "New Name",
 	})
 	assert.Error(t, err)
@@ -53,7 +56,7 @@ func TestUpdateClient_MultipleFields(t *testing.T) {
 
 	// Update multiple fields
 	isActive := false
-	updated, err := UpdateClient(created.ClientID, ClientUpdateRequest{
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
 		ClientName:   "New Name",
 		RedirectURIs: []string{"http://newhost.com/callback"},
 		GrantTypes:   []string{"authorization_code", "refresh_token"},
@@ -61,9 +64,12 @@ func TestUpdateClient_MultipleFields(t *testing.T) {
 		IsActive:     &isActive,
 	})
 	assert.NoError(t, err)
+
+	updated, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
 	assert.Equal(t, "New Name", updated.ClientName)
-	assert.Equal(t, []string{"http://newhost.com/callback"}, updated.RedirectURIs)
-	assert.Equal(t, []string{"authorization_code", "refresh_token"}, updated.GrantTypes)
+	assert.Equal(t, []string{"http://newhost.com/callback"}, updated.GetRedirectURIs())
+	assert.Equal(t, []string{"authorization_code", "refresh_token"}, updated.GetGrantTypes())
 	assert.Equal(t, "openid profile email", updated.Scopes)
 	assert.False(t, updated.IsActive)
 }
@@ -80,11 +86,14 @@ func TestUpdateClient_ResponseTypes(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update response types
-	updated, err := UpdateClient(created.ClientID, ClientUpdateRequest{
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
 		ResponseTypes: []string{"code", "token"},
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"code", "token"}, updated.ResponseTypes)
+
+	updated, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"code", "token"}, updated.GetResponseTypes())
 }
 
 func TestUpdateClient_TokenEndpointAuthMethod(t *testing.T) {
@@ -98,9 +107,12 @@ func TestUpdateClient_TokenEndpointAuthMethod(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update token endpoint auth method
-	updated, err := UpdateClient(created.ClientID, ClientUpdateRequest{
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
 		TokenEndpointAuthMethod: "client_secret_post",
 	})
+	assert.NoError(t, err)
+
+	updated, err := ClientByClientID(created.ClientID)
 	assert.NoError(t, err)
 	assert.Equal(t, "client_secret_post", updated.TokenEndpointAuthMethod)
 }

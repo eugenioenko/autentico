@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
-	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 // Client represents an OAuth2/OIDC client in the database
@@ -17,6 +17,7 @@ type Client struct {
 	ClientName              string    `db:"client_name"`
 	ClientType              string    `db:"client_type"`
 	RedirectURIs            string    `db:"redirect_uris"`
+	PostLogoutRedirectURIs  string    `db:"post_logout_redirect_uris"`
 	GrantTypes              string    `db:"grant_types"`
 	ResponseTypes           string    `db:"response_types"`
 	Scopes                  string    `db:"scopes"`
@@ -40,6 +41,7 @@ type ClientCreateRequest struct {
 	ClientID                string   `json:"client_id,omitempty"`
 	ClientName              string   `json:"client_name"`
 	RedirectURIs            []string `json:"redirect_uris"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris,omitempty"`
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	ResponseTypes           []string `json:"response_types,omitempty"`
 	ClientType              string   `json:"client_type,omitempty"`
@@ -60,6 +62,7 @@ type ClientCreateRequest struct {
 type ClientUpdateRequest struct {
 	ClientName              string   `json:"client_name,omitempty"`
 	RedirectURIs            []string `json:"redirect_uris,omitempty"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris,omitempty"`
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	ResponseTypes           []string `json:"response_types,omitempty"`
 	Scopes                  string   `json:"scopes,omitempty"`
@@ -84,6 +87,7 @@ type ClientResponse struct {
 	ClientName              string   `json:"client_name"`
 	ClientType              string   `json:"client_type"`
 	RedirectURIs            []string `json:"redirect_uris"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
 	GrantTypes              []string `json:"grant_types"`
 	ResponseTypes           []string `json:"response_types"`
 	Scopes                  string   `json:"scopes"`
@@ -96,6 +100,7 @@ type ClientInfoResponse struct {
 	ClientName              string   `json:"client_name"`
 	ClientType              string   `json:"client_type"`
 	RedirectURIs            []string `json:"redirect_uris"`
+	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
 	GrantTypes              []string `json:"grant_types"`
 	ResponseTypes           []string `json:"response_types"`
 	Scopes                  string   `json:"scopes"`
@@ -116,6 +121,16 @@ type ClientInfoResponse struct {
 func (c *Client) GetRedirectURIs() []string {
 	var uris []string
 	_ = json.Unmarshal([]byte(c.RedirectURIs), &uris)
+	return uris
+}
+
+// GetPostLogoutRedirectURIs parses and returns the post-logout redirect URIs as a slice
+func (c *Client) GetPostLogoutRedirectURIs() []string {
+	var uris []string
+	if c.PostLogoutRedirectURIs == "" {
+		return []string{}
+	}
+	_ = json.Unmarshal([]byte(c.PostLogoutRedirectURIs), &uris)
 	return uris
 }
 
@@ -140,6 +155,7 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		ClientName:              c.ClientName,
 		ClientType:              c.ClientType,
 		RedirectURIs:            c.GetRedirectURIs(),
+		PostLogoutRedirectURIs:  c.GetPostLogoutRedirectURIs(),
 		GrantTypes:              c.GetGrantTypes(),
 		ResponseTypes:           c.GetResponseTypes(),
 		Scopes:                  c.Scopes,

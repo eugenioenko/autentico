@@ -13,3 +13,8 @@ func DummyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteApiResponse(w, response, http.StatusInternalServerError)
 }
+
+// Ptr returns a pointer to the given value
+func Ptr[T any](v T) *T {
+	return &v
+}
