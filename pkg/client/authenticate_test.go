@@ -263,6 +263,29 @@ func TestAuthenticateClientFromRequest_NonexistentClient(t *testing.T) {
 	assert.Nil(t, client)
 }
 
+func TestValidateScopes(t *testing.T) {
+	c := &Client{Scopes: "openid profile email"}
+
+	// Subset of allowed scopes
+	assert.True(t, ValidateScopes(c, "openid"))
+	assert.True(t, ValidateScopes(c, "openid profile"))
+	assert.True(t, ValidateScopes(c, "openid profile email"))
+
+	// Scope not in the allowed list
+	assert.False(t, ValidateScopes(c, "offline_access"))
+	assert.False(t, ValidateScopes(c, "openid offline_access"))
+
+	// Empty requested scope is always valid
+	assert.True(t, ValidateScopes(c, ""))
+
+	// Nil client — all scopes allowed (backward compatibility)
+	assert.True(t, ValidateScopes(nil, "offline_access"))
+
+	// Client with no scopes configured — all scopes allowed
+	noScopes := &Client{Scopes: ""}
+	assert.True(t, ValidateScopes(noScopes, "offline_access"))
+}
+
 func TestIsResponseTypeAllowed(t *testing.T) {
 	testutils.WithTestDB(t)
 

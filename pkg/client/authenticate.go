@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -107,6 +108,49 @@ func IsGrantTypeAllowed(client *Client, grantType string) bool {
 		}
 	}
 	return false
+}
+
+// FilterScopes returns the intersection of the requested scopes and the client's
+// allowed scopes, preserving the original request order. If the client is nil or
+// has no scopes configured, the requested scopes are returned unchanged.
+func FilterScopes(c *Client, requested string) string {
+	if c == nil || c.Scopes == "" {
+		return requested
+	}
+
+	allowed := make(map[string]bool)
+	for _, s := range strings.Fields(c.Scopes) {
+		allowed[s] = true
+	}
+
+	var result []string
+	for _, s := range strings.Fields(requested) {
+		if allowed[s] {
+			result = append(result, s)
+		}
+	}
+	return strings.Join(result, " ")
+}
+
+// ValidateScopes returns true if every requested scope is within the client's
+// allowed scopes. Returns true unconditionally when the client is nil, has no
+// scopes configured, or the requested scope string is empty.
+func ValidateScopes(c *Client, requested string) bool {
+	if c == nil || c.Scopes == "" || requested == "" {
+		return true
+	}
+
+	allowed := make(map[string]bool)
+	for _, s := range strings.Fields(c.Scopes) {
+		allowed[s] = true
+	}
+
+	for _, s := range strings.Fields(requested) {
+		if !allowed[s] {
+			return false
+		}
+	}
+	return true
 }
 
 // IsResponseTypeAllowed checks if the given response type is allowed for the client

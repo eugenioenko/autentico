@@ -378,8 +378,8 @@ func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	// Perform authorization code flow WITHOUT openid scope
-	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "read write", "")
+	// Perform authorization code flow WITHOUT openid scope (using scopes test-client allows)
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "profile email", "")
 
 	// Exchange code for tokens
 	form := url.Values{}

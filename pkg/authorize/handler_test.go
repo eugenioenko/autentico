@@ -15,6 +15,7 @@ import (
 
 func TestHandleAuthorize(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
 	rr := httptest.NewRecorder()
@@ -26,6 +27,18 @@ func TestHandleAuthorize(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 	assert.Contains(t, rr.Body.String(), "username")
 	assert.Contains(t, rr.Body.String(), "password")
+}
+
+func TestHandleAuthorize_UnknownClientID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=nonexistent-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
 }
 
 func TestHandleAuthorize_MissingResponseType(t *testing.T) {
@@ -136,6 +149,7 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 
 func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
@@ -171,6 +185,7 @@ func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
 
 func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 0 // disabled
 	})
@@ -202,6 +217,7 @@ func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 
 func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
@@ -237,6 +253,7 @@ func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 
 func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
@@ -286,6 +303,7 @@ func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
 
 func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthPKCEEnforceSHA256 = false
 	})
@@ -302,6 +320,7 @@ func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
 
 func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
@@ -312,8 +331,63 @@ func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 }
 
+func TestHandleAuthorize_InvalidScope(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped', 'scoped-client', 'Scoped Client', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client&redirect_uri=http://localhost/callback&state=xyz&scope=offline_access", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "not allowed")
+}
+
+func TestHandleAuthorize_PartiallyInvalidScope(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped2', 'scoped-client2', 'Scoped Client 2', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client2&redirect_uri=http://localhost/callback&state=xyz&scope=openid+offline_access", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "not allowed")
+}
+
+func TestHandleAuthorize_AllowedScope(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, response_types, is_active)
+		VALUES ('id-scoped3', 'scoped-client3', 'Scoped Client 3', 'public', '["http://localhost/callback"]', 'openid profile', '["code"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client3&redirect_uri=http://localhost/callback&state=xyz&scope=openid+profile", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "form")
+}
+
 func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"

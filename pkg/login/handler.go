@@ -10,6 +10,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -62,9 +63,34 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate redirect_uri first so we know whether we can redirect errors back to the form
+	// Validate redirect_uri format first
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		return
+	}
+
+	// Validate client_id is registered and redirect_uri is allowed for this client
+	registeredClient, err := client.ClientByClientID(request.ClientID)
+	if err != nil {
+		slog.Warn("login: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
+		return
+	}
+	if !registeredClient.IsActive {
+		slog.Warn("login: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
+		return
+	}
+	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
+		slog.Warn("login: redirect_uri not registered for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI, "ip", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
+		return
+	}
+
+	// Reject any scope that the client is not allowed to use
+	if !client.ValidateScopes(registeredClient, request.Scope) {
+		slog.Warn("login: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
 		return
 	}
 

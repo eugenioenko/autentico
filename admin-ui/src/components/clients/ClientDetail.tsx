@@ -59,7 +59,13 @@ export default function ClientDetail({
             ))}
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label="Scopes">{client.scopes}</Descriptions.Item>
+        <Descriptions.Item label="Scopes">
+          <Space size={[0, 4]} wrap>
+            {client.scopes?.split(" ").filter(Boolean).map((s) => (
+              <Tag key={s}>{s}</Tag>
+            ))}
+          </Space>
+        </Descriptions.Item>
         <Descriptions.Item label="Auth Method">
           {client.token_endpoint_auth_method}
         </Descriptions.Item>
