@@ -47,6 +47,15 @@
   {{if .AllowSelfSignup}}
   <div class="auth-link">Don't have an account? <a href="{{authURL "/signup"}}?state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create one</a></div>
   {{end}}
+  {{if .FederatedProviders}}
+  <div class="divider">or continue with</div>
+  {{range .FederatedProviders}}
+  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="federation-btn">
+    {{if .IconSVG}}{{safeHTML .IconSVG}}{{end}}
+    Continue with {{.Name}}
+  </a>
+  {{end}}
+  {{end}}
 </form>
 {{end}}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -154,6 +155,8 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		return
 	}
 
+	federatedProviders, _ := federation.ListEnabledProviderViews()
+
 	data := map[string]any{
 		"State":               request.State,
 		"RedirectURI":         request.RedirectURI,
@@ -170,6 +173,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+		"FederatedProviders":  federatedProviders,
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

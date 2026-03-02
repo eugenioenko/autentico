@@ -19,6 +19,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
@@ -85,6 +86,8 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
 	mux.Handle(oauth+"/token", rateLimited(http.HandlerFunc(token.HandleToken)))
 	mux.Handle(oauth+"/protocol/openid-connect/token", rateLimited(http.HandlerFunc(token.HandleToken)))
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
@@ -99,6 +102,8 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 
 	// Admin API endpoints
+	mux.Handle("/admin/api/federation", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
+	mux.Handle("/admin/api/federation/", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
 	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
 	mux.Handle("/admin/api/users/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
 	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))

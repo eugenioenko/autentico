@@ -17,6 +17,9 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"authURL": func(path string) string {
 			return config.GetBootstrap().AppOAuthPath + path
 		},
+		"safeHTML": func(s template.HTML) template.HTML {
+			return s
+		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }
