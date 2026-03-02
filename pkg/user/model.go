@@ -65,6 +65,39 @@ type UserCreateRequest struct {
 	Role     string `json:"role,omitempty"` // optional role assignment
 }
 
+type PasskeyUserCreateRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email,omitempty"`
+}
+
+func ValidatePasskeyUserCreateRequest(input PasskeyUserCreateRequest) error {
+	err := validation.Validate(
+		input.Username,
+		validation.Required,
+		validation.Length(
+			config.Get().ValidationMinUsernameLength,
+			config.Get().ValidationMaxUsernameLength,
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("username is invalid: %w", err)
+	}
+
+	if config.Get().ValidationUsernameIsEmail {
+		if err = validation.Validate(input.Username, is.Email); err != nil {
+			return fmt.Errorf("username is invalid: %w", err)
+		}
+	}
+
+	if config.Get().ValidationEmailRequired || input.Email != "" {
+		if err = validation.Validate(input.Email, validation.Required, is.Email); err != nil {
+			return fmt.Errorf("email is invalid: %w", err)
+		}
+	}
+
+	return nil
+}
+
 type UserUpdateRequest struct {
 	Username        string `json:"username,omitempty"`
 	Password        string `json:"password,omitempty"`

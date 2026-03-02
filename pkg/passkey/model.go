@@ -37,6 +37,20 @@ type LoginState struct {
 	CodeChallengeMethod string `json:"code_challenge_method"`
 }
 
+// RegistrationState is stored in passkey_challenges for registration ceremonies.
+// It is a superset of LoginState so completeAuthFlow can deserialise it directly.
+type RegistrationState struct {
+	Username            string `json:"username"`
+	Email               string `json:"email"`
+	RedirectURI         string `json:"redirect_uri"`
+	State               string `json:"state"`
+	ClientID            string `json:"client_id"`
+	Scope               string `json:"scope"`
+	Nonce               string `json:"nonce"`
+	CodeChallenge       string `json:"code_challenge"`
+	CodeChallengeMethod string `json:"code_challenge_method"`
+}
+
 // WebAuthnUser implements the webauthn.User interface.
 type WebAuthnUser struct {
 	ID          []byte
