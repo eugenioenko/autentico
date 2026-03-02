@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -30,11 +31,13 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		tokenString := parts[1]
 		claims, err := jwtutil.ValidateAccessToken(tokenString)
 		if err != nil {
+			slog.Warn("admin_auth: invalid or expired token", "error", err, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid or expired token")
 			return
 		}
 
 		if err := jwtutil.ValidateAudience(claims.Audience, config.Get().AuthAccessTokenAudience); err != nil {
+			slog.Warn("admin_auth: invalid token audience", "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Invalid token audience")
 			return
 		}
@@ -42,11 +45,13 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		// Get user and check admin role
 		usr, err := user.UserByID(claims.UserID)
 		if err != nil {
+			slog.Warn("admin_auth: user not found", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "User not found")
 			return
 		}
 
 		if usr.Role != "admin" {
+			slog.Warn("admin_auth: non-admin access attempt", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Admin access required")
 			return
 		}
@@ -54,6 +59,7 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		// Check if the session associated with this token is still active
 		sess, err := session.SessionByAccessToken(tokenString)
 		if err != nil || sess == nil || sess.DeactivatedAt != nil {
+			slog.Warn("admin_auth: deactivated session", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Session has been deactivated")
 			return
 		}

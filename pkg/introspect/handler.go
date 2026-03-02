@@ -3,9 +3,11 @@ package introspect
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -47,6 +49,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	// Validate the access token cryptographically
 	_, err = jwtutil.ValidateAccessToken(req.Token)
 	if err != nil {
+		slog.Warn("introspect: invalid token", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
 		return
 	}
@@ -59,17 +62,20 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
 	tkn, err := IntrospectToken(req.Token)
 	if err != nil {
+		slog.Warn("introspect: token not found in store", "request_id", middleware.GetRequestID(r.Context()))
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
 		return
 	}
 
 	sess, err := session.SessionByAccessToken(tkn.AccessToken)
 	if err != nil {
+		slog.Warn("introspect: failed to retrieve session", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
 		return
 	}
 
 	if sess == nil || sess.DeactivatedAt != nil {
+		slog.Warn("introspect: session deactivated", "request_id", middleware.GetRequestID(r.Context()))
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
 		return
 	}

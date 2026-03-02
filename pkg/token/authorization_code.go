@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -21,17 +22,20 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 
 	code, err := authcode.AuthCodeByCode(request.Code)
 	if err != nil {
+		slog.Warn("token: authorization code not found", "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("%v", err))
 		return nil, nil, err
 	}
 
 	if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
+		slog.Warn("token: authorization code invalid, expired, or already used", "client_id", request.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has already been used")
 		return nil, nil, fmt.Errorf("authorization code is invalid or has already been used")
 	}
 
 	// Validate that client_id matches the one used when the code was issued
 	if code.ClientID != "" && code.ClientID != request.ClientID {
+		slog.Warn("token: client_id mismatch on code exchange", "expected_client", code.ClientID, "got_client", request.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Client ID mismatch")
 		return nil, nil, fmt.Errorf("client ID mismatch")
 	}
@@ -39,10 +43,12 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 	// PKCE validation
 	if code.CodeChallenge != "" {
 		if request.CodeVerifier == "" {
+			slog.Warn("token: PKCE code_verifier missing", "client_id", request.ClientID)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "code_verifier is required")
 			return nil, nil, fmt.Errorf("code_verifier is required")
 		}
 		if !verifyCodeChallenge(code.CodeChallenge, code.CodeChallengeMethod, request.CodeVerifier) {
+			slog.Warn("token: PKCE verification failed", "client_id", request.ClientID)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
 			return nil, nil, fmt.Errorf("PKCE verification failed")
 		}
@@ -50,6 +56,7 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 
 	err = authcode.MarkAuthCodeAsUsed(request.Code)
 	if err != nil {
+		slog.Error("token: failed to mark authorization code as used", "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to mark authorization code as used: %v", err))
 		return nil, nil, err
 	}
