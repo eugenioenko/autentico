@@ -4,7 +4,7 @@ FROM golang:1.24-bookworm AS builder
 # Install Node.js 22.x and pnpm 9 (needed for admin-ui build)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g pnpm@9 \
+    && npm install -g pnpm@10 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install swag CLI (matches project's swag dependency version)

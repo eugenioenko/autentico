@@ -25,14 +25,14 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install pnpm
-        run: npm install -g pnpm@9
-
       - name: Install swag
         run: go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
       - name: Download Go modules
         run: go mod download
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
 
       - name: Install admin UI dependencies
         run: cd admin-ui && pnpm install --frozen-lockfile
