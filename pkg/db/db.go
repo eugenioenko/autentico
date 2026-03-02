@@ -13,7 +13,7 @@ var createTableSQL = `
 		id TEXT PRIMARY KEY,                     -- Unique user ID (UUID or other format)
 		username TEXT UNIQUE NOT NULL,           -- User's unique username
 		email TEXT UNIQUE,                       -- User's email (optional, enforce uniqueness when present)
-		password TEXT NOT NULL,                  -- Hashed password
+		password TEXT,                           -- Hashed password (NULL for passkey-only users)
 		role TEXT NOT NULL DEFAULT 'user',       -- User role (e.g., 'admin', 'user', 'moderator')
 		two_factor_enabled BOOLEAN DEFAULT FALSE, -- If 2FA is enabled
 		totp_secret TEXT NOT NULL DEFAULT '',      -- TOTP secret (base32 encoded)
@@ -121,7 +121,7 @@ var createTableSQL = `
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		expires_at DATETIME NOT NULL,
 		used BOOLEAN DEFAULT FALSE,
-		FOREIGN KEY (user_id) REFERENCES users(id)
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE IF NOT EXISTS passkey_credentials (
@@ -131,7 +131,7 @@ var createTableSQL = `
 		credential TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		last_used_at DATETIME,
-		FOREIGN KEY (user_id) REFERENCES users(id)
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE IF NOT EXISTS clients (

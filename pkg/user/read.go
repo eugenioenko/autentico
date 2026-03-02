@@ -28,10 +28,11 @@ func ListUsers() ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		var u User
-		var email sql.NullString
-		if err := rows.Scan(&u.ID, &u.Username, &u.Password, &email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified, &u.IsEmailVerified, &u.DeactivatedAt); err != nil {
+		var email, password sql.NullString
+		if err := rows.Scan(&u.ID, &u.Username, &password, &email, &u.Role, &u.CreatedAt, &u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified, &u.IsEmailVerified, &u.DeactivatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
+		u.Password = nullStringToString(password)
 		u.Email = nullStringToString(email)
 		users = append(users, &u)
 	}
@@ -40,7 +41,7 @@ func ListUsers() ([]*User, error) {
 
 func UserByUsername(username string) (*User, error) {
 	var user User
-	var email sql.NullString
+	var email, password sql.NullString
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
 		FROM users WHERE username = ? AND deactivated_at IS NULL
@@ -49,7 +50,7 @@ func UserByUsername(username string) (*User, error) {
 	err := row.Scan(
 		&user.ID,
 		&user.Username,
-		&user.Password,
+		&password,
 		&email,
 		&user.Role,
 		&user.CreatedAt,
@@ -66,13 +67,14 @@ func UserByUsername(username string) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
+	user.Password = nullStringToString(password)
 	user.Email = nullStringToString(email)
 	return &user, nil
 }
 
 func UserByID(userID string) (*User, error) {
 	var user User
-	var email sql.NullString
+	var email, password sql.NullString
 	query := `
 		SELECT id, username, password, email, role, created_at, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified, deactivated_at
 		FROM users WHERE id = ? AND deactivated_at IS NULL
@@ -81,7 +83,7 @@ func UserByID(userID string) (*User, error) {
 	err := row.Scan(
 		&user.ID,
 		&user.Username,
-		&user.Password,
+		&password,
 		&email,
 		&user.Role,
 		&user.CreatedAt,
@@ -98,6 +100,7 @@ func UserByID(userID string) (*User, error) {
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
+	user.Password = nullStringToString(password)
 	user.Email = nullStringToString(email)
 	return &user, nil
 }

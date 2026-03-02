@@ -20,7 +20,7 @@ var ErrAccountLocked = errors.New("account is temporarily locked due to too many
 func AuthenticateUser(username, password string) (*User, error) {
 	var user User
 	var lockedUntil *time.Time
-	var email sql.NullString
+	var email, passwordHash sql.NullString
 	query := `
 		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified
 		FROM users WHERE username = ?
@@ -29,7 +29,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	err := row.Scan(
 		&user.ID,
 		&user.Username,
-		&user.Password,
+		&passwordHash,
 		&email,
 		&user.CreatedAt,
 		&user.Role,
@@ -38,6 +38,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 		&user.TotpSecret,
 		&user.TotpVerified,
 	)
+	user.Password = nullStringToString(passwordHash)
 	user.Email = nullStringToString(email)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -46,6 +47,11 @@ func AuthenticateUser(username, password string) (*User, error) {
 		return nil, fmt.Errorf("failed to retrieve user: %w", err)
 	}
 	user.LockedUntil = lockedUntil
+
+	// Passkey-only users have no password; reject password login attempts.
+	if user.Password == "" {
+		return nil, fmt.Errorf("invalid username or password")
+	}
 
 	maxAttempts := config.Get().AuthAccountLockoutMaxAttempts
 

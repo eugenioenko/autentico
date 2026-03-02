@@ -14,8 +14,132 @@ import (
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
+
+// HandleRegisterBegin starts a passkey registration ceremony.
+// @Summary Begin passkey registration
+// @Description Creates a user account (if not already present) and initiates a WebAuthn registration ceremony.
+// @Tags passkey
+// @Produce json
+// @Param username query string true "Desired username"
+// @Param email query string false "Email address"
+// @Param redirect_uri query string false "Redirect URI"
+// @Param state query string false "OAuth2 state"
+// @Param client_id query string false "OAuth2 client ID"
+// @Success 200 {object} map[string]any "WebAuthn registration options"
+// @Router /oauth2/passkey/register/begin [get]
+func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	username := q.Get("username")
+	if username == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing username")
+		return
+	}
+	email := q.Get("email")
+
+	if err := user.ValidatePasskeyUserCreateRequest(user.PasskeyUserCreateRequest{
+		Username: username,
+		Email:    email,
+	}); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Find existing user or create a new one.
+	usr, err := user.UserByUsername(username)
+	if err != nil {
+		// User does not exist — create them with a null password.
+		created, createErr := user.CreatePasskeyUser(username, email)
+		if createErr != nil {
+			slog.Error("passkey: failed to create user for registration", "request_id", middleware.GetRequestID(r.Context()), "error", createErr)
+			writeJSONError(w, http.StatusConflict, "username unavailable")
+			return
+		}
+		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
+	} else {
+		// User exists — only allow registration if they have no password and no passkeys.
+		if usr.Password != "" {
+			writeJSONError(w, http.StatusConflict, "username already taken")
+			return
+		}
+		creds, _ := PasskeyCredentialsByUserID(usr.ID)
+		if len(creds) > 0 {
+			writeJSONError(w, http.StatusConflict, "username already taken")
+			return
+		}
+	}
+
+	regState := RegistrationState{
+		Username:            username,
+		Email:               email,
+		RedirectURI:         q.Get("redirect_uri"),
+		State:               q.Get("state"),
+		ClientID:            q.Get("client_id"),
+		Scope:               q.Get("scope"),
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
+	}
+	stateJSON, err := json.Marshal(regState)
+	if err != nil {
+		slog.Error("passkey: failed to marshal registration state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	wauthn, err := NewWebAuthn()
+	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	challengeID, err := authcode.GenerateSecureCode()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	wUser := WebAuthnUser{
+		ID:          []byte(usr.ID),
+		Name:        usr.Username,
+		Credentials: []webauthn.Credential{},
+	}
+	creation, session, err := wauthn.BeginRegistration(wUser,
+		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			ResidentKey:      protocol.ResidentKeyRequirementPreferred,
+			UserVerification: protocol.VerificationPreferred,
+		}),
+	)
+	if err != nil {
+		slog.Error("passkey: failed to begin registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	sessionJSON, _ := json.Marshal(session)
+
+	challenge := PasskeyChallenge{
+		ID:            challengeID,
+		UserID:        usr.ID,
+		ChallengeData: string(sessionJSON),
+		Type:          "registration",
+		LoginState:    string(stateJSON),
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}
+	if err := CreatePasskeyChallenge(challenge); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"type":         "registration",
+		"challenge_id": challengeID,
+		"options":      creation,
+	})
+}
 
 // HandleLoginBegin starts a passkey authentication ceremony.
 // @Summary Begin passkey login
@@ -253,6 +377,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	credential, err := wauthn.FinishRegistration(wUser, session, r)
 	if err != nil {
 		slog.Warn("passkey: registration failed", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
+		_ = user.HardDeleteUser(challenge.UserID) // cascade-deletes the challenge too
 		writeJSONError(w, http.StatusBadRequest, "registration_failed")
 		return
 	}
@@ -261,6 +386,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
 		slog.Error("passkey: failed to marshal credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		_ = user.HardDeleteUser(challenge.UserID)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -273,6 +399,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := CreatePasskeyCredential(pCred); err != nil {
 		slog.Error("passkey: failed to store credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		_ = user.HardDeleteUser(challenge.UserID)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}

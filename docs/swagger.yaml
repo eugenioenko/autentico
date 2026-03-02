@@ -1230,6 +1230,43 @@ paths:
       summary: Complete passkey login
       tags:
       - passkey
+  /oauth2/passkey/register/begin:
+    get:
+      description: Creates a user account (if not already present) and initiates a
+        WebAuthn registration ceremony.
+      parameters:
+      - description: Desired username
+        in: query
+        name: username
+        required: true
+        type: string
+      - description: Email address
+        in: query
+        name: email
+        type: string
+      - description: Redirect URI
+        in: query
+        name: redirect_uri
+        type: string
+      - description: OAuth2 state
+        in: query
+        name: state
+        type: string
+      - description: OAuth2 client ID
+        in: query
+        name: client_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: WebAuthn registration options
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Begin passkey registration
+      tags:
+      - passkey
   /oauth2/passkey/register/finish:
     post:
       consumes:

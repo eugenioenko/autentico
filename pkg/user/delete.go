@@ -6,6 +6,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// HardDeleteUser permanently removes a user and all cascade-deleted related records.
+// Use only for users that were never fully activated (e.g. failed passkey registration).
+func HardDeleteUser(id string) error {
+	_, err := db.GetDB().Exec(`DELETE FROM users WHERE id = ?`, id)
+	return err
+}
+
 func DeleteUser(id string) error {
 	query := `UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	result, err := db.GetDB().Exec(query, id)

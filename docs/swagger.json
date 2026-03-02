@@ -1288,6 +1288,60 @@
                 }
             }
         },
+        "/oauth2/passkey/register/begin": {
+            "get": {
+                "description": "Creates a user account (if not already present) and initiates a WebAuthn registration ceremony.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "passkey"
+                ],
+                "summary": "Begin passkey registration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Desired username",
+                        "name": "username",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email address",
+                        "name": "email",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth2 client ID",
+                        "name": "client_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "WebAuthn registration options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/passkey/register/finish": {
             "post": {
                 "description": "Processes the WebAuthn attestation from the client and registers the passkey.",

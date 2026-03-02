@@ -85,6 +85,7 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
+	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
