@@ -3,12 +3,14 @@ package token
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -75,12 +77,14 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if request.ClientID != "" {
 		authenticatedClient, err = client.AuthenticateClientFromRequest(r)
 		if err != nil {
+			slog.Warn("token: invalid client credentials", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
 			return
 		}
 
 		// If client was found, validate grant type
 		if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
+			slog.Warn("token: grant type not allowed for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
 			return
 		}
@@ -109,9 +113,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		usr, err = user.AuthenticateUser(request.Username, request.Password)
 		if err != nil {
 			if errors.Is(err, user.ErrAccountLocked) {
+				slog.Warn("token: account locked (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 				utils.WriteErrorResponse(w, http.StatusForbidden, "account_locked", err.Error())
 				return
 			}
+			slog.Warn("token: invalid ROPC credentials", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
@@ -141,6 +147,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := GenerateTokens(*usr, request.ClientID, clientCfg)
 	if err != nil {
+		slog.Error("token: failed to generate tokens", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
 		return
 	}
@@ -158,6 +165,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		slog.Error("token: failed to store token", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
@@ -173,6 +181,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		slog.Error("token: failed to create session", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
@@ -189,6 +198,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if containsScope(codeScope, "openid") {
 		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID)
 		if idErr != nil {
+			slog.Error("token: failed to generate ID token", "request_id", middleware.GetRequestID(r.Context()), "error", idErr)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("ID token generation failed: %v", idErr))
 			return
 		}

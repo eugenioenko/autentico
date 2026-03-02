@@ -4,12 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -55,12 +57,14 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	}
 	stateJSON, err := json.Marshal(loginState)
 	if err != nil {
+		slog.Error("passkey: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	wauthn, err := NewWebAuthn()
 	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -86,6 +90,7 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		}
 		creation, session, err := wauthn.BeginRegistration(wUser)
 		if err != nil {
+			slog.Error("passkey: failed to begin registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			writeJSONError(w, http.StatusInternalServerError, "server_error")
 			return
 		}
@@ -120,6 +125,7 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	}
 	assertion, session, err := wauthn.BeginLogin(wUser)
 	if err != nil {
+		slog.Error("passkey: failed to begin login", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -173,18 +179,21 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 
 	var session webauthn.SessionData
 	if err := json.Unmarshal([]byte(challenge.ChallengeData), &session); err != nil {
+		slog.Error("passkey: failed to parse session data", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
+		slog.Error("passkey: failed to get user", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	storedCreds, err := PasskeyCredentialsByUserID(usr.ID)
 	if err != nil {
+		slog.Error("passkey: failed to load credentials", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -197,12 +206,14 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 
 	wauthn, err := NewWebAuthn()
 	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	credential, err := wauthn.FinishLogin(wUser, session, r)
 	if err != nil {
+		slog.Warn("passkey: authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusUnauthorized, "authentication_failed")
 		return
 	}
@@ -213,6 +224,7 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
 	if err != nil {
+		slog.Error("passkey: failed to complete auth flow", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -250,12 +262,14 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 
 	var session webauthn.SessionData
 	if err := json.Unmarshal([]byte(challenge.ChallengeData), &session); err != nil {
+		slog.Error("passkey: failed to parse registration session data", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
+		slog.Error("passkey: failed to get user for registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -268,12 +282,14 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 
 	wauthn, err := NewWebAuthn()
 	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn for registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
 	credential, err := wauthn.FinishRegistration(wUser, session, r)
 	if err != nil {
+		slog.Warn("passkey: registration failed", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusBadRequest, "registration_failed")
 		return
 	}
@@ -281,6 +297,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
+		slog.Error("passkey: failed to marshal credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -292,6 +309,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		Credential: string(credJSON),
 	}
 	if err := CreatePasskeyCredential(pCred); err != nil {
+		slog.Error("passkey: failed to store credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -300,6 +318,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
 	if err != nil {
+		slog.Error("passkey: failed to complete auth flow after registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}

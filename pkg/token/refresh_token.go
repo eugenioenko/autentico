@@ -2,6 +2,7 @@ package token
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -21,22 +22,26 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 
 	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
+		slog.Warn("token: invalid refresh token", "error", err)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
 		return nil, err
 	}
 
 	if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
+		slog.Warn("token: refresh token expired")
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Refresh token has expired")
 		return nil, err
 	}
 
 	sess, err := session.SessionByID(authToken.SessionID)
 	if err != nil {
+		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
 		return nil, err
 	}
 
 	if sess == nil || sess.DeactivatedAt != nil {
+		slog.Warn("token: refresh token session deactivated", "session_id", authToken.SessionID)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
 		return nil, fmt.Errorf("session has been deactivated")
 	}
@@ -45,12 +50,14 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	var revokedAt *time.Time
 	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
 	if err == nil && revokedAt != nil {
+		slog.Warn("token: refresh token has been revoked")
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Token has been revoked")
 		return nil, fmt.Errorf("token has been revoked")
 	}
 
 	usr, err := user.UserByID(authToken.UserID)
 	if err != nil {
+		slog.Error("token: failed to retrieve user for refresh token", "error", err, "user_id", authToken.UserID)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to retrieve user: %v", err))
 		return nil, err
 	}
