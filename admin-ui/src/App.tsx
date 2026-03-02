@@ -1,16 +1,18 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
-import LoginPage from "./pages/LoginPage";
-import CallbackPage from "./pages/CallbackPage";
-import DashboardPage from "./pages/DashboardPage";
-import ClientsPage from "./pages/ClientsPage";
-import UsersPage from "./pages/UsersPage";
-import SessionsPage from "./pages/SessionsPage";
-import SettingsPage from "./pages/SettingsPage";
-import FederationPage from "./pages/FederationPage";
+
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const CallbackPage = lazy(() => import("./pages/CallbackPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const ClientsPage = lazy(() => import("./pages/ClientsPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
+const SessionsPage = lazy(() => import("./pages/SessionsPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const FederationPage = lazy(() => import("./pages/FederationPage"));
 
 const queryClient = new QueryClient();
 
@@ -20,8 +22,8 @@ export default function App() {
       <BrowserRouter basename="/admin">
         <AuthProvider>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/callback" element={<CallbackPage />} />
+            <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
+            <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AdminLayout />}>
                 <Route index element={<DashboardPage />} />
