@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -12,6 +13,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -69,6 +71,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 	if challenge.Method == "totp" {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
+			slog.Error("mfa: failed to get user for TOTP challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get user")
 			return
 		}
@@ -82,11 +85,13 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 	if challenge.Method == "email" {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
+			slog.Error("mfa: failed to get user for email OTP challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get user")
 			return
 		}
 		otp, err := GenerateEmailOTP()
 		if err != nil {
+			slog.Error("mfa: failed to generate email OTP", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate OTP")
 			return
 		}
@@ -94,6 +99,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		challenge.Code = hashedOTP
 		_ = UpdateChallengeCode(challenge.ID, hashedOTP)
 		if err := SendEmailOTP(usr.Email, otp); err != nil {
+			slog.Error("mfa: failed to send verification email", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to send verification email")
 			return
 		}
@@ -132,6 +138,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
+		slog.Error("mfa: failed to get user for verification", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get user")
 		return
 	}
@@ -145,16 +152,19 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if !ValidateTotpCode(totpSecret, code) {
+				slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 				renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code")
 				return
 			}
 			if err := user.SaveTotpSecret(usr.ID, totpSecret); err != nil {
+				slog.Error("mfa: failed to save TOTP secret", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 				utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to save TOTP secret")
 				return
 			}
 		} else {
 			// Verification flow: validate against stored secret
 			if !ValidateTotpCode(usr.TotpSecret, code) {
+				slog.Warn("mfa: invalid TOTP verification code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
 				return
 			}
@@ -162,6 +172,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	case "email":
 		hashedCode := utils.HashSHA256(code)
 		if hashedCode != challenge.Code {
+			slog.Warn("mfa: invalid email OTP code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
 			return
 		}
@@ -195,6 +206,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	// Restore login state and complete the OAuth flow
 	var loginState LoginState
 	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
+		slog.Error("mfa: failed to restore login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to restore login state")
 		return
 	}
@@ -217,6 +229,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	authorizationCode, err := authcode.GenerateSecureCode()
 	if err != nil {
+		slog.Error("mfa: failed to generate authorization code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate authorization code")
 		return
 	}
@@ -235,6 +248,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := authcode.CreateAuthCode(ac); err != nil {
+		slog.Error("mfa: failed to create authorization code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create authorization code")
 		return
 	}
@@ -246,6 +260,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil {
+		slog.Error("mfa: failed to parse verify template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -262,18 +277,22 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
 	}
 
-	_ = tmpl.ExecuteTemplate(w, "layout", data)
+	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Error("mfa: failed to execute verify template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+	}
 }
 
 func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, usr *user.User, cfg *config.Config, errorMsg string) {
 	secret, otpauthURL, err := GenerateTotpSecret(usr.Username, cfg.Theme.Title)
 	if err != nil {
+		slog.Error("mfa: failed to generate TOTP secret", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate TOTP secret")
 		return
 	}
 
 	png, err := qrcode.Encode(otpauthURL, qrcode.Medium, 200)
 	if err != nil {
+		slog.Error("mfa: failed to generate QR code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate QR code")
 		return
 	}
@@ -281,6 +300,7 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 
 	tmpl, err := view.ParseTemplate("mfa_enroll")
 	if err != nil {
+		slog.Error("mfa: failed to parse enroll template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -296,7 +316,9 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
 	}
 
-	_ = tmpl.ExecuteTemplate(w, "layout", data)
+	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Error("mfa: failed to execute enroll template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+	}
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {

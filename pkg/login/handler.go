@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -11,6 +12,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -77,6 +79,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		loginError := "Invalid username or password"
 		if errors.Is(err, user.ErrAccountLocked) {
 			loginError = "Account is temporarily locked due to too many failed login attempts"
+			slog.Warn("login: account locked", "request_id", middleware.GetRequestID(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
 		}
 		redirectToLogin(w, r, request, loginError)
 		return
@@ -109,12 +112,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
+			slog.Error("login: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to serialize login state")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
+			slog.Error("login: failed to generate challenge ID", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate challenge ID")
 			return
 		}
@@ -128,6 +133,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
+			slog.Error("login: failed to create MFA challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create MFA challenge")
 			return
 		}
@@ -155,6 +161,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
+		slog.Error("login: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
 		return
 	}
@@ -174,6 +181,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
+		slog.Error("login: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
 		return
 	}

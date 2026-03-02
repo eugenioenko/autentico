@@ -139,6 +139,7 @@ func RunStart(_ *cli.Context) error {
 	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{
+		middleware.RequestIDMiddleware,
 		middleware.LoggingMiddleware,
 	}
 	if bs.AppEnableCORS {

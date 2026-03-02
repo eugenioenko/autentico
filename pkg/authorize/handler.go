@@ -3,6 +3,7 @@ package authorize
 import (
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 
@@ -85,16 +87,19 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Client found - validate redirect_uri and response_type
 			if !registeredClient.IsActive {
+				slog.Warn("authorize: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 				renderError(w, "Client is inactive")
 				return
 			}
 
 			if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
+				slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
 				renderError(w, "Redirect URI not allowed for this client")
 				return
 			}
 
 			if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
+				slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
 				renderError(w, "Response type not allowed for this client")
 				return
 			}
@@ -144,6 +149,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("login")
 	if err != nil {
+		slog.Error("authorize: failed to parse login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -167,6 +173,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
 }
@@ -177,6 +184,7 @@ func renderError(w http.ResponseWriter, errorMsg string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("error")
 	if err != nil {
+		slog.Error("authorize: failed to parse error template", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
