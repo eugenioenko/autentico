@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Layout, Menu, Button, Typography, theme } from "antd";
 import {
@@ -123,7 +123,9 @@ export default function AdminLayout() {
             minHeight: 280,
           }}
         >
-          <Outlet />
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
         </Content>
       </Layout>
     </Layout>
