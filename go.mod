@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/go-webauthn/webauthn v0.15.0
@@ -18,6 +19,7 @@ require (
 	github.com/swaggo/swag v1.16.4
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/crypto v0.43.0
+	golang.org/x/oauth2 v0.35.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.36.3
 )
@@ -30,6 +32,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect

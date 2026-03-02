@@ -165,12 +165,37 @@ var createTableSQL = `
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS federation_providers (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		issuer TEXT NOT NULL,
+		client_id TEXT NOT NULL,
+		client_secret TEXT NOT NULL,
+		icon_svg TEXT,
+		enabled BOOLEAN NOT NULL DEFAULT TRUE,
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS federated_identities (
+		id TEXT PRIMARY KEY,
+		provider_id TEXT NOT NULL,
+		provider_user_id TEXT NOT NULL,
+		user_id TEXT NOT NULL,
+		email TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (provider_id) REFERENCES federation_providers(id),
+		FOREIGN KEY (user_id) REFERENCES users(id),
+		UNIQUE(provider_id, provider_user_id)
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens(refresh_token);
 	CREATE INDEX IF NOT EXISTS idx_tokens_access_token ON tokens(access_token);
 	CREATE INDEX IF NOT EXISTS idx_sessions_access_token ON sessions(access_token);
 	CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 	CREATE INDEX IF NOT EXISTS idx_idp_sessions_user_id ON idp_sessions(user_id);
 	CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user_id ON passkey_credentials(user_id);
+	CREATE INDEX IF NOT EXISTS idx_federated_identities_user_id ON federated_identities(user_id);
 `
 
 var dropTableSQL = `
@@ -185,6 +210,8 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS passkey_credentials;
 		DROP TABLE IF EXISTS clients;
 		DROP TABLE IF EXISTS settings;
+		DROP TABLE IF EXISTS federated_identities;
+		DROP TABLE IF EXISTS federation_providers;
 	`
 
 // addColumnIfNotExists runs an ALTER TABLE … ADD COLUMN statement and silently
