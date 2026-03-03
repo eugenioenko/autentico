@@ -14,7 +14,7 @@ import {
   Tabs,
   InputNumber,
 } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { SaveOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useEffect } from "react";
 
@@ -82,7 +82,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Authentication Mode"
                     name="auth_mode"
-                    extra="Controls allowed login methods."
+                    tooltip={{ title: "Controls allowed login methods.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="password">Password Only</Select.Option>
@@ -92,10 +92,25 @@ export default function SettingsPage() {
                   </Form.Item>
 
                   <Form.Item
+                    label="Email Field Behavior"
+                    name="profile_field_email"
+                    tooltip={{ title: "Hidden: no email field. Optional: email field shown but not required. Required: email field required. Username is Email: username field acts as email (stored in both columns).", icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="is_username">Username is Email</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+
+                  <Form.Item
                     label="Allow Self Signup"
                     name="allow_self_signup"
                     valuePropName="checked"
                     getValueProps={boolProp}
+                    tooltip={{ title: "Allow users to create their own accounts.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -105,7 +120,7 @@ export default function SettingsPage() {
                     name="allow_username_change"
                     valuePropName="checked"
                     getValueProps={boolProp}
-                    extra="Let users change their own username from the account portal."
+                    tooltip={{ title: "Let users change their own username from the account portal.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -115,7 +130,7 @@ export default function SettingsPage() {
                     name="allow_email_change"
                     valuePropName="checked"
                     getValueProps={boolProp}
-                    extra="Let users change their own email address from the account portal."
+                    tooltip={{ title: "Let users change their own email address from the account portal.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -128,11 +143,12 @@ export default function SettingsPage() {
                     name="mfa_enabled"
                     valuePropName="checked"
                     getValueProps={boolProp}
+                    tooltip={{ title: "Require users to provide a second authentication factor.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
 
-                  <Form.Item label="MFA Method" name="mfa_method">
+                  <Form.Item label="MFA Method" name="mfa_method" tooltip={{ title: "Preferred second-factor authentication method.", icon: <ExclamationCircleOutlined /> }}>
                     <Select>
                       <Select.Option value="totp">TOTP (Authenticator App)</Select.Option>
                       <Select.Option value="email">Email OTP</Select.Option>
@@ -146,7 +162,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="SSO Session Idle Timeout"
                     name="sso_session_idle_timeout"
-                    extra="Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable."
+                    tooltip={{ title: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="30m" />
                   </Form.Item>
@@ -156,6 +172,7 @@ export default function SettingsPage() {
                     name="trust_device_enabled"
                     valuePropName="checked"
                     getValueProps={boolProp}
+                    tooltip={{ title: "Allow users to trust their current device for MFA.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -163,7 +180,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Trust Device Expiration"
                     name="trust_device_expiration"
-                    extra="How long a device remains trusted (e.g. 720h)."
+                    tooltip={{ title: "How long a device remains trusted (e.g. 720h).", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="720h" />
                   </Form.Item>
@@ -177,19 +194,19 @@ export default function SettingsPage() {
                 <Card variant="borderless">
                   <Title level={5}>User Validation</Title>
                   <Space size="large">
-                    <Form.Item label="Min Username" name="validation_min_username_length">
+                    <Form.Item label="Min Username" name="validation_min_username_length" tooltip={{ title: "Minimum length for usernames.", icon: <ExclamationCircleOutlined /> }}>
                       <InputNumber min={1} />
                     </Form.Item>
-                    <Form.Item label="Max Username" name="validation_max_username_length">
+                    <Form.Item label="Max Username" name="validation_max_username_length" tooltip={{ title: "Maximum length for usernames.", icon: <ExclamationCircleOutlined /> }}>
                       <InputNumber min={1} />
                     </Form.Item>
                   </Space>
 
                   <Space size="large">
-                    <Form.Item label="Min Password" name="validation_min_password_length">
+                    <Form.Item label="Min Password" name="validation_min_password_length" tooltip={{ title: "Minimum length for passwords.", icon: <ExclamationCircleOutlined /> }}>
                       <InputNumber min={1} />
                     </Form.Item>
-                    <Form.Item label="Max Password" name="validation_max_password_length">
+                    <Form.Item label="Max Password" name="validation_max_password_length" tooltip={{ title: "Maximum length for passwords.", icon: <ExclamationCircleOutlined /> }}>
                       <InputNumber min={1} />
                     </Form.Item>
                   </Space>
@@ -200,11 +217,11 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Max Failed Attempts"
                     name="account_lockout_max_attempts"
-                    extra="0 to disable lockout"
+                    tooltip={{ title: "Maximum number of failed login attempts before account lockout. 0 to disable.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <InputNumber min={0} />
                   </Form.Item>
-                  <Form.Item label="Lockout Duration" name="account_lockout_duration">
+                  <Form.Item label="Lockout Duration" name="account_lockout_duration" tooltip={{ title: "Duration of account lockout (e.g. 15m).", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="15m" />
                   </Form.Item>
 
@@ -216,6 +233,7 @@ export default function SettingsPage() {
                     name="pkce_enforce_s256"
                     valuePropName="checked"
                     getValueProps={boolProp}
+                    tooltip={{ title: "Enforce PKCE with S256 code challenge method for all clients.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -246,32 +264,32 @@ export default function SettingsPage() {
               children: (
                 <Card variant="borderless">
                   <Title level={5}>Token Expiration</Title>
-                  <Form.Item label="Access Token" name="access_token_expiration">
+                  <Form.Item label="Access Token" name="access_token_expiration" tooltip={{ title: "Access token validity period (e.g. 15m).", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="15m" />
                   </Form.Item>
-                  <Form.Item label="Refresh Token" name="refresh_token_expiration">
+                  <Form.Item label="Refresh Token" name="refresh_token_expiration" tooltip={{ title: "Refresh token validity period (e.g. 720h).", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="720h" />
                   </Form.Item>
-                  <Form.Item label="Auth Code" name="authorization_code_expiration">
+                  <Form.Item label="Auth Code" name="authorization_code_expiration" tooltip={{ title: "Authorization code validity period (e.g. 10m).", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="10m" />
                   </Form.Item>
 
                   <Divider />
 
                   <Title level={5}>SMTP Configuration</Title>
-                  <Form.Item label="SMTP Host" name="smtp_host">
+                  <Form.Item label="SMTP Host" name="smtp_host" tooltip={{ title: "Hostname of the SMTP server.", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="smtp.example.com" />
                   </Form.Item>
-                  <Form.Item label="SMTP Port" name="smtp_port">
+                  <Form.Item label="SMTP Port" name="smtp_port" tooltip={{ title: "Port for the SMTP server.", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="587" />
                   </Form.Item>
-                  <Form.Item label="SMTP Username" name="smtp_username">
+                  <Form.Item label="SMTP Username" name="smtp_username" tooltip={{ title: "Username for SMTP authentication.", icon: <ExclamationCircleOutlined /> }}>
                     <Input />
                   </Form.Item>
-                  <Form.Item label="SMTP Password" name="smtp_password">
+                  <Form.Item label="SMTP Password" name="smtp_password" tooltip={{ title: "Password for SMTP authentication. Leave empty to keep current.", icon: <ExclamationCircleOutlined /> }}>
                     <Input.Password placeholder="Leave empty to keep current" />
                   </Form.Item>
-                  <Form.Item label="SMTP From Address" name="smtp_from">
+                  <Form.Item label="SMTP From Address" name="smtp_from" tooltip={{ title: "Email address to use as the sender for system emails.", icon: <ExclamationCircleOutlined /> }}>
                     <Input placeholder="noreply@example.com" />
                   </Form.Item>
                 </Card>
@@ -279,23 +297,6 @@ export default function SettingsPage() {
             },
             {
               key: "4",
-              label: "Branding",
-              children: (
-                <Card variant="borderless">
-                  <Form.Item label="Page Title" name="theme_title">
-                    <Input />
-                  </Form.Item>
-                  <Form.Item label="Logo URL" name="theme_logo_url">
-                    <Input placeholder="https://..." />
-                  </Form.Item>
-                  <Form.Item label="Passkey RP Name" name="passkey_rp_name">
-                    <Input />
-                  </Form.Item>
-                </Card>
-              ),
-            },
-            {
-              key: "5",
               label: "Profile Fields",
               children: (
                 <Card variant="borderless">
@@ -311,7 +312,7 @@ export default function SettingsPage() {
                     name="signup_show_optional_fields"
                     valuePropName="checked"
                     getValueProps={boolProp}
-                    extra="When off (default), optional fields are hidden during signup to keep the form minimal. Required fields are always shown."
+                    tooltip={{ title: "When off (default), optional fields are hidden during signup to keep the form minimal. Required fields are always shown.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -319,22 +320,9 @@ export default function SettingsPage() {
                   <Divider />
 
                   <Form.Item
-                    label="Email"
-                    name="profile_field_email"
-                    extra="Hidden: no email field. Optional: email field shown but not required. Required: email field required. Username is Email: username field acts as email (stored in both columns)."
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                      <Select.Option value="is_username">Username is Email</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
                     label="First Name"
                     name="profile_field_given_name"
-                    extra="Controls the given_name (first name) field."
+                    tooltip={{ title: "Controls the given_name (first name) field.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
@@ -346,7 +334,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Last Name"
                     name="profile_field_family_name"
-                    extra="Controls the family_name (last name) field."
+                    tooltip={{ title: "Controls the family_name (last name) field.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
@@ -358,7 +346,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Phone Number"
                     name="profile_field_phone"
-                    extra="Controls the phone_number field."
+                    tooltip={{ title: "Controls the phone_number field.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
@@ -370,7 +358,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Profile Picture"
                     name="profile_field_picture"
-                    extra="Controls the picture field (URL to avatar image)."
+                    tooltip={{ title: "Controls the picture field (URL to avatar image).", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
@@ -382,7 +370,7 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Locale"
                     name="profile_field_locale"
-                    extra="Controls the locale field (e.g. en-US)."
+                    tooltip={{ title: "Controls the locale field (e.g. en-US).", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
@@ -394,13 +382,30 @@ export default function SettingsPage() {
                   <Form.Item
                     label="Address"
                     name="profile_field_address"
-                    extra="Controls all address fields (street, city, region, postal code, country) as a group."
+                    tooltip={{ title: "Controls all address fields (street, city, region, postal code, country) as a group.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>
                       <Select.Option value="optional">Optional</Select.Option>
                       <Select.Option value="required">Required</Select.Option>
                     </Select>
+                  </Form.Item>
+                </Card>
+              ),
+            },
+            {
+              key: "5",
+              label: "Branding",
+              children: (
+                <Card variant="borderless">
+                  <Form.Item label="Page Title" name="theme_title" tooltip={{ title: "Custom title for the login and account pages.", icon: <ExclamationCircleOutlined /> }}>
+                    <Input />
+                  </Form.Item>
+                  <Form.Item label="Logo URL" name="theme_logo_url" tooltip={{ title: "URL for the custom logo shown on login and account pages.", icon: <ExclamationCircleOutlined /> }}>
+                    <Input placeholder="https://..." />
+                  </Form.Item>
+                  <Form.Item label="Passkey RP Name" name="passkey_rp_name" tooltip={{ title: "Relying Party name shown during passkey creation/usage.", icon: <ExclamationCircleOutlined /> }}>
+                    <Input />
                   </Form.Item>
                 </Card>
               ),
