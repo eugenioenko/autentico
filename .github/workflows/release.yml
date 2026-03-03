@@ -34,17 +34,26 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm@10
 
-      - name: Install admin UI dependencies
-        run: cd admin-ui && pnpm install --frozen-lockfile
+      - name: Install UI dependencies
+        run: |
+          cd admin-ui && pnpm install --frozen-lockfile
+          cd ../account-ui && pnpm install --frozen-lockfile
 
-      - name: Build admin UI + swagger docs
+      - name: Build UI + swagger docs
         run: |
           swag init
           npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
+          
+          # Build Admin UI
           cd admin-ui && pnpm run build && cd ..
           rm -rf pkg/admin/dist
           cp -r admin-ui/dist pkg/admin/dist
           cp docs/index.html pkg/admin/dist/docs.html
+          
+          # Build Account UI
+          cd account-ui && pnpm run build && cd ..
+          rm -rf pkg/account/dist
+          cp -r account-ui/dist pkg/account/dist
 
       - name: Build binaries
         run: |

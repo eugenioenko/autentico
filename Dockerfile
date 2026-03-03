@@ -18,7 +18,9 @@ RUN go mod download
 
 # Cache pnpm dependencies separately for better layer caching
 COPY admin-ui/package.json admin-ui/pnpm-lock.yaml ./admin-ui/
+COPY account-ui/package.json account-ui/pnpm-lock.yaml ./account-ui/
 RUN cd admin-ui && pnpm install --frozen-lockfile
+RUN cd account-ui && pnpm install --frozen-lockfile
 
 # Copy the rest of the source
 COPY . .
