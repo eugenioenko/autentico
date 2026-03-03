@@ -100,6 +100,26 @@ export default function SettingsPage() {
                     <Switch />
                   </Form.Item>
 
+                  <Form.Item
+                    label="Allow Username Change"
+                    name="allow_username_change"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    extra="Let users change their own username from the account portal."
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Allow Email Change"
+                    name="allow_email_change"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    extra="Let users change their own email address from the account portal."
+                  >
+                    <Switch />
+                  </Form.Item>
+
                   <Divider />
 
                   <Title level={5}>Multi-Factor Authentication</Title>

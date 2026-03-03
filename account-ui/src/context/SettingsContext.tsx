@@ -5,6 +5,8 @@ export interface Settings {
   mfa_enabled: boolean;
   mfa_method: string;
   oauth_path: string;
+  allow_username_change: boolean;
+  allow_email_change: boolean;
   profile_field_given_name: string;
   profile_field_family_name: string;
   profile_field_phone: string;
@@ -18,6 +20,8 @@ const defaultSettings: Settings = {
   mfa_enabled: false,
   mfa_method: 'totp',
   oauth_path: '/oauth2',
+  allow_username_change: false,
+  allow_email_change: false,
   profile_field_given_name: 'optional',
   profile_field_family_name: 'optional',
   profile_field_phone: 'optional',

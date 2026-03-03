@@ -82,7 +82,10 @@ const ProfilePage: React.FC = () => {
     setSuccess('');
     setIsUpdating(true);
     try {
-      await api.put('/profile', form);
+      const payload = { ...form };
+      if (!settings.allow_username_change) delete (payload as Partial<ProfileForm>).username;
+      if (!settings.allow_email_change) delete (payload as Partial<ProfileForm>).email;
+      await api.put('/profile', payload);
       setSuccess('Profile updated successfully.');
       refetch();
     } catch (err: unknown) {
@@ -107,11 +110,19 @@ const ProfilePage: React.FC = () => {
       <form onSubmit={handleUpdate} className="space-y-5 mt-2">
         <div>
           <label>Username</label>
-          <input type="text" value={form.username} onChange={set('username')} />
+          {settings.allow_username_change ? (
+            <input type="text" value={form.username} onChange={set('username')} />
+          ) : (
+            <p className="text-sm text-zinc-700 py-1">{form.username}</p>
+          )}
         </div>
         <div>
           <label>Email Address</label>
-          <input type="email" value={form.email} onChange={set('email')} />
+          {settings.allow_email_change ? (
+            <input type="email" value={form.email} onChange={set('email')} />
+          ) : (
+            <p className="text-sm text-zinc-700 py-1">{form.email || <span className="text-zinc-400">Not set</span>}</p>
+          )}
         </div>
 
         {showGivenName && (

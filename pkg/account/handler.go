@@ -44,6 +44,17 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := config.Get()
+
+	if req.Username != "" && !cfg.AllowUsernameChange {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "not_allowed", "Username changes are not permitted")
+		return
+	}
+	if req.Email != "" && !cfg.AllowEmailChange {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "not_allowed", "Email changes are not permitted")
+		return
+	}
+
 	// Check email uniqueness if changing email
 	if req.Email != "" && req.Email != usr.Email {
 		if user.UserExistsByEmail(req.Email) {
@@ -655,6 +666,8 @@ func HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 		"mfa_enabled":              cfg.MfaEnabled,
 		"mfa_method":               cfg.MfaMethod,
 		"oauth_path":               config.GetBootstrap().AppOAuthPath,
+		"allow_username_change":     cfg.AllowUsernameChange,
+		"allow_email_change":        cfg.AllowEmailChange,
 		"profile_field_given_name":  cfg.ProfileFieldGivenName,
 		"profile_field_family_name": cfg.ProfileFieldFamilyName,
 		"profile_field_phone":       cfg.ProfileFieldPhone,

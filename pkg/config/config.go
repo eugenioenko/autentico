@@ -93,6 +93,10 @@ type Config struct {
 	ValidationMaxPasswordLength        int
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
+	// When false (default), users cannot change their own username via the account portal.
+	AllowUsernameChange bool
+	// When false (default), users cannot change their own email via the account portal.
+	AllowEmailChange bool
 	// When false (default), optional profile fields are hidden on the signup form
 	// to keep it minimal. Required fields are always shown regardless.
 	SignupShowOptionalFields bool
@@ -139,6 +143,8 @@ var defaultConfig = Config{
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
 	Theme:                              ThemeConfig{Title: "Autentico"},
+	AllowUsernameChange:                false,
+	AllowEmailChange:                   false,
 	SignupShowOptionalFields:           false,
 	ProfileFieldEmail:                  "optional",
 	ProfileFieldGivenName:              "optional",
