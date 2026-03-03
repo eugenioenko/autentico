@@ -1,6 +1,6 @@
 import { useState, Suspense } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Layout, Menu, Button, Typography, theme } from "antd";
+import { Layout, Menu, Button, Typography, theme, Avatar, Dropdown } from "antd";
 import {
   DashboardOutlined,
   AppstoreOutlined,
@@ -18,15 +18,23 @@ import { useAuth } from "../context/AuthContext";
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-const menuItems = [
+const menuItems: any[] = [
   { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
   { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
-  { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
-  { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
+  { type: "divider" },
+  {
+    type: "group",
+    label: "Resources",
+    children: [
+      { key: "/account", icon: <UserOutlined />, label: "Profile" },
+      { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
+      { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
+    ],
+  },
 ];
 
 export default function AdminLayout() {
@@ -40,13 +48,34 @@ export default function AdminLayout() {
 
   const selectedKey =
     menuItems.find(
-      (item) => item.key !== "/" && location.pathname.startsWith(item.key)
+      (item) => item.key && item.key !== "/" && location.pathname.startsWith(item.key)
     )?.key ?? "/";
 
   const handleLogout = async () => {
     await logout();
     navigate("/login", { replace: true });
   };
+
+  const userDropdownItems = [
+    {
+      key: "account",
+      label: "Profile",
+      icon: <UserOutlined />,
+      onClick: () => window.open("/account/", "_blank"),
+    },
+    {
+      type: "divider" as const,
+    },
+    {
+      key: "logout",
+      label: "Logout",
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
+
+  const username = user?.profile?.preferred_username ?? user?.profile?.email ?? "User";
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -78,8 +107,10 @@ export default function AdminLayout() {
           selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => {
-            if (key === "/docs") {
-              window.open("/admin/docs", "_blank");
+            if (key === "/account") {
+              window.open("/account/", "_blank");
+            } else if (key === "/docs") {
+              window.open("/admin/docs/", "_blank");
             } else if (key === "/swagger") {
               window.open("/swagger/index.html", "_blank");
             } else {
@@ -104,14 +135,16 @@ export default function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Text>{user?.profile?.preferred_username ?? user?.profile?.email}</Text>
-            <Button
-              type="text"
-              icon={<LogoutOutlined />}
-              onClick={handleLogout}
-            >
-              Logout
-            </Button>
+            <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
+              <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <Text>{username}</Text>
+                <Avatar 
+                  src={user?.profile?.picture} 
+                  icon={!user?.profile?.picture && <UserOutlined />} 
+                  style={{ backgroundColor: "#1677ff" }}
+                />
+              </div>
+            </Dropdown>
           </div>
         </Header>
         <Content

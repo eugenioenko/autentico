@@ -161,8 +161,9 @@ func RunStart(_ *cli.Context) error {
 	}
 
 	fmt.Printf("  Server:     %s\n", baseURL)
-	fmt.Printf("  Account UI: %s/\n", baseURL)
 	fmt.Printf("  Admin UI:   %s/admin/\n", baseURL)
+	fmt.Printf("  Account UI: %s/account/\n", baseURL)
+	fmt.Println()
 	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
 	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
