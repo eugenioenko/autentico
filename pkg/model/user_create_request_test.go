@@ -15,8 +15,7 @@ func TestValidateUserCreateRequest_Valid(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationEmailRequired = false
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{
@@ -32,7 +31,7 @@ func TestValidateUserCreateRequest_InvalidUsername(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{
@@ -49,7 +48,7 @@ func TestValidateUserCreateRequest_InvalidPassword(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{
@@ -66,7 +65,7 @@ func TestValidateUserCreateRequest_UsernameIsEmail(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = true
+		config.Values.ProfileFieldEmail = "is_username"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{
@@ -83,8 +82,7 @@ func TestValidateUserCreateRequest_EmailRequired(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationEmailRequired = true
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "required"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{
@@ -102,8 +100,7 @@ func TestValidateUserCreateRequest_InvalidEmail(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationEmailRequired = false
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	err := ValidateUserCreateRequest(UserCreateRequest{

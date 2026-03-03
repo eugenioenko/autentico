@@ -11,8 +11,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// getUserFromRequest extracts the user and role from the Authorization header
-func getUserFromRequest(r *http.Request) (*User, error) {
+// GetUserFromRequest extracts the user and role from the Authorization header
+func GetUserFromRequest(r *http.Request) (*User, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return nil, fmt.Errorf("missing Authorization header")
@@ -49,7 +49,7 @@ func getUserFromRequest(r *http.Request) (*User, error) {
 // @Failure 500 {object} model.ApiError
 // @Router /users/create [post]
 func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	_, err := getUserFromRequest(r)
+	_, err := GetUserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -64,7 +64,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
 		return
 	}
-	if config.Get().ValidationUsernameIsEmail && request.Email == "" {
+	if config.Get().ProfileFieldEmail == "is_username" && request.Email == "" {
 		request.Email = request.Username
 	}
 	response, err := CreateUser(request.Username, request.Password, request.Email)
@@ -77,7 +77,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetUser handles GET /user/{id} (read user by ID)
 func HandleGetUser(w http.ResponseWriter, r *http.Request) {
-	_, err := getUserFromRequest(r)
+	_, err := GetUserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -97,7 +97,7 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateUser handles PUT /user/{id} (update user)
 func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
-	_, err := getUserFromRequest(r)
+	_, err := GetUserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -131,7 +131,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteUser handles DELETE /user/{id}
 func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
-	_, err := getUserFromRequest(r)
+	_, err := GetUserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

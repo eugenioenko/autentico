@@ -72,6 +72,27 @@ func FederationProviderByID(id string) (*FederationProvider, error) {
 	return &p, nil
 }
 
+func FederatedIdentitiesByUserID(userID string) ([]*FederatedIdentity, error) {
+	rows, err := db.GetDB().Query(
+		`SELECT id, provider_id, provider_user_id, user_id, email, created_at
+		 FROM federated_identities WHERE user_id = ?`, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list federated identities: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var identities []*FederatedIdentity
+	for rows.Next() {
+		var fi FederatedIdentity
+		if err := rows.Scan(&fi.ID, &fi.ProviderID, &fi.ProviderUserID, &fi.UserID, &fi.Email, &fi.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan federated identity: %w", err)
+		}
+		identities = append(identities, &fi)
+	}
+	return identities, rows.Err()
+}
+
 func FederatedIdentityByProviderAndSub(providerID, sub string) (*FederatedIdentity, error) {
 	var fi FederatedIdentity
 	err := db.GetDB().QueryRow(

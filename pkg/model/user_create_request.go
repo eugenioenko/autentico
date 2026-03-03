@@ -28,7 +28,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		return fmt.Errorf("username is invalid: %w", err)
 	}
 
-	if config.Get().ValidationUsernameIsEmail {
+	if config.Get().ProfileFieldEmail == "is_username" {
 		err = validation.Validate(
 			input.Username,
 			is.Email,
@@ -50,7 +50,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		return fmt.Errorf("password is invalid: %w", err)
 	}
 
-	if config.Get().ValidationEmailRequired || input.Email != "" {
+	if config.Get().ProfileFieldEmail == "required" || input.Email != "" {
 		err = validation.Validate(
 			input.Email,
 			validation.Required,

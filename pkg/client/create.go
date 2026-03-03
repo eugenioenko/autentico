@@ -3,164 +3,100 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/rs/xid"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// CreateClientWithID creates a new OAuth2 client with a specific client_id.
-// Used for well-known clients like the admin UI.
-func CreateClientWithID(clientID string, request ClientCreateRequest) error {
-	request.ClientType = "public"
-	request.TokenEndpointAuthMethod = "none"
-	if request.Scopes == "" {
-		request.Scopes = "openid profile email"
+func CreateClient(req ClientCreateRequest) (*ClientResponse, error) {
+	clientID, err := authcode.GenerateSecureCode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate client id: %w", err)
 	}
-	if len(request.GrantTypes) == 0 {
-		request.GrantTypes = []string{"authorization_code"}
-	}
-	if len(request.ResponseTypes) == 0 {
-		request.ResponseTypes = []string{"code"}
-	}
+	return createClientInternal(clientID, req)
+}
 
-	redirectURIsJSON, _ := json.Marshal(request.RedirectURIs)
-	grantTypesJSON, _ := json.Marshal(request.GrantTypes)
-	responseTypesJSON, _ := json.Marshal(request.ResponseTypes)
-
-	now := time.Now().UTC()
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (
-			id, client_id, client_secret, client_name, client_type,
-			redirect_uris, grant_types, response_types, scopes,
-			token_endpoint_auth_method, is_active, created_at, updated_at
-		) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		xid.New().String(), clientID, request.ClientName, request.ClientType,
-		string(redirectURIsJSON), string(grantTypesJSON), string(responseTypesJSON),
-		request.Scopes, request.TokenEndpointAuthMethod, true, now, now,
-	)
+func CreateClientWithID(clientID string, req ClientCreateRequest) error {
+	_, err := createClientInternal(clientID, req)
 	return err
 }
 
-// CreateClient creates a new OAuth2 client in the database
-// Returns the client response with the plain text secret (shown only once)
-func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
-	id := xid.New().String()
-
-	clientID := request.ClientID
-	if clientID == "" {
+func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	clientSecret := ""
+	hashedSecret := ""
+	if req.ClientType != "public" {
 		var err error
-		clientID, err = GenerateClientID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate client ID: %w", err)
-		}
-	}
-
-	// Set defaults
-	clientType := request.ClientType
-	if clientType == "" {
-		clientType = "confidential"
-	}
-
-	grantTypes := request.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []string{"authorization_code"}
-	}
-
-	responseTypes := request.ResponseTypes
-	if len(responseTypes) == 0 {
-		responseTypes = []string{"code"}
-	}
-
-	scopes := request.Scopes
-	if scopes == "" {
-		scopes = "openid profile email"
-	}
-
-	tokenEndpointAuthMethod := request.TokenEndpointAuthMethod
-	if tokenEndpointAuthMethod == "" {
-		if clientType == "public" {
-			tokenEndpointAuthMethod = "none"
-		} else {
-			tokenEndpointAuthMethod = "client_secret_basic"
-		}
-	}
-
-	// Generate and hash client secret for confidential clients
-	var plainSecret string
-	var hashedSecret *string
-	if clientType == "confidential" {
-		var err error
-		plainSecret, err = GenerateClientSecret()
+		clientSecret, err = authcode.GenerateSecureCode()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate client secret: %w", err)
 		}
-		hashedSecretBytes, err := bcrypt.GenerateFromPassword([]byte(plainSecret), bcrypt.DefaultCost)
+		hashed, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash client secret: %w", err)
 		}
-		hashedSecretStr := string(hashedSecretBytes)
-		hashedSecret = &hashedSecretStr
+		hashedSecret = string(hashed)
 	}
 
-	// Serialize arrays to JSON
-	redirectURIsJSON, err := json.Marshal(request.RedirectURIs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize redirect URIs: %w", err)
+	redirectURIs, _ := json.Marshal(req.RedirectURIs)
+	
+	postLogoutURIsSlice := req.PostLogoutRedirectURIs
+	if postLogoutURIsSlice == nil {
+		postLogoutURIsSlice = []string{}
+	}
+	postLogoutURIs, _ := json.Marshal(postLogoutURIsSlice)
+
+	finalGrantTypes := req.GrantTypes
+	if finalGrantTypes == nil {
+		finalGrantTypes = []string{"authorization_code"}
+	}
+	grantTypes, _ := json.Marshal(finalGrantTypes)
+
+	finalResponseTypes := req.ResponseTypes
+	if finalResponseTypes == nil {
+		finalResponseTypes = []string{"code"}
+	}
+	responseTypes, _ := json.Marshal(finalResponseTypes)
+
+	clientType := "confidential"
+	if req.ClientType != "" {
+		clientType = req.ClientType
+	}
+	scopes := "openid profile email"
+	if req.Scopes != "" {
+		scopes = req.Scopes
+	}
+	authMethod := "client_secret_basic"
+	if req.TokenEndpointAuthMethod != "" {
+		authMethod = req.TokenEndpointAuthMethod
+	} else if clientType == "public" {
+		authMethod = "none"
 	}
 
-	grantTypesJSON, err := json.Marshal(grantTypes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize grant types: %w", err)
+	var audiences *string
+	if req.AllowedAudiences != nil {
+		b, _ := json.Marshal(req.AllowedAudiences)
+		s := string(b)
+		audiences = &s
 	}
 
-	responseTypesJSON, err := json.Marshal(responseTypes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize response types: %w", err)
-	}
-
-	var allowedAudJSON *string
-	if request.AllowedAudiences != nil {
-		aud, _ := json.Marshal(request.AllowedAudiences)
-		audStr := string(aud)
-		allowedAudJSON = &audStr
-	}
+	id, _ := authcode.GenerateSecureCode()
 
 	query := `
 		INSERT INTO clients (
-			id, client_id, client_secret, client_name, client_type,
-			redirect_uris, grant_types, response_types, scopes,
-			token_endpoint_auth_method, is_active, created_at, updated_at,
-			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
-			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, client_id, client_secret, client_name, client_type, redirect_uris, 
+			post_logout_redirect_uris, grant_types, response_types, scopes, 
+			token_endpoint_auth_method, access_token_expiration, refresh_token_expiration,
+			authorization_code_expiration, allowed_audiences, allow_self_signup,
+			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-
-	now := time.Now().UTC()
-	_, err = db.GetDB().Exec(query,
-		id,
-		clientID,
-		hashedSecret,
-		request.ClientName,
-		clientType,
-		string(redirectURIsJSON),
-		string(grantTypesJSON),
-		string(responseTypesJSON),
-		scopes,
-		tokenEndpointAuthMethod,
-		true,
-		now,
-		now,
-		request.AccessTokenExpiration,
-		request.RefreshTokenExpiration,
-		request.AuthorizationCodeExpiration,
-		allowedAudJSON,
-		request.AllowSelfSignup,
-		request.SsoSessionIdleTimeout,
-		request.TrustDeviceEnabled,
-		request.TrustDeviceExpiration,
+	_, err := db.GetDB().Exec(query,
+		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
+		string(postLogoutURIs), string(grantTypes), string(responseTypes), scopes,
+		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,
+		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
+		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
@@ -168,14 +104,15 @@ func CreateClient(request ClientCreateRequest) (*ClientResponse, error) {
 
 	return &ClientResponse{
 		ClientID:                clientID,
-		ClientSecret:            plainSecret,
+		ClientSecret:            clientSecret,
 		ClientSecretExpiresAt:   0,
-		ClientName:              request.ClientName,
+		ClientName:              req.ClientName,
 		ClientType:              clientType,
-		RedirectURIs:            request.RedirectURIs,
-		GrantTypes:              grantTypes,
-		ResponseTypes:           responseTypes,
+		RedirectURIs:            req.RedirectURIs,
+		PostLogoutRedirectURIs:  postLogoutURIsSlice,
+		GrantTypes:              finalGrantTypes,
+		ResponseTypes:           finalResponseTypes,
 		Scopes:                  scopes,
-		TokenEndpointAuthMethod: tokenEndpointAuthMethod,
+		TokenEndpointAuthMethod: authMethod,
 	}, nil
 }

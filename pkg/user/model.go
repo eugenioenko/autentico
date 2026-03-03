@@ -24,6 +24,18 @@ type User struct {
 	TotpVerified        bool
 	IsEmailVerified     bool
 	DeactivatedAt       *time.Time
+	// OIDC standard profile claims
+	GivenName         string
+	FamilyName        string
+	PhoneNumber       string
+	Picture           string
+	Locale            string
+	Zoneinfo          string
+	AddressStreet     string
+	AddressLocality   string
+	AddressRegion     string
+	AddressPostalCode string
+	AddressCountry    string
 }
 
 type UserResponse struct {
@@ -36,6 +48,18 @@ type UserResponse struct {
 	LockedUntil         *time.Time `json:"locked_until,omitempty"`
 	IsEmailVerified     bool       `json:"is_email_verified"`
 	TotpVerified        bool       `json:"totp_verified"`
+	// OIDC standard profile claims
+	GivenName         string `json:"given_name,omitempty"`
+	FamilyName        string `json:"family_name,omitempty"`
+	PhoneNumber       string `json:"phone_number,omitempty"`
+	Picture           string `json:"picture,omitempty"`
+	Locale            string `json:"locale,omitempty"`
+	Zoneinfo          string `json:"zoneinfo,omitempty"`
+	AddressStreet     string `json:"address_street,omitempty"`
+	AddressLocality   string `json:"address_locality,omitempty"`
+	AddressRegion     string `json:"address_region,omitempty"`
+	AddressPostalCode string `json:"address_postal_code,omitempty"`
+	AddressCountry    string `json:"address_country,omitempty"`
 }
 
 func (u *User) ToResponse() UserResponse {
@@ -49,6 +73,17 @@ func (u *User) ToResponse() UserResponse {
 		LockedUntil:         u.LockedUntil,
 		IsEmailVerified:     u.IsEmailVerified,
 		TotpVerified:        u.TotpVerified,
+		GivenName:           u.GivenName,
+		FamilyName:          u.FamilyName,
+		PhoneNumber:         u.PhoneNumber,
+		Picture:             u.Picture,
+		Locale:              u.Locale,
+		Zoneinfo:            u.Zoneinfo,
+		AddressStreet:       u.AddressStreet,
+		AddressLocality:     u.AddressLocality,
+		AddressRegion:       u.AddressRegion,
+		AddressPostalCode:   u.AddressPostalCode,
+		AddressCountry:      u.AddressCountry,
 	}
 }
 
@@ -83,13 +118,13 @@ func ValidatePasskeyUserCreateRequest(input PasskeyUserCreateRequest) error {
 		return fmt.Errorf("username is invalid: %w", err)
 	}
 
-	if config.Get().ValidationUsernameIsEmail {
+	if config.Get().ProfileFieldEmail == "is_username" {
 		if err = validation.Validate(input.Username, is.Email); err != nil {
 			return fmt.Errorf("username is invalid: %w", err)
 		}
 	}
 
-	if config.Get().ValidationEmailRequired || input.Email != "" {
+	if config.Get().ProfileFieldEmail == "required" || input.Email != "" {
 		if err = validation.Validate(input.Email, validation.Required, is.Email); err != nil {
 			return fmt.Errorf("email is invalid: %w", err)
 		}
@@ -105,6 +140,18 @@ type UserUpdateRequest struct {
 	Role            string `json:"role,omitempty"`
 	IsEmailVerified *bool  `json:"is_email_verified,omitempty"`
 	TotpVerified    *bool  `json:"totp_verified,omitempty"`
+	// OIDC standard profile claims
+	GivenName         string `json:"given_name,omitempty"`
+	FamilyName        string `json:"family_name,omitempty"`
+	PhoneNumber       string `json:"phone_number,omitempty"`
+	Picture           string `json:"picture,omitempty"`
+	Locale            string `json:"locale,omitempty"`
+	Zoneinfo          string `json:"zoneinfo,omitempty"`
+	AddressStreet     string `json:"address_street,omitempty"`
+	AddressLocality   string `json:"address_locality,omitempty"`
+	AddressRegion     string `json:"address_region,omitempty"`
+	AddressPostalCode string `json:"address_postal_code,omitempty"`
+	AddressCountry    string `json:"address_country,omitempty"`
 }
 
 func ValidateUserUpdateRequest(input UserUpdateRequest) error {
@@ -144,7 +191,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		return fmt.Errorf("username is invalid: %w", err)
 	}
 
-	if config.Get().ValidationUsernameIsEmail {
+	if config.Get().ProfileFieldEmail == "is_username" {
 		err = validation.Validate(
 			input.Username,
 			is.Email,
@@ -166,7 +213,7 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		return fmt.Errorf("password is invalid: %w", err)
 	}
 
-	if config.Get().ValidationEmailRequired || input.Email != "" {
+	if config.Get().ProfileFieldEmail == "required" || input.Email != "" {
 		err = validation.Validate(
 			input.Email,
 			validation.Required,

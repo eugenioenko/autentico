@@ -12,6 +12,8 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	_ "github.com/eugenioenko/autentico/docs"
+	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
@@ -25,16 +27,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/login"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
-	"github.com/eugenioenko/autentico/pkg/ratelimit"
 	"github.com/eugenioenko/autentico/pkg/onboarding"
 	"github.com/eugenioenko/autentico/pkg/passkey"
+	"github.com/eugenioenko/autentico/pkg/ratelimit"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
-	_ "github.com/eugenioenko/autentico/docs"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -58,8 +59,9 @@ func RunStart(_ *cli.Context) error {
 	// Initialize RSA key (from env var or ephemeral with warning)
 	key.GetPrivateKey()
 
-	// Auto-seed admin UI client if not present
+	// Auto-seed required OAuth2 clients
 	seedAdminClient()
+	seedAccountClient()
 
 	cfg := config.Get()
 	oauth := bs.AppOAuthPath
@@ -114,8 +116,32 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle("/admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleSettings)))
 	mux.HandleFunc("/admin/api/onboarding", appsettings.HandleOnboarding)
 
+	// Account API endpoints
+	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
+	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
+	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
+	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
+	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
+	mux.HandleFunc("GET /account/api/passkeys", account.HandleListPasskeys)
+	mux.HandleFunc("DELETE /account/api/passkeys/{id}", account.HandleDeletePasskey)
+	mux.HandleFunc("PATCH /account/api/passkeys/{id}", account.HandleRenamePasskey)
+	mux.HandleFunc("POST /account/api/passkeys/register/begin", account.HandleAddPasskeyBegin)
+	mux.HandleFunc("POST /account/api/passkeys/register/finish", account.HandleAddPasskeyFinish)
+	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
+	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
+	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
+	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
+	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
+	mux.HandleFunc("GET /account/api/connected-providers", account.HandleListConnectedProviders)
+	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", account.HandleDisconnectProvider)
+	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
+
 	// Admin UI & Docs
 	mux.Handle("/admin/", admin.Handler())
+
+	// Account UI (at root)
+	mux.Handle("/account/", account.Handler())
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -134,14 +160,15 @@ func RunStart(_ *cli.Context) error {
 		fmt.Println()
 	}
 
-	fmt.Printf("  Server:    %s\n", baseURL)
-	fmt.Printf("  Admin UI:  %s/admin/\n", baseURL)
-	fmt.Printf("  API Docs:  %s/admin/docs/\n", baseURL)
-	fmt.Printf("  Swagger:   %s/swagger/index.html\n", baseURL)
-	fmt.Printf("  WellKnown: %s/.well-known/openid-configuration\n", baseURL)
-	fmt.Printf("  JWKS:      %s/.well-known/jwks.json\n", baseURL)
-	fmt.Printf("  Authorize: %s%s/authorize\n", baseURL, oauth)
-	fmt.Printf("  Token:     %s%s/token\n", baseURL, oauth)
+	fmt.Printf("  Server:     %s\n", baseURL)
+	fmt.Printf("  Account UI: %s/\n", baseURL)
+	fmt.Printf("  Admin UI:   %s/admin/\n", baseURL)
+	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
+	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
+	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
+	fmt.Printf("  JWKS:       %s/.well-known/jwks.json\n", baseURL)
+	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)
+	fmt.Printf("  Token:      %s%s/token\n", baseURL, oauth)
 	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{
@@ -184,9 +211,37 @@ func seedAdminClient() {
 		RedirectURIs:            []string{redirectURI},
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
 		ResponseTypes:           []string{"code"},
+		Scopes:                  "openid profile email offline_access",
 		ClientType:              "public",
 		TokenEndpointAuthMethod: "none",
 	}); err != nil {
 		log.Printf("warning: failed to seed admin client: %v", err)
+	}
+}
+
+// seedAccountClient creates the autentico-account OAuth2 client if it does not already exist.
+func seedAccountClient() {
+	const clientID = "autentico-account"
+	const clientName = "Autentico Account UI"
+	if existing, err := client.ClientByClientID(clientID); err == nil && existing != nil {
+		return
+	}
+	baseURL := config.GetBootstrap().AppURL
+	redirectURI := baseURL + "/account/callback"
+	postLogoutURI := baseURL + "/account/"
+	ssoTimeout := "24h"
+
+	if err := client.CreateClientWithID(clientID, client.ClientCreateRequest{
+		ClientName:              clientName,
+		RedirectURIs:            []string{redirectURI},
+		PostLogoutRedirectURIs:  []string{postLogoutURI},
+		GrantTypes:              []string{"authorization_code", "refresh_token"},
+		ResponseTypes:           []string{"code"},
+		Scopes:                  "openid profile email offline_access",
+		ClientType:              "public",
+		TokenEndpointAuthMethod: "none",
+		SsoSessionIdleTimeout:   &ssoTimeout,
+	}); err != nil {
+		log.Printf("warning: failed to seed account client: %v", err)
 	}
 }

@@ -60,10 +60,42 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"sub":      tok.UserID,
-		"email":    user.Email,
-		"username": user.Username,
-		"scope":    tok.Scope,
+		"sub":                tok.UserID,
+		"preferred_username": user.Username,
+		"email":              user.Email,
+		"email_verified":     user.IsEmailVerified,
+		"scope":              tok.Scope,
+	}
+	if user.GivenName != "" {
+		response["given_name"] = user.GivenName
+	}
+	if user.FamilyName != "" {
+		response["family_name"] = user.FamilyName
+	}
+	if user.GivenName != "" || user.FamilyName != "" {
+		response["name"] = (user.GivenName + " " + user.FamilyName)
+	}
+	if user.PhoneNumber != "" {
+		response["phone_number"] = user.PhoneNumber
+	}
+	if user.Picture != "" {
+		response["picture"] = user.Picture
+	}
+	if user.Locale != "" {
+		response["locale"] = user.Locale
+	}
+	if user.Zoneinfo != "" {
+		response["zoneinfo"] = user.Zoneinfo
+	}
+	if user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
+		user.AddressPostalCode != "" || user.AddressCountry != "" {
+		response["address"] = map[string]string{
+			"street_address": user.AddressStreet,
+			"locality":       user.AddressLocality,
+			"region":         user.AddressRegion,
+			"postal_code":    user.AddressPostalCode,
+			"country":        user.AddressCountry,
+		}
 	}
 	utils.WriteApiResponse(w, response, http.StatusOK)
 }

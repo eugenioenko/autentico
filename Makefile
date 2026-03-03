@@ -9,8 +9,8 @@ all: build
 build-go: 
 	go build -o $(APP_NAME) main.go
 
-# Build admin UI + Go binary
-build: admin-ui-build
+# Build admin UI + account UI + Go binary
+build: admin-ui-build account-ui-build
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
 
 # Run the application
@@ -43,6 +43,11 @@ admin-ui-build: generate-docs
 	cp -r admin-ui/dist pkg/admin/dist
 	cp docs/index.html pkg/admin/dist/docs.html
 
+# Build account UI and copy to pkg/account/dist
+account-ui-build:
+	cd account-ui && pnpm install && pnpm run build
+	rm -rf pkg/account/dist
+	cp -r account-ui/dist pkg/account/dist
 
 docker-build:
 	docker build -t autentico:tag .

@@ -92,7 +92,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
 	email := r.FormValue("email")
-	if config.Get().ValidationUsernameIsEmail && email == "" {
+	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
 		email = username
 	}
 
@@ -111,11 +111,59 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required profile fields
+	cfg := config.Get()
+	profileFields := map[string]string{
+		"given_name":          r.FormValue("given_name"),
+		"family_name":         r.FormValue("family_name"),
+		"phone_number":        r.FormValue("phone_number"),
+		"picture":             r.FormValue("picture"),
+		"locale":              r.FormValue("locale"),
+		"address_street":      r.FormValue("address_street"),
+		"address_locality":    r.FormValue("address_locality"),
+		"address_region":      r.FormValue("address_region"),
+		"address_postal_code": r.FormValue("address_postal_code"),
+		"address_country":     r.FormValue("address_country"),
+	}
+	fieldVisibility := map[string]string{
+		"given_name":   cfg.ProfileFieldGivenName,
+		"family_name":  cfg.ProfileFieldFamilyName,
+		"phone_number": cfg.ProfileFieldPhone,
+		"picture":      cfg.ProfileFieldPicture,
+		"locale":       cfg.ProfileFieldLocale,
+		"address_street": cfg.ProfileFieldAddress,
+		"address_locality": cfg.ProfileFieldAddress,
+		"address_region": cfg.ProfileFieldAddress,
+		"address_postal_code": cfg.ProfileFieldAddress,
+		"address_country": cfg.ProfileFieldAddress,
+	}
+	for field, visibility := range fieldVisibility {
+		if visibility == "required" && profileFields[field] == "" {
+			renderSignup(w, r, params, "Please fill in all required fields")
+			return
+		}
+	}
+
 	usr, err := user.CreateUser(username, password, email)
 	if err != nil {
 		renderSignup(w, r, params, "Could not create account. Username may already be taken.")
 		return
 	}
+
+	// Save optional/required profile fields
+	profileUpdate := user.UserUpdateRequest{
+		GivenName:         profileFields["given_name"],
+		FamilyName:        profileFields["family_name"],
+		PhoneNumber:       profileFields["phone_number"],
+		Picture:           profileFields["picture"],
+		Locale:            profileFields["locale"],
+		AddressStreet:     profileFields["address_street"],
+		AddressLocality:   profileFields["address_locality"],
+		AddressRegion:     profileFields["address_region"],
+		AddressPostalCode: profileFields["address_postal_code"],
+		AddressCountry:    profileFields["address_country"],
+	}
+	_ = user.UpdateUser(usr.ID, profileUpdate)
 
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
@@ -188,12 +236,19 @@ func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, e
 		"CodeChallengeMethod": params.CodeChallengeMethod,
 		"Error":               errMsg,
 		"AuthMode":            cfg.AuthMode,
-		"UsernameIsEmail":     cfg.ValidationUsernameIsEmail,
-		"EmailRequired":       cfg.ValidationEmailRequired && !cfg.ValidationUsernameIsEmail,
+		"ProfileFieldEmail":        cfg.ProfileFieldEmail,
+		"ShowOptionalFields":       cfg.SignupShowOptionalFields,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+		// Profile field visibility
+		"ProfileFieldGivenName":  cfg.ProfileFieldGivenName,
+		"ProfileFieldFamilyName": cfg.ProfileFieldFamilyName,
+		"ProfileFieldPhone":      cfg.ProfileFieldPhone,
+		"ProfileFieldPicture":    cfg.ProfileFieldPicture,
+		"ProfileFieldLocale":     cfg.ProfileFieldLocale,
+		"ProfileFieldAddress":    cfg.ProfileFieldAddress,
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

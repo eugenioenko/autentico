@@ -48,6 +48,51 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 		newTotpVerified = *req.TotpVerified
 	}
 
+	newGivenName := usr.GivenName
+	if req.GivenName != "" {
+		newGivenName = req.GivenName
+	}
+	newFamilyName := usr.FamilyName
+	if req.FamilyName != "" {
+		newFamilyName = req.FamilyName
+	}
+	newPhoneNumber := usr.PhoneNumber
+	if req.PhoneNumber != "" {
+		newPhoneNumber = req.PhoneNumber
+	}
+	newPicture := usr.Picture
+	if req.Picture != "" {
+		newPicture = req.Picture
+	}
+	newLocale := usr.Locale
+	if req.Locale != "" {
+		newLocale = req.Locale
+	}
+	newZoneinfo := usr.Zoneinfo
+	if req.Zoneinfo != "" {
+		newZoneinfo = req.Zoneinfo
+	}
+	newAddressStreet := usr.AddressStreet
+	if req.AddressStreet != "" {
+		newAddressStreet = req.AddressStreet
+	}
+	newAddressLocality := usr.AddressLocality
+	if req.AddressLocality != "" {
+		newAddressLocality = req.AddressLocality
+	}
+	newAddressRegion := usr.AddressRegion
+	if req.AddressRegion != "" {
+		newAddressRegion = req.AddressRegion
+	}
+	newAddressPostalCode := usr.AddressPostalCode
+	if req.AddressPostalCode != "" {
+		newAddressPostalCode = req.AddressPostalCode
+	}
+	newAddressCountry := usr.AddressCountry
+	if req.AddressCountry != "" {
+		newAddressCountry = req.AddressCountry
+	}
+
 	var emailParam interface{}
 	if newEmail != "" {
 		emailParam = newEmail
@@ -60,11 +105,47 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			password = ?,
 			is_email_verified = ?,
 			totp_verified = ?,
+			given_name = ?,
+			family_name = ?,
+			phone_number = ?,
+			picture = ?,
+			locale = ?,
+			zoneinfo = ?,
+			address_street = ?,
+			address_locality = ?,
+			address_region = ?,
+			address_postal_code = ?,
+			address_country = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
-	_, err = db.GetDB().Exec(query, newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified, id)
+	_, err = db.GetDB().Exec(query,
+		newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
+		newGivenName, newFamilyName, newPhoneNumber, newPicture, newLocale, newZoneinfo,
+		newAddressStreet, newAddressLocality, newAddressRegion, newAddressPostalCode, newAddressCountry,
+		id,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %v", err)
+	}
+	return nil
+}
+
+// DisableMfa clears the TOTP secret and marks MFA as disabled.
+func DisableMfa(userID string) error {
+	_, err := db.GetDB().Exec(`UPDATE users SET totp_secret = '', totp_verified = FALSE WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("failed to disable MFA: %v", err)
+	}
+	return nil
+}
+
+// StoreTotpSecretPending stores the TOTP secret without marking it as verified.
+// Used during the setup flow — call SaveTotpSecret after the user confirms the code.
+func StoreTotpSecretPending(userID, secret string) error {
+	query := `UPDATE users SET totp_secret = ?, totp_verified = FALSE WHERE id = ?`
+	_, err := db.GetDB().Exec(query, secret, userID)
+	if err != nil {
+		return fmt.Errorf("failed to store pending TOTP secret: %v", err)
 	}
 	return nil
 }

@@ -74,7 +74,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 
 	assert.Equal(t, usr.ID, userinfo["sub"])
 	assert.Equal(t, "user@test.com", userinfo["email"])
-	assert.Equal(t, "user@test.com", userinfo["username"])
+	assert.Equal(t, "user@test.com", userinfo["preferred_username"])
 }
 
 func TestAuthorizationCodeFlow_WithRegisteredClient(t *testing.T) {

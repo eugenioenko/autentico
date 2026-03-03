@@ -8,6 +8,11 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
+func UpdatePasskeyName(id, name string) error {
+	_, err := db.GetDB().Exec(`UPDATE passkey_credentials SET name = ? WHERE id = ?`, name, id)
+	return err
+}
+
 func MarkPasskeyChallengeUsed(id string) error {
 	_, err := db.GetDB().Exec(`UPDATE passkey_challenges SET used = TRUE WHERE id = ?`, id)
 	return err

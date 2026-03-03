@@ -54,7 +54,7 @@ func TestSelfSignup_RendersForm(t *testing.T) {
 func TestSelfSignup_Complete(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
-	config.Values.ValidationUsernameIsEmail = false
+	config.Values.ProfileFieldEmail = "hidden"
 	redirectURI := "http://localhost:3000/callback"
 
 	// Signup → get auth code
@@ -99,13 +99,13 @@ func TestSelfSignup_Complete(t *testing.T) {
 	var userinfo map[string]interface{}
 	err = json.Unmarshal(body, &userinfo)
 	require.NoError(t, err)
-	assert.Equal(t, "brandnewuser", userinfo["username"])
+	assert.Equal(t, "brandnewuser", userinfo["preferred_username"])
 }
 
 func TestSelfSignup_StatePreserved(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
-	config.Values.ValidationUsernameIsEmail = false
+	config.Values.ProfileFieldEmail = "hidden"
 	redirectURI := "http://localhost:3000/callback"
 	expectedState := "opaque-state-value-99"
 
@@ -158,7 +158,7 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
-	config.Values.ValidationUsernameIsEmail = false
+	config.Values.ProfileFieldEmail = "hidden"
 	redirectURI := "http://localhost:3000/callback"
 
 	// GET signup page for CSRF token
@@ -195,7 +195,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 func TestSelfSignup_DuplicateUser(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
-	config.Values.ValidationUsernameIsEmail = false
+	config.Values.ProfileFieldEmail = "hidden"
 	redirectURI := "http://localhost:3000/callback"
 
 	// First signup succeeds
@@ -241,7 +241,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
-	config.Values.ValidationUsernameIsEmail = true
+	config.Values.ProfileFieldEmail = "is_username"
 	redirectURI := "http://localhost:3000/callback"
 
 	// First signup — email-format username, no separate email field

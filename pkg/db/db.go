@@ -28,6 +28,18 @@ var createTableSQL = `
 		deactivated_at DATETIME DEFAULT NULL,    -- If account is deactivated, store timestamp
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Account creation timestamp
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
+		-- OIDC standard profile claims
+		given_name TEXT NOT NULL DEFAULT '',
+		family_name TEXT NOT NULL DEFAULT '',
+		phone_number TEXT NOT NULL DEFAULT '',
+		picture TEXT NOT NULL DEFAULT '',
+		locale TEXT NOT NULL DEFAULT '',
+		zoneinfo TEXT NOT NULL DEFAULT '',
+		address_street TEXT NOT NULL DEFAULT '',
+		address_locality TEXT NOT NULL DEFAULT '',
+		address_region TEXT NOT NULL DEFAULT '',
+		address_postal_code TEXT NOT NULL DEFAULT '',
+		address_country TEXT NOT NULL DEFAULT '',
 		CONSTRAINT unique_username UNIQUE (username),
 		CONSTRAINT unique_email UNIQUE (email)
 	);
@@ -156,7 +168,8 @@ var createTableSQL = `
 		allow_self_signup INTEGER,
 		sso_session_idle_timeout TEXT,
 		trust_device_enabled INTEGER,
-		trust_device_expiration TEXT
+		trust_device_expiration TEXT,
+		post_logout_redirect_uris TEXT DEFAULT '[]'                   -- JSON array of allowed post-logout redirect URIs
 	);
 
 	CREATE TABLE IF NOT EXISTS settings (
@@ -214,30 +227,6 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS federation_providers;
 	`
 
-// addColumnIfNotExists runs an ALTER TABLE … ADD COLUMN statement and silently
-// ignores the SQLite "duplicate column name" error for idempotent migrations.
-func addColumnIfNotExists(d *sql.DB, table, column, definition string) {
-	_, err := d.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition)
-	if err != nil {
-		// SQLite returns "duplicate column name" when the column already exists.
-		// Ignore it; any other error is also best-effort for migrations.
-		_ = err
-	}
-}
-
-// migrateDB applies incremental schema changes to existing databases so that
-// new columns added in later versions are present without dropping tables.
-func migrateDB(d *sql.DB) {
-	addColumnIfNotExists(d, "clients", "access_token_expiration", "TEXT")
-	addColumnIfNotExists(d, "clients", "refresh_token_expiration", "TEXT")
-	addColumnIfNotExists(d, "clients", "authorization_code_expiration", "TEXT")
-	addColumnIfNotExists(d, "clients", "allowed_audiences", "TEXT")
-	addColumnIfNotExists(d, "clients", "allow_self_signup", "INTEGER")
-	addColumnIfNotExists(d, "clients", "sso_session_idle_timeout", "TEXT")
-	addColumnIfNotExists(d, "clients", "trust_device_enabled", "INTEGER")
-	addColumnIfNotExists(d, "clients", "trust_device_expiration", "TEXT")
-}
-
 func InitDB(dbFilePath string) (*sql.DB, error) {
 	var err error
 	db, err = sql.Open("sqlite", dbFilePath)
@@ -265,8 +254,6 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		log.Fatalf("Failed to create table: %v", err)
 		return nil, err
 	}
-
-	migrateDB(db)
 
 	return db, nil
 }

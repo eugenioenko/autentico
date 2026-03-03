@@ -58,13 +58,13 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 	return signedToken, userID
 }
 
-// --- getUserFromRequest tests ---
+// --- GetUserFromRequest tests ---
 
 func TestGetUserFromRequest_MissingAuth(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	_, err := getUserFromRequest(req)
+	_, err := GetUserFromRequest(req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing Authorization header")
 }
@@ -74,7 +74,7 @@ func TestGetUserFromRequest_InvalidAuthFormat(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
-	_, err := getUserFromRequest(req)
+	_, err := GetUserFromRequest(req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid Authorization header")
 }
@@ -84,7 +84,7 @@ func TestGetUserFromRequest_InvalidToken(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
-	_, err := getUserFromRequest(req)
+	_, err := GetUserFromRequest(req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid token")
 }
@@ -111,7 +111,7 @@ func TestGetUserFromRequest_NoSession(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+signedToken)
-	_, err = getUserFromRequest(req)
+	_, err = GetUserFromRequest(req)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid session")
 }
@@ -122,7 +122,7 @@ func TestGetUserFromRequest_Valid(t *testing.T) {
 	token, _ := setupAuthenticatedUser(t)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
-	user, err := getUserFromRequest(req)
+	user, err := GetUserFromRequest(req)
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 }
@@ -157,7 +157,7 @@ func TestHandleCreateUser_ValidationError(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -180,8 +180,7 @@ func TestHandleCreateUser_Success(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -205,8 +204,7 @@ func TestHandleCreateUser_UsernameIsEmail(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = true
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "is_username"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -230,8 +228,7 @@ func TestHandleCreateUser_DuplicateUser(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
