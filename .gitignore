@@ -41,6 +41,7 @@ coverage.out
 # Admin UI
 admin-ui/node_modules/
 pkg/admin/dist/
+pkg/account/dist/
 
 # Local environment/config
 .env
