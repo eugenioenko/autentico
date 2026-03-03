@@ -22,7 +22,7 @@ func TestGetOriginal(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, false, defaultConfig.TrustDeviceEnabled)
-	assert.Equal(t, false, defaultConfig.MfaEnabled)
+	assert.Equal(t, false, defaultConfig.RequireMfa)
 	assert.Equal(t, time.Duration(0), defaultConfig.AuthSsoSessionIdleTimeout)
 	assert.Equal(t, "0", defaultConfig.AuthSsoSessionIdleTimeoutStr)
 	assert.Equal(t, 15*time.Minute, defaultConfig.AuthAccessTokenExpiration)

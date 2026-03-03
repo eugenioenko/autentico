@@ -111,17 +111,30 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// MFA check: if enabled globally, redirect to MFA verification
+	// MFA check: required globally, or user has voluntarily enrolled in TOTP
 	cfg := config.Get()
 	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
-	if cfg.MfaEnabled && !skipMfa {
+	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
 		method := cfg.MfaMethod
-		// If method is "both", prefer TOTP if user is enrolled, otherwise email
-		if method == "both" {
+		if !cfg.RequireMfa && usr.TotpVerified {
+			// User enrolled voluntarily — always use their TOTP regardless of global method
+			method = "totp"
+		} else if method == "both" {
+			// If method is "both", prefer TOTP if user is enrolled, otherwise email
 			if usr.TotpVerified {
 				method = "totp"
 			} else {
 				method = "email"
+			}
+		}
+		// Block email OTP if SMTP is not configured
+		if method == "email" && cfg.SmtpHost == "" {
+			if usr.TotpVerified {
+				method = "totp"
+			} else {
+				slog.Error("login: email MFA required but SMTP is not configured", "request_id", middleware.GetRequestID(r.Context()))
+				utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Email MFA is not available: SMTP is not configured")
+				return
 			}
 		}
 		// For TOTP method with unenrolled user, force enrollment

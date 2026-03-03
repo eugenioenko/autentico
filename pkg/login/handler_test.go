@@ -271,7 +271,7 @@ func TestHandleLoginUser_MfaRedirect(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
-		config.Values.MfaEnabled = true
+		config.Values.RequireMfa = true
 		config.Values.MfaMethod = "totp"
 		config.Values.AuthMode = "password"
 		config.Bootstrap.AppOAuthPath = "/oauth2"
