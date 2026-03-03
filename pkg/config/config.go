@@ -93,6 +93,9 @@ type Config struct {
 	ValidationMaxPasswordLength        int
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
+	// When false (default), optional profile fields are hidden on the signup form
+	// to keep it minimal. Required fields are always shown regardless.
+	SignupShowOptionalFields bool
 	// Profile field visibility: "hidden" | "optional" | "required"
 	// ProfileFieldEmail also accepts "is_username" (username field doubles as email)
 	ProfileFieldEmail      string
@@ -136,6 +139,7 @@ var defaultConfig = Config{
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
 	Theme:                              ThemeConfig{Title: "Autentico"},
+	SignupShowOptionalFields:           false,
 	ProfileFieldEmail:                  "optional",
 	ProfileFieldGivenName:              "optional",
 	ProfileFieldFamilyName:             "optional",

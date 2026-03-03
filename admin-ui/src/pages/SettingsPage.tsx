@@ -287,6 +287,18 @@ export default function SettingsPage() {
                   </Text>
 
                   <Form.Item
+                    label="Show Optional Fields on Signup"
+                    name="signup_show_optional_fields"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    extra="When off (default), optional fields are hidden during signup to keep the form minimal. Required fields are always shown."
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Divider />
+
+                  <Form.Item
                     label="Email"
                     name="profile_field_email"
                     extra="Hidden: no email field. Optional: email field shown but not required. Required: email field required. Username is Email: username field acts as email (stored in both columns)."

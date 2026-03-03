@@ -34,6 +34,7 @@ var defaults = map[string]string{
 	"smtp_port":                      "587",
 	"theme_title":                    "Autentico",
 	"onboarded":                      "false",
+	"signup_show_optional_fields":    "false",
 	"profile_field_email":            "optional",
 	"profile_field_given_name":       "optional",
 	"profile_field_family_name":      "optional",
@@ -109,6 +110,9 @@ func LoadIntoConfig() error {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.ValidationMaxPasswordLength = n
 		}
+	}
+	if v, ok := all["signup_show_optional_fields"]; ok {
+		cfg.SignupShowOptionalFields = parseBool(v, false)
 	}
 	if v, ok := all["profile_field_email"]; ok {
 		cfg.ProfileFieldEmail = v
