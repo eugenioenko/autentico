@@ -2495,6 +2495,21 @@ const docTemplate = `{
         "user.UserResponse": {
             "type": "object",
             "properties": {
+                "address_country": {
+                    "type": "string"
+                },
+                "address_locality": {
+                    "type": "string"
+                },
+                "address_postal_code": {
+                    "type": "string"
+                },
+                "address_region": {
+                    "type": "string"
+                },
+                "address_street": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2504,13 +2519,29 @@ const docTemplate = `{
                 "failed_login_attempts": {
                     "type": "integer"
                 },
+                "family_name": {
+                    "type": "string"
+                },
+                "given_name": {
+                    "description": "OIDC standard profile claims",
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "is_email_verified": {
                     "type": "boolean"
                 },
+                "locale": {
+                    "type": "string"
+                },
                 "locked_until": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "picture": {
                     "type": "string"
                 },
                 "role": {
@@ -2520,6 +2551,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "username": {
+                    "type": "string"
+                },
+                "zoneinfo": {
                     "type": "string"
                 }
             }

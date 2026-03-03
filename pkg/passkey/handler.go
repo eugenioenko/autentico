@@ -38,6 +38,9 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := q.Get("email")
+	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
+		email = username
+	}
 
 	if err := user.ValidatePasskeyUserCreateRequest(user.PasskeyUserCreateRequest{
 		Username: username,

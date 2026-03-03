@@ -64,7 +64,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
 		return
 	}
-	if config.Get().ValidationUsernameIsEmail && request.Email == "" {
+	if config.Get().ProfileFieldEmail == "is_username" && request.Email == "" {
 		request.Email = request.Username
 	}
 	response, err := CreateUser(request.Username, request.Password, request.Email)

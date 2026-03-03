@@ -120,7 +120,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	_, err := user.CreateUser("existinguser", "password123", "existing@example.com")
@@ -147,7 +147,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 		config.Values.AuthSsoSessionIdleTimeout = 0
 	})
 
@@ -176,7 +176,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
@@ -213,7 +213,7 @@ func TestHandleSignup_Post_NoIdpCookieWhenDisabled(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 		config.Values.AuthSsoSessionIdleTimeout = 0
 	})
 

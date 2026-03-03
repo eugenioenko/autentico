@@ -57,6 +57,22 @@ func PasskeyCredentialsByUserID(userID string) ([]PasskeyCredential, error) {
 	return creds, rows.Err()
 }
 
+func PasskeyByID(id string) (*PasskeyCredential, error) {
+	var c PasskeyCredential
+	query := `
+		SELECT id, user_id, name, credential, created_at, last_used_at
+		FROM passkey_credentials WHERE id = ?
+	`
+	row := db.GetDB().QueryRow(query, id)
+	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Credential, &c.CreatedAt, &c.LastUsedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("passkey not found")
+		}
+		return nil, fmt.Errorf("failed to get passkey: %w", err)
+	}
+	return &c, nil
+}
+
 // CredentialsToWebAuthn converts stored PasskeyCredentials to webauthn.Credential slice.
 func CredentialsToWebAuthn(creds []PasskeyCredential) []webauthn.Credential {
 	var result []webauthn.Credential

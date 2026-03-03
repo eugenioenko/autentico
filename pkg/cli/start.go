@@ -124,10 +124,17 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
 	mux.HandleFunc("GET /account/api/passkeys", account.HandleListPasskeys)
 	mux.HandleFunc("DELETE /account/api/passkeys/{id}", account.HandleDeletePasskey)
+	mux.HandleFunc("PATCH /account/api/passkeys/{id}", account.HandleRenamePasskey)
+	mux.HandleFunc("POST /account/api/passkeys/register/begin", account.HandleAddPasskeyBegin)
+	mux.HandleFunc("POST /account/api/passkeys/register/finish", account.HandleAddPasskeyFinish)
 	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
 	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
 	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
 	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
+	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
+	mux.HandleFunc("GET /account/api/connected-providers", account.HandleListConnectedProviders)
+	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", account.HandleDisconnectProvider)
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 
 	// Admin UI & Docs

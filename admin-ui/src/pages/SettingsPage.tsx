@@ -174,24 +174,6 @@ export default function SettingsPage() {
                     </Form.Item>
                   </Space>
 
-                  <Form.Item
-                    label="Username is Email"
-                    name="validation_username_is_email"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                  >
-                    <Switch />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Email Required"
-                    name="validation_email_required"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                  >
-                    <Switch />
-                  </Form.Item>
-
                   <Divider />
 
                   <Title level={5}>Account Lockout</Title>
@@ -288,6 +270,105 @@ export default function SettingsPage() {
                   </Form.Item>
                   <Form.Item label="Passkey RP Name" name="passkey_rp_name">
                     <Input />
+                  </Form.Item>
+                </Card>
+              ),
+            },
+            {
+              key: "5",
+              label: "Profile Fields",
+              children: (
+                <Card variant="borderless">
+                  <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
+                    Control which profile fields are shown on the signup form and the
+                    self-service account portal. <strong>Hidden</strong> fields are never
+                    displayed. <strong>Optional</strong> fields are shown but not required.{" "}
+                    <strong>Required</strong> fields must be filled before the account is created.
+                  </Text>
+
+                  <Form.Item
+                    label="Email"
+                    name="profile_field_email"
+                    extra="Hidden: no email field. Optional: email field shown but not required. Required: email field required. Username is Email: username field acts as email (stored in both columns)."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="is_username">Username is Email</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="First Name"
+                    name="profile_field_given_name"
+                    extra="Controls the given_name (first name) field."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Last Name"
+                    name="profile_field_family_name"
+                    extra="Controls the family_name (last name) field."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Phone Number"
+                    name="profile_field_phone"
+                    extra="Controls the phone_number field."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Profile Picture"
+                    name="profile_field_picture"
+                    extra="Controls the picture field (URL to avatar image)."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Locale"
+                    name="profile_field_locale"
+                    extra="Controls the locale field (e.g. en-US)."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Address"
+                    name="profile_field_address"
+                    extra="Controls all address fields (street, city, region, postal code, country) as a group."
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
                   </Form.Item>
                 </Card>
               ),

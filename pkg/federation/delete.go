@@ -13,3 +13,18 @@ func DeleteFederationProvider(id string) error {
 	}
 	return nil
 }
+
+func DeleteFederatedIdentity(id string) error {
+	result, err := db.GetDB().Exec(`DELETE FROM federated_identities WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete federated identity: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to delete federated identity: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("federated identity not found")
+	}
+	return nil
+}

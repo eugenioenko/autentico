@@ -11,7 +11,7 @@
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <div class="control">
-    {{if .UsernameIsEmail}}
+    {{if eq .ProfileFieldEmail "is_username"}}
     <label for="username">Email</label>
     <input type="email" id="username" name="username" required autocomplete="email" />
     {{else}}
@@ -69,7 +69,7 @@
   {{template "passkey-utils" .}}
   async function startPasskeyLogin() {
     const username = document.getElementById('username').value.trim();
-    if (!username) { showPasskeyError('Please enter your {{if .UsernameIsEmail}}email{{else}}username{{end}} first.'); return; }
+    if (!username) { showPasskeyError('Please enter your {{if eq .ProfileFieldEmail "is_username"}}email{{else}}username{{end}} first.'); return; }
     const params = new URLSearchParams({
       username,
       redirect_uri: document.querySelector('[name=redirect_uri]').value,

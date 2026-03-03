@@ -37,3 +37,27 @@ type SessionResponse struct {
 	CreatedAt      time.Time  `json:"created_at"`
 	IsCurrent      bool       `json:"is_current"`
 }
+
+type DisableMfaRequest struct {
+	CurrentPassword string `json:"current_password"`
+}
+
+type PasskeyRenameRequest struct {
+	Name string `json:"name"`
+}
+
+type TrustedDeviceResponse struct {
+	ID         string    `json:"id"`
+	DeviceName string    `json:"device_name"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+}
+
+type ConnectedProviderResponse struct {
+	ID           string    `json:"id"`
+	ProviderID   string    `json:"provider_id"`
+	ProviderName string    `json:"provider_name"`
+	Email        string    `json:"email,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+}

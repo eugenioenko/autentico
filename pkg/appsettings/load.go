@@ -20,8 +20,6 @@ var defaults = map[string]string{
 	"validation_max_username_length": "64",
 	"validation_min_password_length": "6",
 	"validation_max_password_length": "64",
-	"validation_username_is_email":   "false",
-	"validation_email_required":      "false",
 	"account_lockout_max_attempts":   "5",
 	"account_lockout_duration":       "15m",
 	"auth_mode":                      "password",
@@ -36,6 +34,13 @@ var defaults = map[string]string{
 	"smtp_port":                      "587",
 	"theme_title":                    "Autentico",
 	"onboarded":                      "false",
+	"profile_field_email":            "optional",
+	"profile_field_given_name":       "optional",
+	"profile_field_family_name":      "optional",
+	"profile_field_phone":            "optional",
+	"profile_field_picture":          "optional",
+	"profile_field_locale":           "optional",
+	"profile_field_address":          "optional",
 }
 
 // EnsureDefaults writes any missing well-known keys with their default values.
@@ -105,11 +110,8 @@ func LoadIntoConfig() error {
 			cfg.ValidationMaxPasswordLength = n
 		}
 	}
-	if v, ok := all["validation_username_is_email"]; ok {
-		cfg.ValidationUsernameIsEmail = parseBool(v, false)
-	}
-	if v, ok := all["validation_email_required"]; ok {
-		cfg.ValidationEmailRequired = parseBool(v, false)
+	if v, ok := all["profile_field_email"]; ok {
+		cfg.ProfileFieldEmail = v
 	}
 	if v, ok := all["account_lockout_max_attempts"]; ok {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -180,6 +182,25 @@ func LoadIntoConfig() error {
 		if cssBytes, err := os.ReadFile(v); err == nil {
 			cfg.ThemeCssResolved = string(cssBytes)
 		}
+	}
+
+	if v, ok := all["profile_field_given_name"]; ok {
+		cfg.ProfileFieldGivenName = v
+	}
+	if v, ok := all["profile_field_family_name"]; ok {
+		cfg.ProfileFieldFamilyName = v
+	}
+	if v, ok := all["profile_field_phone"]; ok {
+		cfg.ProfileFieldPhone = v
+	}
+	if v, ok := all["profile_field_picture"]; ok {
+		cfg.ProfileFieldPicture = v
+	}
+	if v, ok := all["profile_field_locale"]; ok {
+		cfg.ProfileFieldLocale = v
+	}
+	if v, ok := all["profile_field_address"]; ok {
+		cfg.ProfileFieldAddress = v
 	}
 
 	config.Values = cfg

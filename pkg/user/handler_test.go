@@ -157,7 +157,7 @@ func TestHandleCreateUser_ValidationError(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -180,8 +180,7 @@ func TestHandleCreateUser_Success(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -205,8 +204,7 @@ func TestHandleCreateUser_UsernameIsEmail(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = true
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "is_username"
 	})
 
 	token, _ := setupAuthenticatedUser(t)
@@ -230,8 +228,7 @@ func TestHandleCreateUser_DuplicateUser(t *testing.T) {
 		config.Values.ValidationMaxUsernameLength = 50
 		config.Values.ValidationMinPasswordLength = 6
 		config.Values.ValidationMaxPasswordLength = 100
-		config.Values.ValidationUsernameIsEmail = false
-		config.Values.ValidationEmailRequired = false
+		config.Values.ProfileFieldEmail = "hidden"
 	})
 
 	token, _ := setupAuthenticatedUser(t)

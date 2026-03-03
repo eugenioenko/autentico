@@ -28,6 +28,18 @@ var createTableSQL = `
 		deactivated_at DATETIME DEFAULT NULL,    -- If account is deactivated, store timestamp
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Account creation timestamp
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
+		-- OIDC standard profile claims
+		given_name TEXT NOT NULL DEFAULT '',
+		family_name TEXT NOT NULL DEFAULT '',
+		phone_number TEXT NOT NULL DEFAULT '',
+		picture TEXT NOT NULL DEFAULT '',
+		locale TEXT NOT NULL DEFAULT '',
+		zoneinfo TEXT NOT NULL DEFAULT '',
+		address_street TEXT NOT NULL DEFAULT '',
+		address_locality TEXT NOT NULL DEFAULT '',
+		address_region TEXT NOT NULL DEFAULT '',
+		address_postal_code TEXT NOT NULL DEFAULT '',
+		address_country TEXT NOT NULL DEFAULT '',
 		CONSTRAINT unique_username UNIQUE (username),
 		CONSTRAINT unique_email UNIQUE (email)
 	);
@@ -229,6 +241,18 @@ func addColumnIfNotExists(d *sql.DB, table, column, definition string) {
 // migrateDB applies incremental schema changes to existing databases so that
 // new columns added in later versions are present without dropping tables.
 func migrateDB(d *sql.DB) {
+	// User profile fields (OIDC standard claims)
+	addColumnIfNotExists(d, "users", "given_name", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "family_name", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "phone_number", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "picture", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "locale", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "zoneinfo", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "address_street", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "address_locality", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "address_region", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "address_postal_code", "TEXT NOT NULL DEFAULT ''")
+	addColumnIfNotExists(d, "users", "address_country", "TEXT NOT NULL DEFAULT ''")
 	addColumnIfNotExists(d, "clients", "access_token_expiration", "TEXT")
 	addColumnIfNotExists(d, "clients", "refresh_token_expiration", "TEXT")
 	addColumnIfNotExists(d, "clients", "authorization_code_expiration", "TEXT")

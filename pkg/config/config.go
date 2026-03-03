@@ -91,10 +91,17 @@ type Config struct {
 	ValidationMaxUsernameLength        int
 	ValidationMinPasswordLength        int
 	ValidationMaxPasswordLength        int
-	ValidationUsernameIsEmail          bool
-	ValidationEmailRequired            bool
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
+	// Profile field visibility: "hidden" | "optional" | "required"
+	// ProfileFieldEmail also accepts "is_username" (username field doubles as email)
+	ProfileFieldEmail      string
+	ProfileFieldGivenName  string
+	ProfileFieldFamilyName string
+	ProfileFieldPhone      string
+	ProfileFieldPicture    string
+	ProfileFieldLocale     string
+	ProfileFieldAddress    string
 }
 
 var defaultConfig = Config{
@@ -128,9 +135,14 @@ var defaultConfig = Config{
 	ValidationMaxUsernameLength:        64,
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
-	ValidationUsernameIsEmail:          false,
-	ValidationEmailRequired:            false,
 	Theme:                              ThemeConfig{Title: "Autentico"},
+	ProfileFieldEmail:                  "optional",
+	ProfileFieldGivenName:              "optional",
+	ProfileFieldFamilyName:             "optional",
+	ProfileFieldPhone:                  "optional",
+	ProfileFieldPicture:                "optional",
+	ProfileFieldLocale:                 "optional",
+	ProfileFieldAddress:                "optional",
 }
 
 var (

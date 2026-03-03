@@ -11,7 +11,7 @@
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <div class="control">
-    {{if .UsernameIsEmail}}
+    {{if eq .ProfileFieldEmail "is_username"}}
     <label for="username">Email</label>
     <input type="email" id="username" name="username" required autocomplete="email" />
     {{else}}
@@ -19,10 +19,56 @@
     <input type="text" id="username" name="username" required autocomplete="username" />
     {{end}}
   </div>
-  {{if .EmailRequired}}
+  {{if or (eq .ProfileFieldEmail "optional") (eq .ProfileFieldEmail "required")}}
   <div class="control">
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required autocomplete="email" />
+    <label for="email">Email{{if eq .ProfileFieldEmail "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="email" id="email" name="email" autocomplete="email" {{if eq .ProfileFieldEmail "required"}}required{{end}} />
+  </div>
+  {{end}}
+  {{if ne .ProfileFieldGivenName "hidden"}}
+  <div class="control">
+    <label for="given_name">First Name{{if eq .ProfileFieldGivenName "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="given_name" name="given_name" autocomplete="given-name" {{if eq .ProfileFieldGivenName "required"}}required{{end}} />
+  </div>
+  {{end}}
+  {{if ne .ProfileFieldFamilyName "hidden"}}
+  <div class="control">
+    <label for="family_name">Last Name{{if eq .ProfileFieldFamilyName "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="family_name" name="family_name" autocomplete="family-name" {{if eq .ProfileFieldFamilyName "required"}}required{{end}} />
+  </div>
+  {{end}}
+  {{if ne .ProfileFieldPhone "hidden"}}
+  <div class="control">
+    <label for="phone_number">Phone Number{{if eq .ProfileFieldPhone "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="tel" id="phone_number" name="phone_number" autocomplete="tel" {{if eq .ProfileFieldPhone "required"}}required{{end}} />
+  </div>
+  {{end}}
+  {{if ne .ProfileFieldPicture "hidden"}}
+  <div class="control">
+    <label for="picture">Profile Picture URL{{if eq .ProfileFieldPicture "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="url" id="picture" name="picture" autocomplete="photo" {{if eq .ProfileFieldPicture "required"}}required{{end}} />
+  </div>
+  {{end}}
+  {{if ne .ProfileFieldAddress "hidden"}}
+  <div class="control">
+    <label for="address_street">Street Address{{if eq .ProfileFieldAddress "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="address_street" name="address_street" autocomplete="street-address" {{if eq .ProfileFieldAddress "required"}}required{{end}} />
+  </div>
+  <div class="control">
+    <label for="address_locality">City{{if eq .ProfileFieldAddress "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="address_locality" name="address_locality" autocomplete="address-level2" {{if eq .ProfileFieldAddress "required"}}required{{end}} />
+  </div>
+  <div class="control">
+    <label for="address_region">State / Region{{if eq .ProfileFieldAddress "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="address_region" name="address_region" autocomplete="address-level1" {{if eq .ProfileFieldAddress "required"}}required{{end}} />
+  </div>
+  <div class="control">
+    <label for="address_postal_code">Postal Code{{if eq .ProfileFieldAddress "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="address_postal_code" name="address_postal_code" autocomplete="postal-code" {{if eq .ProfileFieldAddress "required"}}required{{end}} />
+  </div>
+  <div class="control">
+    <label for="address_country">Country{{if eq .ProfileFieldAddress "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
+    <input type="text" id="address_country" name="address_country" autocomplete="country-name" {{if eq .ProfileFieldAddress "required"}}required{{end}} />
   </div>
   {{end}}
   {{if ne .AuthMode "passkey_only"}}
