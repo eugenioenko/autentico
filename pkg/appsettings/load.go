@@ -29,7 +29,7 @@ var defaults = map[string]string{
 	"cleanup_interval":               "6h",
 	"cleanup_retention":              "24h",
 	"pkce_enforce_s256":              "true",
-	"mfa_enabled":                    "false",
+	"require_mfa":                    "false",
 	"mfa_method":                     "totp",
 	"smtp_port":                      "587",
 	"theme_title":                    "Autentico",
@@ -158,8 +158,8 @@ func LoadIntoConfig() error {
 	if v, ok := all["pkce_enforce_s256"]; ok {
 		cfg.AuthPKCEEnforceSHA256 = parseBool(v, true)
 	}
-	if v, ok := all["mfa_enabled"]; ok {
-		cfg.MfaEnabled = parseBool(v, false)
+	if v, ok := all["require_mfa"]; ok {
+		cfg.RequireMfa = parseBool(v, false)
 	}
 	if v, ok := all["mfa_method"]; ok {
 		cfg.MfaMethod = v

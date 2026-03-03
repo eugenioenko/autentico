@@ -663,7 +663,7 @@ func HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	utils.SuccessResponse(w, map[string]any{
 		"auth_mode":                cfg.AuthMode,
-		"mfa_enabled":              cfg.MfaEnabled,
+		"require_mfa":              cfg.RequireMfa,
 		"mfa_method":               cfg.MfaMethod,
 		"oauth_path":               config.GetBootstrap().AppOAuthPath,
 		"allow_username_change":     cfg.AllowUsernameChange,

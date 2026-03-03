@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 
 export interface Settings {
   auth_mode: string;
-  mfa_enabled: boolean;
+  require_mfa: boolean;
   mfa_method: string;
   oauth_path: string;
   allow_username_change: boolean;
@@ -17,7 +17,7 @@ export interface Settings {
 
 const defaultSettings: Settings = {
   auth_mode: 'password',
-  mfa_enabled: false,
+  require_mfa: false,
   mfa_method: 'totp',
   oauth_path: '/oauth2',
   allow_username_change: false,

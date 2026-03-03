@@ -28,6 +28,9 @@ export default function SettingsPage() {
   const updateSettings = useUpdateSettings();
   const [form] = Form.useForm();
   const pkceEnforced = Form.useWatch("pkce_enforce_s256", form);
+  const mfaMethod = Form.useWatch("mfa_method", form);
+  const smtpHost = Form.useWatch("smtp_host", form);
+  const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
 
   useEffect(() => {
     if (settings) {
@@ -139,11 +142,11 @@ export default function SettingsPage() {
 
                   <Title level={5}>Multi-Factor Authentication</Title>
                   <Form.Item
-                    label="Enable MFA"
-                    name="mfa_enabled"
+                    label="Require MFA"
+                    name="require_mfa"
                     valuePropName="checked"
                     getValueProps={boolProp}
-                    tooltip={{ title: "Require users to provide a second authentication factor.", icon: <ExclamationCircleOutlined /> }}
+                    tooltip={{ title: "Force all users to complete a second authentication factor at login. Users can also enroll in TOTP voluntarily without this being enabled.", icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -155,6 +158,15 @@ export default function SettingsPage() {
                       <Select.Option value="both">Both (Prefer TOTP)</Select.Option>
                     </Select>
                   </Form.Item>
+                  {emailMfaWithoutSmtp && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="SMTP not configured"
+                      description="Email OTP requires a configured SMTP server. Go to the SMTP & Tokens tab to set it up, otherwise email MFA will fail at login."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
 
                   <Divider />
 
