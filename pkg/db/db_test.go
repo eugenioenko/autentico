@@ -10,7 +10,7 @@ import (
 func TestInitDB(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "test.db")
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	database, err := InitDB(tmpFile.Name())
 	assert.NoError(t, err)
@@ -46,8 +46,8 @@ func TestInitDB_Panic(t *testing.T) {
 func TestCloseDB_Success(t *testing.T) {
 	tmpFile, _ := os.CreateTemp("", "testdb*.sqlite")
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	_ = tmpFile.Close()
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	_, err := InitDB(tmpPath)
 	assert.NoError(t, err)
@@ -71,7 +71,7 @@ func TestInitTestDB_Success(t *testing.T) {
 
 func TestInitDB_ExistingDir(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "testdb-dir")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a subdirectory with the same name as the intended DB file
 	dbPath := tmpDir + "/mydb.sqlite"

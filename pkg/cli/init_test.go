@@ -13,11 +13,11 @@ func TestRunInit(t *testing.T) {
 	// Create a temporary directory for the test to avoid messing with real .env
 	tmpDir, err := os.MkdirTemp("", "autentico-cli-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -55,10 +55,10 @@ func TestRunInit_InvalidURL(t *testing.T) {
 
 func TestRunInit_DefaultURL(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "autentico-cli-default-test")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
@@ -83,10 +83,10 @@ func TestRandomHex(t *testing.T) {
 func TestRunInit_URLParsingError(t *testing.T) {
 	// Use a temporary directory
 	tmpDir, _ := os.MkdirTemp("", "autentico-cli-parsing-test")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Invalid URL (unparseable)
 	app := &cli.App{Name: "test"}
@@ -98,7 +98,7 @@ func TestRunInit_URLParsingError(t *testing.T) {
 	assert.Error(t, err)
 
 	// Missing scheme/host
-	set.Set("url", "just-a-string")
+	_ = set.Set("url", "just-a-string")
 	err = RunInit(ctx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "must include scheme and host")
@@ -107,14 +107,14 @@ func TestRunInit_URLParsingError(t *testing.T) {
 func TestRunInit_EnvDirectoryError(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, _ := os.MkdirTemp("", "autentico-cli-write-test")
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 	
 	// Create a directory named .env so WriteFile fails
-	os.Mkdir(".env", 0755)
+	_ = os.Mkdir(".env", 0755)
 	
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)

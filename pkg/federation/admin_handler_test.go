@@ -34,7 +34,7 @@ func TestHandleAdminFederationEndpoint(t *testing.T) {
 	HandleAdminFederationEndpoint(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var list []map[string]any
-	json.Unmarshal(rr.Body.Bytes(), &list)
+	_ = json.Unmarshal(rr.Body.Bytes(), &list)
 	assert.Len(t, list, 1)
 	assert.Equal(t, "p1", list[0]["id"])
 
@@ -44,7 +44,7 @@ func TestHandleAdminFederationEndpoint(t *testing.T) {
 	HandleAdminFederationEndpoint(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var p map[string]any
-	json.Unmarshal(rr.Body.Bytes(), &p)
+	_ = json.Unmarshal(rr.Body.Bytes(), &p)
 	assert.Equal(t, "Provider 1", p["name"])
 
 	// 4. Update provider

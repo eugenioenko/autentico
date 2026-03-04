@@ -38,8 +38,8 @@ func TestSeedClients(t *testing.T) {
 func TestRunStart_DbPanic(t *testing.T) {
 	// Set an invalid DB path in environment
 	origPath := os.Getenv("AUTENTICO_DB_FILE")
-	os.Setenv("AUTENTICO_DB_FILE", "/nonexistent/path/db.sqlite")
-	defer os.Setenv("AUTENTICO_DB_FILE", origPath)
+	_ = os.Setenv("AUTENTICO_DB_FILE", "/nonexistent/path/db.sqlite")
+	defer func() { _ = os.Setenv("AUTENTICO_DB_FILE", origPath) }()
 
 	app := &cli.App{Name: "test"}
 	ctx := cli.NewContext(app, flag.NewFlagSet("test", flag.ContinueOnError), nil)

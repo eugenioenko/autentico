@@ -68,21 +68,21 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 				"userinfo_endpoint":      fmt.Sprintf("http://%s/userinfo", r.Host),
 				"jwks_uri":               fmt.Sprintf("http://%s/jwks", r.Host),
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		case "/token":
 			resp := map[string]any{
 				"access_token": "mock-access-token",
 				"id_token":     "mock-id-token",
 				"token_type":   "Bearer",
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		case "/userinfo":
 			resp := map[string]any{
 				"sub":   "mock-sub",
 				"email": "mock@test.com",
 				"name":  "Mock User",
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		default:
 			http.NotFound(w, r)
 		}
@@ -128,7 +128,7 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 				"userinfo_endpoint":      fmt.Sprintf("http://%s/userinfo", r.Host),
 				"jwks_uri":               fmt.Sprintf("http://%s/jwks", r.Host),
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		default:
 			http.NotFound(w, r)
 		}
@@ -183,7 +183,7 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 				"userinfo_endpoint":      fmt.Sprintf("http://%s/userinfo", r.Host),
 				"jwks_uri":               fmt.Sprintf("http://%s/jwks", r.Host),
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		default:
 			http.NotFound(w, r)
 		}
@@ -309,7 +309,7 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 				"userinfo_endpoint":      fmt.Sprintf("http://%s/userinfo", r.Host),
 				"jwks_uri":               fmt.Sprintf("http://%s/jwks", r.Host),
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 		http.NotFound(w, r)

@@ -63,8 +63,8 @@ func TestDecodeBase64PEM_Invalid(t *testing.T) {
 
 func TestInitKeys_InvalidEnvVar(t *testing.T) {
 	// Set an invalid base64 key
-	os.Setenv("AUTENTICO_RSA_PRIVATE_KEY", "invalid-base64!!!")
-	defer os.Unsetenv("AUTENTICO_RSA_PRIVATE_KEY")
+	_ = os.Setenv("AUTENTICO_RSA_PRIVATE_KEY", "invalid-base64!!!")
+	defer func() { _ = os.Unsetenv("AUTENTICO_RSA_PRIVATE_KEY") }()
 
 	// Since initKeys uses sync.Once, it might have already run.
 	// But in tests, we can't easily reset it.

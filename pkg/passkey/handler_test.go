@@ -68,7 +68,7 @@ func TestHandleRegisterBegin_MissingUsername(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	var resp map[string]string
-	json.NewDecoder(rr.Body).Decode(&resp)
+	_ = json.NewDecoder(rr.Body).Decode(&resp)
 	assert.Contains(t, resp["error"], "missing username")
 }
 
@@ -83,7 +83,7 @@ func TestHandleRegisterBegin_UserExists(t *testing.T) {
 
 	assert.Equal(t, http.StatusConflict, rr.Code)
 	var resp map[string]string
-	json.NewDecoder(rr.Body).Decode(&resp)
+	_ = json.NewDecoder(rr.Body).Decode(&resp)
 	assert.Contains(t, resp["error"], "username already taken")
 }
 
