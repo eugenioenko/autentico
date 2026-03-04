@@ -279,3 +279,43 @@ func TestDeletePasskeyCredential_NonExistent(t *testing.T) {
 	err := DeletePasskeyCredential("ghost-cred")
 	assert.NoError(t, err)
 }
+
+// --- PasskeyByID ---
+
+func TestPasskeyByID(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
+		ID:         "pk-1",
+		UserID:     "user-1",
+		Credential: sampleCredentialJSON(),
+	}))
+
+	p, err := PasskeyByID("pk-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "pk-1", p.ID)
+
+	_, err = PasskeyByID("nonexistent")
+	assert.Error(t, err)
+}
+
+// --- UpdatePasskeyName ---
+
+func TestUpdatePasskeyName(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	require.NoError(t, CreatePasskeyCredential(PasskeyCredential{
+		ID:         "pk-1",
+		UserID:     "user-1",
+		Name:       "Old Name",
+		Credential: sampleCredentialJSON(),
+	}))
+
+	err := UpdatePasskeyName("pk-1", "New Name")
+	assert.NoError(t, err)
+
+	p, _ := PasskeyByID("pk-1")
+	assert.Equal(t, "New Name", p.Name)
+}

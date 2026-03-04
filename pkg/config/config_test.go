@@ -52,6 +52,10 @@ func TestInitBootstrap_EnvOverride(t *testing.T) {
 
 	t.Setenv("AUTENTICO_APP_URL", "https://example.com")
 	t.Setenv("AUTENTICO_APP_OAUTH_PATH", "/auth")
+	t.Setenv("AUTENTICO_LISTEN_PORT", "8080")
+	t.Setenv("AUTENTICO_APP_ENABLE_CORS", "false")
+	t.Setenv("AUTENTICO_RATE_LIMIT_RPS", "10.5")
+	t.Setenv("AUTENTICO_RATE_LIMIT_BURST", "20")
 
 	InitBootstrap()
 
@@ -60,6 +64,10 @@ func TestInitBootstrap_EnvOverride(t *testing.T) {
 	assert.Equal(t, "example.com", Bootstrap.AppDomain)
 	assert.Equal(t, "https://example.com/auth", Bootstrap.AppAuthIssuer)
 	assert.Equal(t, "443", Bootstrap.AppPort)
+	assert.Equal(t, "8080", Bootstrap.AppListenPort)
+	assert.Equal(t, false, Bootstrap.AppEnableCORS)
+	assert.Equal(t, 10.5, Bootstrap.RateLimitRPS)
+	assert.Equal(t, 20, Bootstrap.RateLimitBurst)
 }
 
 func TestParseDuration(t *testing.T) {
@@ -81,8 +89,53 @@ func TestGetForClient_WithOverrides(t *testing.T) {
 	saved := Values
 	t.Cleanup(func() { Values = saved })
 	Values.AuthAccessTokenExpiration = 30 * time.Minute
+	Values.AuthAllowSelfSignup = false
 
 	exp := "1h"
-	cfg := GetForClient(ClientOverrides{AccessTokenExpiration: &exp})
+	rexp := "24h"
+	aexp := "5m"
+	signup := true
+	sso := "30m"
+	trust := true
+	trustExp := "48h"
+	
+	cfg := GetForClient(ClientOverrides{
+		AccessTokenExpiration:       &exp,
+		RefreshTokenExpiration:      &rexp,
+		AuthorizationCodeExpiration: &aexp,
+		AllowedAudiences:            []string{"aud1"},
+		AllowSelfSignup:             &signup,
+		SsoSessionIdleTimeout:       &sso,
+		TrustDeviceEnabled:          &trust,
+		TrustDeviceExpiration:       &trustExp,
+	})
+	
 	assert.Equal(t, time.Hour, cfg.AuthAccessTokenExpiration)
+	assert.Equal(t, 24*time.Hour, cfg.AuthRefreshTokenExpiration)
+	assert.Equal(t, 5*time.Minute, cfg.AuthAuthorizationCodeExpiration)
+	assert.Equal(t, []string{"aud1"}, cfg.AuthAccessTokenAudience)
+	assert.True(t, cfg.AuthAllowSelfSignup)
+	assert.Equal(t, 30*time.Minute, cfg.AuthSsoSessionIdleTimeout)
+	assert.True(t, cfg.TrustDeviceEnabled)
+	assert.Equal(t, 48*time.Hour, cfg.TrustDeviceExpiration)
+}
+
+func TestGetEnvHelpers(t *testing.T) {
+	t.Setenv("TEST_BOOL", "true")
+	assert.True(t, getEnvBool("TEST_BOOL", false))
+	assert.True(t, getEnvBool("NONEXISTENT", true))
+	t.Setenv("TEST_BOOL_INVALID", "not-a-bool")
+	assert.True(t, getEnvBool("TEST_BOOL_INVALID", true))
+
+	t.Setenv("TEST_FLOAT", "1.5")
+	assert.Equal(t, 1.5, getEnvFloat("TEST_FLOAT", 0.0))
+	assert.Equal(t, 2.5, getEnvFloat("NONEXISTENT", 2.5))
+	t.Setenv("TEST_FLOAT_INVALID", "not-a-float")
+	assert.Equal(t, 3.5, getEnvFloat("TEST_FLOAT_INVALID", 3.5))
+
+	t.Setenv("TEST_INT", "10")
+	assert.Equal(t, 10, getEnvInt("TEST_INT", 0))
+	assert.Equal(t, 20, getEnvInt("NONEXISTENT", 20))
+	t.Setenv("TEST_INT_INVALID", "not-an-int")
+	assert.Equal(t, 30, getEnvInt("TEST_INT_INVALID", 30))
 }

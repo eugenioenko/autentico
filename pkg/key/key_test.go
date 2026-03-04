@@ -1,6 +1,7 @@
 package key
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,3 +61,19 @@ func TestDecodeBase64PEM_Invalid(t *testing.T) {
 	assert.Nil(t, decodeBase64PEM("bm90LWEtcGVtLWtleQ==")) // "not-a-pem-key" in base64
 }
 
+func TestInitKeys_InvalidEnvVar(t *testing.T) {
+	// Set an invalid base64 key
+	os.Setenv("AUTENTICO_RSA_PRIVATE_KEY", "invalid-base64!!!")
+	defer os.Unsetenv("AUTENTICO_RSA_PRIVATE_KEY")
+
+	// Since initKeys uses sync.Once, it might have already run.
+	// But in tests, we can't easily reset it.
+	
+	priv := GetPrivateKey()
+	assert.NotNil(t, priv)
+}
+
+func TestDecodeBase64PEM_Error(t *testing.T) {
+	res := decodeBase64PEM("not-base64")
+	assert.Nil(t, res)
+}

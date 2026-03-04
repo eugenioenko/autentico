@@ -1,6 +1,7 @@
 package appsettings
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -85,3 +87,44 @@ func TestHandleSettings_InvalidMethod(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
+func TestHandleOnboarding_MethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/onboarding", nil)
+	rr := httptest.NewRecorder()
+	HandleOnboarding(rr, req)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+}
+
+func TestHandleSettings_PutInvalidJSON(t *testing.T) {
+	testutils.WithTestDB(t)
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", bytes.NewBufferString("{invalid"))
+	rr := httptest.NewRecorder()
+	HandleSettings(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleSettings_PutDatabaseError(t *testing.T) {
+	testutils.WithTestDB(t)
+	
+	// Close DB to force error
+	db.CloseDB()
+	
+	body := `{"theme_title": "New Title"}`
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+	HandleSettings(rr, req)
+	
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	
+	// Re-init for other tests if necessary, though WithTestDB should handle it
+}
+
+func TestHandleSettings_GetDatabaseError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+	
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/settings", nil)
+	rr := httptest.NewRecorder()
+	HandleSettings(rr, req)
+	
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}

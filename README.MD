@@ -1,7 +1,7 @@
 # Autentico — OIDC Identity Provider
 
-[![Test Coverage](https://img.shields.io/badge/coverage-79.3%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-464-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-75.4%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-701-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -36,6 +36,7 @@ _Each demo session provisions a dedicated, ephemeral Autentico instance—isolat
 - [Trusted Devices](#trusted-devices)
 - [Login Page Theming](#login-page-theming)
 - [Admin UI](#admin-ui)
+- [Account UI](#account-ui)
 - [Endpoints](#endpoints)
 - [Supported Grant Types](#supported-grant-types)
 - [Client Interaction Examples](#client-interaction-examples)
@@ -80,6 +81,7 @@ _Each demo session provisions a dedicated, ephemeral Autentico instance—isolat
 - **Self-signup** — optionally allow end users to register accounts on the login page, globally or per client
 - **User CRUD** — full user lifecycle management with role support (`user`, `admin`)
 - **Soft deletes** — users and clients are deactivated, not destroyed, preserving audit history
+- **Account self-service** — users can manage their own profile, security settings, sessions, passkeys, MFA, and connected providers via the built-in Account UI
 
 ### Operations
 
@@ -134,6 +136,7 @@ Each package in `pkg/` owns a vertical slice of IdP functionality. The conventio
 | `pkg/wellknown`     | OIDC discovery document and JWKS                                               |
 | `pkg/middleware`    | CORS, CSRF, logging, admin auth, audience validation                           |
 | `pkg/cleanup`       | Background goroutine for expired record purging                                |
+| `pkg/account`       | Account self-service API and embedded React Account UI (from `pkg/account/dist`) |
 | `pkg/admin`         | Embedded Admin UI (static files + stats handler)                               |
 | `pkg/config`        | Bootstrap and runtime configuration                                            |
 | `pkg/db`            | SQLite initialization, schema, and incremental migrations                      |
@@ -484,6 +487,75 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 
 ---
 
+## Account UI
+
+The Account UI is a React SPA (built with React 19, React Router v7, TanStack Query, and Tailwind CSS) embedded into the Go binary via `go:embed`. It is served at `/account/` and lets authenticated users manage their own profile and security settings without involving an administrator.
+
+Authentication is handled automatically: on first visit, users are redirected through the standard OIDC Authorization Code flow using the auto-seeded `autentico-account` public client, then returned to `/account/callback` to complete token exchange.
+
+### Pages
+
+**Dashboard**
+
+- Security status summary — shows whether TOTP is configured and displays the user's username and email
+- Quick link to the Security page for configuration
+
+**Profile**
+
+- Edit personal information; visible fields are controlled by backend settings:
+  - Username (if `allow_username_change` is enabled)
+  - Email (if `allow_email_change` is enabled)
+  - First name, last name, phone number, profile picture URL, locale
+  - Street address, city, state/region, postal code, country
+
+**Security**
+
+- **Password**: Change password with current password verification
+- **TOTP (Two-Factor Authentication)**: Set up TOTP by scanning a QR code in any authenticator app (Google Authenticator, Authy, 1Password, etc.) and confirming with a 6-digit code; disable TOTP with password confirmation
+- **Passkeys**: Register new passkeys via WebAuthn ceremony, view existing passkeys with creation date, rename or remove any passkey
+
+**Sessions**
+
+- List all active OAuth sessions with IP address, user agent, last activity timestamp, and creation time
+- Current session is marked with a badge
+- Revoke any other session individually (forces logout on that device)
+
+**Trusted Devices**
+
+- List devices that currently bypass MFA prompts, with device name, last used date, and expiration
+- Revoke any trusted device to require MFA on its next login
+
+**Connected Providers**
+
+- List external identity providers (e.g., federated SSO) linked to the account, with provider name, associated email, and connection date
+- Disconnect a provider; lockout prevention blocks disconnection if it is the user's only login method and they have no password
+
+### Building the Account UI
+
+The pre-built Account UI is committed to the repository in `pkg/account/dist/` and embedded at compile time. If you modify the frontend source:
+
+```bash
+# Build Account UI and copy assets into the embed directory
+make account-ui-build
+
+# Or build everything (Admin UI + Account UI + Go binary) in one step
+make build
+```
+
+### Account UI Development Mode
+
+```bash
+# Terminal 1: start the Go server
+make run
+
+# Terminal 2: start the Vite dev server (hot-reload)
+cd account-ui && pnpm dev
+```
+
+The dev server proxies API requests to the Go server on port 9999.
+
+---
+
 ## Endpoints
 
 ### OIDC Discovery & Identity
@@ -542,6 +614,28 @@ The dev server runs at `http://localhost:5173/admin/` and proxies API requests t
 | Endpoint | Method | Description                                 |
 | -------- | ------ | ------------------------------------------- |
 | `/user`  | POST   | Create a user (for API-driven provisioning) |
+
+### Account Self-Service API (Bearer Token Required)
+
+| Endpoint                                    | Method       | Description                                    |
+| ------------------------------------------- | ------------ | ---------------------------------------------- |
+| `/account/api/settings`                     | GET          | UI configuration (auth mode, field visibility) |
+| `/account/api/profile`                      | GET / PUT    | Get or update user profile                     |
+| `/account/api/password`                     | POST         | Change password                                |
+| `/account/api/sessions`                     | GET          | List active OAuth sessions                     |
+| `/account/api/sessions/{id}`                | DELETE       | Revoke a session                               |
+| `/account/api/passkeys`                     | GET          | List registered passkeys                       |
+| `/account/api/passkeys/register/begin`      | POST         | Begin WebAuthn registration ceremony           |
+| `/account/api/passkeys/register/finish`     | POST         | Complete WebAuthn registration ceremony        |
+| `/account/api/passkeys/{id}`                | PATCH/DELETE | Rename or remove a passkey                     |
+| `/account/api/mfa`                          | GET          | Get MFA status                                 |
+| `/account/api/mfa/totp/setup`               | POST         | Initialize TOTP enrollment (returns QR code)   |
+| `/account/api/mfa/totp/verify`              | POST         | Confirm TOTP enrollment with a 6-digit code    |
+| `/account/api/mfa/totp`                     | DELETE       | Disable TOTP                                   |
+| `/account/api/trusted-devices`              | GET          | List trusted devices                           |
+| `/account/api/trusted-devices/{id}`         | DELETE       | Revoke a trusted device                        |
+| `/account/api/connected-providers`          | GET          | List connected external providers              |
+| `/account/api/connected-providers/{id}`     | DELETE       | Disconnect an external provider                |
 
 ---
 
@@ -767,23 +861,42 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico maintains comprehensive test coverage with **464+ test functions** across unit, integration, and end-to-end tests.
+Auténtico maintains comprehensive test coverage with **700+ test functions** across unit, integration, and end-to-end tests.
 
 ### Coverage by Package
 
-| Package          | Coverage | Tests | Focus                    |
-| ---------------- | -------- | ----- | ------------------------ |
-| `pkg/config`     | 100.0%   | 8     | Configuration management |
-| `pkg/model`      | 100.0%   | 6     | Data validation          |
-| `pkg/wellknown`  | 100.0%   | 4     | OIDC discovery           |
-| `pkg/idpsession` | 96.3%    | 15    | SSO session lifecycle    |
-| `pkg/jwtutil`    | 95.2%    | 10    | JWT validation           |
-| `pkg/authorize`  | 93.3%    | 13    | Authorization flow       |
-| `pkg/middleware` | 93.4%    | 21    | Security middleware      |
-| `pkg/user`       | 92.3%    | 46    | User management          |
-| `pkg/auth_code`  | 90.9%    | 16    | Authorization codes      |
-| `pkg/session`    | 90.7%    | 13    | Session lifecycle        |
-| `pkg/introspect` | 89.4%    | 13    | Token introspection      |
+| Package             | Coverage | Tests | Focus                          |
+| ------------------- | -------- | ----- | ------------------------------ |
+| `pkg/model`         | 100.0%   | 6     | Data validation                |
+| `pkg/ratelimit`     | 100.0%   | 9     | Rate limiting                  |
+| `pkg/wellknown`     | 100.0%   | 4     | OIDC discovery                 |
+| `pkg/appsettings`   | 96.4%    | 12    | Runtime settings               |
+| `pkg/config`        | 96.9%    | 9     | Configuration management       |
+| `pkg/jwtutil`       | 95.7%    | 12    | JWT validation                 |
+| `pkg/userinfo`      | 95.2%    | 7     | UserInfo endpoint              |
+| `pkg/utils`         | 92.9%    | 12    | Shared helpers                 |
+| `pkg/middleware`    | 91.1%    | 25    | Security middleware            |
+| `pkg/auth_code`     | 90.9%    | 9     | Authorization codes            |
+| `pkg/trusteddevice` | 88.9%    | 16    | Trusted device management      |
+| `pkg/admin`         | 87.1%    | 2     | Admin UI and stats             |
+| `pkg/authorize`     | 86.4%    | 26    | Authorization flow             |
+| `pkg/cleanup`       | 86.4%    | 7     | Background cleanup             |
+| `pkg/signup`        | 85.5%    | 11    | Self-service registration      |
+| `pkg/session`       | 84.3%    | 17    | Session lifecycle              |
+| `pkg/user`          | 84.1%    | 62    | User management                |
+| `pkg/client`        | 83.8%    | 70    | OAuth2 client management       |
+| `pkg/token`         | 82.3%    | 57    | Token endpoint                 |
+| `pkg/idpsession`    | 86.2%    | 12    | SSO session lifecycle          |
+| `pkg/key`           | 76.7%    | 8     | RSA key and JWK                |
+| `pkg/onboarding`    | 71.4%    | 10    | First-run onboarding           |
+| `pkg/login`         | 71.1%    | 14    | Login flow                     |
+| `pkg/introspect`    | 88.2%    | 13    | Token introspection            |
+| `pkg/mfa`           | 64.6%    | 18    | MFA challenge management       |
+| `pkg/account`       | 66.0%    | 37    | Account self-service           |
+| `pkg/db`            | 66.7%    | 5     | Database initialization        |
+| `pkg/federation`    | 58.5%    | 24    | Federation                     |
+| `pkg/passkey`       | 48.6%    | 34    | WebAuthn/passkeys              |
+| `pkg/cli`           | 29.0%    | 7     | CLI entrypoints                |
 
 ### Running Tests
 
@@ -807,9 +920,9 @@ Tests run with `-p 1` (sequential) because they share a process-level SQLite han
 
 ### Test Categories
 
-- **Unit tests** (280+): handler behavior, model validation, service logic, utility functions
-- **Integration tests** (40+): cross-package flows — authorization, token lifecycle, session management, client authentication
-- **End-to-end tests** (16+): full HTTP flows against a real test server instance
+- **Unit tests** (420+): handler behavior, model validation, service logic, utility functions
+- **Integration tests** (130+): cross-package flows — authorization, token lifecycle, session management, client authentication
+- **End-to-end tests** (69+): full HTTP flows against a real test server instance
 
 ---
 

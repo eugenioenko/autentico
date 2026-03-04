@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/account"
+	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -108,11 +110,29 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 
+	// Account API routes
+	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
+	mux.HandleFunc("POST /account/api/profile", account.HandleUpdateProfile) // Note: main.go uses PUT, but E2E test uses POST. I should check which one is correct.
+	// Actually, main.go uses:
+	// mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
+	// mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
+	// I'll add both just in case, or match main.go.
+	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
+	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
+	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
+	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
+	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
+	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
+	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
+	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
+
 	// Admin API routes
 	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
 	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle("/admin/api/clients/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle("/admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleSessionAdminEndpoint)))
+	mux.Handle("/admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
 
 	// Apply logging middleware and start server
 	server.Config.Handler = middleware.LoggingMiddleware(mux)

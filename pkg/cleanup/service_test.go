@@ -163,3 +163,12 @@ func TestStart(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 }
 
+func TestRun_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	
+	// Close DB to trigger error
+	db.CloseDB()
+	
+	// Should not panic, just log errors
+	Run(time.Hour)
+}

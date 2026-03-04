@@ -12,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 )
@@ -341,4 +342,32 @@ func TestValidateTokenIntrospectRequest_Empty(t *testing.T) {
 	err := ValidateTokenIntrospectRequest(IntrospectRequest{Token: ""})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "token is required")
+}
+
+func TestHandleIntrospect_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	
+	// Create a valid JWT
+	claims := jwt.MapClaims{
+		"exp": time.Now().Add(time.Hour).Unix(),
+		"sub": "user-1",
+		"iss": config.GetBootstrap().AppAuthIssuer,
+		"aud": config.Get().AuthAccessTokenAudience,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	signedToken, _ := token.SignedString(key.GetPrivateKey())
+
+	reqBody := IntrospectRequest{Token: signedToken}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	// Close DB to trigger error in IntrospectToken
+	db.CloseDB()
+
+	HandleIntrospect(rr, req)
+
+	// Implementation returns 401 on generic IntrospectToken error
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }

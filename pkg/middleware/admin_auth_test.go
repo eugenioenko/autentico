@@ -10,6 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 )
@@ -252,4 +253,63 @@ func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.True(t, handlerCalled, "Handler should be called for admin user")
+}
+
+func TestAdminAuthMiddleware_SessionDeactivated(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Create an admin user
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, ?)
+	`, userID, "adminuser", "admin@example.com", "hashed", "admin")
+
+	// Generate a valid token
+	token, _ := generateTestAccessToken(userID)
+
+	// Create a deactivated session
+	sessionID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
+		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'), CURRENT_TIMESTAMP)
+	`, sessionID, userID, token, "")
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Session has been deactivated")
+}
+
+func TestAdminAuthMiddleware_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	userID := xid.New().String()
+	token, _ := generateTestAccessToken(userID)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	// Close DB to trigger error in UserByID
+	db.CloseDB()
+
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "User not found")
 }

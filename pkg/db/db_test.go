@@ -1,47 +1,84 @@
 package db
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInitDB(t *testing.T) {
-	result, err := InitDB(":memory:")
+	tmpFile, err := os.CreateTemp("", "test.db")
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	t.Cleanup(func() {
-		CloseDB()
-	})
-}
+	defer os.Remove(tmpFile.Name())
 
-func TestInitTestDB(t *testing.T) {
-	result, err := InitTestDB()
+	database, err := InitDB(tmpFile.Name())
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	t.Cleanup(func() {
-		CloseDB()
-	})
-}
-
-func TestGetDB(t *testing.T) {
-	_, err := InitTestDB()
-	assert.NoError(t, err)
-	t.Cleanup(func() {
-		CloseDB()
-	})
-
-	database := GetDB()
 	assert.NotNil(t, database)
-	assert.NoError(t, database.Ping())
-}
 
-func TestCloseDB(t *testing.T) {
-	_, err := InitTestDB()
+	err = database.Ping()
 	assert.NoError(t, err)
 
 	CloseDB()
-	// After closing, ping should fail
-	err = db.Ping()
-	assert.Error(t, err)
+}
+
+func TestInitTestDB(t *testing.T) {
+	database, err := InitTestDB()
+	assert.NoError(t, err)
+	assert.NotNil(t, database)
+
+	err = database.Ping()
+	assert.NoError(t, err)
+
+	// Check if GetDB returns the same
+	assert.Equal(t, database, GetDB())
+
+	CloseDB()
+}
+
+func TestInitDB_Panic(t *testing.T) {
+	// Invalid path (e.g., a directory that doesn't exist and we can't create)
+	assert.Panics(t, func() {
+		_, _ = InitDB("/nonexistent/path/to/db.sqlite")
+	})
+}
+
+func TestCloseDB_Success(t *testing.T) {
+	tmpFile, _ := os.CreateTemp("", "testdb*.sqlite")
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	_, err := InitDB(tmpPath)
+	assert.NoError(t, err)
+
+	CloseDB()
+
+	// Calling CloseDB again should be fine (idempotent)
+	CloseDB()
+}
+
+func TestInitTestDB_Success(t *testing.T) {
+	db, _ := InitTestDB()
+	assert.NotNil(t, db)
+
+	// Verify tables are created (simple check)
+	var name string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").Scan(&name)
+	assert.NoError(t, err)
+	assert.Equal(t, "users", name)
+}
+
+func TestInitDB_ExistingDir(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "testdb-dir")
+	defer os.RemoveAll(tmpDir)
+
+	// Create a subdirectory with the same name as the intended DB file
+	dbPath := tmpDir + "/mydb.sqlite"
+	_ = os.Mkdir(dbPath, 0755)
+
+	// InitDB should fail because it can't open a directory as a DB
+	assert.Panics(t, func() {
+		_, _ = InitDB(dbPath)
+	})
 }

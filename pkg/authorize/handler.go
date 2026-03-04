@@ -47,6 +47,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		Nonce:               q.Get("nonce"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
 	}
 
 	err := ValidateAuthorizeRequest(request)
@@ -62,7 +63,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Support prompt=signup to automatically go to the signup/onboarding page while preserving OIDC state
-	if q.Get("prompt") == "signup" {
+	if request.Prompt == "signup" {
 		target := "/signup"
 		if !appsettings.IsOnboarded() {
 			target = "/onboard"
@@ -142,6 +143,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+
+	if request.Prompt == "none" {
+		redirectURL := fmt.Sprintf("%s?error=login_required&state=%s", request.RedirectURI, request.State)
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
 	}
 
 	renderLogin(w, r, request, q.Get("error"))

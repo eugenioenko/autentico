@@ -14,6 +14,7 @@ type AuthorizeRequest struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
 }
 
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {

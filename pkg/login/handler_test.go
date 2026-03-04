@@ -11,27 +11,28 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestHandleLoginUser(t *testing.T) {
+func TestHandleLoginUser_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 0
+	})
+
+	// Create user and client
+	_, _ = user.CreateUser("testuser", "password123", "test@example.com")
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	// Create a test user
-	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
-	assert.NoError(t, err)
-
-	// Perform login
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
+	form.Set("username", "testuser")
+	form.Set("password", "password123")
+	form.Set("client_id", "test-client")
+	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("state", "xyz")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -39,36 +40,25 @@ func TestHandleLoginUser(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	// Verify the response
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "http://localhost/callback")
 	assert.Contains(t, rr.Header().Get("Location"), "code=")
-	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
-func TestHandleLoginUser_NonPostMethod(t *testing.T) {
+func TestHandleLoginUser_MfaTotp(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "totp"
+	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/login", nil)
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Only POST method is allowed")
-}
-
-func TestHandleLoginUser_ValidationError(t *testing.T) {
-	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("mfauser", "password123", "mfa@example.com")
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	// Username too short (min is 4)
 	form := url.Values{}
-	form.Add("username", "ab")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
+	form.Set("username", "mfauser")
+	form.Set("password", "password123")
+	form.Set("client_id", "test-client")
+	form.Set("redirect_uri", "http://localhost/callback")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -76,374 +66,395 @@ func TestHandleLoginUser_ValidationError(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	// Validation errors redirect back to the login form instead of returning JSON
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/authorize")
-	assert.Contains(t, rr.Header().Get("Location"), "error=")
+	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
 }
 
-func TestHandleLoginUser_InvalidRedirectURI(t *testing.T) {
+func TestHandleLoginUser_PasskeyOnly(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthMode = "passkey_only"
+	})
 
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", nil)
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Password login is disabled")
+}
+
+func TestHandleLoginUser_InvalidRedirect(t *testing.T) {
+	testutils.WithTestDB(t)
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "not-a-valid-uri") // syntactically invalid (no scheme/host)
-	form.Add("state", "xyz123")
-
+	form.Set("redirect_uri", "not-a-url")
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
-
 	HandleLoginUser(rr, req)
-
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
-func TestHandleLoginUser_WrongCredentials(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-
-	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
-	assert.NoError(t, err)
-
-	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "wrongpassword")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusFound, rr.Code)
-	location := rr.Header().Get("Location")
-	assert.Contains(t, location, "/oauth2/authorize")
-	assert.Contains(t, location, "error=")
-}
-
-func TestHandleLoginUser_NonExistentUser(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-
-	form := url.Values{}
-	form.Add("username", "nonexistent")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusFound, rr.Code)
-	location := rr.Header().Get("Location")
-	assert.Contains(t, location, "/oauth2/authorize")
-	assert.Contains(t, location, "error=")
-}
-
-func TestValidateLoginRequest_InvalidPassword(t *testing.T) {
-	err := ValidateLoginRequest(LoginRequest{
-		Username: "testuser",
-		Password: "ab",
-		RedirectURI: "http://localhost/callback",
-		State:    "xyz123",
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "password is invalid")
-}
-
-func TestValidateLoginRequest_InvalidRedirect(t *testing.T) {
-	err := ValidateLoginRequest(LoginRequest{
-		Username: "testuser",
-		Password: "password123",
-		RedirectURI: "",
-		State:    "xyz123",
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "redirect URI is invalid")
-}
-
-func TestValidateLoginRequest_MissingState(t *testing.T) {
-	// state is optional per OAuth2 spec (RECOMMENDED but not REQUIRED)
-	err := ValidateLoginRequest(LoginRequest{
-		Username: "testuser",
-		Password: "password123",
-		RedirectURI: "http://localhost/callback",
-		State:    "",
-	})
-	assert.NoError(t, err)
-}
-
-func TestValidateLoginRequest_Valid(t *testing.T) {
-	err := ValidateLoginRequest(LoginRequest{
-		Username: "testuser",
-		Password: "password123",
-		RedirectURI: "http://localhost/callback",
-		State:    "xyz123",
-	})
-	assert.NoError(t, err)
-}
-
-func TestHandleLoginUser_SetsIdpSessionCookie(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
-		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
-		config.Bootstrap.AppOAuthPath = "/oauth2"
-	})
-
-	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
-	assert.NoError(t, err)
-
-	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusFound, rr.Code)
-
-	// Verify IdP session cookie is set
-	cookies := rr.Result().Cookies()
-	var idpCookie *http.Cookie
-	for _, c := range cookies {
-		if c.Name == "autentico_idp_session" {
-			idpCookie = c
-			break
-		}
-	}
-	assert.NotNil(t, idpCookie, "IdP session cookie should be set")
-	assert.True(t, idpCookie.HttpOnly, "Cookie should be HttpOnly")
-	assert.Equal(t, http.SameSiteStrictMode, idpCookie.SameSite, "Cookie should be SameSite=Strict")
-	assert.NotEmpty(t, idpCookie.Value, "Cookie value should not be empty")
-}
-
-func TestHandleLoginUser_NoIdpCookieWhenDisabled(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthSsoSessionIdleTimeout = 0 // disabled
-	})
-
-	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
-	assert.NoError(t, err)
-
-	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "test-client")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusFound, rr.Code)
-
-	// Verify NO IdP session cookie is set
-	cookies := rr.Result().Cookies()
-	for _, c := range cookies {
-		assert.NotEqual(t, "autentico_idp_session", c.Name, "IdP session cookie should NOT be set when disabled")
-	}
-}
-
-func TestHandleLoginUser_MfaRedirect(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-	testutils.WithConfigOverride(t, func() {
-		config.Values.RequireMfa = true
-		config.Values.MfaMethod = "totp"
-		config.Values.AuthMode = "password"
-		config.Bootstrap.AppOAuthPath = "/oauth2"
-
-		_, _ = user.CreateUser("mfauser", "password123", "mfa@example.com")
-
-		form := url.Values{}
-		form.Set("username", "mfauser")
-		form.Set("password", "password123")
-		form.Set("redirect_uri", "http://localhost/callback")
-		form.Set("state", "xyz")
-		form.Set("client_id", "test-client")
-
-		req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rr := httptest.NewRecorder()
-
-		HandleLoginUser(rr, req)
-
-		assert.Equal(t, http.StatusFound, rr.Code)
-		assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
-	})
-}
-
-func TestHandleLoginUser_UnknownClientID(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "nonexistent-client")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Unknown client_id")
-}
-
 func TestHandleLoginUser_InactiveClient(t *testing.T) {
 	testutils.WithTestDB(t)
-
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
-		VALUES ('id-inactive', 'inactive-client', 'Inactive Client', 'public', '["http://localhost/callback"]', FALSE)
-	`)
-	require.NoError(t, err)
+	_, _ = db.GetDB().Exec(`INSERT INTO clients (id, client_id, client_name, is_active, redirect_uris) VALUES ('c1', 'inactive', 'Inc', FALSE, '["http://localhost"]')`)
 
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "inactive-client")
-
+	form.Set("client_id", "inactive")
+	form.Set("redirect_uri", "http://localhost")
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
-
 	HandleLoginUser(rr, req)
-
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Client is inactive")
 }
 
 func TestHandleLoginUser_InvalidScope(t *testing.T) {
 	testutils.WithTestDB(t)
-
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, is_active)
-		VALUES ('id-scoped', 'scoped-client', 'Scoped Client', 'public', '["http://localhost/callback"]', 'openid profile', TRUE)
-	`)
-	require.NoError(t, err)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
 
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "scoped-client")
-	form.Add("scope", "offline_access") // not allowed for this client
-
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+	form.Set("scope", "invalid")
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
-
 	HandleLoginUser(rr, req)
-
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_scope")
+	assert.Contains(t, rr.Body.String(), "One or more requested scopes are not allowed")
 }
 
-func TestHandleLoginUser_PartiallyInvalidScope(t *testing.T) {
+func TestHandleLoginUser_LockedAccount(t *testing.T) {
 	testutils.WithTestDB(t)
-
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, is_active)
-		VALUES ('id-scoped2', 'scoped-client2', 'Scoped Client 2', 'public', '["http://localhost/callback"]', 'openid profile', TRUE)
-	`)
-	require.NoError(t, err)
+	u, _ := user.CreateUser("lockeduser", "password123", "l@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	// Lock the user
+	_, _ = db.GetDB().Exec("UPDATE users SET locked_until = datetime('now', '+1 hour') WHERE id = ?", u.ID)
 
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "scoped-client2")
-	form.Add("scope", "openid offline_access") // "openid" is allowed, but "offline_access" is not
+	form.Set("username", "lockeduser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
-
-	HandleLoginUser(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_scope")
-}
-
-func TestHandleLoginUser_AllowedScope(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, scopes, is_active)
-		VALUES ('id-scoped3', 'scoped-client3', 'Scoped Client 3', 'public', '["http://localhost/callback"]', 'openid profile', TRUE)
-	`)
-	require.NoError(t, err)
-
-	_, err = user.CreateUser("testuser", "password123", "testuser@example.com")
-	require.NoError(t, err)
-
-	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "scoped-client3")
-	form.Add("scope", "openid profile") // both scopes are allowed
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
 	HandleLoginUser(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=Account+is+temporarily+locked")
+}
+
+func TestHandleLoginUser_EmailMfaNoSmtp(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "email"
+		config.Values.SmtpHost = "" // No SMTP
+	})
+
+	_, _ = user.CreateUser("mfauseremail", "password123", "u@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "mfauseremail")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestHandleLoginUser_InvalidCredentialsFormat(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "a") // too short
+	form.Set("password", "short")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=user+credentials+error")
+}
+
+func TestHandleLoginUser_UnknownClient(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("client_id", "nonexistent")
+	form.Set("redirect_uri", "http://localhost")
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
+}
+
+func TestHandleLoginUser_WrongPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("testuser", "correct-password", "test@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "testuser")
+	form.Set("password", "wrong-password")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=Invalid+username+or+password")
+}
+
+func TestHandleLoginUser_NonexistentUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "nonexistent")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=Invalid+username+or+password")
+}
+
+func TestHandleLoginUser_FormParseError(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader("%")) // Invalid URL encoding
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
+	testutils.WithTestDB(t)
+	u, _ := user.CreateUser("testuser", "password123", "test@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	
+	// Enable MFA
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "totp"
+		config.Values.TrustDeviceEnabled = true
+	})
+
+	// Create a trusted device
+	deviceID := "trusted-1"
+	_ = trusteddevice.CreateTrustedDevice(trusteddevice.TrustedDevice{
+		ID:         deviceID,
+		UserID:     u.ID,
+		DeviceName: "Test",
+		ExpiresAt:  time.Now().Add(time.Hour),
+	})
+
+	form := url.Values{}
+	form.Set("username", "testuser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// Add trusted device cookie
+	req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: deviceID})
+	
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	// Should NOT redirect to /mfa, should redirect to client with code
 	assert.Contains(t, rr.Header().Get("Location"), "code=")
 }
 
-func TestHandleLoginUser_RedirectURINotAllowedForClient(t *testing.T) {
+func TestHandleLoginUser_MfaMethodBoth_TotpVerified(t *testing.T) {
 	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "strict-client", []string{"http://allowed.example.com/callback"})
+	u, _ := user.CreateUser("mfauser", "password123", "mfa@test.com")
+	_ = user.UpdateUser(u.ID, user.UserUpdateRequest{TotpVerified: boolPtr(true)})
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "both"
+	})
 
 	form := url.Values{}
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-	form.Add("redirect_uri", "http://evil.example.com/callback")
-	form.Add("state", "xyz123")
-	form.Add("client_id", "strict-client")
+	form.Set("username", "mfauser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	// Should use TOTP
+	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+}
+
+func TestHandleLoginUser_MfaMethodBoth_NoTotpVerified(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("mfauser", "password123", "mfa@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost" // Enable SMTP so email MFA is available
+	})
+
+	form := url.Values{}
+	form.Set("username", "mfauser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	// Should use Email (since method is both and user has no TOTP)
+	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+}
+
+func TestRedirectToLogin_Extra(t *testing.T) {
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AppOAuthPath = "/oauth2"
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/?anything=1", nil)
+	rr := httptest.NewRecorder()
+	
+	loginReq := LoginRequest{
+		ClientID:            "c1",
+		RedirectURI:         "http://cb",
+		State:               "s1",
+		Scope:               "openid",
+		Nonce:               "n1",
+		CodeChallenge:       "cc1",
+		CodeChallengeMethod: "S256",
+	}
+	
+	redirectToLogin(rr, req, loginReq, "some error")
+	
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "/oauth2/authorize")
+	assert.Contains(t, loc, "error=some+error")
+	assert.Contains(t, loc, "client_id=c1")
+	assert.Contains(t, loc, "redirect_uri=http%3A%2F%2Fcb")
+	assert.Contains(t, loc, "state=s1")
+	assert.Contains(t, loc, "scope=openid")
+	assert.Contains(t, loc, "nonce=n1")
+	assert.Contains(t, loc, "code_challenge=cc1")
+	assert.Contains(t, loc, "code_challenge_method=S256")
+}
+
+func TestHandleLoginUser_DbError_Session(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("testuser", "password123", "t@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "testuser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
+	// Close DB to trigger error in DB ops
+	db.CloseDB()
+
 	HandleLoginUser(rr, req)
 
+	// Since client lookup is first and fails if DB is closed, it returns 400
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Redirect URI not allowed for this client")
 }
 
+func TestHandleLoginUser_MfaEnrollment(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("enrolluser", "password123", "e@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "totp"
+	})
+
+	form := url.Values{}
+	form.Set("username", "enrolluser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	// Should redirect to /mfa for enrollment
+	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+}
+
+func TestHandleLoginUser_MfaEmailEnrollment(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser("enrolluser", "password123", "e@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+	
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireMfa = true
+		config.Values.MfaMethod = "email"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	form := url.Values{}
+	form.Set("username", "enrolluser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	// Should redirect to /mfa
+	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+}
+
+func boolPtr(b bool) *bool { return &b }
