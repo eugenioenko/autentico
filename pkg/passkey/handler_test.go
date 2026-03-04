@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +35,74 @@ func withPasskeyConfig(t *testing.T) {
 		config.Bootstrap.AppURL = "http://localhost:9999"
 		config.Values.PasskeyRPName = "Test"
 	})
+}
+
+// --- HandleRegisterBegin ---
+
+func TestHandleRegisterBegin_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	username := "new-passkey-user@example.com"
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "registration", resp["type"])
+	assert.NotEmpty(t, resp["challenge_id"])
+}
+
+func TestHandleRegisterBegin_MissingUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin", nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	_ = json.NewDecoder(rr.Body).Decode(&resp)
+	assert.Contains(t, resp["error"], "missing username")
+}
+
+func TestHandleRegisterBegin_UserExists(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+	_, username := setupPasskeyTestUser(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin?username="+username, nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	assert.Equal(t, http.StatusConflict, rr.Code)
+	var resp map[string]string
+	_ = json.NewDecoder(rr.Body).Decode(&resp)
+	assert.Contains(t, resp["error"], "username already taken")
+}
+
+func TestHandleRegisterBegin_Success_Extra(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+	
+	// User does not exist - should be created automatically
+	username := "brand-new-user"
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin?username="+username, nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp["options"])
 }
 
 // --- HandleLoginBegin ---
@@ -178,6 +247,32 @@ func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 	assert.True(t, time.Now().Before(challenge.ExpiresAt))
 }
 
+func TestHandleLoginBegin_Success_Extra(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+	
+	// Create a user with NO password but WITH a passkey
+	userID := "u1"
+	username := "passkeyuser"
+	_, _ = db.GetDB().Exec("INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, '')", userID, username, "u@test.com")
+
+	// Must have at least one passkey registered to begin login
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO passkey_credentials (id, user_id, name, credential, created_at)
+		VALUES ('pk1', ?, 'Passkey 1', '{}', CURRENT_TIMESTAMP)
+	`, userID)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username, nil)
+	rr := httptest.NewRecorder()
+	HandleLoginBegin(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp["options"])
+}
+
 // --- HandleLoginFinish ---
 
 func TestHandleLoginFinish_MissingChallengeID(t *testing.T) {
@@ -277,6 +372,14 @@ func TestHandleLoginFinish_WrongType(t *testing.T) {
 	assert.Contains(t, resp["error"], "invalid challenge")
 }
 
+func TestHandleLoginFinish_InvalidJSON(t *testing.T) {
+	testutils.WithTestDB(t)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/login/finish?challenge_id=c1", strings.NewReader("{invalid"))
+	rr := httptest.NewRecorder()
+	HandleLoginFinish(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
 // --- HandleRegisterFinish ---
 
 func TestHandleRegisterFinish_MissingChallengeID(t *testing.T) {
@@ -374,4 +477,29 @@ func TestHandleRegisterFinish_WrongType(t *testing.T) {
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 	assert.Contains(t, resp["error"], "invalid challenge")
+}
+
+func TestHandleRegisterFinish_InvalidJSON(t *testing.T) {
+	testutils.WithTestDB(t)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/register/finish?challenge_id=c1", strings.NewReader("{invalid"))
+	rr := httptest.NewRecorder()
+	HandleRegisterFinish(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestCredentialsToWebAuthn_InvalidJSON(t *testing.T) {
+	creds := []PasskeyCredential{
+		{
+			ID:         "pk1",
+			Credential: "{invalid",
+		},
+		{
+			ID:         "pk2",
+			Credential: "{}", // valid empty
+		},
+	}
+
+	res := CredentialsToWebAuthn(creds)
+	// It should skip the invalid one
+	assert.Len(t, res, 1)
 }

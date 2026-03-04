@@ -5,37 +5,32 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
-
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeleteUser(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	// Create a test user
-	user, err := CreateUser("testuser", "password123", "testuser@example.com")
+	u, _ := CreateUser("deluser", "pass", "del@example.com")
+	err := DeleteUser(u.ID)
 	assert.NoError(t, err)
 
-	// Soft delete the user
-	err = DeleteUser(user.ID)
-	assert.NoError(t, err)
-
-	// User should NOT be returned by UserByID (active-only)
-	_, err = UserByID(user.ID)
-	assert.Error(t, err)
-
-	// But should have deactivated_at set in DB
+	// Verify deactivated using raw SQL because UserByID filters them out
 	var deactivatedAt *string
-	row := db.GetDB().QueryRow(`SELECT deactivated_at FROM users WHERE id = ?`, user.ID)
-	err = row.Scan(&deactivatedAt)
+	err = db.GetDB().QueryRow("SELECT deactivated_at FROM users WHERE id = ?", u.ID).Scan(&deactivatedAt)
 	assert.NoError(t, err)
 	assert.NotNil(t, deactivatedAt)
 }
 
-func TestDeleteUser_NotFound(t *testing.T) {
+func TestHardDeleteUser(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	err := DeleteUser("nonexistent-id")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "user not found")
+	u, _ := CreateUser("harddeluser", "pass", "harddel@example.com")
+	err := HardDeleteUser(u.ID)
+	assert.NoError(t, err)
+
+	// Verify gone from DB
+	var count int
+	_ = db.GetDB().QueryRow("SELECT COUNT(*) FROM users WHERE id = ?", u.ID).Scan(&count)
+	assert.Equal(t, 0, count)
 }

@@ -150,3 +150,22 @@ func TestAuthenticateUser_LockoutDisabled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "testuser", user.Username)
 }
+
+func TestAuthenticateUser_LockoutDirect(t *testing.T) {
+	testutils.WithTestDB(t)
+	
+	userID := "u1"
+	username := "lockeduser"
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, locked_until) 
+		VALUES (?, ?, 'l@test.com', 'pass', datetime('now', '+1 hour'))
+	`, userID, username)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 5
+		
+		_, err := AuthenticateUser(username, "any")
+		assert.Error(t, err)
+		assert.Equal(t, ErrAccountLocked, err)
+	})
+}

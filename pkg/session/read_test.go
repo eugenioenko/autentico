@@ -87,3 +87,61 @@ func TestSessionByAccessToken_NotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "session not found")
 }
+
+func TestListSessions(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "u1")
+
+	_ = CreateSession(Session{ID: "s1", UserID: "u1", AccessToken: "a1", RefreshToken: "r1", ExpiresAt: time.Now().Add(time.Hour)})
+	_ = CreateSession(Session{ID: "s2", UserID: "u1", AccessToken: "a2", RefreshToken: "r2", ExpiresAt: time.Now().Add(time.Hour)})
+
+	sessions, err := ListSessions()
+	assert.NoError(t, err)
+	assert.Len(t, sessions, 2)
+}
+
+func TestListSessionsByUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "u1")
+	testutils.InsertTestUser(t, "u2")
+
+	_ = CreateSession(Session{ID: "s1", UserID: "u1", AccessToken: "a1", RefreshToken: "r1", ExpiresAt: time.Now().Add(time.Hour)})
+	_ = CreateSession(Session{ID: "s2", UserID: "u2", AccessToken: "a2", RefreshToken: "r2", ExpiresAt: time.Now().Add(time.Hour)})
+
+	sessions, err := ListSessionsByUser("u1")
+	assert.NoError(t, err)
+	assert.Len(t, sessions, 1)
+	assert.Equal(t, "s1", sessions[0].ID)
+}
+
+func TestDeactivateSessionByID(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "u1")
+
+	_ = CreateSession(Session{ID: "s1", UserID: "u1", AccessToken: "a1", RefreshToken: "r1", ExpiresAt: time.Now().Add(time.Hour)})
+
+	err := DeactivateSessionByID("s1")
+	assert.NoError(t, err)
+
+	s, err := SessionByID("s1")
+	assert.NoError(t, err)
+	assert.NotNil(t, s.DeactivatedAt)
+}
+
+func TestToResponse(t *testing.T) {
+	deactivatedAt := time.Now()
+	s := Session{
+		ID:            "s1",
+		UserID:        "u1",
+		UserAgent:     "ua",
+		IPAddress:     "1.1.1.1",
+		Location:      "loc",
+		CreatedAt:     time.Now(),
+		ExpiresAt:     time.Now().Add(time.Hour),
+		DeactivatedAt: &deactivatedAt,
+	}
+	resp := s.ToResponse()
+	assert.Equal(t, s.ID, resp.ID)
+	assert.Equal(t, s.UserAgent, resp.UserAgent)
+	assert.NotNil(t, resp.DeactivatedAt)
+}

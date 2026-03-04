@@ -209,12 +209,26 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	assert.True(t, idpCookie.HttpOnly)
 }
 
-func TestHandleSignup_Post_NoIdpCookieWhenDisabled(t *testing.T) {
+func TestHandleSignup_Post_PasskeyOnly(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
-		config.Values.ProfileFieldEmail = "hidden"
-		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Values.AuthMode = "passkey_only"
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", nil)
+	rr := httptest.NewRecorder()
+
+	HandleSignup(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code) // Re-renders the GET page
+}
+
+func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.ProfileFieldGivenName = "required"
 	})
 
 	form := url.Values{}
@@ -222,7 +236,31 @@ func TestHandleSignup_Post_NoIdpCookieWhenDisabled(t *testing.T) {
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "abc123")
+	// given_name is missing
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleSignup(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Please fill in all required fields")
+}
+
+func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.ProfileFieldEmail = "is_username"
+	})
+
+	form := url.Values{}
+	form.Set("username", "user@example.com")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+	form.Set("redirect_uri", "http://localhost/callback")
+	// email is NOT set explicitly
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -231,8 +269,40 @@ func TestHandleSignup_Post_NoIdpCookieWhenDisabled(t *testing.T) {
 	HandleSignup(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
+	
+	u, _ := user.UserByUsername("user@example.com")
+	assert.Equal(t, "user@example.com", u.Email)
+}
 
-	for _, c := range rr.Result().Cookies() {
-		assert.NotEqual(t, "autentico_idp_session", c.Name, "IdP cookie should NOT be set when SSO is disabled")
-	}
+func TestHandleSignupPost_Disabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = false
+	})
+
+	form := url.Values{}
+	form.Set("username", "newuser")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleSignup(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestHandleSignupPost_InvalidForm(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader("%"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleSignup(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }

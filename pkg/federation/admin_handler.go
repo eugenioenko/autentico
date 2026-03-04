@@ -185,13 +185,14 @@ func handleDeleteProvider(w http.ResponseWriter, r *http.Request, id string) {
 // extractProviderIDFromPath extracts the provider ID from paths like /admin/api/federation/{id}
 func extractProviderIDFromPath(path string) string {
 	path = strings.TrimSuffix(path, "/")
+	if strings.HasSuffix(path, "/federation") {
+		return ""
+	}
 	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		return ""
+	for i, p := range parts {
+		if p == "federation" && i+1 < len(parts) {
+			return parts[i+1]
+		}
 	}
-	last := parts[len(parts)-1]
-	if last == "federation" {
-		return ""
-	}
-	return last
+	return ""
 }

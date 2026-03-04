@@ -178,3 +178,49 @@ func TestValidateUserCreateRequest_ValidEmail(t *testing.T) {
 	})
 	assert.NoError(t, err)
 }
+
+func TestValidatePasskeyUserCreateRequest(t *testing.T) {
+	testutils.WithConfigOverride(t, func() {
+		config.Values.ValidationMinUsernameLength = 3
+		config.Values.ValidationMaxUsernameLength = 50
+		config.Values.ProfileFieldEmail = "hidden"
+	})
+
+	// Valid
+	err := ValidatePasskeyUserCreateRequest(PasskeyUserCreateRequest{
+		Username: "testuser",
+	})
+	assert.NoError(t, err)
+
+	// Invalid username
+	err = ValidatePasskeyUserCreateRequest(PasskeyUserCreateRequest{
+		Username: "a",
+	})
+	assert.Error(t, err)
+}
+
+func TestValidateUserUpdateRequest(t *testing.T) {
+	testutils.WithConfigOverride(t, func() {
+		config.Values.ValidationMinUsernameLength = 3
+		config.Values.ValidationMaxUsernameLength = 50
+	})
+
+	// Valid
+	err := ValidateUserUpdateRequest(UserUpdateRequest{
+		Username: "newname",
+		Email:    "new@email.com",
+	})
+	assert.NoError(t, err)
+
+	// Invalid username
+	err = ValidateUserUpdateRequest(UserUpdateRequest{
+		Username: "a",
+	})
+	assert.Error(t, err)
+
+	// Invalid email
+	err = ValidateUserUpdateRequest(UserUpdateRequest{
+		Email: "not-an-email",
+	})
+	assert.Error(t, err)
+}

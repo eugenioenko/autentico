@@ -89,3 +89,20 @@ func TestDeactivateIdpSession_AlreadyDeactivated(t *testing.T) {
 	err = DeactivateIdpSession("idp-double-deactivate")
 	assert.NoError(t, err)
 }
+
+func TestDeactivateAllForUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "u1")
+
+	_ = CreateIdpSession(IdpSession{ID: "s1", UserID: "u1"})
+	_ = CreateIdpSession(IdpSession{ID: "s2", UserID: "u1"})
+
+	err := DeactivateAllForUser("u1")
+	assert.NoError(t, err)
+
+	s1, _ := IdpSessionByID("s1")
+	assert.Nil(t, s1) // It returns nil if deactivated (based on read.go)
+	
+	s2, _ := IdpSessionByID("s2")
+	assert.Nil(t, s2)
+}

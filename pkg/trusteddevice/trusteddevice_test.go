@@ -164,3 +164,33 @@ func TestReadCookiePresent(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: CookieName, Value: "tok123"})
 	assert.Equal(t, "tok123", ReadCookie(req))
 }
+
+// --- TrustedDevicesByUserID ---
+
+func TestTrustedDevicesByUserID(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+	dev1 := sampleDevice("dev-1", "user-1")
+	dev2 := sampleDevice("dev-2", "user-1")
+	_ = CreateTrustedDevice(dev1)
+	_ = CreateTrustedDevice(dev2)
+
+	devices, err := TrustedDevicesByUserID("user-1")
+	assert.NoError(t, err)
+	assert.Len(t, devices, 2)
+}
+
+// --- DeleteTrustedDevice ---
+
+func TestDeleteTrustedDevice(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+	dev := sampleDevice("dev-1", "user-1")
+	_ = CreateTrustedDevice(dev)
+
+	err := DeleteTrustedDevice("dev-1")
+	assert.NoError(t, err)
+
+	_, err = TrustedDeviceByID("dev-1")
+	assert.Error(t, err)
+}
