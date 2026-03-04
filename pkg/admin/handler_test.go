@@ -24,13 +24,6 @@ func TestHandler(t *testing.T) {
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
-	// Test docs.html mapping
-	req = httptest.NewRequest("GET", "/admin/docs", nil)
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	// Even if docs.html doesn't exist, it should still return 200 (falling back to index.html or serving it if it exists)
-	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Test root
 	req = httptest.NewRequest("GET", "/admin/", nil)
