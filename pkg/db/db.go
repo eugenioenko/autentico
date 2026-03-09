@@ -26,6 +26,7 @@ var createTableSQL = `
 		email_verification_token TEXT,           -- Store token used for email verification
 		email_verification_expires_at DATETIME,  -- Expiration time of the verification token
 		deactivated_at DATETIME DEFAULT NULL,    -- If account is deactivated, store timestamp
+		registered_at DATETIME DEFAULT NULL,     -- NULL only for passkey users mid-ceremony; set immediately for password users
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Account creation timestamp
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
 		-- OIDC standard profile claims

@@ -47,8 +47,8 @@ func startTestServer(t *testing.T) *TestServer {
 
 	// Seed the shared "test-client" used across E2E tests
 	_, err = db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, is_active)
-		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, is_active)
+		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', TRUE)
 	`)
 	if err != nil {
 		t.Fatalf("Failed to seed test-client: %v", err)
@@ -68,6 +68,9 @@ func startTestServer(t *testing.T) *TestServer {
 	config.Bootstrap.AppHost = host
 	config.Bootstrap.AppAuthIssuer = baseURL + oauth
 	config.Bootstrap.AuthCSRFSecureCookie = false
+	config.Bootstrap.AuthAccessTokenSecret = "test-access-token-secret-for-e2e!!"
+	config.Bootstrap.AuthRefreshTokenSecret = "test-refresh-token-secret-for-e2e!"
+	config.Bootstrap.AuthCSRFProtectionSecretKey = "test-csrf-protection-secret-e2e!!"
 
 	// Create CSRF middleware for the test server.
 	// gorilla/csrf v1.7.3 assumes HTTPS by default and rejects HTTP referers.

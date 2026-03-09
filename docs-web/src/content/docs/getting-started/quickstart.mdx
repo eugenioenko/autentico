@@ -22,13 +22,19 @@ This guide takes you from zero to a running Autentico instance with a registered
 2. **Generate your configuration**
 
    ```bash
-   ./autentico init --url http://localhost:9999
+   ./autentico init --url https://auth.example.com
    ```
 
    This creates a `.env` file in the current directory containing a freshly generated RSA private key (base64-encoded), CSRF secret, and token signing secrets. You do not need a separate key file — everything is in `.env`.
 
    <Aside type="tip">
-   For a production deployment, pass your actual public URL: `./autentico init --url https://auth.example.com`
+   For a local development environment, pass your localhost URL and add `--dev` to disable the `Secure` cookie flag so cookies work over plain HTTP:
+
+   ```bash
+   ./autentico init --url http://localhost:9999 --dev
+   ```
+
+   Do not use `--dev` in production.
    </Aside>
 
 3. **Start the server**
@@ -61,27 +67,7 @@ This guide takes you from zero to a running Autentico instance with a registered
 
 5. **Register your first OAuth2 client**
 
-   Log in to the Admin UI and navigate to **Clients → Create Client**, or use the API:
-
-   ```bash
-   # Get an admin token
-   ADMIN_TOKEN=$(curl -s -X POST http://localhost:9999/oauth2/token \
-     -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "grant_type=password&username=admin@example.com&password=YourPassword" \
-     | jq -r '.access_token')
-
-   # Register a public client (SPA/mobile)
-   curl -X POST http://localhost:9999/oauth2/register \
-     -H "Authorization: Bearer $ADMIN_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "client_name": "My App",
-       "redirect_uris": ["http://localhost:3000/callback"],
-       "grant_types": ["authorization_code", "refresh_token"],
-       "client_type": "public",
-       "token_endpoint_auth_method": "none"
-     }'
-   ```
+   Log in to the Admin UI and navigate to **Clients → Create Client**, or use the API.
 
 6. **Start the authorization code flow**
 

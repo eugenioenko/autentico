@@ -24,6 +24,7 @@ type User struct {
 	TotpVerified        bool
 	IsEmailVerified     bool
 	DeactivatedAt       *time.Time
+	RegisteredAt        *time.Time
 	// OIDC standard profile claims
 	GivenName         string
 	FamilyName        string

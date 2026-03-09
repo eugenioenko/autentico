@@ -43,6 +43,11 @@ func RunStart(_ *cli.Context) error {
 	config.InitBootstrap()
 
 	bs := config.GetBootstrap()
+
+	if err := validateBootstrapSecrets(bs); err != nil {
+		return err
+	}
+
 	if _, err := db.InitDB(bs.DbFilePath); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -245,4 +250,15 @@ func seedAccountClient() {
 	}); err != nil {
 		log.Printf("warning: failed to seed account client: %v", err)
 	}
+}
+
+func validateBootstrapSecrets(bs *config.BootstrapConfig) error {
+	if bs.AuthAccessTokenSecret == "" || bs.AuthRefreshTokenSecret == "" || bs.AuthCSRFProtectionSecretKey == "" {
+		return fmt.Errorf(
+			"missing required secrets: AUTENTICO_ACCESS_TOKEN_SECRET, AUTENTICO_REFRESH_TOKEN_SECRET, " +
+				"and AUTENTICO_CSRF_SECRET_KEY must all be set.\n" +
+				"Run 'autentico init' to generate a .env file with secure values, or set them manually.",
+		)
+	}
+	return nil
 }

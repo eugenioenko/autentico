@@ -52,12 +52,10 @@ func AuthenticateClientFromRequest(r *http.Request) (*Client, error) {
 	clientSecret := r.FormValue("client_secret")
 
 	if clientID != "" {
-		// If client_id is provided, try to authenticate
+		// If client_id is provided, it must exist in the registry
 		client, err := ClientByClientID(clientID)
 		if err != nil {
-			// Client not found - for backward compatibility, return nil
-			// This allows flows without registered clients to continue working
-			return nil, nil
+			return nil, fmt.Errorf("unknown client_id")
 		}
 
 		// If client exists and is public, no secret needed

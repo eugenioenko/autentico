@@ -42,8 +42,8 @@ func TestInitBootstrap_Defaults(t *testing.T) {
 	assert.Equal(t, "http://localhost:9999/oauth2", Bootstrap.AppAuthIssuer)
 	assert.Equal(t, "autentico-key-1", Bootstrap.AuthJwkCertKeyID)
 	assert.Equal(t, "autentico_idp_session", Bootstrap.AuthIdpSessionCookieName)
-	assert.Equal(t, false, Bootstrap.AuthIdpSessionSecureCookie)
-	assert.Equal(t, false, Bootstrap.AuthCSRFSecureCookie)
+	assert.Equal(t, true, Bootstrap.AuthIdpSessionSecureCookie)
+	assert.Equal(t, true, Bootstrap.AuthCSRFSecureCookie)
 }
 
 func TestInitBootstrap_EnvOverride(t *testing.T) {

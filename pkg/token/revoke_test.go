@@ -23,8 +23,17 @@ func TestHandleRevoke(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('revoke-test-id', 'revoke-test-client', 'Revoke Test Client', 'public', '[]', '["password","refresh_token"]', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test client: %v", err)
+	}
+
 	body := map[string]string{
 		"grant_type": "password",
+		"client_id":  "revoke-test-client",
 		"username":   testEmail,
 		"password":   testPassword,
 	}
@@ -44,7 +53,7 @@ func TestHandleRevoke(t *testing.T) {
 
 	// Verify the token is revoked
 	var revokedAt string
-	err := db.GetDB().QueryRow(fmt.Sprintf(`SELECT revoked_at FROM tokens WHERE access_token = '%s'`, tkn.AccessToken)).Scan(&revokedAt)
+	err = db.GetDB().QueryRow(fmt.Sprintf(`SELECT revoked_at FROM tokens WHERE access_token = '%s'`, tkn.AccessToken)).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt)
 }

@@ -377,10 +377,18 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// deleteIfUnregistered removes the user account only if registration was never
+	// completed (registered_at is NULL). Fully registered accounts are left intact.
+	deleteIfUnregistered := func() {
+		if usr.RegisteredAt == nil {
+			_ = user.HardDeleteUser(challenge.UserID)
+		}
+	}
+
 	credential, err := wauthn.FinishRegistration(wUser, session, r)
 	if err != nil {
 		slog.Warn("passkey: registration failed", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
-		_ = user.HardDeleteUser(challenge.UserID) // cascade-deletes the challenge too
+		deleteIfUnregistered()
 		writeJSONError(w, http.StatusBadRequest, "registration_failed")
 		return
 	}
@@ -389,7 +397,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
 		slog.Error("passkey: failed to marshal credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		_ = user.HardDeleteUser(challenge.UserID)
+		deleteIfUnregistered()
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
@@ -402,7 +410,13 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := CreatePasskeyCredential(pCred); err != nil {
 		slog.Error("passkey: failed to store credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		_ = user.HardDeleteUser(challenge.UserID)
+		deleteIfUnregistered()
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	if err := user.SetRegisteredAt(usr.ID); err != nil {
+		slog.Error("passkey: failed to mark user as registered", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}

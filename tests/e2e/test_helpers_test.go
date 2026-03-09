@@ -44,9 +44,9 @@ func obtainTokensViaPasswordGrant(t *testing.T, ts *TestServer, username, passwo
 
 	form := url.Values{}
 	form.Set("grant_type", "password")
+	form.Set("client_id", "test-client")
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("client_id", "")
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err, "failed to post password grant")
