@@ -16,7 +16,7 @@ func nullStringToString(ns sql.NullString) string {
 
 const userSelectColumns = `
 	id, username, password, email, role, created_at, failed_login_attempts, locked_until,
-	totp_secret, totp_verified, is_email_verified, deactivated_at,
+	totp_secret, totp_verified, is_email_verified, deactivated_at, registered_at,
 	given_name, family_name, phone_number, picture, locale, zoneinfo,
 	address_street, address_locality, address_region, address_postal_code, address_country
 `
@@ -29,7 +29,7 @@ func scanUser(row interface {
 	err := row.Scan(
 		&u.ID, &u.Username, &password, &email, &u.Role, &u.CreatedAt,
 		&u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified,
-		&u.IsEmailVerified, &u.DeactivatedAt,
+		&u.IsEmailVerified, &u.DeactivatedAt, &u.RegisteredAt,
 		&u.GivenName, &u.FamilyName, &u.PhoneNumber, &u.Picture, &u.Locale, &u.Zoneinfo,
 		&u.AddressStreet, &u.AddressLocality, &u.AddressRegion, &u.AddressPostalCode, &u.AddressCountry,
 	)

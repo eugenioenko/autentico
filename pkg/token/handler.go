@@ -73,22 +73,20 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Authenticate client if client_id is provided
+	// Authenticate client (validates client_id if one is provided)
 	var authenticatedClient *client.Client
-	if request.ClientID != "" {
-		authenticatedClient, err = client.AuthenticateClientFromRequest(r)
-		if err != nil {
-			slog.Warn("token: invalid client credentials", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
-			return
-		}
+	authenticatedClient, err = client.AuthenticateClientFromRequest(r)
+	if err != nil {
+		slog.Warn("token: invalid client credentials", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
+		return
+	}
 
-		// If client was found, validate grant type
-		if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
-			slog.Warn("token: grant type not allowed for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
-			return
-		}
+	// If a client was resolved, validate that it allows the requested grant type
+	if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
+		slog.Warn("token: grant type not allowed for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
+		return
 	}
 
 	var usr *user.User
@@ -108,6 +106,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
+			return
+		}
+
+		if authenticatedClient == nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for password grant")
 			return
 		}
 

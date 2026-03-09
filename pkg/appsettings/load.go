@@ -15,7 +15,7 @@ var defaults = map[string]string{
 	"authorization_code_expiration":  "10m",
 	"access_token_audience":          "[]",
 	"allow_self_signup":              "false",
-	"sso_session_idle_timeout":       "0",
+	"sso_session_idle_timeout":       "4h",
 	"validation_min_username_length": "4",
 	"validation_max_username_length": "64",
 	"validation_min_password_length": "6",

@@ -487,6 +487,93 @@ func TestHandleRegisterFinish_InvalidJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
+// setupPendingPasskeyUser inserts a user with no password and registered_at = NULL,
+// simulating a user created by HandleRegisterBegin who has not yet completed registration.
+func setupPendingPasskeyUser(t *testing.T, id, username string) {
+	t.Helper()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, role) VALUES (?, ?, ?, ?)`,
+		id, username, username+"@test.com", "user",
+	)
+	require.NoError(t, err)
+}
+
+// setupRegisteredPasskeyUser inserts a fully-registered user (registered_at is set).
+func setupRegisteredPasskeyUser(t *testing.T, id, username string) {
+	t.Helper()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, role, registered_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+		id, username, username+"@test.com", "user",
+	)
+	require.NoError(t, err)
+}
+
+// TestHandleRegisterFinish_FailedCeremony_DeletesNewUser verifies that a failed
+// registration hard-deletes the user when registered_at is NULL (new unregistered user).
+func TestHandleRegisterFinish_FailedCeremony_DeletesNewUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	userID := "pending-pk-user"
+	setupPendingPasskeyUser(t, userID, "pending_pk_user")
+
+	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
+		ID:            "reg-challenge-pending",
+		UserID:        userID,
+		ChallengeData: sampleChallengeData(),
+		Type:          "registration",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}))
+
+	req := httptest.NewRequest(http.MethodPost,
+		"/oauth2/passkey/register/finish?challenge_id=reg-challenge-pending",
+		strings.NewReader(`{"invalid":"body"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	HandleRegisterFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var count int
+	err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE id = ?`, userID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "new passkey user must be hard-deleted on registration failure")
+}
+
+// TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser verifies that a failed
+// registration does NOT delete the user when registered_at is set (already registered).
+func TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	userID := "registered-pk-user"
+	setupRegisteredPasskeyUser(t, userID, "registered_pk_user")
+
+	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
+		ID:            "reg-challenge-registered",
+		UserID:        userID,
+		ChallengeData: sampleChallengeData(),
+		Type:          "registration",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}))
+
+	req := httptest.NewRequest(http.MethodPost,
+		"/oauth2/passkey/register/finish?challenge_id=reg-challenge-registered",
+		strings.NewReader(`{"invalid":"body"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	HandleRegisterFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var count int
+	err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE id = ?`, userID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "registered user must NOT be deleted on registration failure")
+}
+
 func TestCredentialsToWebAuthn_InvalidJSON(t *testing.T) {
 	creds := []PasskeyCredential{
 		{

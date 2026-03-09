@@ -27,40 +27,13 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Re
    chmod +x autentico
    ```
 
-3. Move it somewhere on your `$PATH`:
+3. Optionally move it somewhere on your `$PATH`:
    ```bash
    sudo mv autentico /usr/local/bin/
    ```
-
-4. Initialize your instance:
-   ```bash
-   autentico init
-   ```
-   This generates a `.env` file in the current directory with all required secrets (RSA signing key, HMAC secrets, CSRF secret). Pass `--url` to set your public URL:
-   ```bash
-   autentico init --url https://auth.example.com
-   ```
-
-5. Start the server:
-   ```bash
-   autentico start
-   ```
-   You should see output like this:
-   ```
-     Autentico OIDC Identity Provider
-
-     ONBOARDING: http://localhost:9999/admin/
-
-     Server:    http://localhost:9999
-     Admin UI:  http://localhost:9999/admin/
-     API Docs:  http://localhost:9999/admin/docs/
-     WellKnown: http://localhost:9999/.well-known/openid-configuration
-     JWKS:      http://localhost:9999/.well-known/jwks.json
-     Authorize: http://localhost:9999/oauth2/authorize
-     Token:     http://localhost:9999/oauth2/token
-   ```
-   The `ONBOARDING` line appears only on first run. Visit it to create the admin account.
 </Steps>
+
+Once installed, follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
 
 </TabItem>
 <TabItem label="Docker">
@@ -110,12 +83,7 @@ Requires Go 1.22 or later.
    # or: go build -o autentico main.go
    ```
 
-3. Initialize and run:
-   ```bash
-   ./autentico init
-   ./autentico start
-   ```
-   On first run you'll see an `ONBOARDING` URL — visit it to set up the admin account.
+3. The compiled binary is at `./autentico`. Follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
 </Steps>
 
 </TabItem>
@@ -125,7 +93,9 @@ Requires Go 1.22 or later.
 
 | Command | Description |
 |---|---|
-| `autentico init` | Generate a `.env` file with all required secrets. Accepts `--url` to set the public URL (default: `http://localhost:9999`). Errors if `.env` already exists. |
+| `autentico init` | Generate a `.env` file with all required secrets. Errors if `.env` already exists. |
+| `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
+| `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies. Use this for local HTTP development only — never in production. |
 | `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
 
 ## Next steps
