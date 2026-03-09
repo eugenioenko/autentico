@@ -26,7 +26,7 @@ const navItems = [
 ];
 
 const Layout: React.FC = () => {
-  const { user, signoutRedirect, isLoading, signinRedirect } = useAuth();
+  const { user, logout, isLoading, signinRedirect } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
@@ -96,7 +96,7 @@ const Layout: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => signoutRedirect()}
+            onClick={() => logout()}
             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
           >
             <IconLogout size={15} />
