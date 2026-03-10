@@ -274,6 +274,30 @@
     .auth-link a:hover {
       text-decoration: underline;
     }
+
+    a.federation-btn {
+      width: 100%;
+      padding: var(--button-padding);
+      background: var(--color-input);
+      color: var(--color-text);
+      border: 1px solid var(--color-card-border);
+      border-radius: calc(var(--border-radius) - 2px);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 300;
+      font-family: var(--font-family);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    a.federation-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
   </style>
 
   {{block "styles" .}}{{end}}
