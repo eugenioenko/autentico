@@ -3,6 +3,16 @@ title: Design Decisions
 description: The key architectural choices made in Autentico and the reasoning behind them.
 ---
 
+## Architecture Philosophy
+
+Autentico's central design goal is operational simplicity. Every significant architectural decision — the database, the signing algorithm, the configuration model, the cleanup strategy — was evaluated against a single question: does this reduce or increase the burden on the person running this?
+
+Most identity platforms require you to operate several services before users can log in: a database server, a cache, worker processes, and the identity service itself. Each component adds configuration, monitoring, failure modes, and backup requirements. Autentico eliminates this stack. The entire system is one binary and one SQLite file. There is no connection pool to tune, no external credentials to rotate for the storage layer, and no network partition between the IdP and its database.
+
+The protocol and security surface are not simplified. Autentico implements OAuth2 and OpenID Connect to spec. The simplicity is in the operational model, not in what the system does.
+
+The sections below explain each individual decision: what was chosen, why, and what the tradeoffs are.
+
 ## SQLite as the database
 
 Autentico uses SQLite (via `modernc.org/sqlite` — a pure-Go implementation, no CGo) rather than a separate database server.

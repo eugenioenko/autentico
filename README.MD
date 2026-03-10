@@ -8,6 +8,10 @@
 
 **Auténtico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
+Identity infrastructure is typically complex to operate: a separate database to provision and back up, a cache tier, a worker queue, multiple services to keep running, and credentials to rotate. Auténtico takes a different approach. The entire IdP — authentication, token issuance, session management, and the admin UI — runs as one Go binary backed by a single SQLite file. You deploy one thing and it works.
+
+Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
+
 ---
 
 ## Documentation
@@ -22,8 +26,41 @@ _Each demo session provisions a dedicated, ephemeral Autentico instance—isolat
 
 ---
 
+## Why Auténtico?
+
+Most production identity systems require you to operate multiple services before users can log in. A typical self-hosted setup involves a database server, a cache, a queue, and the identity service itself — each with its own configuration, backup requirements, and failure modes.
+
+Auténtico removes that stack:
+
+- **Single binary** — one executable, no sidecars, no process manager complexity
+- **Embedded SQLite** — no separate database server; the entire state lives in one file
+- **No external infrastructure** — no Redis, no Postgres, no message queues
+- **Built-in admin UI** — a React dashboard compiled into the binary; nothing to deploy separately
+- **Standards-compliant OIDC** — relying parties configure themselves automatically via OIDC Discovery; tokens are RS256-signed JWTs verifiable without calling home
+
+The operational surface area is a binary and a `.env` file. That is a meaningful reduction in the things that can break.
+
+The tradeoff is scale ceiling: SQLite serializes writes, and a single binary can't span multiple hosts. For most teams running internal tools, small-to-mid-sized applications, or self-hosted services, these constraints never become relevant. When they do, they're the right kind of problem to have.
+
+---
+
+## Who Auténtico Is For
+
+Auténtico is a good fit for:
+
+- **Small teams and startups** that need OAuth2/OIDC for their product but don't want to operate a full identity platform
+- **Internal tools and self-hosted applications** where simplicity and low maintenance overhead matter more than enterprise-scale features
+- **Developers evaluating OIDC** who want a running, real implementation to work against rather than a mock
+- **Side projects and indie developers** who need user authentication without depending on a third-party service or running a heavy stack
+
+It is not designed for organizations that require horizontal scaling of the auth tier, active-active multi-region deployments, or enterprise compliance features (SCIM, LDAP federation, custom authorization policies). Those requirements point to a different class of identity platform.
+
+---
+
 ## Table of Contents
 
+- [Why Auténtico?](#why-auténtico)
+- [Who Auténtico Is For](#who-auténtico-is-for)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture Overview](#architecture-overview)
@@ -143,9 +180,11 @@ Each package in `pkg/` owns a vertical slice of IdP functionality. The conventio
 | `pkg/db`            | SQLite initialization, schema, and incremental migrations                        |
 | `pkg/key`           | RSA key loading (env or ephemeral) and JWK Set generation                        |
 
-### Design Philosophy
+### Architecture Philosophy
 
-Auténtico treats operational simplicity as a first-class concern, not an afterthought. The design removes entire categories of failure modes by eliminating external dependencies — there is no connection pool to tune, no managed service to provision, no credentials to rotate for the database layer. The result is an IdP you can run anywhere a Go binary runs.
+Auténtico treats operational simplicity as a first-class design goal. Each architectural decision is evaluated against the question: does this reduce or increase the operational burden on the person running this?
+
+Eliminating the external database eliminates an entire category of failure modes. There is no connection pool to tune, no managed service to provision, no separate credential rotation for the database layer, and no network partition between the IdP and its storage. The result is an IdP you can run anywhere a Go binary runs — a VM, a container, a Raspberry Pi, a developer laptop.
 
 The codebase is deliberately un-clever. Each package does one thing. There are no frameworks beyond the standard library, no abstraction layers that obscure what a request actually does. New contributors and future maintainers should be able to read any handler and understand the complete request lifecycle without jumping through multiple layers of indirection.
 
@@ -181,13 +220,29 @@ The Resource Owner Password Credentials grant is deprecated in OAuth 2.1. It is 
 
 ## Getting Started
 
+The full setup requires three commands: initialize configuration, start the server, and complete onboarding in the browser. No database to provision, no external services to configure.
+
 ### Prerequisites
 
 - Go 1.21 or later
 - `make` (optional, for Makefile targets)
 - Node.js 20+ and `pnpm` (only if building the Admin UI from source)
 
-### Installation & Running
+### Quick Start (pre-built binary)
+
+Download the latest binary from [GitHub Releases](https://github.com/eugenioenko/autentico/releases), then:
+
+```bash
+# Generate .env with RSA key, CSRF secret, and token secrets
+./autentico init --url http://localhost:9999 --dev
+
+# Start the server
+./autentico start
+```
+
+Open `http://localhost:9999/admin/` and complete the onboarding wizard to create the first administrator account. The server is ready.
+
+### Building from Source
 
 **1. Clone the repository**
 

@@ -26,6 +26,10 @@ Autentico is a standards-compliant OpenID Connect (OIDC) Identity Provider built
 
 There is no external database to provision, no connection pool to tune, and no infrastructure to manage beyond the binary itself. You run it, point your applications at it, and it works.
 
+Identity infrastructure is usually complex to operate. A typical self-hosted setup involves a database server, a cache, multiple processes, and everything that comes with keeping them running. Autentico removes that stack. The entire IdP — authentication, token issuance, session management, and the admin UI — is one binary and one file.
+
+The simplicity is operational, not protocol-level. Autentico implements OAuth2 and OpenID Connect correctly: Authorization Code + PKCE, token introspection and revocation, OIDC Discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP. Relying parties configure themselves automatically via the standard discovery document.
+
 ## Try it live
 
 A fresh, dedicated Autentico instance is provisioned just for you—[**Launch a Live Demo →**](https://demo.autentico.top/launch)
