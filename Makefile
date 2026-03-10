@@ -6,7 +6,7 @@ SWAG=$(shell go env GOPATH)/bin/swag
 all: build
 
 # Build Go binary
-build-go: 
+build-go:
 	go build -o $(APP_NAME) main.go
 
 # Build admin UI + account UI + Go binary
@@ -58,5 +58,5 @@ docker-compose:
 # Fresh start: wipe local DB, rebuild, init, and launch
 fresh: build
 	rm -f ./db/autentico.db .env
-	./$(APP_NAME) init
+	./$(APP_NAME) init --dev
 	./$(APP_NAME) start
