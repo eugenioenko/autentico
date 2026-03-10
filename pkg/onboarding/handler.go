@@ -1,10 +1,8 @@
 package onboarding
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
-	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
@@ -16,8 +14,9 @@ import (
 	"github.com/gorilla/csrf"
 )
 
-// HandleOnboard manages the first-time setup of the admin account.
-// This endpoint only works if the system is not yet onboarded.
+// HandleOnboardDirect handles GET/POST /onboard — a direct onboarding URL that requires no
+// OIDC state. After setup completes the user is redirected to /admin/ where the IdP session
+// created here allows silent SSO login without re-entering credentials.
 // @Summary Initial admin setup
 // @Description Renders the onboarding page (GET) or creates the initial administrator (POST).
 // @Tags onboarding
@@ -27,64 +26,34 @@ import (
 // @Param password formData string false "Admin password"
 // @Param confirm_password formData string false "Confirm password"
 // @Param email formData string false "Admin email"
-// @Param redirect_uri formData string false "Redirect URI"
-// @Param state formData string false "OAuth2 state"
 // @Success 200 {string} string "Onboarding form (GET)"
-// @Success 302 {string} string "Redirect to admin UI after success (POST)"
-// @Router /oauth2/onboard [get]
-// @Router /oauth2/onboard [post]
-func HandleOnboard(w http.ResponseWriter, r *http.Request) {
-	// Only allow onboarding if BOTH the flag is false AND the users table is empty.
+// @Success 302 {string} string "Redirect to /admin/ after success (POST)"
+// @Router /onboard [get]
+// @Router /onboard [post]
+func HandleOnboardDirect(w http.ResponseWriter, r *http.Request) {
 	count, _ := user.CountUsers()
 	if appsettings.IsOnboarded() || count > 0 {
-		http.NotFound(w, r)
+		http.Redirect(w, r, "/admin/", http.StatusFound)
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		handleOnboardGet(w, r)
+		renderOnboard(w, r, onboardParams{FormAction: "/onboard"}, "")
 	case http.MethodPost:
-		handleOnboardPost(w, r)
+		handleOnboardDirectPost(w, r)
 	default:
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
 	}
 }
 
-func handleOnboardGet(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	renderOnboard(w, r, onboardParams{
-		State:               q.Get("state"),
-		RedirectURI:         q.Get("redirect_uri"),
-		ClientID:            q.Get("client_id"),
-		Scope:               q.Get("scope"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
-	}, "")
-}
-
-func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
+func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
 	}
 
-	params := onboardParams{
-		State:               r.FormValue("state"),
-		RedirectURI:         r.FormValue("redirect_uri"),
-		ClientID:            r.FormValue("client_id"),
-		Scope:               r.FormValue("scope"),
-		Nonce:               r.FormValue("nonce"),
-		CodeChallenge:       r.FormValue("code_challenge"),
-		CodeChallengeMethod: r.FormValue("code_challenge_method"),
-	}
-
-	if !utils.IsValidRedirectURI(params.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
-		return
-	}
-
+	params := onboardParams{FormAction: "/onboard"}
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
@@ -95,20 +64,15 @@ func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := user.UserCreateRequest{
-		Username: username,
-		Password: password,
-		Email:    email,
-	}
+	req := user.UserCreateRequest{Username: username, Password: password, Email: email}
 	if err := user.ValidateUserCreateRequest(req); err != nil {
 		renderOnboard(w, r, params, err.Error())
 		return
 	}
 
-	// Double check user count just to be safe
 	count, countErr := user.CountUsers()
 	if countErr != nil || count > 0 {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "onboarding_already_completed", "Setup already finished")
+		http.Redirect(w, r, "/admin/", http.StatusFound)
 		return
 	}
 
@@ -118,15 +82,10 @@ func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Grant admin role and mark as onboarded.
-	_ = user.UpdateUser(usr.ID, user.UserUpdateRequest{
-		Email: usr.Email,
-		Role:  "admin",
-	})
+	_ = user.UpdateUser(usr.ID, user.UserUpdateRequest{Email: usr.Email, Role: "admin"})
 	_ = appsettings.SetSetting("onboarded", "true")
 	_ = appsettings.LoadIntoConfig()
 
-	// Create IdP session if SSO is enabled
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -142,42 +101,11 @@ func handleOnboardPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	authCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate authorization code")
-		return
-	}
-
-	code := authcode.AuthCode{
-		Code:                authCode,
-		UserID:              usr.ID,
-		ClientID:            params.ClientID,
-		RedirectURI:         params.RedirectURI,
-		Scope:               params.Scope,
-		Nonce:               params.Nonce,
-		CodeChallenge:       params.CodeChallenge,
-		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
-		Used:                false,
-	}
-
-	if err = authcode.CreateAuthCode(code); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create authorization code")
-		return
-	}
-
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", params.RedirectURI, code.Code, params.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
 type onboardParams struct {
-	State               string
-	RedirectURI         string
-	ClientID            string
-	Scope               string
-	Nonce               string
-	CodeChallenge       string
-	CodeChallengeMethod string
+	FormAction string
 }
 
 func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams, errMsg string) {
@@ -189,19 +117,13 @@ func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams,
 	}
 
 	data := map[string]any{
-		"State":               params.State,
-		"RedirectURI":         params.RedirectURI,
-		"ClientID":            params.ClientID,
-		"Scope":               params.Scope,
-		"Nonce":               params.Nonce,
-		"CodeChallenge":       params.CodeChallenge,
-		"CodeChallengeMethod": params.CodeChallengeMethod,
-		"Error":               errMsg,
-		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
-		csrf.TemplateTag:      csrf.TemplateField(r),
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+		"FormAction":        params.FormAction,
+		"Error":             errMsg,
+		"ProfileFieldEmail": cfg.ProfileFieldEmail,
+		csrf.TemplateTag:    csrf.TemplateField(r),
+		"ThemeTitle":        cfg.Theme.Title,
+		"ThemeLogoUrl":      cfg.Theme.LogoUrl,
+		"ThemeCssResolved":  template.CSS(cfg.ThemeCssResolved),
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

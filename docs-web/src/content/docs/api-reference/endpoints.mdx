@@ -33,11 +33,12 @@ An interactive Swagger UI is available at `https://auth.example.com/admin/docs/`
 | `POST` | `/oauth2/introspect` | Token introspection (RFC 7662) |
 | `GET` | `/oauth2/logout` | Logout — deactivates SSO session |
 
-## Self-service endpoint (public)
+## Self-service endpoints (public)
 
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/user` | Create a user account (self-signup, if enabled) |
+| `GET/POST` | `/onboard` | First-run admin setup (disabled after first user is created) |
 
 ## Client registration (admin-authenticated)
 
@@ -68,8 +69,6 @@ An interactive Swagger UI is available at `https://auth.example.com/admin/docs/`
 | `GET` | `/admin/api/stats` | Dashboard statistics |
 | `GET` | `/admin/api/settings` | Get all settings |
 | `PUT` | `/admin/api/settings` | Update settings |
-| `GET` | `/admin/api/onboarding` | Check onboarding status (public) |
-| `POST` | `/admin/api/onboarding` | Complete onboarding (public, one-time) |
 
 ## Authentication
 
@@ -79,4 +78,4 @@ An interactive Swagger UI is available at `https://auth.example.com/admin/docs/`
 Authorization: Bearer <AUTENTICO_ADMIN_TOKEN>
 ```
 
-**CSRF protection** is applied to browser-facing form endpoints (`/oauth2/authorize`, `/oauth2/login`, `/oauth2/mfa`, `/oauth2/signup`, `/oauth2/onboard`). Passkey endpoints are exempt — the WebAuthn challenge is the anti-CSRF mechanism.
+**CSRF protection** is applied to browser-facing form endpoints (`/oauth2/authorize`, `/oauth2/login`, `/oauth2/mfa`, `/oauth2/signup`, `/oauth2/onboard`, `/onboard`). Passkey endpoints are exempt — the WebAuthn challenge is the anti-CSRF mechanism.

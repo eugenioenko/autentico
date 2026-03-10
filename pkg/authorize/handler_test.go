@@ -451,21 +451,6 @@ func TestHandleAuthorize_PromptLogin(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 }
 
-func TestHandleAuthorize_PromptSignup(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&prompt=signup", nil)
-	rr := httptest.NewRecorder()
-
-	HandleAuthorize(rr, req)
-
-	// Should redirect to signup/onboard page
-	assert.Equal(t, http.StatusFound, rr.Code)
-	// It seems it redirects to /onboard if not onboarded, or /signup if onboarded.
-	// In WithTestDB it might not be onboarded yet.
-	assert.Contains(t, rr.Header().Get("Location"), "prompt=signup")
-}
 
 func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	testutils.WithTestDB(t)

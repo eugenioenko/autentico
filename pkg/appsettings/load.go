@@ -42,7 +42,7 @@ var defaults = map[string]string{
 	"profile_field_family_name":      "optional",
 	"profile_field_phone":            "optional",
 	"profile_field_picture":          "optional",
-	"profile_field_locale":           "optional",
+	"profile_field_locale":           "hidden",
 	"profile_field_address":          "optional",
 }
 
