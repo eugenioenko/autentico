@@ -214,7 +214,7 @@ func seedAdminClient() {
 		return
 	}
 	redirectURI := config.GetBootstrap().AppURL + "/admin/callback"
-	if err := client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
+	if _, err := client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
 		ClientName:              adminClientName,
 		RedirectURIs:            []string{redirectURI},
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
@@ -239,7 +239,7 @@ func seedAccountClient() {
 	postLogoutURI := baseURL + "/account/"
 	ssoTimeout := "24h"
 
-	if err := client.CreateClientWithID(clientID, client.ClientCreateRequest{
+	if _, err := client.CreateClientWithID(clientID, client.ClientCreateRequest{
 		ClientName:              clientName,
 		RedirectURIs:            []string{redirectURI},
 		PostLogoutRedirectURIs:  []string{postLogoutURI},

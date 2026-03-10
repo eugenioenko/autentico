@@ -149,6 +149,7 @@ export default defineConfig({
 						{ label: 'Package Structure', link: '/architecture/package-structure/' },
 						{ label: 'Database Schema', link: '/architecture/database-schema/' },
 						{ label: 'Design Decisions', link: '/architecture/design-decisions/' },
+						{ label: 'Performance & Capacity', link: '/architecture/performance/' },
 					],
 				},
 			],

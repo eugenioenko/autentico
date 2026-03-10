@@ -60,3 +60,41 @@ fresh: build
 	rm -f ./db/autentico.db .env
 	./$(APP_NAME) init --dev
 	./$(APP_NAME) start
+
+# Stress tests — run via Docker (no k6 install required)
+# Uses --network=host so k6 can reach a locally running server.
+BASE_URL    ?= http://localhost:9999
+USERNAME    ?= admin
+PASSWORD    ?= password
+CLIENT_ID   ?= stress-test
+REDIRECT_URI?= http://localhost:8080/stress/callback
+
+K6=docker run --rm -i --network=host \
+	-e BASE_URL=$(BASE_URL) \
+	-e USERNAME=$(USERNAME) \
+	-e PASSWORD=$(PASSWORD) \
+	-e CLIENT_ID=$(CLIENT_ID) \
+	-e REDIRECT_URI=$(REDIRECT_URI) \
+	-v $(PWD)/stress:/scripts grafana/k6
+
+stress-smoke:
+	$(K6) run /scripts/smoke.js
+
+stress-load:
+	$(K6) run /scripts/load.js
+
+stress-spike:
+	$(K6) run /scripts/spike.js
+
+stress-ratelimit:
+	$(K6) run /scripts/rate_limit.js
+
+stress-debug:
+	$(K6) run /scripts/debug.js
+
+stress-ceiling:
+	$(K6) run /scripts/ceiling.js
+
+# Start server with rate limiting disabled (for stress testing only — not for production)
+stress-server:
+	AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./$(APP_NAME) start

@@ -17,9 +17,8 @@ func CreateClient(req ClientCreateRequest) (*ClientResponse, error) {
 	return createClientInternal(clientID, req)
 }
 
-func CreateClientWithID(clientID string, req ClientCreateRequest) error {
-	_, err := createClientInternal(clientID, req)
-	return err
+func CreateClientWithID(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	return createClientInternal(clientID, req)
 }
 
 func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResponse, error) {

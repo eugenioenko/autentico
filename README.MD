@@ -155,12 +155,19 @@ SQLite is an intentional architectural choice. For identity workloads at this sc
 
 When load characteristics genuinely justify migration, the `pkg/db` boundary makes that tractable. Until then, the operational simplicity is worth considerably more than theoretical headroom.
 
-**Observed performance** (2024 M1 MacBook Pro, 16GB RAM):
+**Observed performance** — full PKCE auth code flow (authorize → login → token → introspect → refresh), measured with k6 on a developer laptop, single process, SQLite backend:
 
-- Token issuance: ~2,500/sec/core
-- Authorization code validation: < 5ms p99
-- Session lookup: < 2ms p95
-- Database footprint: ~50KB per 1,000 users
+| Concurrency | Error rate | Login p95 | Token p95 | Assessment |
+|-------------|------------|-----------|-----------|------------|
+| 20 VUs | 0% | 86ms | 54ms | Comfortable — imperceptible to users |
+| 100 VUs | 0% | 611ms | 647ms | Supported — fully functional |
+| 500 VUs | 0% | 3.36s | 3.89s | Degraded — users feel the wait |
+
+In practice, "100 concurrent logins" corresponds to **10,000–20,000 daily active users** under a typical enterprise login distribution (morning peak, sessions lasting hours). The failure mode at high concurrency is graceful queuing — no errors, just latency — because SQLite's busy timeout absorbs write contention rather than returning errors.
+
+Other operations (token refresh, introspection, OIDC discovery) are not bottlenecked by bcrypt and remain sub-10ms well beyond these concurrency levels.
+
+See [`stress/README.md`](stress/README.md) for the full methodology and how to reproduce these numbers.
 
 ### Why RS256 over HS256
 
