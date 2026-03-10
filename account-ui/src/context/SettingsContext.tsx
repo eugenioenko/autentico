@@ -26,8 +26,8 @@ const defaultSettings: Settings = {
   profile_field_family_name: 'optional',
   profile_field_phone: 'optional',
   profile_field_picture: 'optional',
-  profile_field_locale: 'optional',
   profile_field_address: 'optional',
+  profile_field_locale: 'hidden',
 };
 
 const SettingsContext = createContext<Settings>(defaultSettings);
@@ -39,7 +39,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     fetch('/account/api/settings')
       .then((r) => r.json())
       .then((res: { data: Settings }) => setSettings({ ...defaultSettings, ...res.data }))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return <SettingsContext.Provider value={settings}>{children}</SettingsContext.Provider>;

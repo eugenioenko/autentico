@@ -234,13 +234,13 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 
 ```bash
 # Generate .env with RSA key, CSRF secret, and token secrets
-./autentico init --url http://localhost:9999 --dev
+./autentico init
 
 # Start the server
 ./autentico start
 ```
 
-Open `http://localhost:9999/admin/` and complete the onboarding wizard to create the first administrator account. The server is ready.
+Open `http://localhost:9999/onboard/` and complete the setup form to create the first administrator account. The server is ready.
 
 ### Building from Source
 
@@ -281,7 +281,7 @@ The server starts on port 9999 and prints the key URLs (server, admin, well-know
 
 **5. Complete onboarding**
 
-If this is a fresh database, the startup output shows an **ONBOARDING** URL (e.g., `http://localhost:9999/admin/`). Open it and follow the wizard to create the first administrator account. The URL is shown on every startup until onboarding is complete.
+If this is a fresh database, the startup output shows an **ONBOARDING** URL (e.g., `http://localhost:9999/onboard/`). Open it and fill in your administrator credentials. The URL is shown on every startup until onboarding is complete.
 
 ---
 
@@ -644,7 +644,7 @@ The dev server proxies API requests to the Go server on port 9999.
 | `/oauth2/login`                   | POST     | Username/password form submission                   |
 | `/oauth2/mfa`                     | GET/POST | MFA challenge render and verification               |
 | `/oauth2/signup`                  | GET/POST | Self-service user registration (when enabled)       |
-| `/oauth2/onboard`                 | GET/POST | First-run admin onboarding                          |
+| `/onboard`                        | GET/POST | First-run admin onboarding (disabled after first user) |
 | `/oauth2/passkey/login/begin`     | GET      | Begin WebAuthn authentication/registration ceremony |
 | `/oauth2/passkey/login/finish`    | POST     | Complete WebAuthn authentication ceremony           |
 | `/oauth2/passkey/register/finish` | POST     | Complete WebAuthn registration ceremony             |
@@ -670,7 +670,6 @@ The dev server proxies API requests to the Go server on port 9999.
 | `/admin/api/sessions`     | GET/DELETE          | Session management           |
 | `/admin/api/stats`        | GET                 | Dashboard statistics         |
 | `/admin/api/settings`     | GET/PUT             | Read/update runtime settings |
-| `/admin/api/onboarding`   | GET                 | Onboarding status (public)   |
 
 ### User Self-Service
 

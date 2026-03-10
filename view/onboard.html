@@ -1,5 +1,5 @@
 {{define "content"}}
-<form method="POST" action="{{authURL "/onboard"}}">
+<form method="POST" action="{{.FormAction}}">
   {{template "logo" .}}
   <h1>Initial Admin Setup</h1>
   <p style="text-align: center; color: #666; margin-bottom: 20px;">

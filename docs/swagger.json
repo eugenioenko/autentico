@@ -1086,138 +1086,6 @@
                 }
             }
         },
-        "/oauth2/onboard": {
-            "get": {
-                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "onboarding"
-                ],
-                "summary": "Initial admin setup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Admin username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin email",
-                        "name": "email",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Onboarding form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect to admin UI after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "onboarding"
-                ],
-                "summary": "Initial admin setup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Admin username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin email",
-                        "name": "email",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Onboarding form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect to admin UI after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/oauth2/passkey/login/begin": {
             "get": {
                 "description": "Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.",
@@ -1907,6 +1775,114 @@
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/onboard": {
+            "get": {
+                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "onboarding"
+                ],
+                "summary": "Initial admin setup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin email",
+                        "name": "email",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Onboarding form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to /admin/ after success (POST)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "onboarding"
+                ],
+                "summary": "Initial admin setup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Admin username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin password",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confirm password",
+                        "name": "confirm_password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Admin email",
+                        "name": "email",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Onboarding form (GET)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to /admin/ after success (POST)",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }

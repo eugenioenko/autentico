@@ -19,14 +19,13 @@ interface AuthContextType {
   startLogin: (extraQueryParams?: Record<string, string>) => Promise<void>;
   handleCallback: () => Promise<void>;
   logout: () => Promise<void>;
-  oauthPath: string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function createUserManager(authority: string) {
+function createUserManager() {
   return new UserManager({
-    authority: authority,
+    authority: window.location.origin,
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
@@ -36,40 +35,25 @@ function createUserManager(authority: string) {
   });
 }
 
+const OAUTH_PATH = "/oauth2";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userManager, setMgr] = useState<UserManager | null>(null);
-  const [oauthPath, setOauthPath] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    fetch("/admin/api/onboarding")
-      .then((r) => r.json())
-      .then((data: { onboarded: boolean; oauth_path: string }) => {
-        const authority = window.location.origin + data.oauth_path;
-        const mgr = createUserManager(authority);
-        setMgr(mgr);
-        setOauthPath(data.oauth_path);
-        setUserManager(mgr);
-        return mgr.getUser();
-      })
-      .then((u) => {
-        if (u && !u.expired) {
-          setUser(u);
-          setIsAuthenticated(true);
-        }
-        setInitialized(true);
-      })
-      .catch(() => {
-        // Fallback to default /oauth2 if onboarding check fails
-        const authority = window.location.origin + "/oauth2";
-        const mgr = createUserManager(authority);
-        setMgr(mgr);
-        setOauthPath("/oauth2");
-        setUserManager(mgr);
-        setInitialized(true);
-      });
+    const mgr = createUserManager();
+    setMgr(mgr);
+    setUserManager(mgr);
+    mgr.getUser().then((u) => {
+      if (u && !u.expired) {
+        setUser(u);
+        setIsAuthenticated(true);
+      }
+      setInitialized(true);
+    });
   }, []);
 
   const startLogin = useCallback(async (extraQueryParams?: Record<string, string>) => {
@@ -85,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Verify admin access
     try {
-      await apiClient.get(oauthPath + "/register", {
+      await apiClient.get("/admin/api/clients", {
         headers: { Authorization: `Bearer ${u.access_token}` },
       });
     } catch (err: unknown) {
@@ -102,14 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(u);
     setIsAuthenticated(true);
-  }, [userManager, oauthPath]);
+  }, [userManager]);
 
   const logout = useCallback(async () => {
     if (!userManager) return;
     const currentUser = await userManager.getUser();
     if (currentUser?.access_token) {
       try {
-        await apiClient.post(oauthPath + "/logout", null, {
+        await apiClient.post(OAUTH_PATH + "/logout", null, {
           headers: { Authorization: `Bearer ${currentUser.access_token}` },
         });
       } catch {
@@ -119,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await userManager.removeUser();
     setUser(null);
     setIsAuthenticated(false);
-  }, [userManager, oauthPath]);
+  }, [userManager]);
 
   if (!initialized) {
     return null;
@@ -133,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         startLogin,
         handleCallback,
         logout,
-        oauthPath,
       }}
     >
       {children}

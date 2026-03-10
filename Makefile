@@ -58,7 +58,7 @@ docker-compose:
 # Fresh start: wipe local DB, rebuild, init, and launch
 fresh: build
 	rm -f ./db/autentico.db .env
-	./$(APP_NAME) init --dev
+	./$(APP_NAME) init
 	./$(APP_NAME) start
 
 # Stress tests — run via Docker (no k6 install required)

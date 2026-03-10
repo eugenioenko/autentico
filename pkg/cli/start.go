@@ -77,19 +77,27 @@ func RunStart(_ *cli.Context) error {
 	limiterStore := ratelimit.NewStore(bs.RateLimitRPS, bs.RateLimitBurst, bs.RateLimitRPM, bs.RateLimitRPMBurst)
 	rateLimited := middleware.RateLimitMiddleware(limiterStore)
 
+	// -------------------------------------------------------------------------
+	// Infrastructure
+	// -------------------------------------------------------------------------
 	mux.HandleFunc("/healthz", health.HandleHealth)
-	mux.HandleFunc("/user", user.HandleCreateUser)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+
+	// -------------------------------------------------------------------------
+	// OIDC discovery (public, no auth)
+	// -------------------------------------------------------------------------
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
+
+	// -------------------------------------------------------------------------
+	// OAuth2 / OIDC protocol endpoints
+	// -------------------------------------------------------------------------
+
 	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/authorize/", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
 	mux.Handle(oauth+"/login/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
-	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
-	mux.Handle(oauth+"/signup/", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
-	mux.Handle(oauth+"/onboard", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
-	mux.Handle(oauth+"/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
 	mux.Handle(oauth+"/mfa", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimited(http.HandlerFunc(passkey.HandleLoginBegin)))
@@ -98,32 +106,34 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
+	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
+	mux.Handle(oauth+"/signup/", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
 	mux.Handle(oauth+"/token", rateLimited(http.HandlerFunc(token.HandleToken)))
 	mux.Handle(oauth+"/protocol/openid-connect/token", rateLimited(http.HandlerFunc(token.HandleToken)))
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
+	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
-	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
-	mux.Handle("/swagger/", httpSwagger.WrapHandler)
-
-	// Client registration endpoints (admin only)
 	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 
-	// Admin API endpoints
-	mux.Handle("/admin/api/federation", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
-	mux.Handle("/admin/api/federation/", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
+	// -------------------------------------------------------------------------
+	// Admin API (admin-authenticated)
+	// -------------------------------------------------------------------------
 	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
 	mux.Handle("/admin/api/users/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
 	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle("/admin/api/clients/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
 	mux.Handle("/admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleSessionAdminEndpoint)))
+	mux.Handle("/admin/api/federation", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
+	mux.Handle("/admin/api/federation/", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
 	mux.Handle("/admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
 	mux.Handle("/admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleSettings)))
-	mux.HandleFunc("/admin/api/onboarding", appsettings.HandleOnboarding)
 
-	// Account API endpoints
+	// -------------------------------------------------------------------------
+	// Account self-service API (bearer-token authenticated per handler)
+	// -------------------------------------------------------------------------
 	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
 	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
 	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
@@ -144,11 +154,18 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", account.HandleDisconnectProvider)
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 
-	// Admin UI & Docs
+	// -------------------------------------------------------------------------
+	// Embedded UIs
+	// -------------------------------------------------------------------------
+	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.Handle("/admin/", admin.Handler())
-
-	// Account UI (at root)
 	mux.Handle("/account/", account.Handler())
+
+	// -------------------------------------------------------------------------
+	// First-time onboarding (only if no users exist, otherwise redirect to login)
+	// -------------------------------------------------------------------------
+	mux.Handle("/onboard", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboardDirect)))
+	mux.Handle("/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboardDirect)))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -163,7 +180,7 @@ func RunStart(_ *cli.Context) error {
 	fmt.Println()
 
 	if !appsettings.IsOnboarded() {
-		fmt.Printf("  ONBOARDING: %s/admin/\n", baseURL)
+		fmt.Printf("  ONBOARDING: %s/onboard/\n", baseURL)
 		fmt.Println()
 	}
 

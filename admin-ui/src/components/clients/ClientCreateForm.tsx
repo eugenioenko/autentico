@@ -120,8 +120,8 @@ export default function ClientCreateForm({
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={{
-            client_type: "confidential",
-            grant_types: ["authorization_code"],
+            client_type: "public",
+            grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],
             token_endpoint_auth_method: "client_secret_basic",
             scopes: ["openid", "profile", "email", "offline_access"],

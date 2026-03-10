@@ -8,7 +8,6 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
-	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/federation"
@@ -59,17 +58,6 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
 	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
-		return
-	}
-
-	// Support prompt=signup to automatically go to the signup/onboarding page while preserving OIDC state
-	if request.Prompt == "signup" {
-		target := "/signup"
-		if !appsettings.IsOnboarded() {
-			target = "/onboard"
-		}
-		destURL := config.GetBootstrap().AppOAuthPath + target + "?" + q.Encode()
-		http.Redirect(w, r, destURL, http.StatusFound)
 		return
 	}
 
