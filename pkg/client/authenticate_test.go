@@ -257,9 +257,9 @@ func TestAuthenticateClientFromRequest_NonexistentClient(t *testing.T) {
 	req := httptest.NewRequest("POST", "/oauth2/token", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// Should return nil for backward compatibility
+	// Should return an error when client_id is provided but not registered
 	client, err := AuthenticateClientFromRequest(req)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, client)
 }
 

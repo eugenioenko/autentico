@@ -10,7 +10,8 @@ interface AuthContextType {
   isLoading: boolean;
   signinRedirect: () => Promise<void>;
   signinCallback: () => Promise<void>;
-  signoutRedirect: () => Promise<void>;
+  logout: () => Promise<void>;
+  oauthPath: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +21,6 @@ function createUserManager(authority: string) {
     authority,
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
-    post_logout_redirect_uri: window.location.origin + '/account/',
     response_type: 'code',
     scope: 'openid profile email offline_access',
     automaticSilentRenew: true,
@@ -31,6 +31,7 @@ function createUserManager(authority: string) {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userManager, setMgr] = useState<UserManager | null>(null);
+  const [oauthPath, setOauthPath] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const authority = window.location.origin + res.data.oauth_path;
         const mgr = createUserManager(authority);
         setMgr(mgr);
+        setOauthPath(res.data.oauth_path);
         setUserManager(mgr);
         return mgr.getUser();
       })
@@ -51,6 +53,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .catch(() => {
         const mgr = createUserManager(window.location.origin + '/oauth2');
         setMgr(mgr);
+        setOauthPath('/oauth2');
         setUserManager(mgr);
         setIsLoading(false);
       });
@@ -79,12 +82,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(u);
   }, [userManager]);
 
-  const signoutRedirect = useCallback(async () => {
-    if (userManager) await userManager.signoutRedirect();
-  }, [userManager]);
+  const logout = useCallback(async () => {
+    if (!userManager) return;
+    const currentUser = await userManager.getUser();
+    if (currentUser?.access_token) {
+      try {
+        await fetch(window.location.origin + oauthPath + '/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${currentUser.access_token}`,
+          },
+        });
+      } catch (err) {
+        console.error('Logout failed', err);
+      }
+    }
+    await userManager.removeUser();
+    setUser(null);
+  }, [userManager, oauthPath]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signinRedirect, signinCallback, signoutRedirect }}>
+    <AuthContext.Provider value={{ user, isLoading, signinRedirect, signinCallback, logout, oauthPath }}>
       {children}
     </AuthContext.Provider>
   );

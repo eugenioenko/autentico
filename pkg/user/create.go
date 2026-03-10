@@ -49,7 +49,7 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 	if email != "" {
 		emailParam = email
 	}
-	query := `INSERT INTO users (id, username, password, email) VALUES (?, ?, ?, ?) RETURNING created_at`
+	query := `INSERT INTO users (id, username, password, email, registered_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING created_at`
 	row := db.GetDB().QueryRow(query, id, username, hashedPasswordStr, emailParam)
 	err = row.Scan(&createdAt)
 	if err != nil {

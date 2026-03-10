@@ -23,8 +23,8 @@ func TestGetOriginal(t *testing.T) {
 func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, false, defaultConfig.TrustDeviceEnabled)
 	assert.Equal(t, false, defaultConfig.RequireMfa)
-	assert.Equal(t, time.Duration(0), defaultConfig.AuthSsoSessionIdleTimeout)
-	assert.Equal(t, "0", defaultConfig.AuthSsoSessionIdleTimeoutStr)
+	assert.Equal(t, 4*time.Hour, defaultConfig.AuthSsoSessionIdleTimeout)
+	assert.Equal(t, "4h", defaultConfig.AuthSsoSessionIdleTimeoutStr)
 	assert.Equal(t, 15*time.Minute, defaultConfig.AuthAccessTokenExpiration)
 }
 
@@ -42,8 +42,8 @@ func TestInitBootstrap_Defaults(t *testing.T) {
 	assert.Equal(t, "http://localhost:9999/oauth2", Bootstrap.AppAuthIssuer)
 	assert.Equal(t, "autentico-key-1", Bootstrap.AuthJwkCertKeyID)
 	assert.Equal(t, "autentico_idp_session", Bootstrap.AuthIdpSessionCookieName)
-	assert.Equal(t, false, Bootstrap.AuthIdpSessionSecureCookie)
-	assert.Equal(t, false, Bootstrap.AuthCSRFSecureCookie)
+	assert.Equal(t, true, Bootstrap.AuthIdpSessionSecureCookie)
+	assert.Equal(t, true, Bootstrap.AuthCSRFSecureCookie)
 }
 
 func TestInitBootstrap_EnvOverride(t *testing.T) {

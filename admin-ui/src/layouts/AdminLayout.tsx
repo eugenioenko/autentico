@@ -33,6 +33,7 @@ const menuItems: any[] = [
       { key: "/account", icon: <UserOutlined />, label: "Profile" },
       { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
       { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
+      { key: "/autentico-docs", icon: <FileTextOutlined />, label: "Autentico Docs" },
     ],
   },
 ];
@@ -113,6 +114,8 @@ export default function AdminLayout() {
               window.open("/admin/docs/", "_blank");
             } else if (key === "/swagger") {
               window.open("/swagger/index.html", "_blank");
+            } else if (key === "/autentico-docs") {
+              window.open("https://docs.autentico.top/", "_blank");
             } else {
               navigate(key);
             }

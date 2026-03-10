@@ -5,6 +5,7 @@ import (
 
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateUser(t *testing.T) {
@@ -45,6 +46,21 @@ func TestStoreTotpSecretPending(t *testing.T) {
 	updated, _ := UserByID(u.ID)
 	assert.Equal(t, "pending-secret", updated.TotpSecret)
 	assert.False(t, updated.TotpVerified)
+}
+
+func TestSetRegisteredAt(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	ur, err := CreatePasskeyUser("pkuser", "pk@test.com")
+	require.NoError(t, err)
+
+	u, _ := UserByID(ur.ID)
+	assert.Nil(t, u.RegisteredAt, "should be nil before ceremony completes")
+
+	require.NoError(t, SetRegisteredAt(ur.ID))
+
+	u, _ = UserByID(ur.ID)
+	assert.NotNil(t, u.RegisteredAt, "should be set after SetRegisteredAt")
 }
 
 func TestUnlockUser(t *testing.T) {

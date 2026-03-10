@@ -11,7 +11,13 @@ func MarkChallengeUsed(id string) error {
 }
 
 func UpdateChallengeCode(id, code string) error {
-	query := `UPDATE mfa_challenges SET code = ? WHERE id = ?`
+	query := `UPDATE mfa_challenges SET code = ?, otp_sent_at = CURRENT_TIMESTAMP WHERE id = ?`
 	_, err := db.GetDB().Exec(query, code, id)
+	return err
+}
+
+func IncrementFailedAttempts(id string) error {
+	query := `UPDATE mfa_challenges SET failed_attempts = failed_attempts + 1 WHERE id = ?`
+	_, err := db.GetDB().Exec(query, id)
 	return err
 }

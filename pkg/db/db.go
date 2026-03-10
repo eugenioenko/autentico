@@ -26,6 +26,7 @@ var createTableSQL = `
 		email_verification_token TEXT,           -- Store token used for email verification
 		email_verification_expires_at DATETIME,  -- Expiration time of the verification token
 		deactivated_at DATETIME DEFAULT NULL,    -- If account is deactivated, store timestamp
+		registered_at DATETIME DEFAULT NULL,     -- NULL only for passkey users mid-ceremony; set immediately for password users
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Account creation timestamp
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Last update timestamp
 		-- OIDC standard profile claims
@@ -111,6 +112,8 @@ var createTableSQL = `
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		expires_at DATETIME NOT NULL,
 		used BOOLEAN DEFAULT FALSE,
+		failed_attempts INTEGER NOT NULL DEFAULT 0,
+		otp_sent_at DATETIME,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
@@ -303,3 +306,4 @@ func CloseDB() {
 		log.Printf("Failed to close database: %v", err)
 	}
 }
+

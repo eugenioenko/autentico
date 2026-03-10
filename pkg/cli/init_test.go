@@ -22,6 +22,7 @@ func TestRunInit(t *testing.T) {
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://test.com", "")
+	set.Bool("dev", false, "")
 	ctx := cli.NewContext(app, set, nil)
 
 	err = RunInit(ctx)
@@ -36,11 +37,45 @@ func TestRunInit(t *testing.T) {
 	sContent := string(content)
 	assert.Contains(t, sContent, "AUTENTICO_APP_URL=http://test.com")
 	assert.Contains(t, sContent, "AUTENTICO_PRIVATE_KEY=")
+	// Production mode: secure cookies must be true
+	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=true")
+	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_SECURE=true")
+	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=true")
 
 	// Test re-init error
 	err = RunInit(ctx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), ".env already exists")
+}
+
+func TestRunInit_DevMode(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "autentico-cli-dev-test")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	app := &cli.App{Name: "test"}
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("url", "http://localhost:9999", "")
+	set.Bool("dev", false, "")
+	ctx := cli.NewContext(app, set, nil)
+	_ = set.Set("dev", "true")
+
+	err = RunInit(ctx)
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	sContent := string(content)
+	// Dev mode: all secure cookie flags must be false
+	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=false")
+	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_SECURE=false")
+	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=false")
+	// Secrets must still be generated
+	assert.Contains(t, sContent, "AUTENTICO_PRIVATE_KEY=")
+	assert.NotContains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=true")
 }
 
 func TestRunInit_InvalidURL(t *testing.T) {

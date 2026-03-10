@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -14,6 +15,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+func insertPasswordTestClient(t *testing.T) {
+	t.Helper()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('auth-test-id', 'auth-test-client', 'Auth Test Client', 'public', '[]', '["password","refresh_token"]', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert auth test client: %v", err)
+	}
+}
 
 const (
 	testEmail    = "johndoe@mail.com"
@@ -35,9 +47,11 @@ func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+	insertPasswordTestClient(t)
 
 	body := map[string]string{
 		"grant_type": "password",
+		"client_id":  "auth-test-client",
 		"username":   testEmail,
 		"password":   testPassword,
 	}
@@ -56,9 +70,11 @@ func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
 		config.Bootstrap.AuthRefreshTokenAsSecureCookie = true
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+	insertPasswordTestClient(t)
 
 	body := map[string]string{
 		"grant_type": "password",
+		"client_id":  "auth-test-client",
 		"username":   testEmail,
 		"password":   testPassword,
 	}
@@ -93,9 +109,11 @@ func TestRevokeToken(t *testing.T) {
 func TestUserInfoEndpoint(t *testing.T) {
 	testutils.WithTestDB(t)
 	user, _ := user.CreateUser(testEmail, testPassword, testEmail)
+	insertPasswordTestClient(t)
 
 	body := map[string]string{
 		"grant_type": "password",
+		"client_id":  "auth-test-client",
 		"username":   testEmail,
 		"password":   testPassword,
 	}
@@ -117,9 +135,11 @@ func TestTokenEndpointRefresh(t *testing.T) {
 		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+	insertPasswordTestClient(t)
 
 	body := map[string]string{
 		"grant_type": "password",
+		"client_id":  "auth-test-client",
 		"username":   testEmail,
 		"password":   testPassword,
 	}

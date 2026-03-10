@@ -89,6 +89,12 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get user")
 			return
 		}
+		const otpCooldown = 60 * time.Second
+		if challenge.OtpSentAt != nil && time.Since(*challenge.OtpSentAt) < otpCooldown {
+			// OTP was sent recently — render the page without sending a new one
+			renderVerifyPage(w, r, challenge, cfg, "")
+			return
+		}
 		otp, err := GenerateEmailOTP()
 		if err != nil {
 			slog.Error("mfa: failed to generate email OTP", "request_id", middleware.GetRequestID(r.Context()), "error", err)
@@ -172,7 +178,13 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	case "email":
 		hashedCode := utils.HashSHA256(code)
 		if hashedCode != challenge.Code {
-			slog.Warn("mfa: invalid email OTP code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+			_ = IncrementFailedAttempts(challenge.ID)
+			slog.Warn("mfa: invalid email OTP code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r), "attempts", challenge.FailedAttempts+1)
+			if challenge.FailedAttempts+1 >= 5 {
+				_ = MarkChallengeUsed(challenge.ID)
+				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
+				return
+			}
 			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
 			return
 		}

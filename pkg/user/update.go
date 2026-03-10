@@ -159,6 +159,15 @@ func SaveTotpSecret(userID, secret string) error {
 	return nil
 }
 
+// SetRegisteredAt marks the user's registration as complete by stamping registered_at.
+func SetRegisteredAt(id string) error {
+	_, err := db.GetDB().Exec(`UPDATE users SET registered_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to set registered_at: %w", err)
+	}
+	return nil
+}
+
 func UnlockUser(id string) error {
 	query := `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
 	result, err := db.GetDB().Exec(query, id)

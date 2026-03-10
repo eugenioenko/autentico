@@ -708,6 +708,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/healthz": {
+            "get": {
+                "description": "Returns the health status of the server and its dependencies. Returns 200 when healthy, 503 when the database is unreachable.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/health.HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/health.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/authorize": {
             "get": {
                 "description": "Handles the authorization request and displays the login page",
@@ -2222,6 +2248,17 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "trust_device_expiration": {
+                    "type": "string"
+                }
+            }
+        },
+        "health.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

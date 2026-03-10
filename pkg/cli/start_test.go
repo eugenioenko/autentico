@@ -1,15 +1,12 @@
 package cli
 
 import (
-	"flag"
-	"os"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
-	"github.com/urfave/cli/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,19 +32,31 @@ func TestSeedClients(t *testing.T) {
 	seedAccountClient()
 }
 
-func TestRunStart_DbPanic(t *testing.T) {
-	// Set an invalid DB path in environment
-	origPath := os.Getenv("AUTENTICO_DB_FILE")
-	_ = os.Setenv("AUTENTICO_DB_FILE", "/nonexistent/path/db.sqlite")
-	defer func() { _ = os.Setenv("AUTENTICO_DB_FILE", origPath) }()
+func TestValidateBootstrapSecrets_MissingAll(t *testing.T) {
+	bs := &config.BootstrapConfig{}
+	err := validateBootstrapSecrets(bs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing required secrets")
+}
 
-	app := &cli.App{Name: "test"}
-	ctx := cli.NewContext(app, flag.NewFlagSet("test", flag.ContinueOnError), nil)
+func TestValidateBootstrapSecrets_MissingOne(t *testing.T) {
+	bs := &config.BootstrapConfig{
+		AuthAccessTokenSecret:       "secret1",
+		AuthRefreshTokenSecret:      "",
+		AuthCSRFProtectionSecretKey: "secret3",
+	}
+	err := validateBootstrapSecrets(bs)
+	assert.Error(t, err)
+}
 
-	// Since db.InitDB panics on error during busy timeout set
-	assert.Panics(t, func() {
-		_ = RunStart(ctx)
-	})
+func TestValidateBootstrapSecrets_AllSet(t *testing.T) {
+	bs := &config.BootstrapConfig{
+		AuthAccessTokenSecret:       "secret1",
+		AuthRefreshTokenSecret:      "secret2",
+		AuthCSRFProtectionSecretKey: "secret3",
+	}
+	err := validateBootstrapSecrets(bs)
+	assert.NoError(t, err)
 }
 
 func TestSeedClients_Errors(t *testing.T) {

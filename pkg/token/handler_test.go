@@ -21,19 +21,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// insertROPCTestClient seeds a public OAuth2 client that allows password and refresh_token grants.
+func insertROPCTestClient(t *testing.T) {
+	t.Helper()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('ropc-test-id', 'ropc-test-client', 'ROPC Test Client', 'public', '[]', '["password","refresh_token"]', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert ROPC test client: %v", err)
+	}
+}
+
 func TestHandleToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
 	})
 
-	// Create a test user
+	// Create a test user and a registered client
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	// Perform token request
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -97,9 +111,11 @@ func TestHandleToken_PasswordGrant_InvalidCredentials(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "wrongpassword")
 
@@ -308,6 +324,13 @@ func TestHandleToken_AuthorizationCodeGrant_ClientIDMismatch(t *testing.T) {
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
+	// Register the client being sent in the request so auth passes before the mismatch check
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('diff-client-id', 'different-client', 'Different Client', 'public', '["http://localhost/callback"]', '["authorization_code"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
 	code := authcode.AuthCode{
 		Code:        "client-mismatch-code",
 		UserID:      usr.ID,
@@ -345,9 +368,11 @@ func TestHandleToken_RefreshTokenGrant(t *testing.T) {
 	// Create user and get tokens via password grant
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -418,10 +443,12 @@ func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	// Get tokens via password grant
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -464,9 +491,11 @@ func TestHandleToken_WithSecureCookie(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -770,10 +799,12 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	// Get a token
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -813,10 +844,12 @@ func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	// Get tokens with short-lived refresh token
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -973,9 +1006,11 @@ func TestHandleToken_PasswordGrant_ReturnsIDToken(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 

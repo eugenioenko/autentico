@@ -10,7 +10,7 @@ import (
 func MfaChallengeByID(id string) (*MfaChallenge, error) {
 	var challenge MfaChallenge
 	query := `
-		SELECT id, user_id, method, code, login_state, created_at, expires_at, used
+		SELECT id, user_id, method, code, login_state, created_at, expires_at, used, failed_attempts, otp_sent_at
 		FROM mfa_challenges WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, id)
@@ -23,6 +23,8 @@ func MfaChallengeByID(id string) (*MfaChallenge, error) {
 		&challenge.CreatedAt,
 		&challenge.ExpiresAt,
 		&challenge.Used,
+		&challenge.FailedAttempts,
+		&challenge.OtpSentAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -36,7 +36,7 @@ func TestHandleLoginBegin_NoPasskeys(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	var resp map[string]string
 	_ = json.NewDecoder(rr.Body).Decode(&resp)
-	assert.Contains(t, resp["error"], "no passkeys registered")
+	assert.Contains(t, resp["error"], "invalid username or passkey")
 }
 
 func TestHandleLoginBegin_EmptyUsername(t *testing.T) {

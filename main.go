@@ -34,6 +34,10 @@ func main() {
 						Usage: "Application URL (e.g. https://auth.example.com)",
 						Value: "http://localhost:9999",
 					},
+					&cli.BoolFlag{
+						Name:  "dev",
+						Usage: "Disable secure cookie flags for local HTTP development (do not use in production)",
+					},
 				},
 				Action: appCli.RunInit,
 			},

@@ -3,14 +3,16 @@ package mfa
 import "time"
 
 type MfaChallenge struct {
-	ID         string
-	UserID     string
-	Method     string
-	Code       string
-	LoginState string
-	CreatedAt  time.Time
-	ExpiresAt  time.Time
-	Used       bool
+	ID             string
+	UserID         string
+	Method         string
+	Code           string
+	LoginState     string
+	CreatedAt      time.Time
+	ExpiresAt      time.Time
+	Used           bool
+	FailedAttempts int
+	OtpSentAt      *time.Time
 }
 
 type LoginState struct {

@@ -22,6 +22,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
@@ -43,6 +44,11 @@ func RunStart(_ *cli.Context) error {
 	config.InitBootstrap()
 
 	bs := config.GetBootstrap()
+
+	if err := validateBootstrapSecrets(bs); err != nil {
+		return err
+	}
+
 	if _, err := db.InitDB(bs.DbFilePath); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -71,6 +77,7 @@ func RunStart(_ *cli.Context) error {
 	limiterStore := ratelimit.NewStore(bs.RateLimitRPS, bs.RateLimitBurst, bs.RateLimitRPM, bs.RateLimitRPMBurst)
 	rateLimited := middleware.RateLimitMiddleware(limiterStore)
 
+	mux.HandleFunc("/healthz", health.HandleHealth)
 	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
@@ -85,7 +92,7 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle(oauth+"/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
 	mux.Handle(oauth+"/mfa", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
-	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
+	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimited(http.HandlerFunc(passkey.HandleLoginBegin)))
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
@@ -245,4 +252,15 @@ func seedAccountClient() {
 	}); err != nil {
 		log.Printf("warning: failed to seed account client: %v", err)
 	}
+}
+
+func validateBootstrapSecrets(bs *config.BootstrapConfig) error {
+	if bs.AuthAccessTokenSecret == "" || bs.AuthRefreshTokenSecret == "" || bs.AuthCSRFProtectionSecretKey == "" {
+		return fmt.Errorf(
+			"missing required secrets: AUTENTICO_ACCESS_TOKEN_SECRET, AUTENTICO_REFRESH_TOKEN_SECRET, " +
+				"and AUTENTICO_CSRF_SECRET_KEY must all be set; " +
+				"run 'autentico init' to generate a .env file with secure values, or set them manually",
+		)
+	}
+	return nil
 }
