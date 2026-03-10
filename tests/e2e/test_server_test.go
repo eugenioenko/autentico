@@ -9,6 +9,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
+	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -92,7 +93,6 @@ func startTestServer(t *testing.T) *TestServer {
 	mux := http.NewServeMux()
 
 	// Public routes
-	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
@@ -109,17 +109,15 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 
-	// Admin-protected routes
-	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
+	// OAuth2 client registration (admin-protected)
+	mux.Handle("GET "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleListClients)))
+	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
+	mux.Handle("GET "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
+	mux.Handle("PUT "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))
+	mux.Handle("DELETE "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleDeleteClient)))
 
 	// Account API routes
 	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
-	mux.HandleFunc("POST /account/api/profile", account.HandleUpdateProfile) // Note: main.go uses PUT, but E2E test uses POST. I should check which one is correct.
-	// Actually, main.go uses:
-	// mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
-	// mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
-	// I'll add both just in case, or match main.go.
 	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
 	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
 	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
@@ -131,11 +129,22 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 
 	// Admin API routes
-	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
-	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle("/admin/api/clients/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle("/admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleSessionAdminEndpoint)))
-	mux.Handle("/admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
+	mux.Handle("GET /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleListUsers)))
+	mux.Handle("POST /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleCreateUser)))
+	mux.Handle("GET /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleGetUser)))
+	mux.Handle("PUT /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUpdateUser)))
+	mux.Handle("DELETE /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleDeleteUser)))
+	mux.Handle("POST /admin/api/users/{id}/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
+	mux.Handle("GET /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleListClients)))
+	mux.Handle("POST /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
+	mux.Handle("GET /admin/api/clients/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
+	mux.Handle("PUT /admin/api/clients/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))
+	mux.Handle("DELETE /admin/api/clients/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleDeleteClient)))
+	mux.Handle("GET /admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleListSessions)))
+	mux.Handle("DELETE /admin/api/sessions/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleDeactivateSession)))
+	mux.Handle("GET /admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
+	mux.Handle("GET /admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleGetSettings)))
+	mux.Handle("PUT /admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandlePutSettings)))
 
 	// Apply logging middleware and start server
 	server.Config.Handler = middleware.LoggingMiddleware(mux)

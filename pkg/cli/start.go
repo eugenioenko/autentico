@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	_ "github.com/eugenioenko/autentico/docs"
+	"github.com/eugenioenko/autentico/docs"
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
@@ -45,6 +46,11 @@ func RunStart(_ *cli.Context) error {
 
 	bs := config.GetBootstrap()
 
+	if u, err := url.Parse(bs.AppURL); err == nil {
+		docs.SwaggerInfo.Host = u.Host
+		docs.SwaggerInfo.Schemes = []string{u.Scheme}
+	}
+
 	if err := validateBootstrapSecrets(bs); err != nil {
 		return err
 	}
@@ -76,60 +82,76 @@ func RunStart(_ *cli.Context) error {
 	// Per-IP rate limiter for authentication endpoints (rps=0 disables)
 	limiterStore := ratelimit.NewStore(bs.RateLimitRPS, bs.RateLimitBurst, bs.RateLimitRPM, bs.RateLimitRPMBurst)
 	rateLimited := middleware.RateLimitMiddleware(limiterStore)
+	rateLimitedFunc := func(h http.HandlerFunc) http.Handler { return rateLimited(h) }
+	adminAPI := func(h http.HandlerFunc) http.Handler { return middleware.AdminAuthMiddleware(h) }
+	csrfProtected := func(h http.HandlerFunc) http.Handler { return middleware.CSRFMiddleware(h) }
 
 	// -------------------------------------------------------------------------
 	// Infrastructure
 	// -------------------------------------------------------------------------
-	mux.HandleFunc("/healthz", health.HandleHealth)
+	mux.HandleFunc("GET /healthz", health.HandleHealth)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	// -------------------------------------------------------------------------
 	// OIDC discovery (public, no auth)
 	// -------------------------------------------------------------------------
-	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
-	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
-	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
+	mux.HandleFunc("GET /.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
+	mux.HandleFunc("GET "+oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
+	mux.HandleFunc("GET /.well-known/jwks.json", wellknown.HandleJWKS)
 
 	// -------------------------------------------------------------------------
 	// OAuth2 / OIDC protocol endpoints
 	// -------------------------------------------------------------------------
 
-	mux.Handle(oauth+"/authorize", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
-	mux.Handle(oauth+"/authorize/", middleware.CSRFMiddleware(http.HandlerFunc(authorize.HandleAuthorize)))
-	mux.Handle(oauth+"/login", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
-	mux.Handle(oauth+"/login/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(login.HandleLoginUser))))
-	mux.Handle(oauth+"/mfa", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
-	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
-	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimited(http.HandlerFunc(passkey.HandleLoginBegin)))
-	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
+	mux.Handle("GET "+oauth+"/authorize", csrfProtected(authorize.HandleAuthorize))
+	mux.Handle("POST "+oauth+"/login", rateLimited(csrfProtected(login.HandleLoginUser)))
+	mux.Handle(oauth+"/mfa", rateLimited(csrfProtected(mfa.HandleMfa)))
+	mux.Handle(oauth+"/mfa/", rateLimited(csrfProtected(mfa.HandleMfa)))
+	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimitedFunc(passkey.HandleLoginBegin))
+	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimitedFunc(passkey.HandleLoginFinish))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
-	mux.Handle(oauth+"/signup", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
-	mux.Handle(oauth+"/signup/", middleware.CSRFMiddleware(http.HandlerFunc(signup.HandleSignup)))
-	mux.Handle(oauth+"/token", rateLimited(http.HandlerFunc(token.HandleToken)))
-	mux.Handle(oauth+"/protocol/openid-connect/token", rateLimited(http.HandlerFunc(token.HandleToken)))
-	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
-	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
+	mux.Handle(oauth+"/signup", csrfProtected(signup.HandleSignup))
+	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
+	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))
+	mux.Handle("POST "+oauth+"/protocol/openid-connect/token", rateLimitedFunc(token.HandleToken))
+	mux.HandleFunc("POST "+oauth+"/revoke", token.HandleRevoke)
+	mux.HandleFunc("POST "+oauth+"/introspect", introspect.HandleIntrospect)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
-	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
-	mux.Handle(oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle(oauth+"/register/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
+	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)
+	mux.Handle("GET "+oauth+"/register", adminAPI(client.HandleListClients))
+	mux.Handle("POST "+oauth+"/register", adminAPI(client.HandleRegister))
+	mux.Handle("GET "+oauth+"/register/{client_id}", adminAPI(client.HandleGetClient))
+	mux.Handle("PUT "+oauth+"/register/{client_id}", adminAPI(client.HandleUpdateClient))
+	mux.Handle("DELETE "+oauth+"/register/{client_id}", adminAPI(client.HandleDeleteClient))
 
 	// -------------------------------------------------------------------------
 	// Admin API (admin-authenticated)
 	// -------------------------------------------------------------------------
-	mux.Handle("/admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUserAdminEndpoint)))
-	mux.Handle("/admin/api/users/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
-	mux.Handle("/admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle("/admin/api/clients/", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleClientEndpoint)))
-	mux.Handle("/admin/api/sessions", middleware.AdminAuthMiddleware(http.HandlerFunc(session.HandleSessionAdminEndpoint)))
-	mux.Handle("/admin/api/federation", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
-	mux.Handle("/admin/api/federation/", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleAdminFederationEndpoint)))
-	mux.Handle("/admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
-	mux.Handle("/admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleSettings)))
+	mux.Handle("GET /admin/api/users", adminAPI(user.HandleListUsers))
+	mux.Handle("POST /admin/api/users", adminAPI(user.HandleCreateUser))
+	mux.Handle("GET /admin/api/users/{id}", adminAPI(user.HandleGetUser))
+	mux.Handle("PUT /admin/api/users/{id}", adminAPI(user.HandleUpdateUser))
+	mux.Handle("DELETE /admin/api/users/{id}", adminAPI(user.HandleDeleteUser))
+	mux.Handle("POST /admin/api/users/{id}/unlock", adminAPI(user.HandleUnlockUser))
+	mux.Handle("GET /admin/api/clients", adminAPI(client.HandleListClients))
+	mux.Handle("POST /admin/api/clients", adminAPI(client.HandleRegister))
+	mux.Handle("GET /admin/api/clients/{client_id}", adminAPI(client.HandleGetClient))
+	mux.Handle("PUT /admin/api/clients/{client_id}", adminAPI(client.HandleUpdateClient))
+	mux.Handle("DELETE /admin/api/clients/{client_id}", adminAPI(client.HandleDeleteClient))
+	mux.Handle("GET /admin/api/sessions", adminAPI(session.HandleListSessions))
+	mux.Handle("DELETE /admin/api/sessions/{id}", adminAPI(session.HandleDeactivateSession))
+	mux.Handle("GET /admin/api/federation", adminAPI(federation.HandleListProviders))
+	mux.Handle("POST /admin/api/federation", adminAPI(federation.HandleCreateProvider))
+	mux.Handle("GET /admin/api/federation/{id}", adminAPI(federation.HandleGetProvider))
+	mux.Handle("PUT /admin/api/federation/{id}", adminAPI(federation.HandleUpdateProvider))
+	mux.Handle("DELETE /admin/api/federation/{id}", adminAPI(federation.HandleDeleteProvider))
+	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))
+	mux.Handle("GET /admin/api/settings", adminAPI(appsettings.HandleGetSettings))
+	mux.Handle("PUT /admin/api/settings", adminAPI(appsettings.HandlePutSettings))
 
 	// -------------------------------------------------------------------------
 	// Account self-service API (bearer-token authenticated per handler)
@@ -157,15 +179,14 @@ func RunStart(_ *cli.Context) error {
 	// -------------------------------------------------------------------------
 	// Embedded UIs
 	// -------------------------------------------------------------------------
-	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.Handle("/admin/", admin.Handler())
 	mux.Handle("/account/", account.Handler())
 
 	// -------------------------------------------------------------------------
 	// First-time onboarding (only if no users exist, otherwise redirect to login)
 	// -------------------------------------------------------------------------
-	mux.Handle("/onboard", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboardDirect)))
-	mux.Handle("/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboardDirect)))
+	mux.Handle("/onboard", csrfProtected(onboarding.HandleOnboardDirect))
+	mux.Handle("/onboard/", csrfProtected(onboarding.HandleOnboardDirect))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

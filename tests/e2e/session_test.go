@@ -265,7 +265,7 @@ func TestAdminSessionDeactivation_BlocksFurtherRequests(t *testing.T) {
 	sessionID := listResp.Data[0].ID
 
 	// Deactivate the admin's own session
-	deactivateReq, err := http.NewRequest("DELETE", ts.BaseURL+"/admin/api/sessions?id="+sessionID, nil)
+	deactivateReq, err := http.NewRequest("DELETE", ts.BaseURL+"/admin/api/sessions/"+sessionID, nil)
 	require.NoError(t, err)
 	deactivateReq.Header.Set("Authorization", "Bearer "+adminToken)
 

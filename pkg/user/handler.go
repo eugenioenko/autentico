@@ -39,27 +39,23 @@ func GetUserFromRequest(r *http.Request) (*User, error) {
 
 // HandleCreateUser godoc
 // @Summary Create a new user
-// @Description Registers a new user in the system
-// @Tags users
+// @Description Registers a new user in the system (admin only)
+// @Tags users-admin
 // @Accept json
 // @Produce json
 // @Param user body UserCreateRequest true "User creation payload"
+// @Security BearerAuth
 // @Success 201 {object} UserResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
-// @Router /users/create [post]
+// @Router /admin/api/users [post]
 func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	_, err := GetUserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
-	}
 	var request UserCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
-	err = ValidateUserCreateRequest(request)
+	err := ValidateUserCreateRequest(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
 		return
@@ -75,14 +71,18 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusCreated)
 }
 
-// HandleGetUser handles GET /user/{id} (read user by ID)
+// HandleGetUser godoc
+// @Summary Get a user by ID
+// @Tags users-admin
+// @Produce json
+// @Param id path string true "User ID"
+// @Security BearerAuth
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
+// @Router /admin/api/users/{id} [get]
 func HandleGetUser(w http.ResponseWriter, r *http.Request) {
-	_, err := GetUserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
-	}
-	id := r.URL.Query().Get("id")
+	id := r.PathValue("id")
 	if id == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
@@ -95,14 +95,20 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
 
-// HandleUpdateUser handles PUT /user/{id} (update user)
+// HandleUpdateUser godoc
+// @Summary Update a user
+// @Tags users-admin
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param user body UserUpdateRequest true "User update payload"
+// @Security BearerAuth
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users/{id} [put]
 func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
-	_, err := GetUserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
-	}
-	id := r.URL.Query().Get("id")
+	id := r.PathValue("id")
 	if id == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
@@ -116,7 +122,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	err = UpdateUser(id, req)
+	err := UpdateUser(id, req)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
@@ -129,19 +135,23 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
 
-// HandleDeleteUser handles DELETE /user/{id}
+// HandleDeleteUser godoc
+// @Summary Delete a user
+// @Tags users-admin
+// @Produce json
+// @Param id path string true "User ID"
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users/{id} [delete]
 func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
-	_, err := GetUserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
-	}
-	id := r.URL.Query().Get("id")
+	id := r.PathValue("id")
 	if id == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
 	}
-	err = DeleteUser(id)
+	err := DeleteUser(id)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
@@ -149,7 +159,14 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, map[string]string{"result": "deleted"}, http.StatusOK)
 }
 
-// HandleListUsers handles GET /admin/api/users - lists all active users
+// HandleListUsers godoc
+// @Summary List all users
+// @Tags users-admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} UserResponse
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users [get]
 func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := ListUsers()
 	if err != nil {
@@ -171,20 +188,15 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 
 // HandleUnlockUser unlocks a user account after multiple failed login attempts.
 // @Summary Unlock user account
-// @Description Resets the failed login attempts and clear the lockout time for a user.
+// @Description Resets the failed login attempts and clears the lockout time for a user.
 // @Tags users-admin
-// @Accept json
 // @Produce json
-// @Param id query string true "User ID"
+// @Param id path string true "User ID"
 // @Security BearerAuth
 // @Success 200 {object} UserResponse
-// @Router /admin/api/users/unlock [post]
+// @Router /admin/api/users/{id}/unlock [post]
 func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
-		return
-	}
-	id := r.URL.Query().Get("id")
+	id := r.PathValue("id")
 	if id == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
@@ -200,41 +212,4 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
-}
-
-// HandleUserAdminEndpoint is the combined handler for /admin/api/users
-// Routes requests based on HTTP method
-// @Summary User administration
-// @Description GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.
-// @Tags users-admin
-// @Accept json
-// @Produce json
-// @Param id query string false "User ID (required for GET/PUT/DELETE single)"
-// @Param user body UserCreateRequest false "User creation/update payload"
-// @Security BearerAuth
-// @Success 200 {object} UserResponse "Single user (GET/PUT)"
-// @Success 200 {array} UserResponse "List of users (GET)"
-// @Success 201 {object} UserResponse "Created user (POST)"
-// @Router /admin/api/users [get]
-// @Router /admin/api/users [post]
-// @Router /admin/api/users [put]
-// @Router /admin/api/users [delete]
-func HandleUserAdminEndpoint(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		id := r.URL.Query().Get("id")
-		if id != "" {
-			HandleGetUser(w, r)
-		} else {
-			HandleListUsers(w, r)
-		}
-	case http.MethodPost:
-		HandleCreateUser(w, r)
-	case http.MethodPut:
-		HandleUpdateUser(w, r)
-	case http.MethodDelete:
-		HandleDeleteUser(w, r)
-	default:
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-	}
 }

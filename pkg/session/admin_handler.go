@@ -6,31 +6,16 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleSessionAdminEndpoint is the combined handler for /admin/api/sessions
-// @Summary Session administration
-// @Description GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.
+// HandleListSessions godoc
+// @Summary List sessions
+// @Description Lists all active sessions, optionally filtered by user ID.
 // @Tags sessions-admin
-// @Accept json
 // @Produce json
-// @Param user_id query string false "Filter sessions by User ID (GET)"
-// @Param id query string false "Session ID to deactivate (DELETE)"
+// @Param user_id query string false "Filter by User ID"
 // @Security BearerAuth
-// @Success 200 {array} SessionResponse "List of sessions (GET)"
-// @Success 200 {object} map[string]string "Deactivation result (DELETE)"
+// @Success 200 {array} SessionResponse
 // @Router /admin/api/sessions [get]
-// @Router /admin/api/sessions [delete]
-func HandleSessionAdminEndpoint(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		handleListSessions(w, r)
-	case http.MethodDelete:
-		handleDeactivateSession(w, r)
-	default:
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-	}
-}
-
-func handleListSessions(w http.ResponseWriter, r *http.Request) {
+func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 
 	var (
@@ -57,8 +42,16 @@ func handleListSessions(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
-func handleDeactivateSession(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+// HandleDeactivateSession godoc
+// @Summary Deactivate a session
+// @Tags sessions-admin
+// @Produce json
+// @Param id path string true "Session ID"
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Router /admin/api/sessions/{id} [delete]
+func HandleDeactivateSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	if id == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing session id")
 		return

@@ -63,10 +63,12 @@ const docTemplate = `{
         },
         "/admin/api/clients": {
             "get": {
-                "description": "Lists all registered clients (admin only)",
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "Lists all registered clients (admin only)",
                 "produces": [
                     "application/json"
                 ],
@@ -93,6 +95,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Registers a new OAuth2/OIDC client (admin only)",
                 "consumes": [
                     "application/json"
@@ -128,12 +135,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.AuthErrorResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/model.AuthErrorResponse"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -145,10 +146,12 @@ const docTemplate = `{
         },
         "/admin/api/clients/{client_id}": {
             "get": {
-                "description": "Retrieves information about a registered client (admin only)",
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "Retrieves information about a registered client (admin only)",
                 "produces": [
                     "application/json"
                 ],
@@ -181,6 +184,11 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Updates a registered client (admin only)",
                 "consumes": [
                     "application/json"
@@ -232,13 +240,12 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Deactivates (soft deletes) a registered client (admin only)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
                     "client"
                 ],
@@ -265,22 +272,189 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/api/onboarding": {
+        "/admin/api/federation": {
             "get": {
-                "description": "Returns whether the system has been initialized with an admin account and the current OAuth path.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "onboarding"
+                    "federation-admin"
                 ],
-                "summary": "Check onboarding status",
+                "summary": "List federation providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/federation.ProviderResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "federation-admin"
+                ],
+                "summary": "Create a federation provider",
+                "parameters": [
+                    {
+                        "description": "Provider request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/federation.FederationProviderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/federation/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "federation-admin"
+                ],
+                "summary": "Get a federation provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/federation.ProviderResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "federation-admin"
+                ],
+                "summary": "Update a federation provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Provider request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/federation.FederationProviderRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "federation-admin"
+                ],
+                "summary": "Delete a federation provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }
@@ -293,77 +467,61 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Lists all active sessions, optionally filtered by user ID.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "sessions-admin"
                 ],
-                "summary": "Session administration",
+                "summary": "List sessions",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter sessions by User ID (GET)",
+                        "description": "Filter by User ID",
                         "name": "user_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Session ID to deactivate (DELETE)",
-                        "name": "id",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Deactivation result (DELETE)",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/session.SessionResponse"
                             }
                         }
                     }
                 }
-            },
+            }
+        },
+        "/admin/api/sessions/{id}": {
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: List all active sessions or filter by user ID. DELETE: Deactivate a specific session.",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "sessions-admin"
                 ],
-                "summary": "Session administration",
+                "summary": "Deactivate a session",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter sessions by User ID (GET)",
-                        "name": "user_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Session ID to deactivate (DELETE)",
+                        "description": "Session ID",
                         "name": "id",
-                        "in": "query"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Deactivation result (DELETE)",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -381,29 +539,23 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: Retrieve all system settings (except sensitive values). PUT: Update multiple settings.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Retrieve all system settings (except sensitive values).",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin"
                 ],
-                "summary": "System settings",
+                "summary": "Get system settings",
                 "responses": {
                     "200": {
-                        "description": "All settings (GET)",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
                         }
-                    },
-                    "204": {
-                        "description": "Settings updated (PUT)"
                     }
                 }
             },
@@ -413,29 +565,29 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: Retrieve all system settings (except sensitive values). PUT: Update multiple settings.",
+                "description": "Update multiple settings by key-value pairs.",
                 "consumes": [
-                    "application/json"
-                ],
-                "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin"
                 ],
-                "summary": "System settings",
+                "summary": "Update system settings",
                 "responses": {
-                    "200": {
-                        "description": "All settings (GET)",
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     },
-                    "204": {
-                        "description": "Settings updated (PUT)"
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
                     }
                 }
             }
@@ -472,7 +624,38 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "List all users",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/user.UserResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Registers a new user in the system (admin only)",
                 "consumes": [
                     "application/json"
                 ],
@@ -482,37 +665,80 @@ const docTemplate = `{
                 "tags": [
                     "users-admin"
                 ],
-                "summary": "User administration",
+                "summary": "Create a new user",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "User ID (required for GET/PUT/DELETE single)",
-                        "name": "id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "User creation/update payload",
+                        "description": "User creation payload",
                         "name": "user",
                         "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/user.UserCreateRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "List of users (GET)",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/user.UserResponse"
-                            }
-                        }
-                    },
                     "201": {
-                        "description": "Created user (POST)",
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/user.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "Get a user by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }
@@ -523,7 +749,6 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -533,88 +758,42 @@ const docTemplate = `{
                 "tags": [
                     "users-admin"
                 ],
-                "summary": "User administration",
+                "summary": "Update a user",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "description": "User ID",
                         "name": "id",
-                        "in": "query"
+                        "in": "path",
+                        "required": true
                     },
                     {
-                        "description": "User creation/update payload",
+                        "description": "User update payload",
                         "name": "user",
                         "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UserCreateRequest"
+                            "$ref": "#/definitions/user.UserUpdateRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of users (GET)",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/user.UserResponse"
-                            }
-                        }
-                    },
-                    "201": {
-                        "description": "Created user (POST)",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/user.UserResponse"
                         }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users-admin"
-                ],
-                "summary": "User administration",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID (required for GET/PUT/DELETE single)",
-                        "name": "id",
-                        "in": "query"
                     },
-                    {
-                        "description": "User creation/update payload",
-                        "name": "user",
-                        "in": "body",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/user.UserCreateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of users (GET)",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/user.UserResponse"
-                            }
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     },
-                    "201": {
-                        "description": "Created user (POST)",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }
@@ -625,63 +804,55 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "GET: List users or get user by ID. POST: Create user. PUT: Update user. DELETE: Soft-delete user.",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "users-admin"
                 ],
-                "summary": "User administration",
+                "summary": "Delete a user",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID (required for GET/PUT/DELETE single)",
+                        "description": "User ID",
                         "name": "id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "User creation/update payload",
-                        "name": "user",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/user.UserCreateRequest"
-                        }
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of users (GET)",
+                        "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/user.UserResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
-                    "201": {
-                        "description": "Created user (POST)",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }
             }
         },
-        "/admin/api/users/unlock": {
+        "/admin/api/users/{id}/unlock": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Resets the failed login attempts and clear the lockout time for a user.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Resets the failed login attempts and clears the lockout time for a user.",
                 "produces": [
                     "application/json"
                 ],
@@ -694,7 +865,7 @@ const docTemplate = `{
                         "type": "string",
                         "description": "User ID",
                         "name": "id",
-                        "in": "query",
+                        "in": "path",
                         "required": true
                     }
                 ],
@@ -1289,10 +1460,12 @@ const docTemplate = `{
         },
         "/oauth2/register": {
             "get": {
-                "description": "Lists all registered clients (admin only)",
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "Lists all registered clients (admin only)",
                 "produces": [
                     "application/json"
                 ],
@@ -1319,6 +1492,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Registers a new OAuth2/OIDC client (admin only)",
                 "consumes": [
                     "application/json"
@@ -1354,12 +1532,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.AuthErrorResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/model.AuthErrorResponse"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1371,10 +1543,12 @@ const docTemplate = `{
         },
         "/oauth2/register/{client_id}": {
             "get": {
-                "description": "Retrieves information about a registered client (admin only)",
-                "consumes": [
-                    "application/json"
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "Retrieves information about a registered client (admin only)",
                 "produces": [
                     "application/json"
                 ],
@@ -1407,6 +1581,11 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Updates a registered client (admin only)",
                 "consumes": [
                     "application/json"
@@ -1458,13 +1637,12 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Deactivates (soft deletes) a registered client (admin only)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
                     "client"
                 ],
@@ -1893,52 +2071,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/users/create": {
-            "post": {
-                "description": "Registers a new user in the system",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Create a new user",
-                "parameters": [
-                    {
-                        "description": "User creation payload",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.UserCreateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -2225,6 +2357,61 @@ const docTemplate = `{
                 },
                 "trust_device_expiration": {
                     "type": "string"
+                }
+            }
+        },
+        "federation.FederationProviderRequest": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "client_secret": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "icon_svg": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "federation.ProviderResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "icon_svg": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -2549,6 +2736,63 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "locked_until": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "picture": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "totp_verified": {
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "zoneinfo": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.UserUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "address_country": {
+                    "type": "string"
+                },
+                "address_locality": {
+                    "type": "string"
+                },
+                "address_postal_code": {
+                    "type": "string"
+                },
+                "address_region": {
+                    "type": "string"
+                },
+                "address_street": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "family_name": {
+                    "type": "string"
+                },
+                "given_name": {
+                    "description": "OIDC standard profile claims",
+                    "type": "string"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "locale": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 },
                 "phone_number": {

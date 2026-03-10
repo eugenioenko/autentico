@@ -12,12 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHandleSessionAdminEndpoint(t *testing.T) {
+func TestHandleListSessions(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user1")
 	testutils.InsertTestUser(t, "user2")
 
-	// Create some test sessions
 	s1 := Session{
 		ID:           "sess1",
 		UserID:       "user1",
@@ -35,10 +34,10 @@ func TestHandleSessionAdminEndpoint(t *testing.T) {
 	_ = CreateSession(s1)
 	_ = CreateSession(s2)
 
-	// Test GET /admin/api/sessions (list all)
+	// List all
 	req := httptest.NewRequest(http.MethodGet, "/admin/api/sessions", nil)
 	rr := httptest.NewRecorder()
-	HandleSessionAdminEndpoint(rr, req)
+	HandleListSessions(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp model.ApiResponse[[]SessionResponse]
@@ -46,37 +45,47 @@ func TestHandleSessionAdminEndpoint(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, resp.Data, 2)
 
-	// Test GET /admin/api/sessions?user_id=user1
+	// Filter by user_id
 	req = httptest.NewRequest(http.MethodGet, "/admin/api/sessions?user_id=user1", nil)
 	rr = httptest.NewRecorder()
-	HandleSessionAdminEndpoint(rr, req)
+	HandleListSessions(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	err = json.Unmarshal(rr.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 	assert.Len(t, resp.Data, 1)
 	assert.Equal(t, "sess1", resp.Data[0].ID)
+}
 
-	// Test DELETE /admin/api/sessions?id=sess1
-	req = httptest.NewRequest(http.MethodDelete, "/admin/api/sessions?id=sess1", nil)
-	rr = httptest.NewRecorder()
-	HandleSessionAdminEndpoint(rr, req)
+func TestHandleDeactivateSession(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user1")
+
+	s := Session{
+		ID:           "sess1",
+		UserID:       "user1",
+		AccessToken:  "at1",
+		RefreshToken: "rt1",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}
+	_ = CreateSession(s)
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/api/sessions/sess1", nil)
+	req.SetPathValue("id", "sess1")
+	rr := httptest.NewRecorder()
+	HandleDeactivateSession(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
-	// Verify deactivated
-	s, _ := SessionByID("sess1")
-	assert.NotNil(t, s.DeactivatedAt)
 
-	// Test DELETE without id
-	req = httptest.NewRequest(http.MethodDelete, "/admin/api/sessions", nil)
-	rr = httptest.NewRecorder()
-	HandleSessionAdminEndpoint(rr, req)
+	sess, _ := SessionByID("sess1")
+	assert.NotNil(t, sess.DeactivatedAt)
+}
+
+func TestHandleDeactivateSession_MissingID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/api/sessions/", nil)
+	rr := httptest.NewRecorder()
+	HandleDeactivateSession(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
-	// Test invalid method
-	req = httptest.NewRequest(http.MethodPost, "/admin/api/sessions", nil)
-	rr = httptest.NewRecorder()
-	HandleSessionAdminEndpoint(rr, req)
-	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
