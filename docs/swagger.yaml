@@ -190,6 +190,42 @@ definitions:
       trust_device_expiration:
         type: string
     type: object
+  federation.FederationProviderRequest:
+    properties:
+      client_id:
+        type: string
+      client_secret:
+        type: string
+      enabled:
+        type: boolean
+      icon_svg:
+        type: string
+      id:
+        type: string
+      issuer:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  federation.ProviderResponse:
+    properties:
+      client_id:
+        type: string
+      enabled:
+        type: boolean
+      icon_svg:
+        type: string
+      id:
+        type: string
+      issuer:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
   health.HealthResponse:
     properties:
       database:
@@ -421,6 +457,44 @@ definitions:
       zoneinfo:
         type: string
     type: object
+  user.UserUpdateRequest:
+    properties:
+      address_country:
+        type: string
+      address_locality:
+        type: string
+      address_postal_code:
+        type: string
+      address_region:
+        type: string
+      address_street:
+        type: string
+      email:
+        type: string
+      family_name:
+        type: string
+      given_name:
+        description: OIDC standard profile claims
+        type: string
+      is_email_verified:
+        type: boolean
+      locale:
+        type: string
+      password:
+        type: string
+      phone_number:
+        type: string
+      picture:
+        type: string
+      role:
+        type: string
+      totp_verified:
+        type: boolean
+      username:
+        type: string
+      zoneinfo:
+        type: string
+    type: object
 host: localhost:9999
 info:
   contact: {}
@@ -460,8 +534,6 @@ paths:
       - Well-Known
   /admin/api/clients:
     get:
-      consumes:
-      - application/json
       description: Lists all registered clients (admin only)
       produces:
       - application/json
@@ -476,6 +548,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List all clients
       tags:
       - client
@@ -501,21 +575,17 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/model.AuthErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Register a new OAuth2 client
       tags:
       - client
   /admin/api/clients/{client_id}:
     delete:
-      consumes:
-      - application/json
       description: Deactivates (soft deletes) a registered client (admin only)
       parameters:
       - description: Client ID
@@ -523,8 +593,6 @@ paths:
         name: client_id
         required: true
         type: string
-      produces:
-      - application/json
       responses:
         "204":
           description: No Content
@@ -532,12 +600,12 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Deactivate a client
       tags:
       - client
     get:
-      consumes:
-      - application/json
       description: Retrieves information about a registered client (admin only)
       parameters:
       - description: Client ID
@@ -556,6 +624,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get client information
       tags:
       - client
@@ -590,122 +660,206 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update client information
       tags:
       - client
-  /admin/api/onboarding:
+  /admin/api/federation:
     get:
-      description: Returns whether the system has been initialized with an admin account
-        and the current OAuth path.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
-      summary: Check onboarding status
+            items:
+              $ref: '#/definitions/federation.ProviderResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List federation providers
       tags:
-      - onboarding
-  /admin/api/sessions:
-    delete:
+      - federation-admin
+    post:
       consumes:
       - application/json
-      description: 'GET: List all active sessions or filter by user ID. DELETE: Deactivate
-        a specific session.'
       parameters:
-      - description: Filter sessions by User ID (GET)
-        in: query
-        name: user_id
-        type: string
-      - description: Session ID to deactivate (DELETE)
-        in: query
-        name: id
-        type: string
+      - description: Provider request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/federation.FederationProviderRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: Deactivation result (DELETE)
+        "201":
+          description: Created
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Session administration
+      summary: Create a federation provider
+      tags:
+      - federation-admin
+  /admin/api/federation/{id}:
+    delete:
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Delete a federation provider
+      tags:
+      - federation-admin
+    get:
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/federation.ProviderResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Get a federation provider
+      tags:
+      - federation-admin
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Provider request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/federation.FederationProviderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Update a federation provider
+      tags:
+      - federation-admin
+  /admin/api/sessions:
+    get:
+      description: Lists all active sessions, optionally filtered by user ID.
+      parameters:
+      - description: Filter by User ID
+        in: query
+        name: user_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/session.SessionResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List sessions
       tags:
       - sessions-admin
-    get:
-      consumes:
-      - application/json
-      description: 'GET: List all active sessions or filter by user ID. DELETE: Deactivate
-        a specific session.'
+  /admin/api/sessions/{id}:
+    delete:
       parameters:
-      - description: Filter sessions by User ID (GET)
-        in: query
-        name: user_id
-        type: string
-      - description: Session ID to deactivate (DELETE)
-        in: query
+      - description: Session ID
+        in: path
         name: id
+        required: true
         type: string
       produces:
       - application/json
       responses:
         "200":
-          description: Deactivation result (DELETE)
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - BearerAuth: []
-      summary: Session administration
+      summary: Deactivate a session
       tags:
       - sessions-admin
   /admin/api/settings:
     get:
-      consumes:
-      - application/json
-      description: 'GET: Retrieve all system settings (except sensitive values). PUT:
-        Update multiple settings.'
+      description: Retrieve all system settings (except sensitive values).
       produces:
       - application/json
       responses:
         "200":
-          description: All settings (GET)
+          description: OK
           schema:
             additionalProperties:
               type: string
             type: object
-        "204":
-          description: Settings updated (PUT)
       security:
       - BearerAuth: []
-      summary: System settings
+      summary: Get system settings
       tags:
       - admin
     put:
       consumes:
       - application/json
-      description: 'GET: Retrieve all system settings (except sensitive values). PUT:
-        Update multiple settings.'
-      produces:
-      - application/json
+      description: Update multiple settings by key-value pairs.
       responses:
-        "200":
-          description: All settings (GET)
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "204":
-          description: Settings updated (PUT)
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
       security:
       - BearerAuth: []
-      summary: System settings
+      summary: Update system settings
       tags:
       - admin
   /admin/api/stats:
@@ -724,147 +878,155 @@ paths:
       tags:
       - admin
   /admin/api/users:
-    delete:
-      consumes:
-      - application/json
-      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
-        user. DELETE: Soft-delete user.'
-      parameters:
-      - description: User ID (required for GET/PUT/DELETE single)
-        in: query
-        name: id
-        type: string
-      - description: User creation/update payload
-        in: body
-        name: user
-        schema:
-          $ref: '#/definitions/user.UserCreateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of users (GET)
-          schema:
-            items:
-              $ref: '#/definitions/user.UserResponse'
-            type: array
-        "201":
-          description: Created user (POST)
-          schema:
-            $ref: '#/definitions/user.UserResponse'
-      security:
-      - BearerAuth: []
-      summary: User administration
-      tags:
-      - users-admin
     get:
-      consumes:
-      - application/json
-      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
-        user. DELETE: Soft-delete user.'
-      parameters:
-      - description: User ID (required for GET/PUT/DELETE single)
-        in: query
-        name: id
-        type: string
-      - description: User creation/update payload
-        in: body
-        name: user
-        schema:
-          $ref: '#/definitions/user.UserCreateRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: List of users (GET)
+          description: OK
           schema:
             items:
               $ref: '#/definitions/user.UserResponse'
             type: array
-        "201":
-          description: Created user (POST)
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/user.UserResponse'
+            $ref: '#/definitions/model.ApiError'
       security:
       - BearerAuth: []
-      summary: User administration
+      summary: List all users
       tags:
       - users-admin
     post:
       consumes:
       - application/json
-      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
-        user. DELETE: Soft-delete user.'
+      description: Registers a new user in the system (admin only)
       parameters:
-      - description: User ID (required for GET/PUT/DELETE single)
-        in: query
-        name: id
-        type: string
-      - description: User creation/update payload
+      - description: User creation payload
         in: body
         name: user
+        required: true
         schema:
           $ref: '#/definitions/user.UserCreateRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: List of users (GET)
-          schema:
-            items:
-              $ref: '#/definitions/user.UserResponse'
-            type: array
         "201":
-          description: Created user (POST)
+          description: Created
           schema:
             $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
       security:
       - BearerAuth: []
-      summary: User administration
+      summary: Create a new user
+      tags:
+      - users-admin
+  /admin/api/users/{id}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - users-admin
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Get a user by ID
       tags:
       - users-admin
     put:
       consumes:
       - application/json
-      description: 'GET: List users or get user by ID. POST: Create user. PUT: Update
-        user. DELETE: Soft-delete user.'
       parameters:
-      - description: User ID (required for GET/PUT/DELETE single)
-        in: query
+      - description: User ID
+        in: path
         name: id
+        required: true
         type: string
-      - description: User creation/update payload
+      - description: User update payload
         in: body
         name: user
+        required: true
         schema:
-          $ref: '#/definitions/user.UserCreateRequest'
+          $ref: '#/definitions/user.UserUpdateRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: List of users (GET)
-          schema:
-            items:
-              $ref: '#/definitions/user.UserResponse'
-            type: array
-        "201":
-          description: Created user (POST)
+          description: OK
           schema:
             $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
       security:
       - BearerAuth: []
-      summary: User administration
+      summary: Update a user
       tags:
       - users-admin
-  /admin/api/users/unlock:
+  /admin/api/users/{id}/unlock:
     post:
-      consumes:
-      - application/json
-      description: Resets the failed login attempts and clear the lockout time for
+      description: Resets the failed login attempts and clears the lockout time for
         a user.
       parameters:
       - description: User ID
-        in: query
+        in: path
         name: id
         required: true
         type: string
@@ -1275,8 +1437,6 @@ paths:
       - passkey
   /oauth2/register:
     get:
-      consumes:
-      - application/json
       description: Lists all registered clients (admin only)
       produces:
       - application/json
@@ -1291,6 +1451,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: List all clients
       tags:
       - client
@@ -1316,21 +1478,17 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/model.AuthErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Register a new OAuth2 client
       tags:
       - client
   /oauth2/register/{client_id}:
     delete:
-      consumes:
-      - application/json
       description: Deactivates (soft deletes) a registered client (admin only)
       parameters:
       - description: Client ID
@@ -1338,8 +1496,6 @@ paths:
         name: client_id
         required: true
         type: string
-      produces:
-      - application/json
       responses:
         "204":
           description: No Content
@@ -1347,12 +1503,12 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Deactivate a client
       tags:
       - client
     get:
-      consumes:
-      - application/json
       description: Retrieves information about a registered client (admin only)
       parameters:
       - description: Client ID
@@ -1371,6 +1527,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get client information
       tags:
       - client
@@ -1405,6 +1563,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update client information
       tags:
       - client
@@ -1678,36 +1838,6 @@ paths:
       summary: Initial admin setup
       tags:
       - onboarding
-  /users/create:
-    post:
-      consumes:
-      - application/json
-      description: Registers a new user in the system
-      parameters:
-      - description: User creation payload
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/user.UserCreateRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/user.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/model.ApiError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.ApiError'
-      summary: Create a new user
-      tags:
-      - users
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and then your access token.

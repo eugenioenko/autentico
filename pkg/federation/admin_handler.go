@@ -3,66 +3,27 @@ package federation
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleAdminFederationEndpoint routes admin CRUD requests for federation providers.
-func HandleAdminFederationEndpoint(w http.ResponseWriter, r *http.Request) {
-	providerID := extractProviderIDFromPath(r.URL.Path)
-
-	if providerID == "" {
-		switch r.Method {
-		case http.MethodGet:
-			handleListProviders(w, r)
-		case http.MethodPost:
-			handleCreateProvider(w, r)
-		default:
-			utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-		}
-	} else {
-		switch r.Method {
-		case http.MethodGet:
-			handleGetProvider(w, r, providerID)
-		case http.MethodPut:
-			handleUpdateProvider(w, r, providerID)
-		case http.MethodDelete:
-			handleDeleteProvider(w, r, providerID)
-		default:
-			utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-		}
-	}
-}
-
-func handleListProviders(w http.ResponseWriter, r *http.Request) {
+// HandleListProviders godoc
+// @Summary List federation providers
+// @Tags federation-admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} ProviderResponse
+// @Router /admin/api/federation [get]
+func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 	providers, err := ListFederationProviders()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	type ProviderResponse struct {
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		Issuer    string `json:"issuer"`
-		ClientID  string `json:"client_id"`
-		IconSVG   string `json:"icon_svg"`
-		Enabled   bool   `json:"enabled"`
-		SortOrder int    `json:"sort_order"`
-	}
-
 	var response []ProviderResponse
 	for _, p := range providers {
-		response = append(response, ProviderResponse{
-			ID:        p.ID,
-			Name:      p.Name,
-			Issuer:    p.Issuer,
-			ClientID:  p.ClientID,
-			IconSVG:   p.IconSVG.String,
-			Enabled:   p.Enabled,
-			SortOrder: p.SortOrder,
-		})
+		response = append(response, toProviderResponse(*p))
 	}
 	if response == nil {
 		response = []ProviderResponse{}
@@ -71,35 +32,16 @@ func handleListProviders(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, response, http.StatusOK)
 }
 
-func handleGetProvider(w http.ResponseWriter, r *http.Request, id string) {
-	p, err := FederationProviderByID(id)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
-		return
-	}
-
-	type ProviderResponse struct {
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		Issuer    string `json:"issuer"`
-		ClientID  string `json:"client_id"`
-		IconSVG   string `json:"icon_svg"`
-		Enabled   bool   `json:"enabled"`
-		SortOrder int    `json:"sort_order"`
-	}
-
-	utils.WriteApiResponse(w, ProviderResponse{
-		ID:        p.ID,
-		Name:      p.Name,
-		Issuer:    p.Issuer,
-		ClientID:  p.ClientID,
-		IconSVG:   p.IconSVG.String,
-		Enabled:   p.Enabled,
-		SortOrder: p.SortOrder,
-	}, http.StatusOK)
-}
-
-func handleCreateProvider(w http.ResponseWriter, r *http.Request) {
+// HandleCreateProvider godoc
+// @Summary Create a federation provider
+// @Tags federation-admin
+// @Accept json
+// @Produce json
+// @Param request body FederationProviderRequest true "Provider request"
+// @Security BearerAuth
+// @Success 201 {object} map[string]string
+// @Router /admin/api/federation [post]
+func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	var req FederationProviderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
@@ -138,7 +80,38 @@ func handleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, map[string]string{"status": "created"}, http.StatusCreated)
 }
 
-func handleUpdateProvider(w http.ResponseWriter, r *http.Request, id string) {
+// HandleGetProvider godoc
+// @Summary Get a federation provider
+// @Tags federation-admin
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Security BearerAuth
+// @Success 200 {object} ProviderResponse
+// @Failure 404 {object} model.ApiError
+// @Router /admin/api/federation/{id} [get]
+func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	p, err := FederationProviderByID(id)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
+		return
+	}
+	utils.WriteApiResponse(w, toProviderResponse(*p), http.StatusOK)
+}
+
+// HandleUpdateProvider godoc
+// @Summary Update a federation provider
+// @Tags federation-admin
+// @Accept json
+// @Produce json
+// @Param id path string true "Provider ID"
+// @Param request body FederationProviderRequest true "Provider request"
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Failure 404 {object} model.ApiError
+// @Router /admin/api/federation/{id} [put]
+func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	if _, err := FederationProviderByID(id); err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
 		return
@@ -168,7 +141,16 @@ func handleUpdateProvider(w http.ResponseWriter, r *http.Request, id string) {
 	utils.WriteApiResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
 }
 
-func handleDeleteProvider(w http.ResponseWriter, r *http.Request, id string) {
+// HandleDeleteProvider godoc
+// @Summary Delete a federation provider
+// @Tags federation-admin
+// @Param id path string true "Provider ID"
+// @Security BearerAuth
+// @Success 204
+// @Failure 404 {object} model.ApiError
+// @Router /admin/api/federation/{id} [delete]
+func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	if _, err := FederationProviderByID(id); err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
 		return
@@ -182,17 +164,25 @@ func handleDeleteProvider(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// extractProviderIDFromPath extracts the provider ID from paths like /admin/api/federation/{id}
-func extractProviderIDFromPath(path string) string {
-	path = strings.TrimSuffix(path, "/")
-	if strings.HasSuffix(path, "/federation") {
-		return ""
+// ProviderResponse is the shared response shape for federation provider endpoints.
+type ProviderResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Issuer    string `json:"issuer"`
+	ClientID  string `json:"client_id"`
+	IconSVG   string `json:"icon_svg"`
+	Enabled   bool   `json:"enabled"`
+	SortOrder int    `json:"sort_order"`
+}
+
+func toProviderResponse(p FederationProvider) ProviderResponse {
+	return ProviderResponse{
+		ID:        p.ID,
+		Name:      p.Name,
+		Issuer:    p.Issuer,
+		ClientID:  p.ClientID,
+		IconSVG:   p.IconSVG.String,
+		Enabled:   p.Enabled,
+		SortOrder: p.SortOrder,
 	}
-	parts := strings.Split(path, "/")
-	for i, p := range parts {
-		if p == "federation" && i+1 < len(parts) {
-			return parts[i+1]
-		}
-	}
-	return ""
 }

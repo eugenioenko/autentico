@@ -8,25 +8,20 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleRegister handles POST /oauth2/register - creates a new client
+// HandleRegister handles POST /oauth2/register and POST /admin/api/clients - creates a new client
 // @Summary Register a new OAuth2 client
 // @Description Registers a new OAuth2/OIDC client (admin only)
 // @Tags client
 // @Accept json
 // @Produce json
 // @Param request body ClientCreateRequest true "Client registration request"
+// @Security BearerAuth
 // @Success 201 {object} ClientResponse
 // @Failure 400 {object} model.AuthErrorResponse
-// @Failure 401 {object} model.AuthErrorResponse
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /oauth2/register [post]
 // @Router /admin/api/clients [post]
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
-		return
-	}
-
 	var request ClientCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
@@ -58,24 +53,19 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, response, http.StatusCreated)
 }
 
-// HandleGetClient handles GET /oauth2/register/{client_id} - gets client info
+// HandleGetClient handles GET /oauth2/register/{client_id} and GET /admin/api/clients/{client_id}
 // @Summary Get client information
 // @Description Retrieves information about a registered client (admin only)
 // @Tags client
-// @Accept json
 // @Produce json
 // @Param client_id path string true "Client ID"
+// @Security BearerAuth
 // @Success 200 {object} ClientInfoResponse
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [get]
 // @Router /admin/api/clients/{client_id} [get]
 func HandleGetClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only GET method is allowed")
-		return
-	}
-
-	clientID := extractClientIDFromPath(r.URL.Path)
+	clientID := r.PathValue("client_id")
 	if clientID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
 		return
@@ -90,7 +80,7 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, client.ToInfoResponse(), http.StatusOK)
 }
 
-// HandleUpdateClient handles PUT /oauth2/register/{client_id} - updates a client
+// HandleUpdateClient handles PUT /oauth2/register/{client_id} and PUT /admin/api/clients/{client_id}
 // @Summary Update client information
 // @Description Updates a registered client (admin only)
 // @Tags client
@@ -98,18 +88,14 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param client_id path string true "Client ID"
 // @Param request body ClientUpdateRequest true "Client update request"
+// @Security BearerAuth
 // @Success 200 {object} ClientInfoResponse
 // @Failure 400 {object} model.AuthErrorResponse
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [put]
 // @Router /admin/api/clients/{client_id} [put]
 func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only PUT method is allowed")
-		return
-	}
-
-	clientID := extractClientIDFromPath(r.URL.Path)
+	clientID := r.PathValue("client_id")
 	if clientID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
 		return
@@ -147,24 +133,18 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
 
-// HandleDeleteClient handles DELETE /oauth2/register/{client_id} - deactivates a client
+// HandleDeleteClient handles DELETE /oauth2/register/{client_id} and DELETE /admin/api/clients/{client_id}
 // @Summary Deactivate a client
 // @Description Deactivates (soft deletes) a registered client (admin only)
 // @Tags client
-// @Accept json
-// @Produce json
 // @Param client_id path string true "Client ID"
+// @Security BearerAuth
 // @Success 204 "No Content"
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [delete]
 // @Router /admin/api/clients/{client_id} [delete]
 func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only DELETE method is allowed")
-		return
-	}
-
-	clientID := extractClientIDFromPath(r.URL.Path)
+	clientID := r.PathValue("client_id")
 	if clientID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
 		return
@@ -183,22 +163,17 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleListClients handles GET /oauth2/register - lists all clients
+// HandleListClients handles GET /oauth2/register and GET /admin/api/clients - lists all clients
 // @Summary List all clients
 // @Description Lists all registered clients (admin only)
 // @Tags client
-// @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {array} ClientInfoResponse
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /oauth2/register [get]
 // @Router /admin/api/clients [get]
 func HandleListClients(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only GET method is allowed")
-		return
-	}
-
 	clients, err := ListClients()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
@@ -210,62 +185,9 @@ func HandleListClients(w http.ResponseWriter, r *http.Request) {
 		response = append(response, c.ToInfoResponse())
 	}
 
-	// Return empty array instead of null if no clients
 	if response == nil {
 		response = []*ClientInfoResponse{}
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)
-}
-
-// HandleClientEndpoint is a combined handler for /oauth2/register endpoints
-// Routes requests based on method and path
-func HandleClientEndpoint(w http.ResponseWriter, r *http.Request) {
-	// Extract client_id from path if present
-	clientID := extractClientIDFromPath(r.URL.Path)
-
-	if clientID == "" {
-		// /oauth2/register - collection operations
-		switch r.Method {
-		case http.MethodPost:
-			HandleRegister(w, r)
-		case http.MethodGet:
-			HandleListClients(w, r)
-		default:
-			utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-		}
-	} else {
-		// /oauth2/register/{client_id} - individual client operations
-		switch r.Method {
-		case http.MethodGet:
-			HandleGetClient(w, r)
-		case http.MethodPut:
-			HandleUpdateClient(w, r)
-		case http.MethodDelete:
-			HandleDeleteClient(w, r)
-		default:
-			utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-		}
-	}
-}
-
-// extractClientIDFromPath extracts the client_id from a path like /oauth2/register/{client_id}
-func extractClientIDFromPath(path string) string {
-	// Remove trailing slash if present
-	path = strings.TrimSuffix(path, "/")
-
-	// Split path and get the last segment
-	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		return ""
-	}
-
-	lastPart := parts[len(parts)-1]
-
-	// If the last part is the collection endpoint name, there's no client_id
-	if lastPart == "register" || lastPart == "clients" {
-		return ""
-	}
-
-	return lastPart
 }
