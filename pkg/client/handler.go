@@ -43,7 +43,13 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := CreateClient(request)
+	var response *ClientResponse
+	var err error
+	if request.ClientID != "" {
+		response, err = CreateClientWithID(request.ClientID, request)
+	} else {
+		response, err = CreateClient(request)
+	}
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return

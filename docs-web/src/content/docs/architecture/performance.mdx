@@ -1,0 +1,90 @@
+---
+title: Performance & Capacity
+description: Measured throughput, latency, and daily user capacity for a single Autentico instance.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico is designed for operational simplicity, not horizontal scale. This page documents what a single process, SQLite-backed instance can handle so you can make an informed decision about whether it fits your load profile.
+
+## What was measured
+
+All numbers were produced by running the full **PKCE Authorization Code flow** end to end:
+
+```
+GET  /oauth2/authorize     → renders login page, extracts CSRF token
+POST /oauth2/login         → bcrypt password verification, issues auth code
+POST /oauth2/token         → auth code exchange, issues access + refresh tokens
+POST /oauth2/introspect    → token validation
+POST /oauth2/token         → refresh token grant
+```
+
+This is the worst-case sequence for the server: every step involves a database write, and login includes bcrypt verification (~60ms on modern hardware). Tests were run with k6 using the scripts in [`stress/`](https://github.com/eugenioenko/autentico/tree/main/stress).
+
+<Aside type="note">
+  Results were measured on a developer laptop (single process, SQLite on local disk). Server hardware with faster disk I/O and more CPU cores will produce better numbers. The important data points are the shape of the degradation curve and the failure mode, not the absolute millisecond values.
+</Aside>
+
+## Results
+
+| Concurrent logins | Error rate | Login p95 | Token p95 | Introspect p95 | Assessment |
+|-------------------|------------|-----------|-----------|----------------|------------|
+| 20 VUs | 0% | 86ms | 54ms | 17ms | **Comfortable** |
+| 100 VUs | 0% | 611ms | 647ms | 271ms | **Supported** |
+| 500 VUs | 0% | 3.36s | 3.89s | 1.60s | **Degraded** |
+
+"Concurrent logins" means users who have submitted their password and are waiting for a response at the same moment — the peak of simultaneous bcrypt + SQLite write load.
+
+## The bottleneck
+
+Two things serialize under load:
+
+1. **bcrypt** — password hashing is intentionally slow (~60ms per operation). At 100 concurrent users, logins queue behind each other, pushing median login time to ~275ms.
+2. **SQLite single-writer lock** — all write operations (login, token issuance, refresh) go through one connection. Under high concurrency, write operations queue behind the lock. SQLite's busy timeout absorbs this gracefully — requests wait rather than fail.
+
+The failure mode is **graceful degradation**: latency climbs, but error rates remain zero. No `SQLITE_BUSY` errors were observed at any concurrency level tested, up to 500 concurrent users.
+
+Read-heavy operations (introspect, OIDC discovery, JWKS) are largely unaffected because SQLite allows concurrent reads.
+
+## Daily active users
+
+"Concurrent logins" translates to daily users through login distribution patterns. For enterprise deployments, 60–70% of logins cluster in the first 15–30 minutes of the workday.
+
+| Daily active users | Peak concurrent logins | Expected experience |
+|--------------------|----------------------|---------------------|
+| Up to ~10,000 | ~15–30 | Sub-100ms login, imperceptible |
+| Up to ~20,000 | ~60–80 | Under 500ms, comfortable |
+| Up to ~50,000 | ~150–200 | 1–2s login at peak, noticeable |
+| Beyond 50,000 | 200+ | 3s+ login at peak, consider scaling |
+
+<Aside type="tip">
+  SSO sessions mean most users skip the login page entirely on return visits. Once a user has an active IdP session, they authenticate silently — they don't touch bcrypt or issue a new auth code. The concurrent login ceiling applies only to users actively entering credentials for the first time (or after session expiry).
+</Aside>
+
+For consumer apps with global users spread across timezones, the peak is flatter and the same server can comfortably serve more daily users than the enterprise estimates above.
+
+## Recommended production ceiling
+
+**100 concurrent logins** — all requests succeed, login p95 stays under 700ms. This corresponds to roughly **10,000–20,000 daily active users** under a concentrated enterprise login pattern.
+
+If your peak load exceeds this, options are:
+
+- **Reduce bcrypt cost factor** — lowering it from 12 to 10 roughly halves login time at the cost of slightly reduced brute-force resistance
+- **Enable WAL mode** on SQLite — improves concurrent read/write throughput (not currently the default)
+- **Sticky-session load balancer** — multiple Autentico instances, each with its own SQLite file; the load balancer routes each user to the same instance for the duration of their session
+- **Replace the persistence layer** — the `pkg/db` boundary is the correct migration point if you genuinely need horizontal write scaling
+
+## Reproducing these numbers
+
+```bash
+# Start server with rate limiting disabled
+make stress-server
+
+# Run the full suite
+make stress-smoke    USERNAME=admin PASSWORD=yourpassword
+make stress-load     USERNAME=admin PASSWORD=yourpassword
+make stress-spike    USERNAME=admin PASSWORD=yourpassword
+make stress-ceiling  USERNAME=admin PASSWORD=yourpassword
+```
+
+See [`stress/README.md`](https://github.com/eugenioenko/autentico/blob/main/stress/README.md) for prerequisites, client setup, and full configuration options.
