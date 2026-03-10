@@ -22,6 +22,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
@@ -76,6 +77,7 @@ func RunStart(_ *cli.Context) error {
 	limiterStore := ratelimit.NewStore(bs.RateLimitRPS, bs.RateLimitBurst, bs.RateLimitRPM, bs.RateLimitRPMBurst)
 	rateLimited := middleware.RateLimitMiddleware(limiterStore)
 
+	mux.HandleFunc("/healthz", health.HandleHealth)
 	mux.HandleFunc("/user", user.HandleCreateUser)
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
@@ -256,8 +258,8 @@ func validateBootstrapSecrets(bs *config.BootstrapConfig) error {
 	if bs.AuthAccessTokenSecret == "" || bs.AuthRefreshTokenSecret == "" || bs.AuthCSRFProtectionSecretKey == "" {
 		return fmt.Errorf(
 			"missing required secrets: AUTENTICO_ACCESS_TOKEN_SECRET, AUTENTICO_REFRESH_TOKEN_SECRET, " +
-				"and AUTENTICO_CSRF_SECRET_KEY must all be set.\n" +
-				"Run 'autentico init' to generate a .env file with secure values, or set them manually.",
+				"and AUTENTICO_CSRF_SECRET_KEY must all be set; " +
+				"run 'autentico init' to generate a .env file with secure values, or set them manually",
 		)
 	}
 	return nil

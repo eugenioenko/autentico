@@ -190,6 +190,13 @@ definitions:
       trust_device_expiration:
         type: string
     type: object
+  health.HealthResponse:
+    properties:
+      database:
+        type: string
+      status:
+        type: string
+    type: object
   introspect.IntrospectRequest:
     properties:
       token:
@@ -873,6 +880,24 @@ paths:
       summary: Unlock user account
       tags:
       - users-admin
+  /healthz:
+    get:
+      description: Returns the health status of the server and its dependencies. Returns
+        200 when healthy, 503 when the database is unreachable.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/health.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/health.HealthResponse'
+      summary: Health check
+      tags:
+      - Health
   /oauth2/authorize:
     get:
       consumes:
