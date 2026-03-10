@@ -173,7 +173,7 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 
 	creds, _ := PasskeyCredentialsByUserID(usr.ID)
 	if len(creds) == 0 {
-		writeJSONError(w, http.StatusBadRequest, "no passkeys registered for this user")
+		writeJSONError(w, http.StatusBadRequest, "invalid username or passkey")
 		return
 	}
 

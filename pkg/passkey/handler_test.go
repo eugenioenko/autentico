@@ -147,7 +147,7 @@ func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "no passkeys registered")
+	assert.Contains(t, resp["error"], "invalid username or passkey")
 }
 
 func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
@@ -164,7 +164,7 @@ func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "no passkeys registered")
+	assert.Contains(t, resp["error"], "invalid username or passkey")
 }
 
 func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
@@ -184,7 +184,7 @@ func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "no passkeys registered")
+	assert.Contains(t, resp["error"], "invalid username or passkey")
 }
 
 func TestHandleLoginBegin_WithCreds(t *testing.T) {

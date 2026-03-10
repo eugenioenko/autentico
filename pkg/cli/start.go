@@ -92,7 +92,7 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle(oauth+"/onboard/", middleware.CSRFMiddleware(http.HandlerFunc(onboarding.HandleOnboard)))
 	mux.Handle(oauth+"/mfa", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
 	mux.Handle(oauth+"/mfa/", rateLimited(middleware.CSRFMiddleware(http.HandlerFunc(mfa.HandleMfa))))
-	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
+	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimited(http.HandlerFunc(passkey.HandleLoginBegin)))
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimited(http.HandlerFunc(passkey.HandleLoginFinish)))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)

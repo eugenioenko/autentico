@@ -112,6 +112,8 @@ var createTableSQL = `
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		expires_at DATETIME NOT NULL,
 		used BOOLEAN DEFAULT FALSE,
+		failed_attempts INTEGER NOT NULL DEFAULT 0,
+		otp_sent_at DATETIME,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 
@@ -304,3 +306,4 @@ func CloseDB() {
 		log.Printf("Failed to close database: %v", err)
 	}
 }
+
