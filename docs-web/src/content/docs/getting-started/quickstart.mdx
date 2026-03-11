@@ -3,7 +3,7 @@ title: Quickstart
 description: Get Autentico running and serving tokens in under five minutes.
 ---
 
-import { Steps, Aside } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Autentico is a single binary. There is no database to provision, no external services to start, and no multi-step infrastructure setup. The full process is: download, generate a `.env`, start the server, and complete onboarding in the browser.
 
@@ -15,29 +15,60 @@ This guide takes you from zero to a running Autentico instance with a registered
 
    Grab the latest release for your platform from [GitHub Releases](https://github.com/eugenioenko/autentico/releases).
 
-   ```bash
-   # Linux (amd64)
-   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
-   chmod +x autentico
-   ```
+   <Tabs>
+     <TabItem label="Linux (amd64)">
+     ```bash
+     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
+     chmod +x autentico
+     ```
+     </TabItem>
+     <TabItem label="Linux (arm64)">
+     ```bash
+     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-arm64 -o autentico
+     chmod +x autentico
+     ```
+     </TabItem>
+     <TabItem label="macOS (amd64)">
+     ```bash
+     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-amd64 -o autentico
+     chmod +x autentico
+     ```
+     </TabItem>
+     <TabItem label="macOS (arm64)">
+     ```bash
+     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-arm64 -o autentico
+     chmod +x autentico
+     ```
+     </TabItem>
+     <TabItem label="Windows (amd64)">
+     ```powershell
+     Invoke-WebRequest -Uri https://github.com/eugenioenko/autentico/releases/latest/download/autentico-windows-amd64.exe -OutFile autentico.exe
+     ```
+     </TabItem>
+     <TabItem label="Windows (arm64)">
+     ```powershell
+     Invoke-WebRequest -Uri https://github.com/eugenioenko/autentico/releases/latest/download/autentico-windows-arm64.exe -OutFile autentico.exe
+     ```
+     </TabItem>
+   </Tabs>
 
 2. **Generate your configuration**
 
-   ```bash
-   ./autentico init --url https://auth.example.com
-   ```
+   <Tabs>
+     <TabItem label="Development">
+     ```bash
+     ./autentico init --url http://localhost:9999
+     ```
+     </TabItem>
+     <TabItem label="Production">
+     ```bash
+     ./autentico init --url https://auth.example.com
+     ```
+     </TabItem>
+   </Tabs>
 
    This creates a `.env` file in the current directory containing a freshly generated RSA private key (base64-encoded), CSRF secret, and token signing secrets. You do not need a separate key file — everything is in `.env`.
 
-   <Aside type="tip">
-   For a local development environment, pass your localhost URL and add `--dev` to disable the `Secure` cookie flag so cookies work over plain HTTP:
-
-   ```bash
-   ./autentico init --url http://localhost:9999 --dev
-   ```
-
-   Do not use `--dev` in production.
-   </Aside>
 
 3. **Start the server**
 
@@ -65,28 +96,9 @@ This guide takes you from zero to a running Autentico instance with a registered
 
    Open `http://localhost:9999/onboard` in your browser. Fill in your administrator credentials to create the first account. Once complete, you are redirected to the Admin UI.
 
-   {/* TODO: add screenshot of onboarding page */}
+5. **Done**
 
-5. **Register your first OAuth2 client**
-
-   Log in to the Admin UI and navigate to **Clients → Create Client**, or use the API.
-
-6. **Start the authorization code flow**
-
-   Point users to the authorization endpoint:
-
-   ```
-   http://localhost:9999/oauth2/authorize
-     ?response_type=code
-     &client_id=<your_client_id>
-     &redirect_uri=http://localhost:3000/callback
-     &scope=openid profile email
-     &state=<random>
-     &code_challenge=<pkce_challenge>
-     &code_challenge_method=S256
-   ```
-
-   After the user authenticates, they are redirected back to your `redirect_uri` with an authorization code. Exchange it at `/oauth2/token`. See [Authorization Code + PKCE](/protocol/authorization-code/) for the full flow.
+   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings. When you're ready to integrate, see [Registering clients](/clients/registering/) and the [Authorization Code + PKCE](/protocol/authorization-code/) flow.
 
 </Steps>
 

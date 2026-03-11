@@ -46,3 +46,4 @@ pkg/account/dist/
 # Local environment/config
 .env
 .env.*
+autentico.db

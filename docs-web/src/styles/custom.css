@@ -11,3 +11,8 @@
 .hero .tagline {
   margin-inline: 0 !important;
 }
+
+
+.header {
+  min-height: auto;
+}

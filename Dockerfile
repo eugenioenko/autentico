@@ -26,7 +26,7 @@ RUN cd account-ui && pnpm install --frozen-lockfile
 COPY . .
 
 # Build: generates swagger docs, builds admin UI, compiles Go binary
-RUN CGO_ENABLED=0 make build
+RUN CI=true CGO_ENABLED=0 make build
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runner
