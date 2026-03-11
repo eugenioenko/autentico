@@ -42,8 +42,8 @@ Autentico includes a built-in per-IP token-bucket rate limiter on all authentica
 
 ## Network
 
-- **Firewall the admin port**: If `AUTENTICO_APP_LISTEN_PORT` is not behind a proxy, firewall it so only your proxy can reach it.
-- **CORS**: Only enable `AUTENTICO_ENABLE_CORS=true` if you have a browser SPA that needs to call token endpoints directly. Otherwise leave it off.
+- **Firewall the admin port**: If `AUTENTICO_LISTEN_PORT` is not behind a proxy, firewall it so only your proxy can reach it.
+- **CORS**: Only enable `AUTENTICO_APP_ENABLE_CORS=true` if you have a browser SPA that needs to call token endpoints directly. Otherwise leave it off.
 - **Admin API access**: The admin API (`/admin/api/*`) is bearer-token protected, but consider additionally restricting it by IP at the proxy or firewall level.
 
 ## Database

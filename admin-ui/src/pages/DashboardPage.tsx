@@ -8,9 +8,11 @@ import {
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
+import { useAuth } from "../context/AuthContext";
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useStats();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -64,19 +66,25 @@ export default function DashboardPage() {
       </Row>
 
       <Card title="Quick Actions">
-        <Space>
-          <Button
-            icon={<PlusOutlined />}
-            onClick={() => navigate("/users", { state: { create: true } })}
-          >
-            Create User
-          </Button>
-          <Button
-            icon={<PlusOutlined />}
-            onClick={() => navigate("/clients", { state: { create: true } })}
-          >
-            Create Client
-          </Button>
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Space>
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => navigate("/users", { state: { create: true } })}
+            >
+              Create User
+            </Button>
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => navigate("/clients", { state: { create: true } })}
+            >
+              Create Client
+            </Button>
+          </Space>
+          <Typography.Text type="secondary">Access token for API / Swagger:</Typography.Text>
+          <Typography.Text code copyable style={{ wordBreak: "break-all" }}>
+            {user?.access_token ?? ""}
+          </Typography.Text>
         </Space>
       </Card>
     </Space>

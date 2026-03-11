@@ -3,29 +3,13 @@ title: Binary Deployment
 description: Running Autentico as a standalone binary on Linux or macOS.
 ---
 
-import { Steps, Aside } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 
 The binary is the simplest deployment option. Autentico has no runtime dependencies beyond the binary itself — no database server to start, no cache to configure, no sidecar processes. The entire system is one executable and one SQLite file. Suitable for VMs, bare metal, or any environment where containers aren't preferred.
 
 ## Basic setup
 
-<Steps>
-1. Download the binary for your platform from the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases) and install it. See [Installation](/getting-started/installation/) for platform-specific download commands.
-
-2. Create a `.env` file with your [Bootstrap Settings](/configuration/bootstrap/):
-   ```bash
-   AUTENTICO_APP_URL=https://auth.example.com
-   AUTENTICO_DB_FILE_PATH=/var/lib/autentico/autentico.db
-   AUTENTICO_COOKIE_SECRET=<random-32+-char-string>
-   AUTENTICO_ADMIN_TOKEN=<secure-admin-token>
-   ```
-
-3. Start Autentico:
-   ```bash
-   autentico start
-   ```
-   The server reads its `.env` from the current directory, or from the path in `AUTENTICO_ENV_FILE`.
-</Steps>
+See the [Quickstart](/getting-started/quickstart/) for download, configuration, and first-run instructions.
 
 ## Running as a systemd service
 

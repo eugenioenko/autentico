@@ -22,19 +22,20 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
-Autentico is a standards-compliant OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, session management, token issuance, and administration — in a single binary backed by SQLite.
+Autentico is a self-hosted OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, session management, token issuance, and administration — in a single binary backed by SQLite.
 
-There is no external database to provision, no connection pool to tune, and no infrastructure to manage beyond the binary itself. You run it, point your applications at it, and it works.
-
-Identity infrastructure is usually complex to operate. A typical self-hosted setup involves a database server, a cache, multiple processes, and everything that comes with keeping them running. Autentico removes that stack. The entire IdP — authentication, token issuance, session management, and the admin UI — is one binary and one file.
+A typical self-hosted IdP involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack entirely. There is no external database to provision, no connection pool to tune, no sidecars — just one binary and one file.
 
 The simplicity is operational, not protocol-level. Autentico implements OAuth2 and OpenID Connect correctly: Authorization Code + PKCE, token introspection and revocation, OIDC Discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP. Relying parties configure themselves automatically via the standard discovery document.
 
 ## Try it live
 
-A fresh, dedicated Autentico instance is provisioned just for you—[**Launch a Live Demo →**](https://demo.autentico.top/launch)
+A fresh, dedicated Autentico instance is provisioned just for you
 
-_Each demo session provisions an isolated, ephemeral instance. All data and configuration are automatically purged after 24 hours. No shared state, no persistence, no surprises._
+[**Launch a Live Demo →**](https://demo.autentico.top/launch)
+
+_Each demo session provisions an isolated, ephemeral instance. 
+All data and configuration are automatically purged after 24 hours. No shared state, no persistence, no surprises._
 
 ## Features
 

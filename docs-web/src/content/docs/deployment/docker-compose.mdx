@@ -28,13 +28,6 @@ services:
       AUTENTICO_ACCESS_TOKEN_SECRET: changeme-generate-a-random-32-char-string
       AUTENTICO_REFRESH_TOKEN_SECRET: changeme-generate-a-random-32-char-string
 
-      # Optional: SMTP for email OTP MFA
-      # AUTENTICO_SMTP_HOST: smtp.example.com
-      # AUTENTICO_SMTP_PORT: 587
-      # AUTENTICO_SMTP_USERNAME: auth@example.com
-      # AUTENTICO_SMTP_PASSWORD: your-smtp-password
-      # AUTENTICO_SMTP_FROM: auth@example.com
-
 volumes:
   autentico-data:
 ```
@@ -74,6 +67,7 @@ Add a Caddy service to the same compose file:
       - autentico
 
 volumes:
+  autentico-data:
   caddy-data:
 ```
 

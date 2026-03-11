@@ -46,6 +46,11 @@ func main() {
 				Usage:  "Start the HTTP server",
 				Action: appCli.RunStart,
 			},
+			{
+				Name:   "version",
+				Usage:  "Print the version and exit",
+				Action: appCli.RunVersion,
+			},
 		},
 	}
 

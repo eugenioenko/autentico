@@ -197,7 +197,7 @@ func RunStart(_ *cli.Context) error {
 
 	baseURL := bs.AppURL
 	fmt.Println()
-	fmt.Println("  Autentico OIDC Identity Provider")
+	fmt.Printf("  Autentico OIDC Identity Provider %s\n", Version)
 	fmt.Println()
 
 	if !appsettings.IsOnboarded() {
@@ -206,11 +206,13 @@ func RunStart(_ *cli.Context) error {
 	}
 
 	fmt.Printf("  Server:     %s\n", baseURL)
-	fmt.Printf("  Admin UI:   %s/admin/\n", baseURL)
+	fmt.Printf("  Admin UI:   %s/admin\n", baseURL)
 	fmt.Printf("  Account UI: %s/account/\n", baseURL)
 	fmt.Println()
 	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
+	fmt.Printf("  Docs:       https://docs.autentico.top\n")
+	fmt.Println()
 	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
 	fmt.Printf("  JWKS:       %s/.well-known/jwks.json\n", baseURL)
 	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)

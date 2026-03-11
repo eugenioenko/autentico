@@ -47,18 +47,32 @@ docker pull ghcr.io/eugenioenko/autentico:latest
 Run with environment variables:
 
 ```bash
-docker run -d \
+docker run \
   --name autentico \
   -p 9999:9999 \
-  -v /data/autentico:/data \
-  -e AUTENTICO_APP_URL=https://auth.example.com \
+  -v autentico-data:/data \
+  -e AUTENTICO_APP_URL=http://localhost:9999\
+  -e AUTENTICO_LISTEN_PORT=9999 \
   -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
-  -e AUTENTICO_COOKIE_SECRET=changeme-at-least-32-chars \
-  -e AUTENTICO_ADMIN_TOKEN=your-secure-admin-token \
+  -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \
+  -e AUTENTICO_CSRF_SECRET_KEY=changeme-at-least-32-chars \
+  -e AUTENTICO_ACCESS_TOKEN_SECRET=changeme-at-least-32-chars \
+  -e AUTENTICO_REFRESH_TOKEN_SECRET=changeme-at-least-32-chars \
   ghcr.io/eugenioenko/autentico:latest
 ```
 
 See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
+
+:::tip[URL mismatch after restart]
+If you restart the container with a different `AUTENTICO_APP_URL` or port, the persisted database still has the admin UI OAuth2 client registered with the old callback URL. Login will fail with a "Redirect URI not allowed" error.
+
+To fix it, delete the volume and start fresh (this wipes all data):
+```bash
+docker stop autentico && docker rm autentico
+docker volume rm autentico-data
+```
+Then re-run with the new URL. This applies to local testing only — in production, `AUTENTICO_APP_URL` should be stable and the client redirect URIs are updated automatically on restart.
+:::
 
 </TabItem>
 <TabItem label="Docker Compose">
@@ -80,7 +94,6 @@ Requires Go 1.22 or later.
 2. Build the binary:
    ```bash
    make build
-   # or: go build -o autentico main.go
    ```
 
 3. The compiled binary is at `./autentico`. Follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
@@ -97,6 +110,7 @@ Requires Go 1.22 or later.
 | `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
 | `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies. Use this for local HTTP development only — never in production. |
 | `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
+| `autentico version` | Print the current version and exit. |
 
 ## Next steps
 
