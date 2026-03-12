@@ -2,11 +2,12 @@ import React from 'react';
 import { cn } from '../lib/utils';
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
 };
 
 const variants = {
   primary: 'bg-zinc-900 text-white hover:bg-zinc-700 shadow-sm',
+  secondary: 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50 shadow-sm',
   danger: 'text-red-500 bg-red-50 hover:bg-red-100',
   ghost: 'text-zinc-700 hover:text-black hover:bg-zinc-100',
 };

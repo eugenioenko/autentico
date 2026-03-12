@@ -34,7 +34,7 @@ lint:
 # Generate swagger docs
 generate-docs:
 	$(SWAG) init
-	npx @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
+	npx --yes @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 
 # Build admin UI and copy to pkg/admin/dist
 admin-ui-build: generate-docs

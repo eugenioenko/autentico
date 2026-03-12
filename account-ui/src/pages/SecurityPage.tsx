@@ -5,6 +5,7 @@ import api from '../api';
 import { performPasskeyRegistration } from '../lib/passkey';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import Alert from '../components/Alert';
 import StatusDot from '../components/StatusDot';
 import TotpSetupModal from '../components/TotpSetupModal';
 
@@ -124,8 +125,8 @@ const SecurityPage: React.FC = () => {
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
-          {passwordError && <p className="text-red-600 text-sm">{passwordError}</p>}
-          {passwordSuccess && <p className="text-emerald-600 text-sm">{passwordSuccess}</p>}
+          {passwordError && <Alert type="danger" message={passwordError} />}
+          {passwordSuccess && <Alert type="success" message={passwordSuccess} />}
           <Button type="submit" disabled={isChangingPass || !currentPassword || !newPassword}>
             Update Password
           </Button>
@@ -166,7 +167,7 @@ const SecurityPage: React.FC = () => {
               value={mfaDisablePassword}
               onChange={(e) => setMfaDisablePassword(e.target.value)}
             />
-            {mfaError && <p className="text-red-600 text-sm">{mfaError}</p>}
+            {mfaError && <Alert type="danger" message={mfaError} />}
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={() => setShowMfaDisable(false)} className="flex-1">
                 Cancel
@@ -188,8 +189,8 @@ const SecurityPage: React.FC = () => {
           </Button>
         }
       >
-        {addPasskeyError && <p className="text-red-600 text-sm mb-2">{addPasskeyError}</p>}
-        {deletePasskeyError && <p className="text-red-600 text-sm mb-2">{deletePasskeyError}</p>}
+        {addPasskeyError && <Alert type="danger" message={addPasskeyError} className="mb-2" />}
+        {deletePasskeyError && <Alert type="danger" message={deletePasskeyError} className="mb-2" />}
         {passkeys && passkeys.length > 0 ? (
           <div className="divide-y divide-zinc-100 mt-1">
             {passkeys.map((pk: { id: string; name: string; created_at: string }) => (

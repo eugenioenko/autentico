@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { IconLink } from '@tabler/icons-react';
 import api from '../api';
 import Card from '../components/Card';
+import Alert from '../components/Alert';
 import Button from '../components/Button';
 
 interface ConnectedProvider {
@@ -36,7 +37,7 @@ const ConnectedProvidersPage: React.FC = () => {
       title="Connected Providers"
       description="External identity providers linked to your account."
     >
-      {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+      {error && <Alert type="danger" message={error} className="mb-3" />}
       <div className="divide-y divide-zinc-100 mt-1">
         {providers?.map((p: ConnectedProvider) => (
           <div key={p.id} className="py-4 flex items-center justify-between gap-4">
