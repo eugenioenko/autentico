@@ -135,7 +135,7 @@ func containsScope(scopeStr string, target string) bool {
 	return false
 }
 
-func SetRefreshTokenAsSecureCookie(w http.ResponseWriter, refreshToken string) {
+func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string) {
 	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
 		Name:     bs.AuthRefreshTokenCookieName,

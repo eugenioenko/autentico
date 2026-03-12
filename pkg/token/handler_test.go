@@ -36,7 +36,7 @@ func insertROPCTestClient(t *testing.T) {
 func TestHandleToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	// Create a test user and a registered client
@@ -149,7 +149,7 @@ func TestHandleToken_PasswordGrant_MissingUsername(t *testing.T) {
 func TestHandleToken_AuthorizationCodeGrant(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -362,7 +362,7 @@ func TestHandleToken_AuthorizationCodeGrant_ClientIDMismatch(t *testing.T) {
 func TestHandleToken_RefreshTokenGrant(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	// Create user and get tokens via password grant
@@ -438,7 +438,7 @@ func TestHandleToken_RefreshTokenGrant_InvalidToken(t *testing.T) {
 func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -485,7 +485,7 @@ func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 func TestHandleToken_WithSecureCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = true
+		config.Bootstrap.AuthRefreshTokenCookieOnly = true
 		config.Bootstrap.AuthRefreshTokenCookieName = "autentico_refresh_token"
 	})
 
@@ -529,7 +529,7 @@ func TestHandleToken_WithSecureCookie(t *testing.T) {
 func TestHandleToken_WithBasicAuth(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -584,7 +584,7 @@ func TestHandleToken_PasswordGrant_InvalidScope(t *testing.T) {
 func TestHandleToken_PasswordGrant_DefaultsToClientScopes(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -620,7 +620,7 @@ func TestHandleToken_PasswordGrant_DefaultsToClientScopes(t *testing.T) {
 func TestHandleToken_PasswordGrant_AllowedScope(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -656,7 +656,7 @@ func TestHandleToken_PasswordGrant_AllowedScope(t *testing.T) {
 func TestHandleToken_WithRegisteredClient_DisallowedGrantType(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -725,14 +725,14 @@ func TestValidateTokenRequestRefresh_MissingToken(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestSetRefreshTokenAsSecureCookie(t *testing.T) {
+func TestSetRefreshTokenCookie(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieName = "autentico_refresh_token"
 		config.Values.AuthRefreshTokenExpiration = 24 * time.Hour
 	})
 
 	rr := httptest.NewRecorder()
-	SetRefreshTokenAsSecureCookie(rr, "test-refresh-token")
+	SetRefreshTokenCookie(rr, "test-refresh-token")
 
 	cookies := rr.Result().Cookies()
 	var cookie *http.Cookie
@@ -794,7 +794,7 @@ func TestHandleRevoke_InvalidToken(t *testing.T) {
 func TestHandleRevoke_ValidToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -838,7 +838,7 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 		config.Values.AuthRefreshTokenExpiration = 1 * time.Second
 	})
 
@@ -885,7 +885,7 @@ func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
 func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usrResp, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -913,7 +913,7 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -958,7 +958,7 @@ func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -1001,7 +1001,7 @@ func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testi
 func TestHandleToken_PasswordGrant_ReturnsIDToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -1069,7 +1069,7 @@ func pkceS256Challenge(verifier string) string {
 func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
@@ -1183,7 +1183,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")

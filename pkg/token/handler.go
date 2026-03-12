@@ -223,9 +223,9 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		response.IDToken = idToken
 	}
 
-	// send the refresh token as secure cookie
-	if config.GetBootstrap().AuthRefreshTokenAsSecureCookie {
-		SetRefreshTokenAsSecureCookie(w, response.RefreshToken)
+	// cookie-only mode: send refresh token as HttpOnly cookie and strip from JSON response
+	if config.GetBootstrap().AuthRefreshTokenCookieOnly {
+		SetRefreshTokenCookie(w, response.RefreshToken)
 		response.RefreshToken = ""
 	}
 

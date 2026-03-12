@@ -44,7 +44,7 @@ func TestLoginWithCredentials(t *testing.T) {
 func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	insertPasswordTestClient(t)
@@ -67,7 +67,7 @@ func TestTokenEndpointWithPasswordRefreshAsJSON(t *testing.T) {
 func TestTokenEndpointWithPasswordRefreshAsCookie(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = true
+		config.Bootstrap.AuthRefreshTokenCookieOnly = true
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	insertPasswordTestClient(t)
@@ -132,7 +132,7 @@ func TestUserInfoEndpoint(t *testing.T) {
 func TestTokenEndpointRefresh(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenAsSecureCookie = false
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	insertPasswordTestClient(t)

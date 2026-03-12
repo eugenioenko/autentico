@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -25,10 +26,12 @@ func AuthAudienceMiddleware(next http.Handler) http.Handler {
 		tokenString := parts[1]
 		claims, err := jwtutil.ValidateAccessToken(tokenString)
 		if err != nil {
+			slog.Warn("auth_audience: invalid or expired token", "request_id", GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid or expired token")
 			return
 		}
 		if err := jwtutil.ValidateAudience(claims.Audience, config.Get().AuthAccessTokenAudience); err != nil {
+			slog.Warn("auth_audience: invalid token audience", "request_id", GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Invalid token audience")
 			return
 		}

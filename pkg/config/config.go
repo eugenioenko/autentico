@@ -33,8 +33,8 @@ type BootstrapConfig struct {
 	AuthCSRFProtectionSecretKey    string
 	AuthCSRFSecureCookie           bool
 	AuthJwkCertKeyID               string
-	AuthRefreshTokenCookieName     string
-	AuthRefreshTokenAsSecureCookie bool
+	AuthRefreshTokenCookieName string
+	AuthRefreshTokenCookieOnly bool
 	AuthIdpSessionCookieName       string
 	AuthIdpSessionSecureCookie     bool
 	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
@@ -170,8 +170,8 @@ var (
 		AuthCSRFProtectionSecretKey:    "",
 		AuthCSRFSecureCookie:           false,
 		AuthJwkCertKeyID:               "autentico-key-1",
-		AuthRefreshTokenCookieName:     "autentico_refresh_token",
-		AuthRefreshTokenAsSecureCookie: false,
+		AuthRefreshTokenCookieName: "autentico_refresh_token",
+		AuthRefreshTokenCookieOnly: false,
 		AuthIdpSessionCookieName:       "autentico_idp_session",
 		AuthIdpSessionSecureCookie:     false,
 		RateLimitRPS:                   5,
@@ -241,8 +241,8 @@ func InitBootstrap() {
 		AuthCSRFSecureCookie:           getEnvBool("AUTENTICO_CSRF_SECURE_COOKIE", true),
 		PrivateKeyBase64:               getEnv("AUTENTICO_PRIVATE_KEY", ""),
 		AuthJwkCertKeyID:               getEnv("AUTENTICO_JWK_CERT_KEY_ID", "autentico-key-1"),
-		AuthRefreshTokenCookieName:     getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
-		AuthRefreshTokenAsSecureCookie: getEnvBool("AUTENTICO_REFRESH_TOKEN_SECURE", true),
+		AuthRefreshTokenCookieName: getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
+		AuthRefreshTokenCookieOnly: getEnvBool("AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY", false),
 		AuthIdpSessionCookieName:       getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
 		AuthIdpSessionSecureCookie:     getEnvBool("AUTENTICO_IDP_SESSION_SECURE", true),
 		RateLimitRPS:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPS", 5),
