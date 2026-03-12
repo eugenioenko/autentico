@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 
@@ -139,13 +140,14 @@ export default function AdminLayout() {
           />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <Text>{username}</Text>
-                <Avatar 
-                  src={user?.profile?.picture} 
-                  icon={!user?.profile?.picture && <UserOutlined />} 
+              <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <Avatar
+                  src={user?.profile?.picture}
+                  icon={!user?.profile?.picture && <UserOutlined />}
                   style={{ backgroundColor: "#1677ff" }}
                 />
+                <Text>{username}</Text>
+                <DownOutlined style={{ fontSize: 11, opacity: 0.6 }} />
               </div>
             </Dropdown>
           </div>
