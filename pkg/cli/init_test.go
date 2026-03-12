@@ -39,7 +39,7 @@ func TestRunInit(t *testing.T) {
 	assert.Contains(t, sContent, "AUTENTICO_PRIVATE_KEY=")
 	// Production mode: secure cookies must be true
 	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=true")
-	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_SECURE=true")
+	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY=false")
 	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=true")
 
 	// Test re-init error
@@ -71,7 +71,7 @@ func TestRunInit_DevMode(t *testing.T) {
 	sContent := string(content)
 	// Dev mode: all secure cookie flags must be false
 	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=false")
-	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_SECURE=false")
+	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY=false")
 	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=false")
 	// Secrets must still be generated
 	assert.Contains(t, sContent, "AUTENTICO_PRIVATE_KEY=")
