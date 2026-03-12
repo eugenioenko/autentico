@@ -9,24 +9,9 @@ Each registered OAuth2 client can override a subset of the global runtime settin
 
 Unset overrides (null) fall through to the current global runtime settings. There is no need to repeat the global default — only set what differs.
 
-## Available overrides
-
-| Field | Type | Description |
-|---|---|---|
-| `access_token_expiration` | duration string | Access token lifetime for tokens issued to this client. Example: `"30m"`. |
-| `refresh_token_expiration` | duration string | Refresh token lifetime for this client. Example: `"168h"` (7 days). |
-| `authorization_code_expiration` | duration string | Auth code TTL for this client. |
-| `allowed_audiences` | string array | Additional `aud` values added to access tokens for this client. Example: `["https://api.example.com"]`. |
-| `allow_self_signup` | boolean | Override the global `allow_self_signup` setting for this client's login page. |
-| `sso_session_idle_timeout` | duration string | Override the IdP session idle timeout for sessions originating from this client. |
-| `trust_device_enabled` | boolean | Enable or disable trusted devices for users authenticating through this client. |
-| `trust_device_expiration` | duration string | Override trusted device token lifetime for this client. |
-
 ## Setting overrides
 
-**Via Admin UI**: Clients → select a client → Edit → expand the Overrides section.
-
-{/* TODO: add screenshot of client edit form showing override fields */}
+**Via Admin UI**: Clients → select a client → Edit → expand the Configuration Overrides section.
 
 **Via API** at registration:
 
@@ -61,6 +46,44 @@ curl -X PUT https://auth.example.com/oauth2/register/YOUR_CLIENT_ID \
 <Aside type="tip">
 Duration strings use Go's `time.Duration` format: `"15m"`, `"1h"`, `"720h"`, `"30s"`. A value of `"0"` disables the feature (e.g. `sso_session_idle_timeout: "0"` disables IdP sessions for that client).
 </Aside>
+
+---
+
+## Available overrides
+
+### `access_token_expiration`
+
+Access token lifetime for tokens issued to this client. Overrides the global [`access_token_expiration`](/configuration/runtime-settings/#access_token_expiration). Example: `"30m"`.
+
+### `refresh_token_expiration`
+
+Refresh token lifetime for this client. Overrides the global [`refresh_token_expiration`](/configuration/runtime-settings/#refresh_token_expiration). Example: `"168h"` (7 days).
+
+### `authorization_code_expiration`
+
+Authorization code TTL for this client. Overrides the global [`authorization_code_expiration`](/configuration/runtime-settings/#authorization_code_expiration).
+
+### `allowed_audiences`
+
+String array of additional `aud` values added to access tokens for this client. Example: `["https://api.example.com"]`. When set, takes precedence over the global `access_token_audience` setting.
+
+### `allow_self_signup`
+
+Override the global [`allow_self_signup`](/configuration/runtime-settings/#allow_self_signup) setting for this client's login page.
+
+### `sso_session_idle_timeout`
+
+Override the IdP session idle timeout for sessions originating from this client. Overrides the global [`sso_session_idle_timeout`](/configuration/runtime-settings/#sso_session_idle_timeout).
+
+### `trust_device_enabled`
+
+Enable or disable trusted devices for users authenticating through this client. Overrides the global [`trust_device_enabled`](/configuration/runtime-settings/#trust_device_enabled).
+
+### `trust_device_expiration`
+
+Override trusted device token lifetime for this client. Overrides the global [`trust_device_expiration`](/configuration/runtime-settings/#trust_device_expiration).
+
+---
 
 ## Precedence example
 
