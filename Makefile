@@ -57,7 +57,7 @@ docker-compose:
 
 # Fresh start: wipe local DB, rebuild, init, and launch
 fresh: build
-	rm -f ./db/autentico.db .env
+	rm -f ./autentico.db .env
 	./$(APP_NAME) init
 	./$(APP_NAME) start
 

@@ -10,8 +10,11 @@ import {
   Divider,
   Collapse,
   Switch,
+  Typography,
 } from "antd";
-import { PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, MinusCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+
+import { tip, overrideTip } from "./clientTips";
 import { useUpdateClient } from "../../hooks/useClients";
 import type {
   ClientInfoResponse,
@@ -121,13 +124,14 @@ export default function ClientEditForm({
           name="client_name"
           label="Client Name"
           rules={[{ required: true, message: "Client name is required" }]}
+          tooltip={{ title: tip("client_name"), icon: <ExclamationCircleOutlined /> }}
         >
           <Input />
         </Form.Item>
 
         <Form.Item
           label="Client ID"
-          extra="Client ID cannot be changed after creation."
+          tooltip={{ title: tip("client_id"), icon: <ExclamationCircleOutlined /> }}
         >
           <Input value={client?.client_id} disabled />
         </Form.Item>
@@ -140,6 +144,7 @@ export default function ClientEditForm({
                   key={field.key}
                   label={field.name === 0 ? "Redirect URIs" : undefined}
                   required={field.name === 0}
+                  tooltip={field.name === 0 ? { title: tip("redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
                 >
                   <Space.Compact style={{ width: "100%" }}>
                     <Form.Item
@@ -176,18 +181,26 @@ export default function ClientEditForm({
           )}
         </Form.List>
 
-        <Form.Item name="grant_types" label="Grant Types">
+        <Form.Item
+          name="grant_types"
+          label="Grant Types"
+          tooltip={{ title: tip("grant_types"), icon: <ExclamationCircleOutlined /> }}
+        >
           <Select mode="multiple" options={GRANT_TYPE_OPTIONS} />
         </Form.Item>
 
-        <Form.Item name="response_types" label="Response Types">
+        <Form.Item
+          name="response_types"
+          label="Response Types"
+          tooltip={{ title: tip("response_types"), icon: <ExclamationCircleOutlined /> }}
+        >
           <Select mode="multiple" options={RESPONSE_TYPE_OPTIONS} />
         </Form.Item>
 
         <Form.Item
           name="scopes"
           label="Scopes"
-          extra="Select standard OIDC scopes or type to add custom ones."
+          tooltip={{ title: tip("scopes"), icon: <ExclamationCircleOutlined /> }}
         >
           <Select
             mode="tags"
@@ -199,6 +212,7 @@ export default function ClientEditForm({
         <Form.Item
           name="token_endpoint_auth_method"
           label="Token Endpoint Auth Method"
+          tooltip={{ title: tip("token_endpoint_auth_method"), icon: <ExclamationCircleOutlined /> }}
         >
           <Select options={AUTH_METHOD_OPTIONS} />
         </Form.Item>
@@ -206,32 +220,32 @@ export default function ClientEditForm({
         <Divider />
 
         <Collapse
-          ghost
           items={[
             {
               key: "overrides",
-              label: "Configuration Overrides (Optional)",
+              label: <Typography.Text strong>Configuration Overrides</Typography.Text>,
               children: (
                 <Space direction="vertical" style={{ width: "100%" }}>
                   <Form.Item
                     label="Access Token Expiration"
                     name="access_token_expiration"
-                    extra="Example: 15m, 1h. Leave empty to use global default."
+                    tooltip={{ title: overrideTip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="Global default" />
+                    <Input placeholder="Global default (e.g. 15m)" />
                   </Form.Item>
 
                   <Form.Item
                     label="Refresh Token Expiration"
                     name="refresh_token_expiration"
-                    extra="Example: 720h. Leave empty to use global default."
+                    tooltip={{ title: overrideTip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="Global default" />
+                    <Input placeholder="Global default (e.g. 720h)" />
                   </Form.Item>
 
                   <Form.Item
                     label="Auth Code Expiration"
                     name="authorization_code_expiration"
+                    tooltip={{ title: overrideTip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="Global default (e.g. 10m)" />
                   </Form.Item>
@@ -239,7 +253,7 @@ export default function ClientEditForm({
                   <Form.Item
                     label="Allowed Audiences"
                     name="allowed_audiences"
-                    extra="Specific audiences for tokens issued to this client."
+                    tooltip={{ title: overrideTip("allowed_audiences"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select mode="tags" placeholder="Add audiences..." />
                   </Form.Item>
@@ -248,6 +262,7 @@ export default function ClientEditForm({
                     label="Allow Self Signup"
                     name="allow_self_signup"
                     valuePropName="checked"
+                    tooltip={{ title: overrideTip("allow_self_signup"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -255,6 +270,7 @@ export default function ClientEditForm({
                   <Form.Item
                     label="SSO Session Idle Timeout"
                     name="sso_session_idle_timeout"
+                    tooltip={{ title: overrideTip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="Global default (e.g. 30m)" />
                   </Form.Item>
@@ -263,6 +279,7 @@ export default function ClientEditForm({
                     label="Trust Device Enabled"
                     name="trust_device_enabled"
                     valuePropName="checked"
+                    tooltip={{ title: overrideTip("trust_device_enabled"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
@@ -270,6 +287,7 @@ export default function ClientEditForm({
                   <Form.Item
                     label="Trust Device Expiration"
                     name="trust_device_expiration"
+                    tooltip={{ title: overrideTip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="Global default (e.g. 720h)" />
                   </Form.Item>

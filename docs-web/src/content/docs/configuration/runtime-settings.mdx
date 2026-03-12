@@ -22,7 +22,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" \
 curl -X PUT \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"mfa_enabled": "true", "mfa_method": "totp"}' \
+  -d '{"require_mfa": "true", "mfa_method": "totp"}' \
   https://auth.example.com/admin/api/settings
 ```
 
@@ -32,92 +32,270 @@ All values are stored as strings. Durations use Go duration format (`15m`, `1h`,
 The `onboarded` and `private_key` keys are protected and cannot be set via the API.
 </Aside>
 
+---
+
 ## Token lifetimes
 
-| Key | Default | Description |
-|---|---|---|
-| `access_token_expiration` | `15m` | Lifetime of issued access tokens. Short values are safer; relying parties use the refresh token to obtain new ones. |
-| `refresh_token_expiration` | `720h` | Lifetime of refresh tokens (30 days by default). Controls how long a user stays logged in without re-authenticating. |
-| `authorization_code_expiration` | `10m` | Lifetime of one-time authorization codes issued during the auth code flow. Should be short. |
+### `access_token_expiration`
+Default: `15m`
+
+Lifetime of issued access tokens. Short values are safer; relying parties use the refresh token to obtain new ones.
+
+### `refresh_token_expiration`
+Default: `720h`
+
+Lifetime of refresh tokens (30 days by default). Controls how long a user stays logged in without re-authenticating.
+
+### `authorization_code_expiration`
+Default: `10m`
+
+Lifetime of one-time authorization codes issued during the auth code flow. Should be short.
+
+---
 
 ## Authentication
 
-| Key | Default | Description |
-|---|---|---|
-| `auth_mode` | `password` | Authentication mode. One of `password`, `password_and_passkey`, or `passkey_only`. See [Authentication Overview](/authentication/overview/). |
-| `allow_self_signup` | `false` | Allow end users to register accounts themselves on the login page. |
-| `access_token_audience` | `[]` | JSON array of audience values (`aud` claim) added to access tokens. Example: `["https://api.example.com"]`. |
+### `auth_mode`
+Default: `password`
+
+Authentication mode. One of `password`, `password_and_passkey`, or `passkey_only`. See [Authentication Overview](/authentication/overview/).
+
+### `allow_self_signup`
+Default: `false`
+
+Allow end users to register accounts themselves on the login page.
+
+### `allow_username_change`
+Default: `false`
+
+Allow users to change their own username from the self-service account portal.
+
+### `allow_email_change`
+Default: `false`
+
+Allow users to change their own email address from the self-service account portal.
+
+### `access_token_audience`
+Default: `[]`
+
+JSON array of audience values (`aud` claim) added to access tokens. Example: `["https://api.example.com"]`.
+
+---
 
 ## SSO sessions
 
-| Key | Default | Description |
-|---|---|---|
-| `sso_session_idle_timeout` | `0` | IdP session idle timeout. `0` disables IdP sessions entirely. When set (e.g. `8h`), users who return within the timeout window are automatically re-authorized without entering credentials. |
+### `sso_session_idle_timeout`
+Default: `0`
+
+IdP session idle timeout. `0` disables IdP sessions entirely. When set (e.g. `8h`), users who return within the timeout window are automatically re-authorized without entering credentials.
+
+---
 
 ## Account security
 
-| Key | Default | Description |
-|---|---|---|
-| `account_lockout_max_attempts` | `5` | Number of consecutive failed login attempts before the account is locked. |
-| `account_lockout_duration` | `15m` | How long an account remains locked after hitting the attempt threshold. |
+### `account_lockout_max_attempts`
+Default: `5`
+
+Number of consecutive failed login attempts before the account is locked. Set to `0` to disable lockout.
+
+### `account_lockout_duration`
+Default: `15m`
+
+How long an account remains locked after hitting the attempt threshold.
+
+---
+
+## Security
+
+### `pkce_enforce_s256`
+Default: `true`
+
+Enforce PKCE with the S256 code challenge method for all clients. When disabled, clients may use `code_challenge_method=plain`, which provides no security benefit — the verifier equals the challenge and is visible in the authorization request. Only disable for backward compatibility with legacy clients that cannot support S256 (RFC 7636).
+
+---
 
 ## MFA
 
-| Key | Default | Description |
-|---|---|---|
-| `mfa_enabled` | `false` | Require MFA for all users after password authentication. |
-| `mfa_method` | `totp` | MFA method to use. `totp` for authenticator apps, `email` for email OTP. |
+### `require_mfa`
+Default: `false`
+
+Require MFA for all users after password authentication. Users can also enroll in TOTP voluntarily without this being enabled.
+
+### `mfa_method`
+Default: `totp`
+
+MFA method to use. One of `totp` (authenticator app), `email` (email OTP), or `both` (prefers TOTP when enrolled, falls back to email).
+
+---
 
 ## SMTP (required for email OTP)
 
-| Key | Default | Description |
-|---|---|---|
-| `smtp_host` | _(empty)_ | SMTP server hostname. |
-| `smtp_port` | `587` | SMTP server port. |
-| `smtp_username` | _(empty)_ | SMTP authentication username. |
-| `smtp_password` | _(empty)_ | SMTP authentication password. Not returned by the settings GET endpoint. |
-| `smtp_from` | _(empty)_ | From address for outbound OTP emails (e.g. `auth@example.com`). |
+### `smtp_host`
+Default: _(empty)_
+
+SMTP server hostname.
+
+### `smtp_port`
+Default: `587`
+
+SMTP server port.
+
+### `smtp_username`
+Default: _(empty)_
+
+SMTP authentication username.
+
+### `smtp_password`
+Default: _(empty)_
+
+SMTP authentication password. Not returned by the settings GET endpoint.
+
+### `smtp_from`
+Default: _(empty)_
+
+From address for outbound OTP emails (e.g. `auth@example.com`).
+
+---
 
 ## Trusted devices
 
-| Key | Default | Description |
-|---|---|---|
-| `trust_device_enabled` | `false` | Show a "Trust this device" checkbox on the MFA page. When checked, the device is trusted for `trust_device_expiration`. |
-| `trust_device_expiration` | `720h` | How long a trusted device token remains valid (30 days by default). |
+### `trust_device_enabled`
+Default: `false`
+
+Show a "Trust this device" checkbox on the MFA page. When checked, the device is trusted for `trust_device_expiration`.
+
+### `trust_device_expiration`
+Default: `720h`
+
+How long a trusted device token remains valid (30 days by default).
+
+---
 
 ## Passkeys
 
-| Key | Default | Description |
-|---|---|---|
-| `passkey_rp_name` | `Autentico` | WebAuthn relying party name displayed in the browser's passkey prompt. |
+### `passkey_rp_name`
+Default: `Autentico`
+
+WebAuthn relying party name displayed in the browser's passkey prompt.
+
+---
 
 ## Input validation
 
-| Key | Default | Description |
-|---|---|---|
-| `validation_min_username_length` | `4` | Minimum username length at registration. |
-| `validation_max_username_length` | `64` | Maximum username length. |
-| `validation_min_password_length` | `6` | Minimum password length. |
-| `validation_max_password_length` | `64` | Maximum password length. |
-| `validation_username_is_email` | `false` | Require usernames to be valid email addresses. |
-| `validation_email_required` | `false` | Require the email field at registration. |
+### `validation_min_username_length`
+Default: `4`
+
+Minimum username length at registration.
+
+### `validation_max_username_length`
+Default: `64`
+
+Maximum username length.
+
+### `validation_min_password_length`
+Default: `6`
+
+Minimum password length.
+
+### `validation_max_password_length`
+Default: `64`
+
+Maximum password length.
+
+### `validation_username_is_email`
+Default: `false`
+
+Require usernames to be valid email addresses.
+
+### `validation_email_required`
+Default: `false`
+
+Require the email field at registration.
+
+---
+
+## Profile fields
+
+Profile field settings control which OIDC-standard fields are collected on the signup form and shown in the self-service account portal. Each field accepts one of three values: `hidden` (never shown), `optional` (shown but not required), or `required` (must be filled).
+
+### `profile_field_email`
+Default: `hidden`
+
+Controls the email field. Also accepts `is_username` to treat the username field as the email address (stored in both columns).
+
+### `profile_field_given_name`
+Default: `hidden`
+
+Controls the `given_name` (first name) OIDC claim field.
+
+### `profile_field_family_name`
+Default: `hidden`
+
+Controls the `family_name` (last name) OIDC claim field.
+
+### `profile_field_phone`
+Default: `hidden`
+
+Controls the `phone_number` OIDC claim field.
+
+### `profile_field_picture`
+Default: `hidden`
+
+Controls the `picture` OIDC claim field (URL to an avatar image).
+
+### `profile_field_locale`
+Default: `hidden`
+
+Controls the `locale` OIDC claim field (e.g. `en-US`).
+
+### `profile_field_address`
+Default: `hidden`
+
+Controls all address fields (`address_street`, `address_city`, `address_region`, `address_postal_code`, `address_country`) as a group.
+
+### `signup_show_optional_fields`
+Default: `false`
+
+When `false` (default), optional profile fields are hidden during signup to keep the form minimal. Required fields are always shown regardless of this setting.
+
+---
 
 ## Cleanup
 
 Autentico runs a background goroutine that periodically purges expired records from all transient tables (tokens, sessions, auth codes, MFA challenges, passkey challenges, trusted devices).
 
-| Key | Default | Description |
-|---|---|---|
-| `cleanup_interval` | `6h` | How often the cleanup job runs. |
-| `cleanup_retention` | `24h` | Minimum age of an expired record before it is eligible for deletion. Protects very recently expired records from being purged before any in-flight operations complete. |
+### `cleanup_interval`
+Default: `6h`
+
+How often the cleanup job runs.
+
+### `cleanup_retention`
+Default: `24h`
+
+Minimum age of an expired record before it is eligible for deletion. Protects very recently expired records from being purged before any in-flight operations complete.
+
+---
 
 ## Theming
 
-| Key | Default | Description |
-|---|---|---|
-| `theme_title` | `Autentico` | Page title shown on the login, MFA, and signup pages. Also used as the TOTP issuer name in authenticator apps. |
-| `theme_logo_url` | _(empty)_ | URL to a logo image displayed above the login form. |
-| `theme_css_inline` | _(empty)_ | Inline CSS injected into the `<style>` tag on login pages. Use CSS variables to override the default theme. |
-| `theme_css_file` | _(empty)_ | Path to a CSS file on disk, loaded at runtime. Takes precedence over `theme_css_inline` if both are set. |
+### `theme_title`
+Default: `Autentico`
+
+Page title shown on the login, MFA, and signup pages. Also used as the TOTP issuer name in authenticator apps.
+
+### `theme_logo_url`
+Default: _(empty)_
+
+URL to a logo image displayed above the login form.
+
+### `theme_css_inline`
+Default: _(empty)_
+
+Inline CSS injected into the `<style>` tag on login pages. Use CSS variables to override the default theme.
+
+### `theme_css_file`
+Default: _(empty)_
+
+Path to a CSS file on disk, loaded at runtime. Takes precedence over `theme_css_inline` if both are set.
 
 See [Login Page Theming](/authentication/overview/#login-page-theming) for the available CSS variables.

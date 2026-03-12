@@ -3,19 +3,11 @@ title: Registering a Client
 description: How to register an OAuth2 client in Autentico via the Admin UI or API.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
 ## Via Admin UI
 
-Go to **Admin UI → Clients → New Client**. Fill in:
-
-- **Client name**: human-readable label
-- **Redirect URIs**: the exact callback URLs your app will use (no wildcards)
-- **Client type**: `confidential` or `public`
-- **Grant types**: the OAuth2 flows your app uses
-- **Scopes**: optional — defaults to `openid profile email`
-
-The UI generates `client_id` and `client_secret` (for confidential clients) automatically.
+Go to **Admin UI → Clients → New Client**. Fill in the required fields and click **Create**. The UI generates `client_id` and `client_secret` (for confidential clients) automatically. Save the secret immediately — it is only shown once.
 
 ## Via API
 
@@ -72,18 +64,65 @@ curl -X POST https://auth.example.com/oauth2/register \
 }
 ```
 
+<Aside type="caution">
 Store the `client_secret` immediately — it is only returned once at registration time.
+</Aside>
 
-## Request fields
+---
 
-| Field | Required | Description |
-|---|---|---|
-| `client_name` | Yes | Human-readable name, shown in Admin UI |
-| `redirect_uris` | Yes | Array of allowed redirect URIs (max 10) |
-| `client_type` | No | `confidential` or `public` (default: `confidential`) |
-| `grant_types` | No | Array: `authorization_code`, `refresh_token`, `password`, `client_credentials` |
-| `response_types` | No | Array: `code`, `token`, `id_token` |
-| `scopes` | No | Space-separated string; defaults to `openid profile email` |
-| `token_endpoint_auth_method` | No | `client_secret_basic`, `client_secret_post`, or `none` |
-| `client_id` | No | Custom client ID; auto-generated if omitted |
-| Per-client overrides | No | See [Per-Client Overrides](/configuration/per-client-overrides/) |
+## Fields
+
+### `client_name`
+**Required.**
+
+Human-readable name for the client, shown in the Admin UI and logs.
+
+### `client_id`
+
+Custom client ID. Auto-generated (UUID) if omitted. Must be unique across all clients.
+
+### `client_type`
+Default: `confidential`
+
+- `confidential` — server-side apps that can keep a secret. A `client_secret` is generated and must be presented at the token endpoint.
+- `public` — browser apps (SPAs) or mobile apps that cannot safely store a secret. No secret is issued; use PKCE instead.
+
+See [Client Types](/clients/client-types/) for details.
+
+### `redirect_uris`
+**Required.**
+
+Array of allowed callback URLs. The `redirect_uri` in each authorization request must exactly match one of these values. No wildcards. Maximum 10 URIs per client.
+
+### `grant_types`
+Default: `["authorization_code", "refresh_token"]`
+
+OAuth2 flows the client is permitted to use:
+
+| Value | Description |
+|---|---|
+| `authorization_code` | Standard browser-based login flow (use with PKCE for public clients) |
+| `refresh_token` | Exchange a refresh token for new access tokens |
+| `client_credentials` | Server-to-server authentication (no user involved) |
+| `password` | Resource Owner Password Credentials — direct username/password exchange. Legacy; avoid for new integrations |
+
+### `response_types`
+Default: `["code"]`
+
+What the authorization endpoint returns. For the standard Authorization Code flow use `["code"]`. `token` and `id_token` are for implicit/hybrid flows (not recommended for new clients).
+
+### `scopes`
+Default: `openid profile email`
+
+Space-separated string of scopes the client is allowed to request. Standard OIDC scopes: `openid`, `profile`, `email`, `address`, `phone`, `offline_access`. Custom scopes can also be defined.
+
+### `token_endpoint_auth_method`
+Default: `client_secret_basic`
+
+How the client authenticates at the token endpoint:
+
+| Value | Description |
+|---|---|
+| `client_secret_basic` | Credentials sent as HTTP Basic auth header (recommended for confidential clients) |
+| `client_secret_post` | Credentials sent in the POST body |
+| `none` | No authentication — for public clients using PKCE |
