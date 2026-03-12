@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import Alert from '../components/Alert';
 import { useSettings } from '../context/SettingsContext';
 
 interface ProfileForm {
@@ -213,8 +214,8 @@ const ProfilePage: React.FC = () => {
           </>
         )}
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        {success && <p className="text-emerald-600 text-sm">{success}</p>}
+        {error && <Alert type="danger" message={error} />}
+        {success && <Alert type="success" message={success} />}
 
         <Button type="submit" disabled={isUpdating}>
           {isUpdating ? 'Saving…' : 'Save Changes'}

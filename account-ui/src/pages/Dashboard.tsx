@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
         title="Account Security"
         action={
           <Link to="/security">
-            <Button variant="ghost" className="text-xs px-3 py-1.5">
+            <Button variant="primary" className="text-xs px-3 py-1.5">
               Manage <IconChevronRight size={13} />
             </Button>
           </Link>

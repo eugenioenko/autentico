@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { IconX, IconCopy, IconCheck } from '@tabler/icons-react';
 import api from '../api';
 import Button from './Button';
+import Alert from './Alert';
 
 interface TotpSetupModalProps {
   onClose: () => void;
@@ -114,7 +115,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
                   autoFocus
                 />
               </div>
-              {error && <p className="text-red-600 text-sm">{error}</p>}
+              {error && <Alert type="danger" message={error} />}
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" onClick={() => setStep('qr')} className="flex-1">
                   Back

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { IconHistory } from '@tabler/icons-react';
 import api from '../api';
 import Card from '../components/Card';
+import Alert from '../components/Alert';
 import Button from '../components/Button';
 
 interface Session {
@@ -34,7 +35,7 @@ const SessionsPage: React.FC = () => {
 
   return (
     <Card title="Active Sessions" description="Devices where you are currently signed in.">
-      {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+      {error && <Alert type="danger" message={error} className="mb-3" />}
       <div className="divide-y divide-zinc-100 mt-1">
         {sessions?.map((s: Session) => (
           <div key={s.id} className="py-4 flex items-center justify-between gap-4">
