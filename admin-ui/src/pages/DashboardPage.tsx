@@ -5,7 +5,10 @@ import {
   DesktopOutlined,
   LoginOutlined,
   PlusOutlined,
+  CopyOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
 import { useAuth } from "../context/AuthContext";
@@ -14,6 +17,14 @@ export default function DashboardPage() {
   const { data: stats, isLoading } = useStats();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText(user?.access_token ? `Bearer ${user.access_token}` : "").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (isLoading) {
     return <Spin style={{ display: "block", marginTop: 80 }} />;
@@ -82,9 +93,12 @@ export default function DashboardPage() {
             </Button>
           </Space>
           <Typography.Text type="secondary">Access token for API / Swagger:</Typography.Text>
-          <Typography.Text code copyable style={{ wordBreak: "break-all" }}>
-            {user?.access_token ?? ""}
-          </Typography.Text>
+          <Button
+            icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+            onClick={handleCopyToken}
+          >
+            {copied ? "Copied!" : "Copy access token"}
+          </Button>
         </Space>
       </Card>
     </Space>
