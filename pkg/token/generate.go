@@ -101,14 +101,14 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["azp"] = clientID
 	}
 
-	// Include profile claims when "profile" or "openid" scope is present
-	if containsScope(scope, "profile") || containsScope(scope, "openid") {
+	// Include profile claims only when "profile" scope is explicitly requested
+	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
 	}
 
-	// Include email claims when "email" or "openid" scope is present
-	if containsScope(scope, "email") || containsScope(scope, "openid") {
+	// Include email claims only when "email" scope is explicitly requested
+	if containsScope(scope, "email") {
 		claims["email"] = user.Email
 		claims["email_verified"] = false
 	}
