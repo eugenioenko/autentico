@@ -89,6 +89,11 @@ func IsValidRedirectURI(client *Client, redirectURI string) bool {
 		if uri == redirectURI {
 			return true
 		}
+		if idx := strings.Index(uri, "*"); idx != -1 {
+			if strings.HasPrefix(redirectURI, uri[:idx]) {
+				return true
+			}
+		}
 	}
 	return false
 }

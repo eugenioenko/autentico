@@ -95,6 +95,37 @@ func TestIsValidRedirectURI(t *testing.T) {
 	assert.True(t, IsValidRedirectURI(nil, "http://any.com/callback"))
 }
 
+func TestIsValidRedirectURIWildcard(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	request := ClientCreateRequest{
+		ClientName:   "Wildcard App",
+		RedirectURIs: []string{"https://localhost.emobix.co.uk:8443/*", "http://exact.com/callback"},
+	}
+
+	created, err := CreateClient(request)
+	assert.NoError(t, err)
+
+	client, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	// Wildcard matches any path under the prefix
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/abc123/callback"))
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/autentico/callback"))
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/anything"))
+
+	// Exact match still works alongside wildcard
+	assert.True(t, IsValidRedirectURI(client, "http://exact.com/callback"))
+
+	// Different host does not match the wildcard
+	assert.False(t, IsValidRedirectURI(client, "https://evil.com/test/abc123/callback"))
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:9999/test/abc/callback"))
+}
+
 func TestIsGrantTypeAllowed(t *testing.T) {
 	_, err := db.InitTestDB()
 	if err != nil {
