@@ -39,13 +39,20 @@ func Handler() http.Handler {
 			trimmed := strings.TrimPrefix(path, "/")
 			if f, err := sub.Open(trimmed); err == nil {
 				_ = f.Close()
-				// File exists — serve it directly
+				// Content-hashed assets are safe to cache for a year
+				if strings.HasPrefix(path, "/assets/") {
+					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				} else {
+					// favicon and other root-level files: 1 day
+					w.Header().Set("Cache-Control", "public, max-age=86400")
+				}
 				http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
 				return
 			}
 		}
 
-		// Fall back to index.html for SPA routing
+		// index.html must not be cached so the browser picks up new asset URLs after a deploy
+		w.Header().Set("Cache-Control", "no-cache")
 		r.URL.Path = "/admin/"
 		http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
 	})
