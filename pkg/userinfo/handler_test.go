@@ -185,6 +185,185 @@ func TestHandleUserInfo_DeactivatedSession(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Session has been deactivated")
 }
 
+// generateTestTokensWithScope is like generateTestTokens but with a custom scope.
+func generateTestTokensWithScope(userID, scope string) (string, error) {
+	sessionID := xid.New().String()
+	tokenID := xid.New().String()
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	refreshTokenExpiresAt := time.Now().Add(config.Get().AuthRefreshTokenExpiration).UTC()
+
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   config.Get().AuthAccessTokenAudience,
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   sessionID,
+		"scope": scope,
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	signedToken, err := accessToken.SignedString(key.GetPrivateKey())
+	if err != nil {
+		return "", err
+	}
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
+		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), scope, "authorization_code")
+	if err != nil {
+		return "", err
+	}
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, signedToken, "", "", "", "", time.Now(), accessTokenExpiresAt)
+
+	return signedToken, err
+}
+
+func TestHandleUserInfo_ScopeClaims_OpenIDOnly(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, given_name, family_name, phone_number)
+		VALUES (?, 'user1', 'user1@example.com', 'pass', 'John', 'Doe', '+1234')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, `"sub"`)
+	assert.NotContains(t, body, "name")
+	assert.NotContains(t, body, "email")
+	assert.NotContains(t, body, "phone")
+}
+
+func TestHandleUserInfo_ScopeClaims_ProfileOnly(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, given_name, family_name)
+		VALUES (?, 'user2', 'user2@example.com', 'pass', 'Jane', 'Smith')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid profile")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, "Jane Smith")
+	assert.Contains(t, body, "preferred_username")
+	assert.NotContains(t, body, "email")
+}
+
+func TestHandleUserInfo_ScopeClaims_EmailOnly(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, given_name, family_name)
+		VALUES (?, 'user3', 'user3@example.com', 'pass', 'Bob', 'Jones')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid email")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, "user3@example.com")
+	assert.Contains(t, body, "email_verified")
+	assert.NotContains(t, body, "preferred_username")
+	assert.NotContains(t, body, "given_name")
+}
+
+func TestHandleUserInfo_ScopeClaims_NameFallsBackToUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password)
+		VALUES (?, 'johndoe', 'johndoe@example.com', 'pass')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid profile")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// name should fall back to username when given_name/family_name are empty
+	assert.Contains(t, body, `"name":"johndoe"`)
+}
+
+func TestHandleUserInfo_ScopeClaims_PhoneAndAddress(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, phone_number, address_street)
+		VALUES (?, 'user4', 'user4@example.com', 'pass', '+9999', '123 Main St')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid phone address")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, "+9999")
+	assert.Contains(t, body, "123 Main St")
+	assert.NotContains(t, body, "preferred_username")
+}
+
+func TestHandleUserInfo_PostBody(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password)
+		VALUES (?, 'postuser', 'post@example.com', 'pass')
+	`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid profile email")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/userinfo", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.PostForm = map[string][]string{"access_token": {token}}
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "postuser")
+}
+
 func TestHandleUserInfo_FullProfile(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -205,8 +384,9 @@ func TestHandleUserInfo_FullProfile(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assert.Contains(t, body, "John Doe")
-	assert.Contains(t, body, "+123456789")
-	assert.Contains(t, body, "Main St")
+	// phone and address require their own scopes — not returned with openid profile email
+	assert.NotContains(t, body, "+123456789")
+	assert.NotContains(t, body, "Main St")
 }
 
 func TestHandleUserInfo_CompleteProfile(t *testing.T) {

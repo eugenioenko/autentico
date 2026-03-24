@@ -2,6 +2,7 @@ package userinfo
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
@@ -9,6 +10,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
+
+func containsScope(scope, s string) bool {
+	for _, part := range strings.Fields(scope) {
+		if part == s {
+			return true
+		}
+	}
+	return false
+}
 
 // HandleUserInfo godoc
 // @Summary Get user information
@@ -62,36 +72,48 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	scope := tok.Scope
 	response := map[string]interface{}{
-		"sub":                tok.UserID,
-		"preferred_username": user.Username,
-		"email":              user.Email,
-		"email_verified":     user.IsEmailVerified,
-		"scope":              tok.Scope,
+		"sub":   tok.UserID,
+		"scope": scope,
 	}
-	if user.GivenName != "" {
-		response["given_name"] = user.GivenName
+
+	if containsScope(scope, "profile") {
+		name := user.Username
+		if user.GivenName != "" || user.FamilyName != "" {
+			name = strings.TrimSpace(user.GivenName + " " + user.FamilyName)
+		}
+		response["name"] = name
+		response["preferred_username"] = user.Username
+		if user.GivenName != "" {
+			response["given_name"] = user.GivenName
+		}
+		if user.FamilyName != "" {
+			response["family_name"] = user.FamilyName
+		}
+		if user.Picture != "" {
+			response["picture"] = user.Picture
+		}
+		if user.Locale != "" {
+			response["locale"] = user.Locale
+		}
+		if user.Zoneinfo != "" {
+			response["zoneinfo"] = user.Zoneinfo
+		}
 	}
-	if user.FamilyName != "" {
-		response["family_name"] = user.FamilyName
+
+	if containsScope(scope, "email") {
+		response["email"] = user.Email
+		response["email_verified"] = user.IsEmailVerified
 	}
-	if user.GivenName != "" || user.FamilyName != "" {
-		response["name"] = (user.GivenName + " " + user.FamilyName)
-	}
-	if user.PhoneNumber != "" {
+
+	if containsScope(scope, "phone") && user.PhoneNumber != "" {
 		response["phone_number"] = user.PhoneNumber
 	}
-	if user.Picture != "" {
-		response["picture"] = user.Picture
-	}
-	if user.Locale != "" {
-		response["locale"] = user.Locale
-	}
-	if user.Zoneinfo != "" {
-		response["zoneinfo"] = user.Zoneinfo
-	}
-	if user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
-		user.AddressPostalCode != "" || user.AddressCountry != "" {
+
+	if containsScope(scope, "address") &&
+		(user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
+			user.AddressPostalCode != "" || user.AddressCountry != "") {
 		response["address"] = map[string]string{
 			"street_address": user.AddressStreet,
 			"locality":       user.AddressLocality,

@@ -26,7 +26,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 	usr := createTestUser(t, "user@test.com", "password123", "user@test.com")
 
 	// 2-5. Perform authorization code flow (authorize -> login -> get code)
-	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state")
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid profile email", "")
 
 	// 6. Exchange code for tokens
 	form := url.Values{}
