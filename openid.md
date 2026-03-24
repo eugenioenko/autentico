@@ -49,6 +49,22 @@ Additionally, `response_type` validation was relaxed to accept any non-empty val
 
 ---
 
+## 5. Userinfo missing standard profile claims when profile scope requested (oidcc-scope-profile)
+
+**Commit:** TBD
+
+**Problem:** The conformance suite warned that the userinfo response was missing standard OIDC profile claims when `profile` scope was requested. Per OIDC Core §5.4, all standard profile claims (`given_name`, `family_name`, `middle_name`, `nickname`, `website`, `gender`, `birthdate`, `profile`, `picture`, `locale`, `zoneinfo`, `updated_at`) must be present in the response — even if null.
+
+Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `birthdate`, `profile`) did not exist as fields in the User model or database at all.
+
+**Fix:**
+- Added `middle_name`, `nickname`, `website`, `gender`, `birthdate`, `profile` columns to the `users` table.
+- Added corresponding fields to the `User` struct, `UserResponse`, `UserUpdateRequest`, and `ToResponse()`.
+- Updated `userSelectColumns` and `scanUser` to include `updated_at` and all new fields.
+- Updated `HandleUserInfo` to always emit all standard profile claims when `profile` scope is present, using `null` for empty values instead of omitting them entirely.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

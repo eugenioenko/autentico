@@ -15,9 +15,10 @@ func nullStringToString(ns sql.NullString) string {
 }
 
 const userSelectColumns = `
-	id, username, password, email, role, created_at, failed_login_attempts, locked_until,
+	id, username, password, email, role, created_at, updated_at, failed_login_attempts, locked_until,
 	totp_secret, totp_verified, is_email_verified, deactivated_at, registered_at,
-	given_name, family_name, phone_number, picture, locale, zoneinfo,
+	given_name, family_name, middle_name, nickname, website, gender, birthdate, profile,
+	phone_number, picture, locale, zoneinfo,
 	address_street, address_locality, address_region, address_postal_code, address_country
 `
 
@@ -27,10 +28,11 @@ func scanUser(row interface {
 	var u User
 	var email, password sql.NullString
 	err := row.Scan(
-		&u.ID, &u.Username, &password, &email, &u.Role, &u.CreatedAt,
+		&u.ID, &u.Username, &password, &email, &u.Role, &u.CreatedAt, &u.UpdatedAt,
 		&u.FailedLoginAttempts, &u.LockedUntil, &u.TotpSecret, &u.TotpVerified,
 		&u.IsEmailVerified, &u.DeactivatedAt, &u.RegisteredAt,
-		&u.GivenName, &u.FamilyName, &u.PhoneNumber, &u.Picture, &u.Locale, &u.Zoneinfo,
+		&u.GivenName, &u.FamilyName, &u.MiddleName, &u.Nickname, &u.Website, &u.Gender, &u.Birthdate, &u.ProfileURL,
+		&u.PhoneNumber, &u.Picture, &u.Locale, &u.Zoneinfo,
 		&u.AddressStreet, &u.AddressLocality, &u.AddressRegion, &u.AddressPostalCode, &u.AddressCountry,
 	)
 	if err != nil {

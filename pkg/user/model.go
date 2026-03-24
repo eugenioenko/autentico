@@ -25,9 +25,16 @@ type User struct {
 	IsEmailVerified     bool
 	DeactivatedAt       *time.Time
 	RegisteredAt        *time.Time
+	UpdatedAt time.Time
 	// OIDC standard profile claims
 	GivenName         string
 	FamilyName        string
+	MiddleName        string
+	Nickname          string
+	Website           string
+	Gender            string
+	Birthdate         string
+	ProfileURL        string
 	PhoneNumber       string
 	Picture           string
 	Locale            string
@@ -52,6 +59,12 @@ type UserResponse struct {
 	// OIDC standard profile claims
 	GivenName         string `json:"given_name,omitempty"`
 	FamilyName        string `json:"family_name,omitempty"`
+	MiddleName        string `json:"middle_name,omitempty"`
+	Nickname          string `json:"nickname,omitempty"`
+	Website           string `json:"website,omitempty"`
+	Gender            string `json:"gender,omitempty"`
+	Birthdate         string `json:"birthdate,omitempty"`
+	ProfileURL        string `json:"profile,omitempty"`
 	PhoneNumber       string `json:"phone_number,omitempty"`
 	Picture           string `json:"picture,omitempty"`
 	Locale            string `json:"locale,omitempty"`
@@ -76,6 +89,12 @@ func (u *User) ToResponse() UserResponse {
 		TotpVerified:        u.TotpVerified,
 		GivenName:           u.GivenName,
 		FamilyName:          u.FamilyName,
+		MiddleName:          u.MiddleName,
+		Nickname:            u.Nickname,
+		Website:             u.Website,
+		Gender:              u.Gender,
+		Birthdate:           u.Birthdate,
+		ProfileURL:          u.ProfileURL,
 		PhoneNumber:         u.PhoneNumber,
 		Picture:             u.Picture,
 		Locale:              u.Locale,
@@ -144,6 +163,12 @@ type UserUpdateRequest struct {
 	// OIDC standard profile claims
 	GivenName         string `json:"given_name,omitempty"`
 	FamilyName        string `json:"family_name,omitempty"`
+	MiddleName        string `json:"middle_name,omitempty"`
+	Nickname          string `json:"nickname,omitempty"`
+	Website           string `json:"website,omitempty"`
+	Gender            string `json:"gender,omitempty"`
+	Birthdate         string `json:"birthdate,omitempty"`
+	ProfileURL        string `json:"profile,omitempty"`
 	PhoneNumber       string `json:"phone_number,omitempty"`
 	Picture           string `json:"picture,omitempty"`
 	Locale            string `json:"locale,omitempty"`

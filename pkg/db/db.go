@@ -32,6 +32,12 @@ var createTableSQL = `
 		-- OIDC standard profile claims
 		given_name TEXT NOT NULL DEFAULT '',
 		family_name TEXT NOT NULL DEFAULT '',
+		middle_name TEXT NOT NULL DEFAULT '',
+		nickname TEXT NOT NULL DEFAULT '',
+		website TEXT NOT NULL DEFAULT '',
+		gender TEXT NOT NULL DEFAULT '',
+		birthdate TEXT NOT NULL DEFAULT '',
+		profile TEXT NOT NULL DEFAULT '',
 		phone_number TEXT NOT NULL DEFAULT '',
 		picture TEXT NOT NULL DEFAULT '',
 		locale TEXT NOT NULL DEFAULT '',

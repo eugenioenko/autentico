@@ -11,6 +11,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+func nilIfEmpty(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 func containsScope(scope, s string) bool {
 	for _, part := range strings.Fields(scope) {
 		if part == s {
@@ -85,21 +92,18 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		response["name"] = name
 		response["preferred_username"] = user.Username
-		if user.GivenName != "" {
-			response["given_name"] = user.GivenName
-		}
-		if user.FamilyName != "" {
-			response["family_name"] = user.FamilyName
-		}
-		if user.Picture != "" {
-			response["picture"] = user.Picture
-		}
-		if user.Locale != "" {
-			response["locale"] = user.Locale
-		}
-		if user.Zoneinfo != "" {
-			response["zoneinfo"] = user.Zoneinfo
-		}
+		response["given_name"] = nilIfEmpty(user.GivenName)
+		response["family_name"] = nilIfEmpty(user.FamilyName)
+		response["middle_name"] = nilIfEmpty(user.MiddleName)
+		response["nickname"] = nilIfEmpty(user.Nickname)
+		response["website"] = nilIfEmpty(user.Website)
+		response["gender"] = nilIfEmpty(user.Gender)
+		response["birthdate"] = nilIfEmpty(user.Birthdate)
+		response["profile"] = nilIfEmpty(user.ProfileURL)
+		response["picture"] = nilIfEmpty(user.Picture)
+		response["locale"] = nilIfEmpty(user.Locale)
+		response["zoneinfo"] = nilIfEmpty(user.Zoneinfo)
+		response["updated_at"] = user.UpdatedAt.Unix()
 	}
 
 	if containsScope(scope, "email") {

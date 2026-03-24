@@ -56,6 +56,30 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 	if req.FamilyName != "" {
 		newFamilyName = req.FamilyName
 	}
+	newMiddleName := usr.MiddleName
+	if req.MiddleName != "" {
+		newMiddleName = req.MiddleName
+	}
+	newNickname := usr.Nickname
+	if req.Nickname != "" {
+		newNickname = req.Nickname
+	}
+	newWebsite := usr.Website
+	if req.Website != "" {
+		newWebsite = req.Website
+	}
+	newGender := usr.Gender
+	if req.Gender != "" {
+		newGender = req.Gender
+	}
+	newBirthdate := usr.Birthdate
+	if req.Birthdate != "" {
+		newBirthdate = req.Birthdate
+	}
+	newProfileURL := usr.ProfileURL
+	if req.ProfileURL != "" {
+		newProfileURL = req.ProfileURL
+	}
 	newPhoneNumber := usr.PhoneNumber
 	if req.PhoneNumber != "" {
 		newPhoneNumber = req.PhoneNumber
@@ -107,6 +131,12 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			totp_verified = ?,
 			given_name = ?,
 			family_name = ?,
+			middle_name = ?,
+			nickname = ?,
+			website = ?,
+			gender = ?,
+			birthdate = ?,
+			profile = ?,
 			phone_number = ?,
 			picture = ?,
 			locale = ?,
@@ -120,7 +150,8 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 		WHERE id = ?`
 	_, err = db.GetDB().Exec(query,
 		newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
-		newGivenName, newFamilyName, newPhoneNumber, newPicture, newLocale, newZoneinfo,
+		newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,
+		newPhoneNumber, newPicture, newLocale, newZoneinfo,
 		newAddressStreet, newAddressLocality, newAddressRegion, newAddressPostalCode, newAddressCountry,
 		id,
 	)
