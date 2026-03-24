@@ -1,8 +1,8 @@
 package auth_test
 
 import (
-	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/authorize"
@@ -25,11 +25,10 @@ func TestAuthorizeRequest(t *testing.T) {
 }
 
 func TestAuthorizeInvalidRequest(t *testing.T) {
-	res := testutils.MockJSONRequest(t, "", http.MethodGet, "/oauth2/authorize", authorize.HandleAuthorize)
-
-	var res2 map[string]interface{}
-	err := json.Unmarshal(res, &res2)
-	assert.NoError(t, err)
-	assert.Contains(t, res2, "error")
-	assert.Equal(t, "invalid_request", res2["error"])
+	// Missing redirect_uri — cannot redirect back, shows HTML error page
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize", nil)
+	authorize.HandleAuthorize(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }

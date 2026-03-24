@@ -357,6 +357,7 @@ func TestClient_ResponseTypeRestriction(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "disallowed response_type should be rejected: %s", string(body))
-	assert.Contains(t, string(body), "Response type not allowed for this client")
+	// Disallowed response_type → redirect back with error=unsupported_response_type
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "disallowed response_type should redirect with error: %s", string(body))
+	assert.Contains(t, resp.Header.Get("Location"), "error=unsupported_response_type")
 }

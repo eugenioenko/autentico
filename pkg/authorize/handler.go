@@ -49,25 +49,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		Prompt:              q.Get("prompt"),
 	}
 
-	err := ValidateAuthorizeRequest(request)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
-		return
-	}
-
-	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
-	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
-		return
-	}
-
-	// Validate redirect_uri format
+	// Validate redirect_uri format first — if invalid we cannot redirect back safely
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		renderError(w, "Invalid redirect_uri")
 		return
 	}
 
-	// Validate client_id against registered clients
+	// Validate client_id — if unknown we cannot redirect back safely
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("authorize: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
@@ -87,15 +75,28 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// From here redirect_uri and client are trusted — redirect back with error for all remaining failures
+
+	if err := ValidateAuthorizeRequest(request); err != nil {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", err.Error())
+		return
+	}
+
+	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
+	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
+		return
+	}
+
 	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
 		slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
-		renderError(w, "Response type not allowed for this client")
+		redirectWithError(w, r, request.RedirectURI, request.State, "unsupported_response_type", "response_type not allowed for this client")
 		return
 	}
 
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("authorize: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
-		renderError(w, "One or more requested scopes are not allowed for this client")
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_scope", "one or more requested scopes are not allowed for this client")
 		return
 	}
 
@@ -178,6 +179,15 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
+}
+
+// redirectWithError redirects back to the redirect_uri with OAuth2 error params.
+func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, state, errCode, errDesc string) {
+	u := fmt.Sprintf("%s?error=%s&error_description=%s", redirectURI, errCode, errDesc)
+	if state != "" {
+		u += "&state=" + state
+	}
+	http.Redirect(w, r, u, http.StatusFound)
 }
 
 // renderError renders a branded error page without any login form fields.

@@ -19,7 +19,7 @@ type AuthorizeRequest struct {
 
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {
 	return validation.ValidateStruct(&input,
-		validation.Field(&input.ResponseType, validation.Required, validation.In("code")),
+		validation.Field(&input.ResponseType, validation.Required),
 		validation.Field(&input.RedirectURI, validation.Required, is.URL),
 		// TODO: set proper scope validation
 		//validation.Field(&input.Scope, validation.Required, validation.In("read", "write")),

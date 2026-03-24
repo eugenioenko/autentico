@@ -43,26 +43,31 @@ func TestHandleAuthorize_UnknownClientID(t *testing.T) {
 
 func TestHandleAuthorize_MissingResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Must redirect back with error=invalid_request
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_request")
+	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
 func TestHandleAuthorize_InvalidResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Must redirect back with error=unsupported_response_type
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
@@ -73,21 +78,22 @@ func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Cannot redirect — show error page
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_RedirectURIInvalid(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	// A URI with no host is syntactically invalid
+	// A URI with no host is syntactically invalid — show error page, cannot redirect
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=not-a-valid-uri&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_InactiveClient(t *testing.T) {
@@ -143,8 +149,8 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Response type not allowed for this client")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
@@ -287,15 +293,16 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 
 func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
 	testutils.WithTestDB(t)
-	// AuthPKCEEnforceSHA256 defaults to true — plain must be rejected
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	// AuthPKCEEnforceSHA256 defaults to true — plain must be rejected via redirect
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=abc&code_challenge_method=plain", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_request")
 }
 
 func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
@@ -342,7 +349,9 @@ func TestHandleAuthorize_InvalidScope(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Invalid scope → redirect back with error=invalid_scope
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_scope")
 }
 
 func TestHandleAuthorize_AllowedScope(t *testing.T) {
@@ -490,9 +499,9 @@ func TestHandleAuthorize_InvalidRedirectURI_Extra(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Implementation returns 403 on validation error
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "RedirectURI: must be a valid URL.")
+	// Invalid redirect_uri — show error page
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_UnknownClient_Extra(t *testing.T) {
@@ -516,9 +525,9 @@ func TestHandleAuthorize_UnsupportedResponseType_Extra(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Implementation returns 403 on validation error
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "ResponseType: must be a valid value.")
+	// Invalid response_type → redirect back with error=unsupported_response_type
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_WithGenericError(t *testing.T) {
