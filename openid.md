@@ -1,0 +1,57 @@
+# OpenID Connect Conformance — Issues Found
+
+Issues discovered while running the [OpenID Connect Core Basic OP certification test plan](https://openid.net/certification/) against Autentico. Listed in the order they were found.
+
+## 1. ID token includes non-requested claims (oidcc-server)
+
+**Commit:** `7c5ca98`
+
+**Problem:** The ID token included `name`, `preferred_username`, `email`, and `email_verified` whenever `openid` scope was present — which is always. The conformance suite only requested `openid` scope and did not expect these claims.
+
+**Fix:** Profile claims (`name`, `preferred_username`) are now only included in the ID token when `profile` scope is explicitly requested. Email claims (`email`, `email_verified`) are only included when `email` scope is explicitly requested.
+
+---
+
+## 2. Authorization errors returned as JSON instead of redirect (oidcc-response-type-missing)
+
+**Commit:** `ab1cc4b`
+
+**Problem:** When `response_type` was missing or invalid, Autentico returned a JSON error directly. Per the OIDC/OAuth2 spec, when `redirect_uri` and `client_id` are valid the server must redirect back to the client with error params (`?error=invalid_request&...`).
+
+**Fix:** Validation order was changed to check `redirect_uri` and `client_id` first. All subsequent errors (missing/unsupported `response_type`, invalid scope, plain PKCE rejected) now redirect back to the client. Unrecoverable errors (invalid `redirect_uri`, unknown `client_id`) still show an HTML error page since redirecting would be unsafe.
+
+Additionally, `response_type` validation was relaxed to accept any non-empty value so unsupported types return `error=unsupported_response_type` via redirect rather than `error=invalid_request`.
+
+---
+
+## 3. Userinfo endpoint did not support access_token in POST body (oidcc-userinfo-post-body)
+
+**Commit:** `726414a`
+
+**Problem:** The `/oauth2/userinfo` endpoint only accepted the access token via the `Authorization: Bearer` header. Per RFC 6750 §2.2, POST requests with `Content-Type: application/x-www-form-urlencoded` should also be able to pass the token as an `access_token` form parameter.
+
+**Fix:** The handler now checks for the token in the POST body when no `Authorization` header is present.
+
+---
+
+## 4. Userinfo endpoint did not gate claims by scope (oidcc-scope-profile)
+
+**Commit:** `623f039`
+
+**Problem:** The userinfo endpoint always returned `preferred_username` and `email` regardless of the requested scope. When only `openid profile` was requested (no `email` scope), the conformance suite warned that claims not corresponding to the requested scopes were present.
+
+**Fix:** Userinfo claims are now gated by scope:
+- `profile` scope → `name`, `preferred_username`, `given_name`, `family_name`, `picture`, `locale`, `zoneinfo`
+- `email` scope → `email`, `email_verified`
+- `phone` scope → `phone_number`
+- `address` scope → `address`
+- `name` falls back to `username` when `given_name`/`family_name` are not set
+
+---
+
+## Setup Notes
+
+- Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)
+- Autentico must run with `AUTENTICO_APP_URL=http://172.17.0.1:9999` so Docker containers can reach it
+- Use `make conformance-server` to start Autentico with the right flags
+- Saved test plan config: see memory file `reference_conformance_suite.md`
