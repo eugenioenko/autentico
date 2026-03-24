@@ -3,6 +3,7 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -18,6 +19,13 @@ func (rw *responseWriter) WriteHeader(statusCode int) {
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		// skip logging for static assets
+		if strings.HasPrefix(p, "/admin/assets/") || strings.HasPrefix(p, "/account/assets/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 		ww := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
