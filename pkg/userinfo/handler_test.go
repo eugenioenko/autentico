@@ -98,7 +98,7 @@ func TestHandleUserInfoMissingAuth(t *testing.T) {
 	HandleUserInfo(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Authorization header is required")
+	assert.Contains(t, rr.Body.String(), "Access token is required")
 }
 
 func TestHandleUserInfoInvalidToken(t *testing.T) {
@@ -123,7 +123,7 @@ func TestHandleUserInfoInvalidAuthFormat(t *testing.T) {
 	HandleUserInfo(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid Authorization header")
+	assert.Contains(t, rr.Body.String(), "Access token is required")
 }
 
 func TestHandleUserInfoTokenNotInDB(t *testing.T) {

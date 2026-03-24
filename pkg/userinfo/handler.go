@@ -22,15 +22,18 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/userinfo [get]
 func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
+	// RFC 6750: token may arrive as Bearer header, or as access_token in POST body
+	var accessToken string
 	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Authorization header is required")
-		return
+	if authHeader != "" {
+		accessToken = utils.ExtractBearerToken(authHeader)
+	} else if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err == nil {
+			accessToken = r.PostFormValue("access_token")
+		}
 	}
-
-	accessToken := utils.ExtractBearerToken(authHeader)
 	if accessToken == "" {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Invalid Authorization header")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Access token is required")
 		return
 	}
 
