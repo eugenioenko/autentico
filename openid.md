@@ -95,6 +95,18 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 8. phone_number_verified missing from userinfo phone scope response (oidcc-scope-phone)
+
+**Commit:** TBD
+
+**Problem:** When `phone` scope was requested, the userinfo response included `phone_number` but was missing `phone_number_verified`. Per OIDC Core §5.1, both claims are part of the `phone` scope.
+
+**Fix:**
+- Added `phone_number_verified` column to the `users` table and field to the `User` model.
+- Updated `HandleUserInfo` to always emit both `phone_number` and `phone_number_verified` when `phone` scope is present.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

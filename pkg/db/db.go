@@ -39,6 +39,7 @@ var createTableSQL = `
 		birthdate TEXT NOT NULL DEFAULT '',
 		profile TEXT NOT NULL DEFAULT '',
 		phone_number TEXT NOT NULL DEFAULT '',
+		phone_number_verified BOOLEAN DEFAULT FALSE,
 		picture TEXT NOT NULL DEFAULT '',
 		locale TEXT NOT NULL DEFAULT '',
 		zoneinfo TEXT NOT NULL DEFAULT '',

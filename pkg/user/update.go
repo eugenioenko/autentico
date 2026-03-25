@@ -84,6 +84,10 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 	if req.PhoneNumber != "" {
 		newPhoneNumber = req.PhoneNumber
 	}
+	newPhoneNumberVerified := usr.PhoneNumberVerified
+	if req.PhoneNumberVerified != nil {
+		newPhoneNumberVerified = *req.PhoneNumberVerified
+	}
 	newPicture := usr.Picture
 	if req.Picture != "" {
 		newPicture = req.Picture
@@ -138,6 +142,7 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			birthdate = ?,
 			profile = ?,
 			phone_number = ?,
+			phone_number_verified = ?,
 			picture = ?,
 			locale = ?,
 			zoneinfo = ?,
@@ -151,7 +156,7 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 	_, err = db.GetDB().Exec(query,
 		newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
 		newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,
-		newPhoneNumber, newPicture, newLocale, newZoneinfo,
+		newPhoneNumber, newPhoneNumberVerified, newPicture, newLocale, newZoneinfo,
 		newAddressStreet, newAddressLocality, newAddressRegion, newAddressPostalCode, newAddressCountry,
 		id,
 	)

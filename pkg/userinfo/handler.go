@@ -113,6 +113,7 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	if containsScope(scope, "phone") {
 		response["phone_number"] = nilIfEmpty(user.PhoneNumber)
+		response["phone_number_verified"] = user.PhoneNumberVerified
 	}
 
 	if containsScope(scope, "address") {

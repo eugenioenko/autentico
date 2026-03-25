@@ -34,9 +34,10 @@ type User struct {
 	Website           string
 	Gender            string
 	Birthdate         string
-	ProfileURL        string
-	PhoneNumber       string
-	Picture           string
+	ProfileURL          string
+	PhoneNumber         string
+	PhoneNumberVerified bool
+	Picture             string
 	Locale            string
 	Zoneinfo          string
 	AddressStreet     string
@@ -57,16 +58,17 @@ type UserResponse struct {
 	IsEmailVerified     bool       `json:"is_email_verified"`
 	TotpVerified        bool       `json:"totp_verified"`
 	// OIDC standard profile claims
-	GivenName         string `json:"given_name,omitempty"`
-	FamilyName        string `json:"family_name,omitempty"`
-	MiddleName        string `json:"middle_name,omitempty"`
-	Nickname          string `json:"nickname,omitempty"`
-	Website           string `json:"website,omitempty"`
-	Gender            string `json:"gender,omitempty"`
-	Birthdate         string `json:"birthdate,omitempty"`
-	ProfileURL        string `json:"profile,omitempty"`
-	PhoneNumber       string `json:"phone_number,omitempty"`
-	Picture           string `json:"picture,omitempty"`
+	GivenName           string `json:"given_name,omitempty"`
+	FamilyName          string `json:"family_name,omitempty"`
+	MiddleName          string `json:"middle_name,omitempty"`
+	Nickname            string `json:"nickname,omitempty"`
+	Website             string `json:"website,omitempty"`
+	Gender              string `json:"gender,omitempty"`
+	Birthdate           string `json:"birthdate,omitempty"`
+	ProfileURL          string `json:"profile,omitempty"`
+	PhoneNumber         string `json:"phone_number,omitempty"`
+	PhoneNumberVerified bool   `json:"phone_number_verified,omitempty"`
+	Picture             string `json:"picture,omitempty"`
 	Locale            string `json:"locale,omitempty"`
 	Zoneinfo          string `json:"zoneinfo,omitempty"`
 	AddressStreet     string `json:"address_street,omitempty"`
@@ -96,6 +98,7 @@ func (u *User) ToResponse() UserResponse {
 		Birthdate:           u.Birthdate,
 		ProfileURL:          u.ProfileURL,
 		PhoneNumber:         u.PhoneNumber,
+		PhoneNumberVerified: u.PhoneNumberVerified,
 		Picture:             u.Picture,
 		Locale:              u.Locale,
 		Zoneinfo:            u.Zoneinfo,
@@ -168,8 +171,9 @@ type UserUpdateRequest struct {
 	Website           string `json:"website,omitempty"`
 	Gender            string `json:"gender,omitempty"`
 	Birthdate         string `json:"birthdate,omitempty"`
-	ProfileURL        string `json:"profile,omitempty"`
-	PhoneNumber       string `json:"phone_number,omitempty"`
+	ProfileURL          string `json:"profile,omitempty"`
+	PhoneNumber         string `json:"phone_number,omitempty"`
+	PhoneNumberVerified *bool  `json:"phone_number_verified,omitempty"`
 	Picture           string `json:"picture,omitempty"`
 	Locale            string `json:"locale,omitempty"`
 	Zoneinfo          string `json:"zoneinfo,omitempty"`
