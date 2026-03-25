@@ -9,6 +9,18 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// RevokeTokensByUserAndClient sets revoked_at on all non-revoked authorization_code
+// grant tokens for the given user. Called when auth code reuse is detected per RFC 6749 §4.1.2.
+// clientID is accepted for logging context but the tokens table has no client_id column.
+func RevokeTokensByUserAndClient(userID, _ string) error {
+	_, err := db.GetDB().Exec(`
+		UPDATE tokens
+		SET revoked_at = ?
+		WHERE user_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
+	`, time.Now().UTC(), userID)
+	return err
+}
+
 // HandleRevoke godoc
 // @Summary Revoke a token
 // @Description Revokes an access or refresh token
