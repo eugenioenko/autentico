@@ -14,5 +14,7 @@ type WellKnownConfigResponse struct {
 	ScopesSupported                   []string `json:"scopes_supported"`
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
 	ClaimsSupported                   []string `json:"claims_supported"`
+	GrantTypesSupported               []string `json:"grant_types_supported,omitempty"`
 	AcrValuesSupported                []string `json:"acr_values_supported,omitempty"`
+	RequestParameterSupported         bool     `json:"request_parameter_supported"`
 }

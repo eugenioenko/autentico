@@ -89,6 +89,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// From here redirect_uri and client are trusted — redirect back with error for all remaining failures
 
+	// Reject request objects — not supported (OIDC Core §6.1 / OIDCC-3.1.2.6)
+	if get("request") != "" {
+		redirectWithError(w, r, request.RedirectURI, request.State, "request_not_supported", "request objects are not supported")
+		return
+	}
+
 	if err := ValidateAuthorizeRequest(request); err != nil {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", err.Error())
 		return

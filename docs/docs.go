@@ -2554,6 +2554,12 @@ const docTemplate = `{
         "model.WellKnownConfigResponse": {
             "type": "object",
             "properties": {
+                "acr_values_supported": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "authorization_endpoint": {
                     "type": "string"
                 },
@@ -2565,6 +2571,12 @@ const docTemplate = `{
                 },
                 "end_session_endpoint": {
                     "type": "string"
+                },
+                "grant_types_supported": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id_token_signing_alg_values_supported": {
                     "type": "array",
@@ -2580,6 +2592,9 @@ const docTemplate = `{
                 },
                 "registration_endpoint": {
                     "type": "string"
+                },
+                "request_parameter_supported": {
+                    "type": "boolean"
                 },
                 "response_types_supported": {
                     "type": "array",
@@ -2710,6 +2725,9 @@ const docTemplate = `{
                 "address_street": {
                     "type": "string"
                 },
+                "birthdate": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2720,6 +2738,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "family_name": {
+                    "type": "string"
+                },
+                "gender": {
                     "type": "string"
                 },
                 "given_name": {
@@ -2738,10 +2759,22 @@ const docTemplate = `{
                 "locked_until": {
                     "type": "string"
                 },
+                "middle_name": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
                 "phone_number": {
                     "type": "string"
                 },
+                "phone_number_verified": {
+                    "type": "boolean"
+                },
                 "picture": {
+                    "type": "string"
+                },
+                "profile": {
                     "type": "string"
                 },
                 "role": {
@@ -2751,6 +2784,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "username": {
+                    "type": "string"
+                },
+                "website": {
                     "type": "string"
                 },
                 "zoneinfo": {
@@ -2776,10 +2812,16 @@ const docTemplate = `{
                 "address_street": {
                     "type": "string"
                 },
+                "birthdate": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "family_name": {
+                    "type": "string"
+                },
+                "gender": {
                     "type": "string"
                 },
                 "given_name": {
@@ -2792,13 +2834,25 @@ const docTemplate = `{
                 "locale": {
                     "type": "string"
                 },
+                "middle_name": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
                 "password": {
                     "type": "string"
                 },
                 "phone_number": {
                     "type": "string"
                 },
+                "phone_number_verified": {
+                    "type": "boolean"
+                },
                 "picture": {
+                    "type": "string"
+                },
+                "profile": {
                     "type": "string"
                 },
                 "role": {
@@ -2808,6 +2862,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "username": {
+                    "type": "string"
+                },
+                "website": {
                     "type": "string"
                 },
                 "zoneinfo": {

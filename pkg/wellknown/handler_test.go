@@ -55,6 +55,38 @@ func TestHandleWellKnownConfigResponse(t *testing.T) {
 	assert.Contains(t, response.TokenEndpointAuthMethodsSupported, "client_secret_basic")
 }
 
+// TestHandleWellKnownConfig_GrantTypesSupported verifies that the discovery document
+// includes grant_types_supported per RFC 8414 §2.
+func TestHandleWellKnownConfig_GrantTypesSupported(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.Contains(t, response.GrantTypesSupported, "authorization_code")
+	assert.Contains(t, response.GrantTypesSupported, "refresh_token")
+	assert.Contains(t, response.GrantTypesSupported, "password")
+}
+
+// TestHandleWellKnownConfig_RequestParameterNotSupported verifies that the discovery
+// document declares request_parameter_supported: false per OIDC Core §6.
+func TestHandleWellKnownConfig_RequestParameterNotSupported(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.False(t, response.RequestParameterSupported)
+}
+
 func TestHandleJWKS(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()

@@ -124,7 +124,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			slog.Warn("token: invalid ROPC credentials", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
 		// Determine effective scope.
@@ -231,6 +231,9 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		response.RefreshToken = ""
 	}
 
+	// RFC 6749 §5.1: token responses must not be cached
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	utils.WriteApiResponse(w, response, http.StatusOK)
 
 }

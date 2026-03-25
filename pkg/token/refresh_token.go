@@ -16,34 +16,41 @@ import (
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
 	err := ValidateTokenRequestRefresh(request)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
 		return nil, err
 	}
 
 	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
 		slog.Warn("token: invalid refresh token", "error", err)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
 		return nil, err
 	}
 
 	if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
 		slog.Warn("token: refresh token expired")
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Refresh token has expired")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token has expired")
 		return nil, err
 	}
 
 	sess, err := session.SessionByID(authToken.SessionID)
 	if err != nil {
 		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
 		return nil, err
 	}
 
 	if sess == nil || sess.DeactivatedAt != nil {
 		slog.Warn("token: refresh token session deactivated", "session_id", authToken.SessionID)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Session has been deactivated")
 		return nil, fmt.Errorf("session has been deactivated")
+	}
+
+	// RFC 6749 §10.4: refresh token must be bound to the client it was issued to
+	if authToken.ClientID != "" && request.ClientID != "" && authToken.ClientID != request.ClientID {
+		slog.Warn("token: refresh token client mismatch", "token_client", authToken.ClientID, "request_client", request.ClientID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token was not issued to this client")
+		return nil, fmt.Errorf("refresh token client mismatch")
 	}
 
 	// Check if the token has been revoked
@@ -51,7 +58,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
 	if err == nil && revokedAt != nil {
 		slog.Warn("token: refresh token has been revoked")
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Token has been revoked")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
 		return nil, fmt.Errorf("token has been revoked")
 	}
 
