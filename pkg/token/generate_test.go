@@ -58,8 +58,8 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	assert.Equal(t, "session-1", claims["sid"])
 	assert.Equal(t, "testuser", claims["name"])
 	assert.Equal(t, "testuser", claims["preferred_username"])
-	assert.Equal(t, "testuser@example.com", claims["email"])
-	assert.Equal(t, false, claims["email_verified"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+	assert.Nil(t, claims["email_verified"], "email_verified must not be in id_token")
 	assert.NotNil(t, claims["exp"])
 	assert.NotNil(t, claims["iat"])
 	assert.NotNil(t, claims["auth_time"])
@@ -112,20 +112,20 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email"])
 	assert.Nil(t, claims["email_verified"])
 
-	// "openid email" — email claims included, profile claims not
+	// "openid email" — email is served via userinfo only, never in id_token
 	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
-	assert.Equal(t, "testuser@example.com", claims["email"])
-	assert.Equal(t, false, claims["email_verified"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+	assert.Nil(t, claims["email_verified"])
 
-	// "openid profile email" — all claims included
+	// "openid profile email" — profile claims in id_token, email only via userinfo
 	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
-	assert.Equal(t, "testuser@example.com", claims["email"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
 }
 
 func TestContainsScope(t *testing.T) {

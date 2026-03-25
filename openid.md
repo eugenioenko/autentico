@@ -65,6 +65,20 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 6. Email claims in id_token caused failures for oidcc-scope-email (oidcc-scope-email)
+
+**Commit:** TBD
+
+**Problem:** Two failures:
+1. The admin test user had no email address set, causing `email is not a string with content` failures in both id_token and userinfo validation.
+2. The id_token included `email` and `email_verified` when `email` scope was present. The conformance suite warned this is unexpected — per OIDC Core §5.4, `scope=email` is shorthand for granting access to the user's email via the userinfo endpoint, not a request to include it in the id_token.
+
+**Fix:**
+- Removed `email` and `email_verified` from the id_token entirely. Email claims are now only served via the userinfo endpoint.
+- Updated `generate_test.go` to assert email is never present in the id_token regardless of scope.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

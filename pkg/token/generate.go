@@ -107,11 +107,9 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["preferred_username"] = user.Username
 	}
 
-	// Include email claims only when "email" scope is explicitly requested
-	if containsScope(scope, "email") {
-		claims["email"] = user.Email
-		claims["email_verified"] = false
-	}
+	// Email claims are intentionally excluded from the id_token.
+	// Per OIDC Core §5.4, scope=email grants access to email via the userinfo endpoint;
+	// it does not require email to be present in the id_token.
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	idToken.Header["kid"] = bs.AuthJwkCertKeyID
