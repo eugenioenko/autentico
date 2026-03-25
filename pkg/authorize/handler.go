@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -156,6 +157,24 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if request.Prompt == "none" {
 		redirectURL := fmt.Sprintf("%s?error=login_required&state=%s", request.RedirectURI, request.State)
 		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+
+	// If the authorize request arrived as POST, redirect to GET so that the CSRF
+	// middleware runs and sets the CSRF cookie before rendering the login form.
+	if r.Method == http.MethodPost {
+		q := url.Values{}
+		q.Set("response_type", request.ResponseType)
+		q.Set("client_id", request.ClientID)
+		q.Set("redirect_uri", request.RedirectURI)
+		q.Set("scope", request.Scope)
+		q.Set("state", request.State)
+		q.Set("nonce", request.Nonce)
+		q.Set("code_challenge", request.CodeChallenge)
+		q.Set("code_challenge_method", request.CodeChallengeMethod)
+		q.Set("prompt", request.Prompt)
+		q.Set("max_age", request.MaxAge)
+		http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
 		return
 	}
 

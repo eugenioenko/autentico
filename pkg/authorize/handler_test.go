@@ -3,6 +3,7 @@ package authorize
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,42 @@ func TestHandleAuthorize(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 	assert.Contains(t, rr.Body.String(), "username")
 	assert.Contains(t, rr.Body.String(), "password")
+}
+
+func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	body := "response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&nonce=abc"
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// POST must redirect to GET so the CSRF middleware can set the cookie
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "/oauth2/authorize")
+	assert.Contains(t, loc, "response_type=code")
+	assert.Contains(t, loc, "client_id=test-client")
+	assert.Contains(t, loc, "state=xyz")
+	assert.Contains(t, loc, "nonce=abc")
+}
+
+func TestHandleAuthorize_PostInvalidClient_ShowsError(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body := "response_type=code&client_id=nonexistent&redirect_uri=http://localhost/callback&state=xyz"
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// Invalid client must show error page, not redirect
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
 }
 
 func TestHandleAuthorize_UnknownClientID(t *testing.T) {
