@@ -61,6 +61,10 @@ function extractFormValue(body, name) {
  * Returns the token response body on success, null on any failure.
  */
 export function authFlow() {
+  // Clear cookies so each iteration performs a fresh login, bypassing any
+  // IdP SSO session that the server may have issued in a previous iteration.
+  http.cookieJar().clear(BASE_URL);
+
   const { verifier, challenge } = generatePKCE();
   const state = crypto.hexEncode(crypto.randomBytes(8));
   let success = true;
