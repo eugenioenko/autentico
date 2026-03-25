@@ -1,8 +1,9 @@
 # Autentico — OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-75.4%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-701-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-74.6%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-715-blue.svg)](https://github.com/eugenioenko/autentico)
+[![OIDC Certified](https://img.shields.io/badge/OIDC-certified-brightgreen.svg)](https://openid.net/certification/)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -923,7 +924,7 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico maintains comprehensive test coverage with **700+ test functions** across unit, integration, and end-to-end tests.
+Auténtico maintains comprehensive test coverage with **715+ test functions** across unit, integration, and end-to-end tests.
 
 ### Coverage by Package
 
@@ -931,34 +932,34 @@ Auténtico maintains comprehensive test coverage with **700+ test functions** ac
 | ------------------- | -------- | ----- | ------------------------- |
 | `pkg/model`         | 100.0%   | 6     | Data validation           |
 | `pkg/ratelimit`     | 100.0%   | 9     | Rate limiting             |
-| `pkg/wellknown`     | 100.0%   | 4     | OIDC discovery            |
-| `pkg/appsettings`   | 96.4%    | 12    | Runtime settings          |
+| `pkg/wellknown`     | 100.0%   | 6     | OIDC discovery            |
+| `pkg/userinfo`      | 96.9%    | 19    | UserInfo endpoint         |
+| `pkg/idpsession`    | 96.7%    | 14    | SSO session lifecycle     |
 | `pkg/config`        | 96.9%    | 9     | Configuration management  |
+| `pkg/cleanup`       | 95.5%    | 8     | Background cleanup        |
 | `pkg/jwtutil`       | 95.7%    | 12    | JWT validation            |
-| `pkg/userinfo`      | 95.2%    | 7     | UserInfo endpoint         |
+| `pkg/appsettings`   | 93.7%    | 10    | Runtime settings          |
 | `pkg/utils`         | 92.9%    | 12    | Shared helpers            |
-| `pkg/middleware`    | 91.1%    | 25    | Security middleware       |
-| `pkg/auth_code`     | 90.9%    | 9     | Authorization codes       |
+| `pkg/auth_code`     | 91.7%    | 10    | Authorization codes       |
+| `pkg/authorize`     | 90.8%    | 39    | Authorization flow        |
 | `pkg/trusteddevice` | 88.9%    | 16    | Trusted device management |
-| `pkg/admin`         | 87.1%    | 2     | Admin UI and stats        |
-| `pkg/authorize`     | 86.4%    | 26    | Authorization flow        |
-| `pkg/cleanup`       | 86.4%    | 7     | Background cleanup        |
-| `pkg/signup`        | 85.5%    | 11    | Self-service registration |
-| `pkg/session`       | 84.3%    | 17    | Session lifecycle         |
-| `pkg/user`          | 84.1%    | 62    | User management           |
-| `pkg/client`        | 83.8%    | 70    | OAuth2 client management  |
-| `pkg/token`         | 82.3%    | 57    | Token endpoint            |
-| `pkg/idpsession`    | 86.2%    | 12    | SSO session lifecycle     |
-| `pkg/key`           | 76.7%    | 8     | RSA key and JWK           |
-| `pkg/onboarding`    | 71.4%    | 10    | First-run onboarding      |
-| `pkg/login`         | 71.1%    | 14    | Login flow                |
-| `pkg/introspect`    | 88.2%    | 13    | Token introspection       |
-| `pkg/mfa`           | 64.6%    | 18    | MFA challenge management  |
-| `pkg/account`       | 66.0%    | 37    | Account self-service      |
-| `pkg/db`            | 66.7%    | 5     | Database initialization   |
-| `pkg/federation`    | 58.5%    | 24    | Federation                |
-| `pkg/passkey`       | 48.6%    | 34    | WebAuthn/passkeys         |
-| `pkg/cli`           | 29.0%    | 7     | CLI entrypoints           |
+| `pkg/signup`        | 88.4%    | 13    | Self-service registration |
+| `pkg/introspect`    | 88.2%    | 14    | Token introspection       |
+| `pkg/middleware`    | 84.8%    | 27    | Security middleware       |
+| `pkg/session`       | 84.7%    | 19    | Session lifecycle         |
+| `pkg/admin`         | 82.9%    | 3     | Admin UI and stats        |
+| `pkg/token`         | 82.1%    | 62    | Token endpoint            |
+| `pkg/user`          | 81.8%    | 61    | User management           |
+| `pkg/onboarding`    | 81.6%    | 8     | First-run onboarding      |
+| `pkg/client`        | 81.1%    | 58    | OAuth2 client management  |
+| `pkg/login`         | 80.2%    | 20    | Login flow                |
+| `pkg/key`           | 76.7%    | 10    | RSA key and JWK           |
+| `pkg/mfa`           | 70.2%    | 26    | MFA challenge management  |
+| `pkg/account`       | 67.5%    | 56    | Account self-service      |
+| `pkg/federation`    | 68.0%    | 29    | Federation                |
+| `pkg/db`            | 66.7%    | 6     | Database initialization   |
+| `pkg/passkey`       | 54.8%    | 46    | WebAuthn/passkeys         |
+| `pkg/cli`           | 31.6%    | 12    | CLI entrypoints           |
 
 ### Running Tests
 
@@ -982,9 +983,23 @@ Tests run with `-p 1` (sequential) because they share a process-level SQLite han
 
 ### Test Categories
 
-- **Unit tests** (420+): handler behavior, model validation, service logic, utility functions
-- **Integration tests** (130+): cross-package flows — authorization, token lifecycle, session management, client authentication
+- **Unit tests** (430+): handler behavior, model validation, service logic, utility functions
+- **Integration tests** (135+): cross-package flows — authorization, token lifecycle, session management, client authentication
 - **End-to-end tests** (69+): full HTTP flows against a real test server instance
+
+---
+
+## OIDC Conformance
+
+Auténtico passes the [OpenID Foundation `oidcc-basic-certification-test-plan`](https://openid.net/certification/) — the standard conformance suite for Basic OpenID Providers. The suite covers the full Authorization Code flow: discovery, authorization, token exchange, token refresh, ID token validation, UserInfo, and session management.
+
+```bash
+# Start Auténtico with conformance-compatible settings (HTTP, no rate limiting)
+make conformance-server
+
+# Pull and start the conformance suite at https://localhost:8443
+make conformance-suite
+```
 
 ---
 
