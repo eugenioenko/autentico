@@ -40,8 +40,14 @@ var defaults = map[string]string{
 	"profile_field_email":            "optional",
 	"profile_field_given_name":       "optional",
 	"profile_field_family_name":      "optional",
+	"profile_field_middle_name":      "hidden",
+	"profile_field_nickname":         "hidden",
 	"profile_field_phone":            "optional",
 	"profile_field_picture":          "optional",
+	"profile_field_website":          "hidden",
+	"profile_field_gender":           "hidden",
+	"profile_field_birthdate":        "hidden",
+	"profile_field_profile":          "hidden",
 	"profile_field_locale":           "hidden",
 	"profile_field_address":          "optional",
 }
@@ -202,11 +208,29 @@ func LoadIntoConfig() error {
 	if v, ok := all["profile_field_family_name"]; ok {
 		cfg.ProfileFieldFamilyName = v
 	}
+	if v, ok := all["profile_field_middle_name"]; ok {
+		cfg.ProfileFieldMiddleName = v
+	}
+	if v, ok := all["profile_field_nickname"]; ok {
+		cfg.ProfileFieldNickname = v
+	}
 	if v, ok := all["profile_field_phone"]; ok {
 		cfg.ProfileFieldPhone = v
 	}
 	if v, ok := all["profile_field_picture"]; ok {
 		cfg.ProfileFieldPicture = v
+	}
+	if v, ok := all["profile_field_website"]; ok {
+		cfg.ProfileFieldWebsite = v
+	}
+	if v, ok := all["profile_field_gender"]; ok {
+		cfg.ProfileFieldGender = v
+	}
+	if v, ok := all["profile_field_birthdate"]; ok {
+		cfg.ProfileFieldBirthdate = v
+	}
+	if v, ok := all["profile_field_profile"]; ok {
+		cfg.ProfileFieldProfileURL = v
 	}
 	if v, ok := all["profile_field_locale"]; ok {
 		cfg.ProfileFieldLocale = v

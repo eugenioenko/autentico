@@ -926,41 +926,6 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 Auténtico maintains comprehensive test coverage with **715+ test functions** across unit, integration, and end-to-end tests.
 
-### Coverage by Package
-
-| Package             | Coverage | Tests | Focus                     |
-| ------------------- | -------- | ----- | ------------------------- |
-| `pkg/model`         | 100.0%   | 6     | Data validation           |
-| `pkg/ratelimit`     | 100.0%   | 9     | Rate limiting             |
-| `pkg/wellknown`     | 100.0%   | 6     | OIDC discovery            |
-| `pkg/userinfo`      | 96.9%    | 19    | UserInfo endpoint         |
-| `pkg/idpsession`    | 96.7%    | 14    | SSO session lifecycle     |
-| `pkg/config`        | 96.9%    | 9     | Configuration management  |
-| `pkg/cleanup`       | 95.5%    | 8     | Background cleanup        |
-| `pkg/jwtutil`       | 95.7%    | 12    | JWT validation            |
-| `pkg/appsettings`   | 93.7%    | 10    | Runtime settings          |
-| `pkg/utils`         | 92.9%    | 12    | Shared helpers            |
-| `pkg/auth_code`     | 91.7%    | 10    | Authorization codes       |
-| `pkg/authorize`     | 90.8%    | 39    | Authorization flow        |
-| `pkg/trusteddevice` | 88.9%    | 16    | Trusted device management |
-| `pkg/signup`        | 88.4%    | 13    | Self-service registration |
-| `pkg/introspect`    | 88.2%    | 14    | Token introspection       |
-| `pkg/middleware`    | 84.8%    | 27    | Security middleware       |
-| `pkg/session`       | 84.7%    | 19    | Session lifecycle         |
-| `pkg/admin`         | 82.9%    | 3     | Admin UI and stats        |
-| `pkg/token`         | 82.1%    | 62    | Token endpoint            |
-| `pkg/user`          | 81.8%    | 61    | User management           |
-| `pkg/onboarding`    | 81.6%    | 8     | First-run onboarding      |
-| `pkg/client`        | 81.1%    | 58    | OAuth2 client management  |
-| `pkg/login`         | 80.2%    | 20    | Login flow                |
-| `pkg/key`           | 76.7%    | 10    | RSA key and JWK           |
-| `pkg/mfa`           | 70.2%    | 26    | MFA challenge management  |
-| `pkg/account`       | 67.5%    | 56    | Account self-service      |
-| `pkg/federation`    | 68.0%    | 29    | Federation                |
-| `pkg/db`            | 66.7%    | 6     | Database initialization   |
-| `pkg/passkey`       | 54.8%    | 46    | WebAuthn/passkeys         |
-| `pkg/cli`           | 31.6%    | 12    | CLI entrypoints           |
-
 ### Running Tests
 
 ```bash

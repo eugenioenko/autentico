@@ -11,8 +11,14 @@ interface ProfileForm {
   email: string;
   given_name: string;
   family_name: string;
+  middle_name: string;
+  nickname: string;
   phone_number: string;
   picture: string;
+  website: string;
+  gender: string;
+  birthdate: string;
+  profile: string;
   locale: string;
   address_street: string;
   address_locality: string;
@@ -26,8 +32,14 @@ const emptyForm: ProfileForm = {
   email: '',
   given_name: '',
   family_name: '',
+  middle_name: '',
+  nickname: '',
   phone_number: '',
   picture: '',
+  website: '',
+  gender: '',
+  birthdate: '',
+  profile: '',
   locale: '',
   address_street: '',
   address_locality: '',
@@ -62,8 +74,14 @@ const ProfilePage: React.FC = () => {
         email: profile.email || '',
         given_name: profile.given_name || '',
         family_name: profile.family_name || '',
+        middle_name: profile.middle_name || '',
+        nickname: profile.nickname || '',
         phone_number: profile.phone_number || '',
         picture: profile.picture || '',
+        website: profile.website || '',
+        gender: profile.gender || '',
+        birthdate: profile.birthdate || '',
+        profile: profile.profile || '',
         locale: profile.locale || '',
         address_street: profile.address_street || '',
         address_locality: profile.address_locality || '',
@@ -99,8 +117,14 @@ const ProfilePage: React.FC = () => {
 
   const showGivenName = settings.profile_field_given_name !== 'hidden';
   const showFamilyName = settings.profile_field_family_name !== 'hidden';
+  const showMiddleName = settings.profile_field_middle_name !== 'hidden';
+  const showNickname = settings.profile_field_nickname !== 'hidden';
   const showPhone = settings.profile_field_phone !== 'hidden';
   const showPicture = settings.profile_field_picture !== 'hidden';
+  const showWebsite = settings.profile_field_website !== 'hidden';
+  const showGender = settings.profile_field_gender !== 'hidden';
+  const showBirthdate = settings.profile_field_birthdate !== 'hidden';
+  const showProfileURL = settings.profile_field_profile !== 'hidden';
   const showLocale = settings.profile_field_locale !== 'hidden';
   const showAddress = settings.profile_field_address !== 'hidden';
 
@@ -150,6 +174,30 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
 
+        {showMiddleName && (
+          <div>
+            <FieldLabel label="Middle Name" required={req('middle_name')} />
+            <input
+              type="text"
+              value={form.middle_name}
+              onChange={set('middle_name')}
+              required={req('middle_name')}
+            />
+          </div>
+        )}
+
+        {showNickname && (
+          <div>
+            <FieldLabel label="Nickname" required={req('nickname')} />
+            <input
+              type="text"
+              value={form.nickname}
+              onChange={set('nickname')}
+              required={req('nickname')}
+            />
+          </div>
+        )}
+
         {showPhone && (
           <div>
             <FieldLabel label="Phone Number" required={req('phone')} />
@@ -170,6 +218,54 @@ const ProfilePage: React.FC = () => {
               value={form.picture}
               onChange={set('picture')}
               required={req('picture')}
+            />
+          </div>
+        )}
+
+        {showWebsite && (
+          <div>
+            <FieldLabel label="Website" required={req('website')} />
+            <input
+              type="url"
+              value={form.website}
+              onChange={set('website')}
+              required={req('website')}
+            />
+          </div>
+        )}
+
+        {showProfileURL && (
+          <div>
+            <FieldLabel label="Profile Page URL" required={req('profile')} />
+            <input
+              type="url"
+              value={form.profile}
+              onChange={set('profile')}
+              required={req('profile')}
+            />
+          </div>
+        )}
+
+        {showGender && (
+          <div>
+            <FieldLabel label="Gender" required={req('gender')} />
+            <input
+              type="text"
+              value={form.gender}
+              onChange={set('gender')}
+              required={req('gender')}
+            />
+          </div>
+        )}
+
+        {showBirthdate && (
+          <div>
+            <FieldLabel label="Birthdate" required={req('birthdate')} />
+            <input
+              type="date"
+              value={form.birthdate}
+              onChange={set('birthdate')}
+              required={req('birthdate')}
             />
           </div>
         )}
