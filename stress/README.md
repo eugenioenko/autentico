@@ -23,7 +23,31 @@ AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./autentico start
 
 > **Do not run with rate limiting disabled in production.**
 
-### 2. Register the stress-test client
+### 2. Configure runtime settings for load testing
+
+Two runtime settings must be adjusted before running multi-VU tests. With defaults, all
+500 VUs share one test user — the account lockout kicks in after 5 failed attempts and
+blocks all subsequent logins for 15 minutes.
+
+```bash
+curl -X PUT http://localhost:9999/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"account_lockout_max_attempts": "0", "sso_session_idle_timeout": "0"}'
+```
+
+- `account_lockout_max_attempts=0` — disables lockout so a single locked account can't
+  block the entire test
+- `sso_session_idle_timeout=0` — disables IdP SSO sessions; without this, after the first
+  successful login each VU carries a session cookie and `/oauth2/authorize` redirects
+  directly to the callback instead of showing the login form, breaking the flow
+
+The `flow.js` helper also clears the cookie jar at the start of every iteration as a
+belt-and-suspenders measure.
+
+> Restore both settings to their defaults after testing.
+
+### 3. Register the stress-test client
 
 In the Admin UI (`/admin/`) or via the API, create a client with:
 
@@ -36,7 +60,7 @@ In the Admin UI (`/admin/`) or via the API, create a client with:
 | Redirect URI | `http://localhost:8080/stress/callback` |
 | Auth Method  | `none`                                  |
 
-### 3. Create a test user
+### 4. Create a test user
 
 Create (or use an existing) user whose credentials you will pass as `USERNAME` / `PASSWORD`.
 
