@@ -91,6 +91,7 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		"iat":       now.Unix(),
 		"auth_time": authTime.Unix(),
 		"sid":       sessionID,
+		"acr":       "1",
 	}
 
 	if nonce != "" {
