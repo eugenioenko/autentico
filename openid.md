@@ -126,6 +126,19 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 10. max_age not enforced — SSO auto-login ignored max_age parameter (oidcc-max-age-1)
+
+**Commit:** TBD
+
+**Problem:** When `max_age` was sent on the second authorization request, the SSO auto-login check did not compare the session age against `max_age`. The server used the existing IdP session and returned the original `auth_time`, so the conformance suite saw `auth_time` identical to the first run and failed `CheckSecondIdTokenAuthTimeIsLaterIfPresent` and `CheckIdTokenAuthTimeIsRecentIfPresent`.
+
+**Fix:**
+- Added `MaxAge string` field to `AuthorizeRequest`.
+- Added `parseMaxAge(s string) int64` helper: parses the value as seconds, returns `-1` if absent or invalid.
+- In the SSO auto-login block: compute `sessionAge := time.Since(session.CreatedAt)` and set `maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second`. SSO auto-login is skipped when `maxAgeExceeded` is true, forcing the user to re-authenticate and producing a fresh `auth_time`.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -47,6 +48,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 
 	// Validate redirect_uri format first — if invalid we cannot redirect back safely
@@ -102,34 +104,40 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Check for valid IdP session (auto-login)
 	// prompt=login requires fresh authentication — skip SSO auto-login
+	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
+	maxAgeSecs := parseMaxAge(request.MaxAge)
 	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)
-			if err == nil && time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout {
-				// Valid IdP session — auto-login
-				_ = idpsession.UpdateLastActivity(session.ID)
+			if err == nil {
+				sessionAge := time.Since(session.CreatedAt)
+				maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second
+				if time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout && !maxAgeExceeded {
+					// Valid IdP session — auto-login
+					_ = idpsession.UpdateLastActivity(session.ID)
 
-				code, err := authcode.GenerateSecureCode()
-				if err == nil {
-					ac := authcode.AuthCode{
-						Code:                code,
-						UserID:              session.UserID,
-						ClientID:            request.ClientID,
-						RedirectURI:         request.RedirectURI,
-						Scope:               request.Scope,
-						Nonce:               request.Nonce,
-						CodeChallenge:       request.CodeChallenge,
-						CodeChallengeMethod: request.CodeChallengeMethod,
-						ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+					code, err := authcode.GenerateSecureCode()
+					if err == nil {
+						ac := authcode.AuthCode{
+							Code:                code,
+							UserID:              session.UserID,
+							ClientID:            request.ClientID,
+							RedirectURI:         request.RedirectURI,
+							Scope:               request.Scope,
+							Nonce:               request.Nonce,
+							CodeChallenge:       request.CodeChallenge,
+							CodeChallengeMethod: request.CodeChallengeMethod,
+							ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 							Used:                false,
-						CreatedAt:           session.CreatedAt,
-					}
-					if authcode.CreateAuthCode(ac) == nil {
-						redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
-						http.Redirect(w, r, redirectURL, http.StatusFound)
-						return
+							CreatedAt:           session.CreatedAt,
+						}
+						if authcode.CreateAuthCode(ac) == nil {
+							redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
+							http.Redirect(w, r, redirectURL, http.StatusFound)
+							return
+						}
 					}
 				}
 			}
@@ -190,6 +198,19 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, stat
 		u += "&state=" + state
 	}
 	http.Redirect(w, r, u, http.StatusFound)
+}
+
+// parseMaxAge parses the max_age query parameter as seconds.
+// Returns -1 if absent or invalid (meaning no max_age constraint).
+func parseMaxAge(s string) int64 {
+	if s == "" {
+		return -1
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || v < 0 {
+		return -1
+	}
+	return v
 }
 
 // renderError renders a branded error page without any login form fields.

@@ -459,6 +459,62 @@ func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 }
 
+func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Session created 10 seconds ago
+	testutils.InsertTestUser(t, "sso-user-2")
+	session := idpsession.IdpSession{
+		ID:     "idp-maxage-1",
+		UserID: "sso-user-2",
+	}
+	_ = idpsession.CreateIdpSession(session)
+	// Backdate created_at so that session age exceeds max_age=1
+	_, _ = db.GetDB().Exec(`UPDATE idp_sessions SET created_at = datetime('now', '-10 seconds') WHERE id = ?`, "idp-maxage-1")
+
+	// max_age=1 — session is 10s old, exceeds max_age; must force re-authentication
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=1", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-1"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "max_age exceeded must show login form")
+	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code when max_age exceeded")
+}
+
+func TestHandleAuthorize_MaxAge_WithinSession_AutoLogins(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Session created 1 second ago
+	testutils.InsertTestUser(t, "sso-user-3")
+	session := idpsession.IdpSession{
+		ID:             "idp-maxage-2",
+		UserID:         "sso-user-3",
+		CreatedAt:      time.Now().Add(-1 * time.Second),
+		LastActivityAt: time.Now(),
+	}
+	_ = idpsession.CreateIdpSession(session)
+
+	// max_age=30 — session is 1s old, within max_age; SSO auto-login should proceed
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=30", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-2"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code, "within max_age must auto-login via SSO")
+	assert.Contains(t, rr.Header().Get("Location"), "code=", "must issue auth code")
+}
+
 func TestHandleAuthorize_PromptLogin_BypassesSSO(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

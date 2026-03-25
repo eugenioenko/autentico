@@ -15,6 +15,7 @@ type AuthorizeRequest struct {
 	CodeChallenge       string
 	CodeChallengeMethod string
 	Prompt              string
+	MaxAge              string
 }
 
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {
