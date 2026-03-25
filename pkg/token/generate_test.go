@@ -129,6 +129,20 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 }
 
 // Issue #9/#10: auth_time must reflect the original authentication time, not token issuance time
+// Issue #11: acr claim must always be present in the id_token
+func TestGenerateIDToken_AcrClaimPresent(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+	assert.Equal(t, "1", claims["acr"], "acr claim must be present in id_token")
+}
+
 func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
 	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
