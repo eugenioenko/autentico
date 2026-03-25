@@ -254,6 +254,56 @@ func TestHandleToken_AuthorizationCodeGrant_UsedCode(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "invalid_grant")
 }
 
+// RFC 6749 §4.1.2: when a used auth code is presented again, previously issued tokens must be revoked
+func TestHandleToken_AuthorizationCodeReuse_RevokesIssuedTokens(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "code-client", []string{"http://localhost/callback"})
+
+	usr, err := user.CreateUser("reuse-user", "password123", "reuse@example.com")
+	assert.NoError(t, err)
+
+	// Seed a previously issued token as if it came from an authorization_code exchange
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES ('tok-reuse-1', ?, 'reuse-access-token', 'reuse-refresh-token', 'Bearer',
+			datetime('now', '+30 days'), datetime('now', '+15 minutes'), datetime('now'), 'openid', 'authorization_code')
+	`, usr.ID)
+	assert.NoError(t, err)
+
+	// Present a reused (already-used) auth code
+	code := authcode.AuthCode{
+		Code:        "reuse-code",
+		UserID:      usr.ID,
+		ClientID:    "code-client",
+		RedirectURI: "http://localhost/callback",
+		Scope:       "openid",
+		ExpiresAt:   time.Now().Add(10 * time.Minute),
+	}
+	assert.NoError(t, authcode.CreateAuthCode(code))
+	assert.NoError(t, authcode.MarkAuthCodeAsUsed("reuse-code"))
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "reuse-code")
+	form.Add("redirect_uri", "http://localhost/callback")
+	form.Add("client_id", "code-client")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_grant")
+
+	// Previously issued token must now be revoked
+	var revokedAt *string
+	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE id = 'tok-reuse-1'`).Scan(&revokedAt)
+	assert.NoError(t, err)
+	assert.NotNil(t, revokedAt, "token issued for this user must be revoked on code reuse")
+}
+
 func TestHandleToken_AuthorizationCodeGrant_ExpiredCode(t *testing.T) {
 	testutils.WithTestDB(t)
 

@@ -98,3 +98,27 @@ stress-ceiling:
 # Start server with rate limiting disabled (for stress testing only — not for production)
 stress-server:
 	AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./$(APP_NAME) start
+
+# ── OIDC Conformance ─────────────────────────────────────────────────────────
+# Runs the OpenID Foundation conformance suite locally via Docker.
+# conformance-server: start Autentico with settings suitable for conformance testing
+# conformance-suite:  pull and start the conformance suite at https://localhost:8443
+# conformance-stop:   stop and remove the conformance suite container
+
+CONFORMANCE_PORT ?= 8443
+
+conformance-server:
+	AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 \
+	AUTENTICO_CSRF_SECURE_COOKIE=false \
+	AUTENTICO_IDP_SESSION_SECURE=false \
+	AUTENTICO_APP_URL=http://172.17.0.1:9999 \
+	./$(APP_NAME) start
+
+conformance-suite:
+	docker run -d --name oidc-conformance --network=host \
+		-p $(CONFORMANCE_PORT):$(CONFORMANCE_PORT) \
+		openidcertification/conformance-suite
+	@echo "Conformance suite running at https://localhost:$(CONFORMANCE_PORT)"
+
+conformance-stop:
+	docker stop oidc-conformance && docker rm oidc-conformance

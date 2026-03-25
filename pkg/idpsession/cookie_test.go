@@ -28,7 +28,7 @@ func TestSetCookie(t *testing.T) {
 	assert.Equal(t, "test-session-id", cookie.Value)
 	assert.Equal(t, "/oauth2", cookie.Path)
 	assert.True(t, cookie.HttpOnly)
-	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
+	assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 }
 
 func TestReadCookie(t *testing.T) {

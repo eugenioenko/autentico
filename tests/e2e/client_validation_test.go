@@ -183,11 +183,9 @@ func TestAuthorize_InvalidScope(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "not allowed")
+	// Invalid scope → redirect back with error=invalid_scope
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Location"), "error=invalid_scope")
 }
 
 func TestLogin_InvalidScope(t *testing.T) {

@@ -92,6 +92,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	var usr *user.User
 	var codeNonce string
 	var codeScope string
+	codeAuthTime := time.Now()
 
 	switch request.GrantType {
 	case "authorization_code":
@@ -102,6 +103,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		codeNonce = code.Nonce
 		codeScope = code.Scope
+		codeAuthTime = code.CreatedAt
 	case "password":
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
@@ -214,7 +216,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	// Generate ID token when "openid" scope is requested
 	if containsScope(codeScope, "openid") {
-		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID)
+		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID, codeAuthTime)
 		if idErr != nil {
 			slog.Error("token: failed to generate ID token", "request_id", middleware.GetRequestID(r.Context()), "error", idErr)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("ID token generation failed: %v", idErr))

@@ -78,7 +78,7 @@ func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthT
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
 // The nonce parameter is included in the token if non-empty (for authorization code flow replay protection).
 // The scope parameter controls which claims are included (e.g. "profile" adds name claims, "email" adds email claims).
-func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string) (string, error) {
+func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time) (string, error) {
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
@@ -89,8 +89,9 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		"aud":       clientID,
 		"exp":       idTokenExpiresAt.Unix(),
 		"iat":       now.Unix(),
-		"auth_time": now.Unix(),
+		"auth_time": authTime.Unix(),
 		"sid":       sessionID,
+		"acr":       "1",
 	}
 
 	if nonce != "" {
@@ -101,17 +102,15 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["azp"] = clientID
 	}
 
-	// Include profile claims when "profile" or "openid" scope is present
-	if containsScope(scope, "profile") || containsScope(scope, "openid") {
+	// Include profile claims only when "profile" scope is explicitly requested
+	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
 	}
 
-	// Include email claims when "email" or "openid" scope is present
-	if containsScope(scope, "email") || containsScope(scope, "openid") {
-		claims["email"] = user.Email
-		claims["email_verified"] = false
-	}
+	// Email claims are intentionally excluded from the id_token.
+	// Per OIDC Core §5.4, scope=email grants access to email via the userinfo endpoint;
+	// it does not require email to be present in the id_token.
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	idToken.Header["kid"] = bs.AuthJwkCertKeyID

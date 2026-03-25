@@ -95,6 +95,92 @@ func TestIsValidRedirectURI(t *testing.T) {
 	assert.True(t, IsValidRedirectURI(nil, "http://any.com/callback"))
 }
 
+func TestIsValidRedirectURIWildcard(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	request := ClientCreateRequest{
+		ClientName:   "Wildcard App",
+		RedirectURIs: []string{"https://localhost.emobix.co.uk:8443/*", "http://exact.com/callback"},
+	}
+
+	created, err := CreateClient(request)
+	assert.NoError(t, err)
+
+	client, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	// /* wildcard: suffix is empty so HasSuffix("") is always true — matches any path under prefix
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/abc123/callback"))
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/autentico/callback"))
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/anything"))
+
+	// Exact match still works alongside wildcard
+	assert.True(t, IsValidRedirectURI(client, "http://exact.com/callback"))
+
+	// Different host does not match the wildcard
+	assert.False(t, IsValidRedirectURI(client, "https://evil.com/test/abc123/callback"))
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:9999/test/abc/callback"))
+}
+
+func TestIsValidRedirectURIWildcard_SuffixCheck(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	// Pattern: /test/*/callback — wildcard mid-path with suffix
+	request := ClientCreateRequest{
+		ClientName:   "Mid Wildcard App",
+		RedirectURIs: []string{"https://example.com/test/*/callback"},
+	}
+	created, err := CreateClient(request)
+	assert.NoError(t, err)
+	client, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	// Must match: prefix and suffix both present
+	assert.True(t, IsValidRedirectURI(client, "https://example.com/test/abc123/callback"))
+	assert.True(t, IsValidRedirectURI(client, "https://example.com/test/a/plan/callback"))
+
+	// Must reject: extra path after the suffix (oidcc-ensure-registered-redirect-uri scenario)
+	assert.False(t, IsValidRedirectURI(client, "https://example.com/test/abc123/callback/extra"))
+	assert.False(t, IsValidRedirectURI(client, "https://example.com/test/abc123/callback/2FCOzETCNZ"))
+
+	// Must reject: different host
+	assert.False(t, IsValidRedirectURI(client, "https://evil.com/test/abc123/callback"))
+}
+
+// oidcc-ensure-registered-redirect-uri: exact URI registered, path extension must be rejected
+func TestIsValidRedirectURI_ExactMatch_RejectsPathExtension(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	request := ClientCreateRequest{
+		ClientName:   "Exact URI App",
+		RedirectURIs: []string{"https://localhost.emobix.co.uk:8443/test/a/plan123/callback"},
+	}
+	created, err := CreateClient(request)
+	assert.NoError(t, err)
+
+	client, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	// Registered URI must match exactly
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback"))
+
+	// Path extension must be rejected (the oidcc-ensure-registered-redirect-uri test case)
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback/extra"))
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback/2FCOzETCNZ"))
+}
+
 func TestIsGrantTypeAllowed(t *testing.T) {
 	_, err := db.InitTestDB()
 	if err != nil {

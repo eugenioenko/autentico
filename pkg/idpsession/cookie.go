@@ -14,7 +14,7 @@ func SetCookie(w http.ResponseWriter, sessionID string) {
 		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -34,7 +34,7 @@ func ClearCookie(w http.ResponseWriter) {
 		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 }

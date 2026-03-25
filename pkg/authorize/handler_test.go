@@ -3,6 +3,7 @@ package authorize
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,42 @@ func TestHandleAuthorize(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "password")
 }
 
+func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	body := "response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&nonce=abc"
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// POST must redirect to GET so the CSRF middleware can set the cookie
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "/oauth2/authorize")
+	assert.Contains(t, loc, "response_type=code")
+	assert.Contains(t, loc, "client_id=test-client")
+	assert.Contains(t, loc, "state=xyz")
+	assert.Contains(t, loc, "nonce=abc")
+}
+
+func TestHandleAuthorize_PostInvalidClient_ShowsError(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body := "response_type=code&client_id=nonexistent&redirect_uri=http://localhost/callback&state=xyz"
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// Invalid client must show error page, not redirect
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
+}
+
 func TestHandleAuthorize_UnknownClientID(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -43,26 +80,31 @@ func TestHandleAuthorize_UnknownClientID(t *testing.T) {
 
 func TestHandleAuthorize_MissingResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Must redirect back with error=invalid_request
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_request")
+	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
 func TestHandleAuthorize_InvalidResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Must redirect back with error=unsupported_response_type
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
@@ -73,21 +115,22 @@ func TestHandleAuthorize_InvalidRedirectURI(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	// Cannot redirect — show error page
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_RedirectURIInvalid(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	// A URI with no host is syntactically invalid
+	// A URI with no host is syntactically invalid — show error page, cannot redirect
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=not-a-valid-uri&state=xyz123", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_InactiveClient(t *testing.T) {
@@ -143,8 +186,8 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Response type not allowed for this client")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
@@ -287,15 +330,16 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 
 func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
 	testutils.WithTestDB(t)
-	// AuthPKCEEnforceSHA256 defaults to true — plain must be rejected
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	// AuthPKCEEnforceSHA256 defaults to true — plain must be rejected via redirect
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=abc&code_challenge_method=plain", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_request")
 }
 
 func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
@@ -342,7 +386,9 @@ func TestHandleAuthorize_InvalidScope(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Invalid scope → redirect back with error=invalid_scope
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_scope")
 }
 
 func TestHandleAuthorize_AllowedScope(t *testing.T) {
@@ -437,7 +483,7 @@ func TestHandleAuthorize_WithFederation(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Google")
 }
 
-func TestHandleAuthorize_PromptLogin(t *testing.T) {
+func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
@@ -446,9 +492,91 @@ func TestHandleAuthorize_PromptLogin(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should show login form even if there was a session (not tested here, but prompt=login forces it)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "form")
+}
+
+func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Session created 10 seconds ago
+	testutils.InsertTestUser(t, "sso-user-2")
+	session := idpsession.IdpSession{
+		ID:     "idp-maxage-1",
+		UserID: "sso-user-2",
+	}
+	_ = idpsession.CreateIdpSession(session)
+	// Backdate created_at so that session age exceeds max_age=1
+	_, _ = db.GetDB().Exec(`UPDATE idp_sessions SET created_at = datetime('now', '-10 seconds') WHERE id = ?`, "idp-maxage-1")
+
+	// max_age=1 — session is 10s old, exceeds max_age; must force re-authentication
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=1", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-1"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "max_age exceeded must show login form")
+	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code when max_age exceeded")
+}
+
+func TestHandleAuthorize_MaxAge_WithinSession_AutoLogins(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Session created 1 second ago
+	testutils.InsertTestUser(t, "sso-user-3")
+	session := idpsession.IdpSession{
+		ID:             "idp-maxage-2",
+		UserID:         "sso-user-3",
+		CreatedAt:      time.Now().Add(-1 * time.Second),
+		LastActivityAt: time.Now(),
+	}
+	_ = idpsession.CreateIdpSession(session)
+
+	// max_age=30 — session is 1s old, within max_age; SSO auto-login should proceed
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=30", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-2"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code, "within max_age must auto-login via SSO")
+	assert.Contains(t, rr.Header().Get("Location"), "code=", "must issue auth code")
+}
+
+func TestHandleAuthorize_PromptLogin_BypassesSSO(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Create an active IdP session
+	testutils.InsertTestUser(t, "sso-user-1")
+	session := idpsession.IdpSession{
+		ID:             "idp-login-1",
+		UserID:         "sso-user-1",
+		LastActivityAt: time.Now(),
+	}
+	_ = idpsession.CreateIdpSession(session)
+
+	// prompt=login must force re-authentication even with an active SSO session
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=login", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-login-1"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "prompt=login must show login form, not auto-login")
+	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code via SSO bypass")
 }
 
 
@@ -490,9 +618,9 @@ func TestHandleAuthorize_InvalidRedirectURI_Extra(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Implementation returns 403 on validation error
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "RedirectURI: must be a valid URL.")
+	// Invalid redirect_uri — show error page
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
 
 func TestHandleAuthorize_UnknownClient_Extra(t *testing.T) {
@@ -516,9 +644,9 @@ func TestHandleAuthorize_UnsupportedResponseType_Extra(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Implementation returns 403 on validation error
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "ResponseType: must be a valid value.")
+	// Invalid response_type → redirect back with error=unsupported_response_type
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=unsupported_response_type")
 }
 
 func TestHandleAuthorize_WithGenericError(t *testing.T) {

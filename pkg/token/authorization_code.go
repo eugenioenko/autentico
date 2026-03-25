@@ -27,10 +27,19 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, err
 	}
 
-	if code == nil || code.Used || code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
-		slog.Warn("token: authorization code invalid, expired, or already used", "client_id", request.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has already been used")
-		return nil, nil, fmt.Errorf("authorization code is invalid or has already been used")
+	// RFC 6749 §4.1.2: if the code has already been used, revoke all tokens
+	// previously issued for this user+client before rejecting the request.
+	if code.Used {
+		slog.Warn("token: authorization code reuse detected — revoking issued tokens", "client_id", request.ClientID, "user_id", code.UserID)
+		_ = RevokeTokensByUserAndClient(code.UserID, code.ClientID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code has already been used")
+		return nil, nil, fmt.Errorf("authorization code has already been used")
+	}
+
+	if code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
+		slog.Warn("token: authorization code invalid or expired", "client_id", request.ClientID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has expired")
+		return nil, nil, fmt.Errorf("authorization code is invalid or has expired")
 	}
 
 	// Validate that client_id matches the one used when the code was issued

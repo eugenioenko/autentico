@@ -39,14 +39,21 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 			"RS256",
 		},
 		ScopesSupported: []string{
-			"openid", "profile", "email",
+			"openid", "profile", "email", "address", "phone", "offline_access",
 		},
 		TokenEndpointAuthMethodsSupported: []string{
 			"client_secret_basic", "client_secret_post",
 		},
 		ClaimsSupported: []string{
-			"sub", "iss", "aud", "exp", "iat", "name", "email",
+			"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "sid", "acr",
+			"name", "preferred_username", "given_name", "family_name", "middle_name",
+			"nickname", "profile", "picture", "website", "gender", "birthdate",
+			"locale", "zoneinfo", "updated_at",
+			"email", "email_verified",
+			"phone_number",
+			"address",
 		},
+		AcrValuesSupported: []string{"1"},
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

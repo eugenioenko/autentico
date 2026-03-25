@@ -99,7 +99,7 @@ func TestSelfSignup_Complete(t *testing.T) {
 	var userinfo map[string]interface{}
 	err = json.Unmarshal(body, &userinfo)
 	require.NoError(t, err)
-	assert.Equal(t, "brandnewuser", userinfo["preferred_username"])
+	assert.NotEmpty(t, userinfo["sub"])
 }
 
 func TestSelfSignup_StatePreserved(t *testing.T) {

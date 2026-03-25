@@ -44,7 +44,7 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client")
+	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client", time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, idToken)
 
@@ -58,8 +58,8 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	assert.Equal(t, "session-1", claims["sid"])
 	assert.Equal(t, "testuser", claims["name"])
 	assert.Equal(t, "testuser", claims["preferred_username"])
-	assert.Equal(t, "testuser@example.com", claims["email"])
-	assert.Equal(t, false, claims["email_verified"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+	assert.Nil(t, claims["email_verified"], "email_verified must not be in id_token")
 	assert.NotNil(t, claims["exp"])
 	assert.NotNil(t, claims["iat"])
 	assert.NotNil(t, claims["auth_time"])
@@ -75,7 +75,7 @@ func TestGenerateIDToken_WithoutNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client")
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -94,12 +94,71 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	// Only "openid" scope — should still include profile and email (openid implies them)
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client")
+	// Only "openid" scope — profile and email claims must NOT be included
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
 	require.NoError(t, err)
 	claims := parseIDTokenClaims(t, idToken)
+	assert.Nil(t, claims["name"])
+	assert.Nil(t, claims["preferred_username"])
+	assert.Nil(t, claims["email"])
+	assert.Nil(t, claims["email_verified"])
+
+	// "openid profile" — profile claims included, email claims not
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now())
+	require.NoError(t, err)
+	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
-	assert.Equal(t, "testuser@example.com", claims["email"])
+	assert.Equal(t, "testuser", claims["preferred_username"])
+	assert.Nil(t, claims["email"])
+	assert.Nil(t, claims["email_verified"])
+
+	// "openid email" — email is served via userinfo only, never in id_token
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client", time.Now())
+	require.NoError(t, err)
+	claims = parseIDTokenClaims(t, idToken)
+	assert.Nil(t, claims["name"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+	assert.Nil(t, claims["email_verified"])
+
+	// "openid profile email" — profile claims in id_token, email only via userinfo
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client", time.Now())
+	require.NoError(t, err)
+	claims = parseIDTokenClaims(t, idToken)
+	assert.Equal(t, "testuser", claims["name"])
+	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+}
+
+// Issue #9/#10: auth_time must reflect the original authentication time, not token issuance time
+// Issue #11: acr claim must always be present in the id_token
+func TestGenerateIDToken_AcrClaimPresent(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+	assert.Equal(t, "1", claims["acr"], "acr claim must be present in id_token")
+}
+
+func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	originalLoginTime := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", originalLoginTime)
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+
+	authTime := int64(claims["auth_time"].(float64))
+	assert.Equal(t, originalLoginTime.Unix(), authTime, "auth_time must equal the original login time, not now")
+	assert.NotEqual(t, time.Now().Unix(), authTime, "auth_time must not be the current time")
 }
 
 func TestContainsScope(t *testing.T) {

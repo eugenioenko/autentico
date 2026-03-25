@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -35,39 +37,37 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/authorize [get]
 func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
+	// Support both GET (query string) and POST (form body) per OIDC Core §3.1.2.1
+	if r.Method == http.MethodPost {
+		_ = r.ParseForm()
+	}
+	get := func(key string) string {
+		if r.Method == http.MethodPost {
+			return r.FormValue(key)
+		}
+		return r.URL.Query().Get(key)
+	}
 
 	request := AuthorizeRequest{
-		ResponseType:        q.Get("response_type"),
-		ClientID:            q.Get("client_id"),
-		RedirectURI:         q.Get("redirect_uri"),
-		Scope:               q.Get("scope"),
-		State:               q.Get("state"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
-		Prompt:              q.Get("prompt"),
+		ResponseType:        get("response_type"),
+		ClientID:            get("client_id"),
+		RedirectURI:         get("redirect_uri"),
+		Scope:               get("scope"),
+		State:               get("state"),
+		Nonce:               get("nonce"),
+		CodeChallenge:       get("code_challenge"),
+		CodeChallengeMethod: get("code_challenge_method"),
+		Prompt:              get("prompt"),
+		MaxAge:              get("max_age"),
 	}
 
-	err := ValidateAuthorizeRequest(request)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_request", err.Error())
-		return
-	}
-
-	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
-	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
-		return
-	}
-
-	// Validate redirect_uri format
+	// Validate redirect_uri format first — if invalid we cannot redirect back safely
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		renderError(w, "Invalid redirect_uri")
 		return
 	}
 
-	// Validate client_id against registered clients
+	// Validate client_id — if unknown we cannot redirect back safely
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("authorize: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
@@ -87,46 +87,67 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// From here redirect_uri and client are trusted — redirect back with error for all remaining failures
+
+	if err := ValidateAuthorizeRequest(request); err != nil {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", err.Error())
+		return
+	}
+
+	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
+	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
+		return
+	}
+
 	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
 		slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
-		renderError(w, "Response type not allowed for this client")
+		redirectWithError(w, r, request.RedirectURI, request.State, "unsupported_response_type", "response_type not allowed for this client")
 		return
 	}
 
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("authorize: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
-		renderError(w, "One or more requested scopes are not allowed for this client")
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_scope", "one or more requested scopes are not allowed for this client")
 		return
 	}
 
 	// Check for valid IdP session (auto-login)
+	// prompt=login requires fresh authentication — skip SSO auto-login
+	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
-	if cfg.AuthSsoSessionIdleTimeout > 0 {
+	maxAgeSecs := parseMaxAge(request.MaxAge)
+	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)
-			if err == nil && time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout {
-				// Valid IdP session — auto-login
-				_ = idpsession.UpdateLastActivity(session.ID)
+			if err == nil {
+				sessionAge := time.Since(session.CreatedAt)
+				maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second
+				if time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout && !maxAgeExceeded {
+					// Valid IdP session — auto-login
+					_ = idpsession.UpdateLastActivity(session.ID)
 
-				code, err := authcode.GenerateSecureCode()
-				if err == nil {
-					ac := authcode.AuthCode{
-						Code:                code,
-						UserID:              session.UserID,
-						ClientID:            request.ClientID,
-						RedirectURI:         request.RedirectURI,
-						Scope:               request.Scope,
-						Nonce:               request.Nonce,
-						CodeChallenge:       request.CodeChallenge,
-						CodeChallengeMethod: request.CodeChallengeMethod,
-						ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-						Used:                false,
-					}
-					if authcode.CreateAuthCode(ac) == nil {
-						redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
-						http.Redirect(w, r, redirectURL, http.StatusFound)
-						return
+					code, err := authcode.GenerateSecureCode()
+					if err == nil {
+						ac := authcode.AuthCode{
+							Code:                code,
+							UserID:              session.UserID,
+							ClientID:            request.ClientID,
+							RedirectURI:         request.RedirectURI,
+							Scope:               request.Scope,
+							Nonce:               request.Nonce,
+							CodeChallenge:       request.CodeChallenge,
+							CodeChallengeMethod: request.CodeChallengeMethod,
+							ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+							Used:                false,
+							CreatedAt:           session.CreatedAt,
+						}
+						if authcode.CreateAuthCode(ac) == nil {
+							redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
+							http.Redirect(w, r, redirectURL, http.StatusFound)
+							return
+						}
 					}
 				}
 			}
@@ -139,7 +160,25 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderLogin(w, r, request, q.Get("error"))
+	// If the authorize request arrived as POST, redirect to GET so that the CSRF
+	// middleware runs and sets the CSRF cookie before rendering the login form.
+	if r.Method == http.MethodPost {
+		q := url.Values{}
+		q.Set("response_type", request.ResponseType)
+		q.Set("client_id", request.ClientID)
+		q.Set("redirect_uri", request.RedirectURI)
+		q.Set("scope", request.Scope)
+		q.Set("state", request.State)
+		q.Set("nonce", request.Nonce)
+		q.Set("code_challenge", request.CodeChallenge)
+		q.Set("code_challenge_method", request.CodeChallengeMethod)
+		q.Set("prompt", request.Prompt)
+		q.Set("max_age", request.MaxAge)
+		http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
+		return
+	}
+
+	renderLogin(w, r, request, get("error"))
 }
 
 // renderLogin renders the login form, or an error-only page when errorMsg is a fatal
@@ -178,6 +217,28 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
+}
+
+// redirectWithError redirects back to the redirect_uri with OAuth2 error params.
+func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, state, errCode, errDesc string) {
+	u := fmt.Sprintf("%s?error=%s&error_description=%s", redirectURI, errCode, errDesc)
+	if state != "" {
+		u += "&state=" + state
+	}
+	http.Redirect(w, r, u, http.StatusFound)
+}
+
+// parseMaxAge parses the max_age query parameter as seconds.
+// Returns -1 if absent or invalid (meaning no max_age constraint).
+func parseMaxAge(s string) int64 {
+	if s == "" {
+		return -1
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || v < 0 {
+		return -1
+	}
+	return v
 }
 
 // renderError renders a branded error page without any login form fields.

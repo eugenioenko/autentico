@@ -18,7 +18,7 @@ func TestHandleAuthorize_WithErrorDescription(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Implementation returns 403 on validation error
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-	assert.Contains(t, rr.Body.String(), "RedirectURI: cannot be blank")
+	// Missing redirect_uri — show error page
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
 }
