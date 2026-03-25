@@ -105,8 +105,14 @@ type Config struct {
 	ProfileFieldEmail      string
 	ProfileFieldGivenName  string
 	ProfileFieldFamilyName string
+	ProfileFieldMiddleName string
+	ProfileFieldNickname   string
 	ProfileFieldPhone      string
 	ProfileFieldPicture    string
+	ProfileFieldWebsite    string
+	ProfileFieldGender     string
+	ProfileFieldBirthdate  string
+	ProfileFieldProfileURL string
 	ProfileFieldLocale     string
 	ProfileFieldAddress    string
 }
@@ -149,8 +155,14 @@ var defaultConfig = Config{
 	ProfileFieldEmail:                  "optional",
 	ProfileFieldGivenName:              "optional",
 	ProfileFieldFamilyName:             "optional",
+	ProfileFieldMiddleName:             "hidden",
+	ProfileFieldNickname:               "hidden",
 	ProfileFieldPhone:                  "optional",
 	ProfileFieldPicture:                "optional",
+	ProfileFieldWebsite:                "hidden",
+	ProfileFieldGender:                 "hidden",
+	ProfileFieldBirthdate:              "hidden",
+	ProfileFieldProfileURL:             "hidden",
 	ProfileFieldLocale:                 "optional",
 	ProfileFieldAddress:                "optional",
 }

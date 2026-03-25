@@ -9,8 +9,14 @@ export interface Settings {
   allow_email_change: boolean;
   profile_field_given_name: string;
   profile_field_family_name: string;
+  profile_field_middle_name: string;
+  profile_field_nickname: string;
   profile_field_phone: string;
   profile_field_picture: string;
+  profile_field_website: string;
+  profile_field_gender: string;
+  profile_field_birthdate: string;
+  profile_field_profile: string;
   profile_field_locale: string;
   profile_field_address: string;
 }
@@ -24,8 +30,14 @@ const defaultSettings: Settings = {
   allow_email_change: false,
   profile_field_given_name: 'optional',
   profile_field_family_name: 'optional',
+  profile_field_middle_name: 'hidden',
+  profile_field_nickname: 'hidden',
   profile_field_phone: 'optional',
   profile_field_picture: 'optional',
+  profile_field_website: 'hidden',
+  profile_field_gender: 'hidden',
+  profile_field_birthdate: 'hidden',
+  profile_field_profile: 'hidden',
   profile_field_address: 'optional',
   profile_field_locale: 'hidden',
 };

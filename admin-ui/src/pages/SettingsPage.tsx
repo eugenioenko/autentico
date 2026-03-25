@@ -53,8 +53,14 @@ const tip = makeTip({
   signup_show_optional_fields: "When off (default), optional fields are hidden during signup to keep the form minimal. Required fields are always shown.",
   profile_field_given_name: "Controls the given_name (first name) field.",
   profile_field_family_name: "Controls the family_name (last name) field.",
+  profile_field_middle_name: "Controls the middle_name field.",
+  profile_field_nickname: "Controls the nickname field.",
   profile_field_phone: "Controls the phone_number field.",
   profile_field_picture: "Controls the picture field (URL to avatar image).",
+  profile_field_website: "Controls the website field (URL to the user's personal site).",
+  profile_field_gender: "Controls the gender field.",
+  profile_field_birthdate: "Controls the birthdate field (ISO 8601 date).",
+  profile_field_profile: "Controls the profile field (URL to the user's profile page).",
   profile_field_locale: "Controls the locale field (e.g. en-US).",
   profile_field_address: "Controls all address fields (street, city, region, postal code, country) as a group.",
   theme_title: "Custom title for the login and account pages.",
@@ -450,6 +456,30 @@ export default function SettingsPage() {
                   </Form.Item>
 
                   <Form.Item
+                    label="Middle Name"
+                    name="profile_field_middle_name"
+                    tooltip={{ title: tip("profile_field_middle_name"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Nickname"
+                    name="profile_field_nickname"
+                    tooltip={{ title: tip("profile_field_nickname"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
                     label="Phone Number"
                     name="profile_field_phone"
                     tooltip={{ title: tip("profile_field_phone"), icon: <ExclamationCircleOutlined /> }}
@@ -465,6 +495,54 @@ export default function SettingsPage() {
                     label="Profile Picture"
                     name="profile_field_picture"
                     tooltip={{ title: tip("profile_field_picture"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Website"
+                    name="profile_field_website"
+                    tooltip={{ title: tip("profile_field_website"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Profile Page URL"
+                    name="profile_field_profile"
+                    tooltip={{ title: tip("profile_field_profile"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Gender"
+                    name="profile_field_gender"
+                    tooltip={{ title: tip("profile_field_gender"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="hidden">Hidden</Select.Option>
+                      <Select.Option value="optional">Optional</Select.Option>
+                      <Select.Option value="required">Required</Select.Option>
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Birthdate"
+                    name="profile_field_birthdate"
+                    tooltip={{ title: tip("profile_field_birthdate"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
                       <Select.Option value="hidden">Hidden</Select.Option>

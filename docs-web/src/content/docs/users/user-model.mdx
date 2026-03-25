@@ -20,6 +20,31 @@ description: The fields that make up a user record in Autentico.
 | `is_email_verified` | boolean | Whether the email address has been verified |
 | `deactivated_at` | timestamp (nullable) | If set, the account is deactivated and cannot log in |
 
+## OIDC profile fields
+
+All standard OIDC profile claims are stored on the user record. Visibility on the signup form and account portal is controlled per-field via [profile field settings](/configuration/runtime-settings/#profile-fields). All fields default to empty string and are omitted from API responses when blank.
+
+| Field | OIDC claim | Description |
+|---|---|---|
+| `given_name` | `given_name` | First (given) name |
+| `family_name` | `family_name` | Last (family) name |
+| `middle_name` | `middle_name` | Middle name |
+| `nickname` | `nickname` | Casual name the user prefers (alias or shortened first name) |
+| `phone_number` | `phone_number` | Phone number in E.164 format |
+| `phone_number_verified` | `phone_number_verified` | Whether the phone number has been verified |
+| `picture` | `picture` | URL to an avatar image |
+| `website` | `website` | URL to the user's personal or professional website |
+| `profile` | `profile` | URL to the user's profile page |
+| `gender` | `gender` | Free-form gender string |
+| `birthdate` | `birthdate` | Date of birth in ISO 8601 format (`YYYY-MM-DD`) |
+| `locale` | `locale` | Preferred locale (e.g. `en-US`) |
+| `zoneinfo` | `zoneinfo` | IANA time zone identifier (e.g. `America/Los_Angeles`) |
+| `address_street` | `address.street_address` | Street address |
+| `address_locality` | `address.locality` | City |
+| `address_region` | `address.region` | State or region |
+| `address_postal_code` | `address.postal_code` | Postal / ZIP code |
+| `address_country` | `address.country` | Country |
+
 ## API representation
 
 The admin API returns users in a safe representation that excludes the password hash and TOTP secret:

@@ -41,6 +41,14 @@ export default function UserEditForm({
         role: user.role,
         is_email_verified: user.is_email_verified,
         totp_verified: user.totp_verified,
+        given_name: user.given_name,
+        middle_name: user.middle_name,
+        family_name: user.family_name,
+        nickname: user.nickname,
+        gender: user.gender,
+        birthdate: user.birthdate,
+        website: user.website,
+        profile: user.profile,
       });
     }
   }, [user, open, form]);
@@ -102,6 +110,43 @@ export default function UserEditForm({
           extra="Leave empty to keep current password"
         >
           <Input.Password placeholder="Enter new password" />
+        </Form.Item>
+
+        <Divider />
+        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+          Profile
+        </Typography.Text>
+
+        <Form.Item name="given_name" label="First Name">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="middle_name" label="Middle Name">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="family_name" label="Last Name">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="nickname" label="Nickname">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="gender" label="Gender">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="birthdate" label="Birthdate">
+          <Input placeholder="YYYY-MM-DD" />
+        </Form.Item>
+
+        <Form.Item name="website" label="Website">
+          <Input placeholder="https://..." />
+        </Form.Item>
+
+        <Form.Item name="profile" label="Profile Page URL">
+          <Input placeholder="https://..." />
         </Form.Item>
 
         <Divider />

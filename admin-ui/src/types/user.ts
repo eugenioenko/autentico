@@ -13,6 +13,14 @@ export interface UserUpdateRequest {
   role?: string;
   is_email_verified?: boolean;
   totp_verified?: boolean;
+  given_name?: string;
+  middle_name?: string;
+  family_name?: string;
+  nickname?: string;
+  gender?: string;
+  birthdate?: string;
+  website?: string;
+  profile?: string;
 }
 
 // Extended response fields not in swagger spec
@@ -26,4 +34,12 @@ export interface UserResponseExt {
   locked_until: string | null;
   is_email_verified: boolean;
   totp_verified: boolean;
+  given_name?: string;
+  middle_name?: string;
+  family_name?: string;
+  nickname?: string;
+  gender?: string;
+  birthdate?: string;
+  website?: string;
+  profile?: string;
 }
