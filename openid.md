@@ -146,6 +146,34 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 11. acr claim missing from id_token (oidcc-ensure-request-with-acr-values-succeeds)
+
+**Commit:** TBD
+
+**Problem:** The conformance suite sent `acr_values=1` in the authorization request. The server did not return an `acr` claim in the id_token. Per OIDC Core §3.1.2.1, the server SHOULD return an `acr` claim when `acr_values` is requested.
+
+**Fix:**
+- Added `acr: "1"` to the id_token in `GenerateIDToken`.
+- Added `acr_values_supported: ["1"]` to the well-known discovery document.
+- Added `acr` to `claims_supported`.
+
+---
+
+## 12. Authorization code reuse did not revoke previously issued tokens (oidcc-codereuse-30seconds)
+
+**Commit:** TBD
+
+**Problem:** When an already-used authorization code was presented a second time, the server correctly returned `invalid_grant`, but the access token that was originally issued for that code remained valid. The conformance suite then used it against the userinfo endpoint and got 200 instead of 4xx.
+
+Per RFC 6749 §4.1.2: "the authorization server MUST deny the request and SHOULD revoke (when possible) all tokens previously issued based on that authorization code."
+
+**Fix:**
+- Split the `code.Used` check from the general invalid/expired check in `UserByAuthorizationCode` so reuse can be handled distinctly.
+- Added `RevokeTokensByUserAndClient(userID, clientID)` which sets `revoked_at` on all non-revoked `authorization_code` grant tokens for that user.
+- On code reuse detection, call this before returning `invalid_grant` — so the access token is revoked and the userinfo endpoint returns 401.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)
