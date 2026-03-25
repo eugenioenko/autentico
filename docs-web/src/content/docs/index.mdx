@@ -22,9 +22,9 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
-Autentico is a self-hosted OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle -login, MFA, passkeys, session management, token issuance, and administration -in a single binary backed by SQLite.
+Autentico is a self-hosted OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration, all in a single binary backed by SQLite.
 
-A typical self-hosted IdP involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack entirely. There is no external database to provision, no connection pool to tune, no sidecars -just one binary and one file.
+A typical self-hosted IdP involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack entirely. There is no external database to provision, no connection pool to tune, no sidecars: just one binary and one file.
 
 The simplicity is operational, not protocol-level. Autentico implements OAuth2 and OpenID Connect correctly: Authorization Code + PKCE, token introspection and revocation, OIDC Discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP. Relying parties configure themselves automatically via the standard discovery document.
 
@@ -37,7 +37,7 @@ The simplicity is operational, not protocol-level. Autentico implements OAuth2 a
 ./autentico start
 ```
 
-Open `http://localhost:9999/onboard`, set your admin username and password -you're in. No Docker, no database to provision, no config files to edit.
+Open `http://localhost:9999/onboard`, set your admin username and password. You're in. No Docker, no database to provision, no config files to edit.
 
 ## Try it live
 
