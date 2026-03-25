@@ -107,6 +107,25 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 9. prompt=login bypassed by SSO auto-login; prompt=none failed due to SameSite=Strict cookie (oidcc-prompt-login, oidcc-prompt-none-logged-in)
+
+**Commits:** TBD
+
+**Problem:** Two related issues:
+
+1. `prompt=login`: The SSO auto-login check ran before the `prompt=login` check. When a valid IdP session existed, the server auto-logged in without prompting the user to re-authenticate, violating OIDC Core §3.1.2.1.
+
+2. `prompt=none`: The IdP session cookie was set with `SameSite=Strict`. OIDC flows involve cross-site redirects by design (e.g. `client.example.com` → `idp.example.com/oauth2/authorize`). With Strict, the browser blocks the cookie on these top-level cross-site navigations, so the server never saw the session and returned `login_required`.
+
+3. `auth_time` inconsistency: When SSO auto-login issued a new auth code, `auth_time` in the resulting ID token was set to `time.Now()` instead of the original authentication time. Per OIDC Core §2, `auth_time` must reflect when the user actually authenticated, not when the token was issued.
+
+**Fix:**
+- `prompt=login`: Added `&& request.Prompt != "login"` guard to the SSO auto-login block so it is skipped when `prompt=login` is present.
+- `SameSite=Strict` → `SameSite=Lax`: Lax allows the cookie to be sent on top-level GET navigations (which is exactly what OIDC authorize redirects are) while still blocking it on subrequests. This is the correct setting for all IdP session cookies and matches Auth0, Okta, and Keycloak's behaviour.
+- `auth_time`: `GenerateIDToken` now accepts an explicit `authTime time.Time` parameter. For SSO auto-login the auth code `CreatedAt` is set to `session.CreatedAt`, so the original authentication time is preserved through to the ID token.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

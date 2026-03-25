@@ -78,7 +78,7 @@ func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthT
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
 // The nonce parameter is included in the token if non-empty (for authorization code flow replay protection).
 // The scope parameter controls which claims are included (e.g. "profile" adds name claims, "email" adds email claims).
-func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string) (string, error) {
+func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time) (string, error) {
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
@@ -89,7 +89,7 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		"aud":       clientID,
 		"exp":       idTokenExpiresAt.Unix(),
 		"iat":       now.Unix(),
-		"auth_time": now.Unix(),
+		"auth_time": authTime.Unix(),
 		"sid":       sessionID,
 	}
 

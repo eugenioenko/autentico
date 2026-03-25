@@ -44,7 +44,7 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client")
+	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client", time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, idToken)
 
@@ -75,7 +75,7 @@ func TestGenerateIDToken_WithoutNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client")
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -95,7 +95,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	}
 
 	// Only "openid" scope — profile and email claims must NOT be included
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client")
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
 	require.NoError(t, err)
 	claims := parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
@@ -104,7 +104,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid profile" — profile claims included, email claims not
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client")
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now())
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
@@ -113,7 +113,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid email" — email is served via userinfo only, never in id_token
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client")
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client", time.Now())
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
@@ -121,7 +121,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid profile email" — profile claims in id_token, email only via userinfo
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client")
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client", time.Now())
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])

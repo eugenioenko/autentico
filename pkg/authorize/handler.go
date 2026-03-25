@@ -101,8 +101,9 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check for valid IdP session (auto-login)
+	// prompt=login requires fresh authentication — skip SSO auto-login
 	cfg := config.Get()
-	if cfg.AuthSsoSessionIdleTimeout > 0 {
+	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)
@@ -122,7 +123,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 						CodeChallenge:       request.CodeChallenge,
 						CodeChallengeMethod: request.CodeChallengeMethod,
 						ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-						Used:                false,
+							Used:                false,
+						CreatedAt:           session.CreatedAt,
 					}
 					if authcode.CreateAuthCode(ac) == nil {
 						redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
