@@ -31,11 +31,11 @@ The simplicity is operational, not protocol-level. Autentico implements OAuth2 a
 ## Get running in 60 seconds
 
 ```bash
-./autentico init    # generates .env with RSA key, CSRF secret, token secrets
-./autentico start   # server running at http://localhost:9999
+./autentico init --url http://localhost:9999
+./autentico start
 ```
 
-Open the onboarding URL, set your admin username and password — you're in. No Docker, no database to provision, no config files to edit.
+Open [http://localhost:9999/onboard](http://localhost:9999/onboard), set your admin username and password — you're in. No Docker, no database to provision, no config files to edit.
 
 [**Download the latest release →**](https://github.com/eugenioenko/autentico/releases)
 
