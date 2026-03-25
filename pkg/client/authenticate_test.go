@@ -126,6 +126,32 @@ func TestIsValidRedirectURIWildcard(t *testing.T) {
 	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:9999/test/abc/callback"))
 }
 
+// oidcc-ensure-registered-redirect-uri: exact URI registered, path extension must be rejected
+func TestIsValidRedirectURI_ExactMatch_RejectsPathExtension(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	request := ClientCreateRequest{
+		ClientName:   "Exact URI App",
+		RedirectURIs: []string{"https://localhost.emobix.co.uk:8443/test/a/plan123/callback"},
+	}
+	created, err := CreateClient(request)
+	assert.NoError(t, err)
+
+	client, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	// Registered URI must match exactly
+	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback"))
+
+	// Path extension must be rejected (the oidcc-ensure-registered-redirect-uri test case)
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback/extra"))
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/plan123/callback/2FCOzETCNZ"))
+}
+
 func TestIsGrantTypeAllowed(t *testing.T) {
 	_, err := db.InitTestDB()
 	if err != nil {
