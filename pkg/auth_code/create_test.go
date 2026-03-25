@@ -34,6 +34,30 @@ func TestCreateAuthCode(t *testing.T) {
 	assert.Equal(t, "test-code", code)
 }
 
+func TestCreateAuthCode_ZeroCreatedAt_DefaultsToNow(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	before := time.Now().Add(-time.Second)
+	authCode := AuthCode{
+		Code:        "zero-created-at",
+		UserID:      "user-1",
+		RedirectURI: "http://localhost/callback",
+		Scope:       "openid",
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+		Used:        false,
+		// CreatedAt intentionally zero
+	}
+
+	err := CreateAuthCode(authCode)
+	assert.NoError(t, err)
+
+	result, err := AuthCodeByCode("zero-created-at")
+	assert.NoError(t, err)
+	assert.False(t, result.CreatedAt.IsZero(), "CreatedAt must not be zero after insert")
+	assert.True(t, result.CreatedAt.After(before), "CreatedAt must be close to now")
+}
+
 func TestCreateAuthCode_DuplicateCode(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")

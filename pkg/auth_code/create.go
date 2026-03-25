@@ -1,10 +1,15 @@
 package authcode
 
 import (
+	"time"
+
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
 func CreateAuthCode(code AuthCode) error {
+	if code.CreatedAt.IsZero() {
+		code.CreatedAt = time.Now().UTC()
+	}
 	query := `
 		INSERT INTO auth_codes (
 			code, user_id, client_id, redirect_uri, scope, nonce,

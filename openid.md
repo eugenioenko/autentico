@@ -130,12 +130,19 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 **Commit:** TBD
 
-**Problem:** When `max_age` was sent on the second authorization request, the SSO auto-login check did not compare the session age against `max_age`. The server used the existing IdP session and returned the original `auth_time`, so the conformance suite saw `auth_time` identical to the first run and failed `CheckSecondIdTokenAuthTimeIsLaterIfPresent` and `CheckIdTokenAuthTimeIsRecentIfPresent`.
+**Problem:** Three related issues:
+
+1. `max_age` not enforced: the SSO auto-login block did not compare session age against `max_age`, so it auto-logged in even when the session exceeded `max_age`.
+2. `auth_time` was year 1 (Go zero time): the login handler never set `CreatedAt` on the auth code — it was left as `time.Time{}` (zero). `CreateAuthCode` stored zero time in the DB. When read back, `codeAuthTime = code.CreatedAt` was zero, giving `auth_time = -62135596800` (year 1 AD).
+3. `idp_sessions.created_at` stored as `CURRENT_TIMESTAMP` SQLite format (`"YYYY-MM-DD HH:MM:SS"`) which modernc.org/sqlite cannot parse back into `time.Time`, causing zero time there too.
 
 **Fix:**
 - Added `MaxAge string` field to `AuthorizeRequest`.
 - Added `parseMaxAge(s string) int64` helper: parses the value as seconds, returns `-1` if absent or invalid.
-- In the SSO auto-login block: compute `sessionAge := time.Since(session.CreatedAt)` and set `maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second`. SSO auto-login is skipped when `maxAgeExceeded` is true, forcing the user to re-authenticate and producing a fresh `auth_time`.
+- In the SSO auto-login block: compute `sessionAge := time.Since(session.CreatedAt)` and set `maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second`. SSO auto-login is skipped when `maxAgeExceeded` is true.
+- `CreateAuthCode`: if `code.CreatedAt` is zero, default to `time.Now().UTC()` — ensures `auth_time` reflects actual login time.
+- `CreateIdpSession`: explicitly insert `last_activity_at` and `created_at` as Go `time.Time` values (stored as RFC3339 by the driver) instead of relying on `CURRENT_TIMESTAMP` defaults.
+- `UpdateLastActivity`, `DeactivateIdpSession`, `DeactivateAllForUser`: pass `time.Now().UTC()` as a bound parameter instead of using SQL `CURRENT_TIMESTAMP`, so all datetime values round-trip correctly.
 
 ---
 
