@@ -18,17 +18,13 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import { Card, CardGrid, LinkButton } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
 Autentico is a self-hosted OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration, all in a single binary backed by SQLite.
 
-A typical self-hosted IdP involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack entirely.
-
-There is no external database to provision, no connection pool to tune, no sidecars: just one binary and one file.
-
-The simplicity is operational, not protocol-level. Autentico implements OAuth2 and OpenID Connect correctly: Authorization Code + PKCE, token introspection and revocation, OIDC Discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP. Relying parties configure themselves automatically via the standard discovery document.
+A typical self-hosted Identity Provider involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack: just one binary and one database file. The simplicity is operational, not protocol-level.
 
 ## Get running in 60 seconds
 
@@ -45,17 +41,18 @@ No Docker, no database to provision, no config files to edit.
 
 ## Try it live
 
-A fresh, dedicated Autentico instance is provisioned just for you
-
-[**Launch a Live Demo →**](https://demo.autentico.top/launch)
-
-_Each demo session provisions an isolated, ephemeral instance. 
-All data and configuration are automatically purged after 24 hours. No shared state, no persistence, no surprises._
+<div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: "2rem", flexWrap: "wrap"}}>
+  <div style={{minWidth: "min(100%, 280px)"}}>
+    <p>A fresh, dedicated Autentico instance is provisioned just for you.</p>
+    <p><em>Each session is isolated and ephemeral. All data is purged after 24 hours.</em></p>
+  </div>
+  <LinkButton href="https://demo.autentico.top/launch" icon="external" variant="secondary">Launch a Live Demo</LinkButton>
+</div>
 
 ## Features
 
 <CardGrid>
-  <Card title="OIDC & OAuth2" icon="document">
+  <Card title="OIDC & OAuth2" icon="open-book">
     Authorization Code Flow with PKCE, Refresh Tokens, ROPC, Token Introspection
     (RFC 7662), Token Revocation (RFC 7009), and a full OIDC Discovery document.
   </Card>
@@ -64,22 +61,23 @@ All data and configuration are automatically purged after 24 hours. No shared st
     Email OTP, and trusted device recognition to reduce MFA friction on known
     devices.
   </Card>
-  <Card title="Admin UI" icon="laptop">
-    A built-in React dashboard for managing users, clients, and sessions.
-    Runtime settings update without restarting the server.
+  <Card title="Admin & Account UI" icon="list-format">
+    A built-in React dashboard for managing users, clients, and sessions. A
+    self-service account portal lets users manage their profile, change password,
+    enroll TOTP, and register passkeys.
   </Card>
-  <Card title="Zero Dependencies" icon="rocket">
+  <Card title="Zero Dependencies" icon="cloud-download">
     Single Go binary with embedded SQLite. No Postgres, no Redis, no sidecars.
     ~40MB idle, ~100MB under heavy load. Deploy anywhere a binary can run.
   </Card>
-  <Card title="Three-Layer Config" icon="setting">
+  <Card title="Flexible Configuration" icon="vercel">
     Immutable bootstrap settings from `.env`, runtime settings in the database
     (hot-reloadable), and per-client overrides for token TTLs, auth modes, and
     more.
   </Card>
-  <Card title="Production Ready" icon="shield">
-    RS256 JWT signing, CSRF protection, bcrypt password and secret hashing,
-    account lockout, configurable session idle timeouts, and a background
-    cleanup service.
+  <Card title="Production Ready" icon="laptop">
+    RS256 JWT signing, CSRF protection, bcrypt password hashing, account
+    lockout, rate limiting, and configurable session timeouts. Passes the
+    OpenID Foundation Basic OP certification test.
   </Card>
 </CardGrid>
