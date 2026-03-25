@@ -36,19 +36,28 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/authorize [get]
 func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
+	// Support both GET (query string) and POST (form body) per OIDC Core §3.1.2.1
+	if r.Method == http.MethodPost {
+		_ = r.ParseForm()
+	}
+	get := func(key string) string {
+		if r.Method == http.MethodPost {
+			return r.FormValue(key)
+		}
+		return r.URL.Query().Get(key)
+	}
 
 	request := AuthorizeRequest{
-		ResponseType:        q.Get("response_type"),
-		ClientID:            q.Get("client_id"),
-		RedirectURI:         q.Get("redirect_uri"),
-		Scope:               q.Get("scope"),
-		State:               q.Get("state"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
-		Prompt:              q.Get("prompt"),
-		MaxAge:              q.Get("max_age"),
+		ResponseType:        get("response_type"),
+		ClientID:            get("client_id"),
+		RedirectURI:         get("redirect_uri"),
+		Scope:               get("scope"),
+		State:               get("state"),
+		Nonce:               get("nonce"),
+		CodeChallenge:       get("code_challenge"),
+		CodeChallengeMethod: get("code_challenge_method"),
+		Prompt:              get("prompt"),
+		MaxAge:              get("max_age"),
 	}
 
 	// Validate redirect_uri format first — if invalid we cannot redirect back safely
@@ -150,7 +159,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderLogin(w, r, request, q.Get("error"))
+	renderLogin(w, r, request, get("error"))
 }
 
 // renderLogin renders the login form, or an error-only page when errorMsg is a fatal
