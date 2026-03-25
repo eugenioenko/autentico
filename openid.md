@@ -79,6 +79,22 @@ Additionally, several claims (`middle_name`, `nickname`, `website`, `gender`, `b
 
 ---
 
+## 7. address and phone scopes not advertised or enforced (oidcc-scope-address)
+
+**Commit:** TBD
+
+**Problem:** Two issues:
+1. The `/.well-known/openid-configuration` did not advertise `address`, `phone`, or `offline_access` in `scopes_supported`, causing the conformance suite to skip the test entirely.
+2. Even after advertising the scopes, the `address` claim was only included in the userinfo response when at least one address field was non-empty, causing a missing claim warning.
+
+**Fix:**
+- Added `address`, `phone`, and `offline_access` to `scopes_supported` and expanded `claims_supported` in the well-known handler.
+- Updated all OAuth2 clients to allow the new scopes.
+- `address` is now always present in the userinfo response when `address` scope is requested: a populated address object if any field has content, or `null` if the user has no address data.
+- Same applied to `phone_number` — always emitted (as `null` if empty) when `phone` scope is requested.
+
+---
+
 ## Setup Notes
 
 - Conformance suite runs via Docker at `https://localhost:8443` (source: `/tmp/conformance-suite`, docker-compose)

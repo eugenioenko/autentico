@@ -111,19 +111,22 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		response["email_verified"] = user.IsEmailVerified
 	}
 
-	if containsScope(scope, "phone") && user.PhoneNumber != "" {
-		response["phone_number"] = user.PhoneNumber
+	if containsScope(scope, "phone") {
+		response["phone_number"] = nilIfEmpty(user.PhoneNumber)
 	}
 
-	if containsScope(scope, "address") &&
-		(user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
-			user.AddressPostalCode != "" || user.AddressCountry != "") {
-		response["address"] = map[string]string{
-			"street_address": user.AddressStreet,
-			"locality":       user.AddressLocality,
-			"region":         user.AddressRegion,
-			"postal_code":    user.AddressPostalCode,
-			"country":        user.AddressCountry,
+	if containsScope(scope, "address") {
+		if user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
+			user.AddressPostalCode != "" || user.AddressCountry != "" {
+			response["address"] = map[string]interface{}{
+				"street_address": nilIfEmpty(user.AddressStreet),
+				"locality":       nilIfEmpty(user.AddressLocality),
+				"region":         nilIfEmpty(user.AddressRegion),
+				"postal_code":    nilIfEmpty(user.AddressPostalCode),
+				"country":        nilIfEmpty(user.AddressCountry),
+			}
+		} else {
+			response["address"] = nil
 		}
 	}
 	utils.WriteApiResponse(w, response, http.StatusOK)
