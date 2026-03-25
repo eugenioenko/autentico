@@ -128,6 +128,25 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
 }
 
+// Issue #9/#10: auth_time must reflect the original authentication time, not token issuance time
+func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	originalLoginTime := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", originalLoginTime)
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+
+	authTime := int64(claims["auth_time"].(float64))
+	assert.Equal(t, originalLoginTime.Unix(), authTime, "auth_time must equal the original login time, not now")
+	assert.NotEqual(t, time.Now().Unix(), authTime, "auth_time must not be the current time")
+}
+
 func TestContainsScope(t *testing.T) {
 	assert.True(t, containsScope("openid profile email", "openid"))
 	assert.True(t, containsScope("openid profile email", "profile"))

@@ -1,6 +1,7 @@
 package userinfo
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -387,6 +388,104 @@ func TestHandleUserInfo_FullProfile(t *testing.T) {
 	// phone and address require their own scopes — not returned with openid profile email
 	assert.NotContains(t, body, "+123456789")
 	assert.NotContains(t, body, "Main St")
+}
+
+// Issue #5: all standard profile claims must be present (even as null) when profile scope is requested
+func TestHandleUserInfo_ProfileScope_NullClaimsPresent(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	// User with no profile fields set at all
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'barebones', '', 'pass')`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid profile")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+
+	// All standard OIDC profile claims must be present (may be null, but the key must exist)
+	for _, claim := range []string{"given_name", "family_name", "middle_name", "nickname", "website", "gender", "birthdate", "profile", "picture", "locale", "zoneinfo", "updated_at"} {
+		_, exists := body[claim]
+		assert.True(t, exists, "claim %q must be present in profile scope response", claim)
+	}
+}
+
+// Issue #7: address claim must be present as null when address scope requested but user has no address data
+func TestHandleUserInfo_AddressScope_NullWhenEmpty(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'noaddr', '', 'pass')`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid address")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+
+	_, exists := body["address"]
+	assert.True(t, exists, "address claim must be present even when user has no address data")
+	assert.Nil(t, body["address"], "address must be null when user has no address data")
+}
+
+// Issue #7: phone_number must be present as null when phone scope requested but user has no phone
+func TestHandleUserInfo_PhoneScope_NullWhenEmpty(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'nophone', '', 'pass')`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid phone")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+
+	_, exists := body["phone_number"]
+	assert.True(t, exists, "phone_number must be present even when user has no phone")
+	assert.Nil(t, body["phone_number"], "phone_number must be null when user has no phone")
+}
+
+// Issue #8: phone_number_verified must always be emitted when phone scope is present
+func TestHandleUserInfo_PhoneScope_IncludesVerified(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password, phone_number) VALUES (?, 'phoneverify', '', 'pass', '+1234')`, userID)
+
+	token, _ := generateTestTokensWithScope(userID, "openid phone")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+
+	_, exists := body["phone_number_verified"]
+	assert.True(t, exists, "phone_number_verified must always be present with phone scope")
 }
 
 func TestHandleUserInfo_CompleteProfile(t *testing.T) {
