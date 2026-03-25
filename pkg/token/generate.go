@@ -55,6 +55,7 @@ func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthT
 		"sub": user.ID,
 		"iat": time.Now().Unix(),
 		"sid": sessionID,
+		"azp": clientID,
 		"exp": refreshTokenExpiresAt.Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)

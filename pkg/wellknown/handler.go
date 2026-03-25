@@ -53,7 +53,9 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 			"phone_number",
 			"address",
 		},
-		AcrValuesSupported: []string{"1"},
+		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password"},
+		AcrValuesSupported:        []string{"1"},
+		RequestParameterSupported: false,
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

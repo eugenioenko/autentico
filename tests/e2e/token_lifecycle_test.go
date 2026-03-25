@@ -132,7 +132,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token's refresh should be rejected: %s", string(body))
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "revoked token's refresh should be rejected: %s", string(body))
 }
 
 func TestRefreshToken_RotationBehavior(t *testing.T) {
@@ -191,7 +191,7 @@ func TestRefreshToken_ExpiredRefresh(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired refresh token should be rejected")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "expired refresh token should be rejected")
 }
 
 func TestRefreshToken_InvalidRefreshToken(t *testing.T) {
@@ -205,7 +205,7 @@ func TestRefreshToken_InvalidRefreshToken(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "invalid refresh token should be rejected")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "invalid refresh token should be rejected")
 }
 
 func TestRefreshToken_AfterLogout(t *testing.T) {
@@ -234,5 +234,5 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "refresh after logout should be rejected: %s", string(body))
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "refresh after logout should be rejected: %s", string(body))
 }

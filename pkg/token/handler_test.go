@@ -125,7 +125,7 @@ func TestHandleToken_PasswordGrant_InvalidCredentials(t *testing.T) {
 
 	HandleToken(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "invalid_grant")
 }
 
@@ -464,7 +464,7 @@ func TestHandleToken_RefreshTokenGrant_MissingToken(t *testing.T) {
 
 	HandleToken(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "invalid_grant")
 }
 
@@ -481,7 +481,7 @@ func TestHandleToken_RefreshTokenGrant_InvalidToken(t *testing.T) {
 
 	HandleToken(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "invalid_grant")
 }
 
@@ -528,7 +528,7 @@ func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 
 	HandleToken(rr2, req2)
 
-	assert.Equal(t, http.StatusUnauthorized, rr2.Code)
+	assert.Equal(t, http.StatusBadRequest, rr2.Code)
 	assert.Contains(t, rr2.Body.String(), "invalid_grant")
 }
 
@@ -928,7 +928,7 @@ func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
 
 	HandleToken(rr2, req2)
 
-	assert.Equal(t, http.StatusUnauthorized, rr2.Code)
+	assert.Equal(t, http.StatusBadRequest, rr2.Code)
 	assert.Contains(t, rr2.Body.String(), "invalid_grant")
 }
 
@@ -957,7 +957,7 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 		RefreshToken: authToken.RefreshToken,
 	})
 	assert.Error(t, err)
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
@@ -1264,4 +1264,85 @@ func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "access_token")
+}
+
+// TestHandleToken_CacheControlHeaders verifies that the token endpoint sets
+// Cache-Control: no-store and Pragma: no-cache per RFC 6749 §5.1.
+func TestHandleToken_CacheControlHeaders(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+	insertROPCTestClient(t)
+
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleToken(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "no-cache", rr.Header().Get("Pragma"))
+}
+
+// TestHandleToken_RefreshTokenGrant_ClientMismatch verifies that a refresh token
+// issued to one client is rejected when presented by a different client
+// per RFC 6749 §10.4.
+func TestHandleToken_RefreshTokenGrant_ClientMismatch(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+	insertROPCTestClient(t)
+
+	// Insert a second client
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('other-client-id', 'other-client', 'Other Client', 'public', '[]', '["password","refresh_token"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	// Obtain a refresh token issued to ropc-test-client
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleToken(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	assert.NoError(t, err)
+
+	// Present the refresh token as other-client — must be rejected
+	form2 := url.Values{}
+	form2.Add("grant_type", "refresh_token")
+	form2.Add("refresh_token", tokenResp.RefreshToken)
+	form2.Add("client_id", "other-client")
+
+	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr2 := httptest.NewRecorder()
+	HandleToken(rr2, req2)
+
+	assert.Equal(t, http.StatusBadRequest, rr2.Code)
+	assert.Contains(t, rr2.Body.String(), "invalid_grant")
 }

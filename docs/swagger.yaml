@@ -322,6 +322,10 @@ definitions:
     type: object
   model.WellKnownConfigResponse:
     properties:
+      acr_values_supported:
+        items:
+          type: string
+        type: array
       authorization_endpoint:
         type: string
       claims_supported:
@@ -330,6 +334,10 @@ definitions:
         type: array
       end_session_endpoint:
         type: string
+      grant_types_supported:
+        items:
+          type: string
+        type: array
       id_token_signing_alg_values_supported:
         items:
           type: string
@@ -340,6 +348,8 @@ definitions:
         type: string
       registration_endpoint:
         type: string
+      request_parameter_supported:
+        type: boolean
       response_types_supported:
         items:
           type: string
@@ -425,6 +435,8 @@ definitions:
         type: string
       address_street:
         type: string
+      birthdate:
+        type: string
       created_at:
         type: string
       email:
@@ -432,6 +444,8 @@ definitions:
       failed_login_attempts:
         type: integer
       family_name:
+        type: string
+      gender:
         type: string
       given_name:
         description: OIDC standard profile claims
@@ -444,15 +458,25 @@ definitions:
         type: string
       locked_until:
         type: string
+      middle_name:
+        type: string
+      nickname:
+        type: string
       phone_number:
         type: string
+      phone_number_verified:
+        type: boolean
       picture:
+        type: string
+      profile:
         type: string
       role:
         type: string
       totp_verified:
         type: boolean
       username:
+        type: string
+      website:
         type: string
       zoneinfo:
         type: string
@@ -469,9 +493,13 @@ definitions:
         type: string
       address_street:
         type: string
+      birthdate:
+        type: string
       email:
         type: string
       family_name:
+        type: string
+      gender:
         type: string
       given_name:
         description: OIDC standard profile claims
@@ -480,17 +508,27 @@ definitions:
         type: boolean
       locale:
         type: string
+      middle_name:
+        type: string
+      nickname:
+        type: string
       password:
         type: string
       phone_number:
         type: string
+      phone_number_verified:
+        type: boolean
       picture:
+        type: string
+      profile:
         type: string
       role:
         type: string
       totp_verified:
         type: boolean
       username:
+        type: string
+      website:
         type: string
       zoneinfo:
         type: string

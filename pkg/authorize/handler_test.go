@@ -661,3 +661,24 @@ func TestHandleAuthorize_WithGenericError(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "server_error")
 }
+
+// TestHandleAuthorize_RequestObjectRejected verifies that a request containing
+// the "request" parameter (unsigned JWT request object) is rejected with
+// request_not_supported per OIDC Core §6.1.
+func TestHandleAuthorize_RequestObjectRejected(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/authorize?response_type=code&client_id=c1&redirect_uri=http://localhost/cb&state=xyz&request=eyJhbGciOiJub25lIn0.e30.",
+		nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// Must redirect back with error=request_not_supported
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "error=request_not_supported")
+	assert.Contains(t, loc, "state=xyz")
+}
