@@ -77,6 +77,11 @@ func TestInitTestDB(t *testing.T) {
 	// Check if GetDB returns the same
 	assert.Equal(t, database, GetDB())
 
+	var v int
+	err = database.QueryRow("PRAGMA user_version").Scan(&v)
+	assert.NoError(t, err)
+	assert.Equal(t, migrations.SchemaVersion, v)
+
 	CloseDB()
 }
 
