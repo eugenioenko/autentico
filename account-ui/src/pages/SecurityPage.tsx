@@ -9,6 +9,7 @@ import Alert from '../components/Alert';
 import StatusDot from '../components/StatusDot';
 import TotpSetupModal from '../components/TotpSetupModal';
 import { useSettings } from '../context/SettingsContext';
+import { useAuth } from '../AuthContext';
 
 interface DeletionRequest {
   id: string;
@@ -19,6 +20,7 @@ interface DeletionRequest {
 
 const SecurityPage: React.FC = () => {
   const settings = useSettings();
+  const { logout } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: mfa, refetch: refetchMfa } = useQuery({
@@ -58,6 +60,10 @@ const SecurityPage: React.FC = () => {
     mutationFn: () =>
       api.post('/deletion-request', deletionReason.trim() ? { reason: deletionReason.trim() } : {}),
     onSuccess: () => {
+      if (settings.allow_self_service_deletion) {
+        logout();
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['deletion-request'] });
       setDeletionReason('');
       setShowDeletionConfirm(false);
