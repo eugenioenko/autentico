@@ -62,8 +62,8 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		}
 		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
 	} else {
-		// User exists — only allow registration if they have no password and no passkeys.
-		if usr.Password != "" {
+		// User exists — only allow registration if the previous attempt was never completed.
+		if usr.Password != "" || usr.RegisteredAt != nil {
 			writeJSONError(w, http.StatusConflict, "username already taken")
 			return
 		}
@@ -72,6 +72,15 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusConflict, "username already taken")
 			return
 		}
+		// Stale incomplete account — delete it and start fresh.
+		_ = user.HardDeleteUser(usr.ID)
+		created, createErr := user.CreatePasskeyUser(username, email)
+		if createErr != nil {
+			slog.Error("passkey: failed to recreate user for registration", "request_id", middleware.GetRequestID(r.Context()), "error", createErr)
+			writeJSONError(w, http.StatusConflict, "username unavailable")
+			return
+		}
+		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
 	}
 
 	regState := RegistrationState{
