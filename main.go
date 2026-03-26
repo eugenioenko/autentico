@@ -42,9 +42,20 @@ func main() {
 				Action: appCli.RunInit,
 			},
 			{
-				Name:   "start",
-				Usage:  "Start the HTTP server",
+				Name:  "start",
+				Usage: "Start the HTTP server",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "auto-migrate",
+						Usage: "Automatically apply pending database migrations on startup",
+					},
+				},
 				Action: appCli.RunStart,
+			},
+			{
+				Name:   "migrate",
+				Usage:  "Apply pending database schema migrations",
+				Action: appCli.RunMigrate,
 			},
 			{
 				Name:   "version",

@@ -118,7 +118,7 @@ export default function AdminLayout() {
             } else if (key === "/swagger") {
               window.open("/swagger/index.html", "_blank");
             } else if (key === "/autentico-docs") {
-              window.open("https://docs.autentico.top/", "_blank");
+              window.open("https://autentico.top/", "_blank");
             } else {
               navigate(key);
             }

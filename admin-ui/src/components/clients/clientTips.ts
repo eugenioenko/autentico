@@ -10,7 +10,7 @@ export const tip = makeTip({
   response_types: "What the authorization endpoint returns. Use [code] for the standard Authorization Code flow.",
   scopes: "Scopes the client is allowed to request. Standard: openid, profile, email, address, phone, offline_access.",
   token_endpoint_auth_method: "How the client authenticates at the token endpoint. Use none for public clients with PKCE.",
-}, "https://docs.autentico.top/clients/registering");
+}, "https://autentico.top/clients/registering");
 
 // Tips for per-client override fields — links to per-client-overrides.mdx
 export const overrideTip = makeTip({
@@ -22,4 +22,4 @@ export const overrideTip = makeTip({
   sso_session_idle_timeout: "Override the IdP session idle timeout for sessions from this client. Leave empty to use the global default.",
   trust_device_enabled: "Enable or disable trusted devices for users authenticating through this client.",
   trust_device_expiration: "Override the trusted device token lifetime for this client.",
-}, "https://docs.autentico.top/configuration/per-client-overrides");
+}, "https://autentico.top/configuration/per-client-overrides");

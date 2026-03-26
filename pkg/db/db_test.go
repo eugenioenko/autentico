@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/eugenioenko/autentico/pkg/db/migrations"
 )
 
 func TestInitDB(t *testing.T) {
@@ -22,6 +24,48 @@ func TestInitDB(t *testing.T) {
 	CloseDB()
 }
 
+func TestInitDB_StampsUserVersion(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test.db")
+	assert.NoError(t, err)
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	database, err := InitDB(tmpFile.Name())
+	assert.NoError(t, err)
+
+	var v int
+	err = database.QueryRow("PRAGMA user_version").Scan(&v)
+	assert.NoError(t, err)
+	assert.Equal(t, migrations.SchemaVersion, v)
+
+	CloseDB()
+}
+
+func TestInitDB_DoesNotResetUserVersion(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test.db")
+	assert.NoError(t, err)
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	// First init stamps v1
+	database, err := InitDB(tmpFile.Name())
+	assert.NoError(t, err)
+
+	// Simulate a migration having been applied (v2)
+	_, err = database.Exec("PRAGMA user_version = 2")
+	assert.NoError(t, err)
+	CloseDB()
+
+	// Re-open — should not reset user_version back to 1
+	database, err = InitDB(tmpFile.Name())
+	assert.NoError(t, err)
+
+	var v int
+	err = database.QueryRow("PRAGMA user_version").Scan(&v)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, v)
+
+	CloseDB()
+}
+
 func TestInitTestDB(t *testing.T) {
 	database, err := InitTestDB()
 	assert.NoError(t, err)
@@ -32,6 +76,11 @@ func TestInitTestDB(t *testing.T) {
 
 	// Check if GetDB returns the same
 	assert.Equal(t, database, GetDB())
+
+	var v int
+	err = database.QueryRow("PRAGMA user_version").Scan(&v)
+	assert.NoError(t, err)
+	assert.Equal(t, migrations.SchemaVersion, v)
 
 	CloseDB()
 }

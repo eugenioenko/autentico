@@ -6,7 +6,7 @@ import starlightThemeGalaxy from 'starlight-theme-galaxy';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://docs.autentico.top',
+	site: 'https://autentico.top',
 	integrations: [
 		starlight({
 			head: [
@@ -56,7 +56,8 @@ export default defineConfig({
 						{ label: 'Docker', link: '/deployment/docker/' },
 						{ label: 'Docker Compose', link: '/deployment/docker-compose/' },
 						{ label: 'Reverse Proxy', link: '/deployment/reverse-proxy/' },
-						{ label: 'Production Checklist', link: '/deployment/production-checklist/' },
+						{ label: 'Database Migrations', link: '/deployment/migrations/' },
+					{ label: 'Production Checklist', link: '/deployment/production-checklist/' },
 					],
 				},
 				{

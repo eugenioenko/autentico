@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -42,7 +43,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func RunStart(_ *cli.Context) error {
+func RunStart(c *cli.Context) error {
 	config.InitBootstrap()
 
 	bs := config.GetBootstrap()
@@ -60,6 +61,14 @@ func RunStart(_ *cli.Context) error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer db.CloseDB()
+
+	if c.Bool("auto-migrate") {
+		if err := migrations.Run(db.GetDB(), true); err != nil {
+			return err
+		}
+	} else if err := migrations.Check(db.GetDB()); err != nil {
+		return err
+	}
 
 	// Load soft settings from DB into config.Values, writing defaults for any missing keys
 	if err := appsettings.EnsureDefaults(); err != nil {
@@ -219,7 +228,7 @@ func RunStart(_ *cli.Context) error {
 	fmt.Println()
 	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
-	fmt.Printf("  Docs:       https://docs.autentico.top\n")
+	fmt.Printf("  Docs:       https://autentico.top\n")
 	fmt.Println()
 	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
 	fmt.Printf("  JWKS:       %s/.well-known/jwks.json\n", baseURL)
