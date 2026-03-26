@@ -16,8 +16,9 @@ type Migration struct {
 }
 
 // migrations is the ordered list of schema changes.
-// Version 1 is the baseline (the initial schema in db.go); no SQL needed here.
-var migrations = []Migration{}
+var migrations = []Migration{
+	{Version: 1, SQL: migration001},
+}
 
 func getUserVersion(db *sql.DB) (int, error) {
 	var version int

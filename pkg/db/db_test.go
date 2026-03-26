@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/eugenioenko/autentico/pkg/db/migrations"
 )
 
 func TestInitDB(t *testing.T) {
@@ -33,7 +35,7 @@ func TestInitDB_StampsUserVersion(t *testing.T) {
 	var v int
 	err = database.QueryRow("PRAGMA user_version").Scan(&v)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, v)
+	assert.Equal(t, migrations.SchemaVersion, v)
 
 	CloseDB()
 }

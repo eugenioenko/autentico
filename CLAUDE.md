@@ -155,9 +155,11 @@ Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expe
 - `autentico start --auto-migrate` calls `migrations.Run()` instead, applying pending migrations silently (for Docker/CI)
 - `autentico migrate` is the interactive migration command — shows versions, warns about irreversibility, requires typing the target version number to confirm
 
+Migrations are the single source of truth for the schema. `001_initial_schema.go` creates all tables and is the baseline. Fresh databases run all migrations from scratch; existing databases run only pending ones.
+
 **Adding a new migration:**
 1. Increment `SchemaVersion` in `pkg/db/migrations/migrations.go`
-2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE ...\``
+2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''\``
 3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`
 
 ### Testing
