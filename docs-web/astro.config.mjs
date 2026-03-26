@@ -56,7 +56,8 @@ export default defineConfig({
 						{ label: 'Docker', link: '/deployment/docker/' },
 						{ label: 'Docker Compose', link: '/deployment/docker-compose/' },
 						{ label: 'Reverse Proxy', link: '/deployment/reverse-proxy/' },
-						{ label: 'Production Checklist', link: '/deployment/production-checklist/' },
+						{ label: 'Database Migrations', link: '/deployment/migrations/' },
+					{ label: 'Production Checklist', link: '/deployment/production-checklist/' },
 					],
 				},
 				{

@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -42,7 +43,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func RunStart(_ *cli.Context) error {
+func RunStart(c *cli.Context) error {
 	config.InitBootstrap()
 
 	bs := config.GetBootstrap()
@@ -60,6 +61,14 @@ func RunStart(_ *cli.Context) error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer db.CloseDB()
+
+	if c.Bool("auto-migrate") {
+		if err := migrations.Run(db.GetDB()); err != nil {
+			return err
+		}
+	} else if err := migrations.Check(db.GetDB()); err != nil {
+		return err
+	}
 
 	// Load soft settings from DB into config.Values, writing defaults for any missing keys
 	if err := appsettings.EnsureDefaults(); err != nil {

@@ -899,6 +899,28 @@ sqlite3 /data/autentico.db ".backup /backup/autentico-$(date +%Y%m%d-%H%M%S).db"
 
 The database is a single file. Back it up like any other file. SQLite's WAL mode (the default) allows consistent hot backups.
 
+### Database Migrations
+
+Autentico uses explicit, versioned schema migrations. The binary will refuse to start if the database schema is behind:
+
+```
+database is at version 1, this binary requires version 2 — run: autentico migrate
+```
+
+To apply pending migrations:
+
+```bash
+autentico migrate
+```
+
+The command shows the current and target versions, warns that migrations are irreversible, and asks you to type the target version number to confirm. Back up your database file before proceeding.
+
+For automated environments (Docker, CI), use the `--auto-migrate` flag to apply migrations automatically on startup:
+
+```bash
+autentico start --auto-migrate
+```
+
 ### Health Check
 
 `GET /.well-known/openid-configuration` serves as a reliable liveness and readiness probe — it requires the database and key to be functional.

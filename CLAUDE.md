@@ -42,9 +42,10 @@ make generate-docs            # Regenerate swagger files from handler annotation
 
 ### CLI Entry Points
 
-`main.go` delegates to `pkg/cli/`. Two subcommands:
+`main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), CSRF secret, and token signing secrets
-- `autentico start` — loads config, initializes DB, seeds `autentico-admin` client, registers all routes, starts background cleanup, listens on `AppListenPort`
+- `autentico start` — loads config, initializes DB, checks schema version, seeds `autentico-admin` client, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--auto-migrate` flag to apply pending migrations automatically on startup
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts user to type the target version number to confirm (irreversible)
 
 ### Package Structure
 
@@ -63,10 +64,11 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/auth_code` | Authorization code model (PKCE, nonce, single-use flag) |
 | `pkg/authorize` | `/oauth2/authorize` — validates client + redirect URI, renders login page |
 | `pkg/cleanup` | Background goroutine purging expired tokens, sessions, MFA challenges, etc. |
-| `pkg/cli` | `init` and `start` subcommand implementations |
+| `pkg/cli` | `init`, `start`, and `migrate` subcommand implementations |
 | `pkg/client` | OAuth2 client registration, CRUD, and authentication (`/oauth2/register`) |
 | `pkg/config` | Bootstrap config (env vars, immutable) and runtime config (DB, hot-reloadable) |
-| `pkg/db` | SQLite initialization, schema DDL, incremental migrations |
+| `pkg/db` | SQLite initialization, schema DDL |
+| `pkg/db/migrations` | Migration system — `SchemaVersion` constant, `Migration` struct, `Check()` and `Run()` functions, ordered migrations slice |
 | `pkg/idpsession` | IdP-level SSO sessions — cross-request browser sessions, idle timeout enforcement |
 | `pkg/introspect` | `/oauth2/introspect` — token introspection (RFC 7662) |
 | `pkg/jwtutil` | JWT parsing, `AccessTokenClaims`, audience validation |
@@ -143,6 +145,20 @@ Initialized by `db.InitDB()`. Schema in `pkg/db/db.go`. 11 tables:
 | `settings` | Key-value runtime config |
 
 **SQLite driver:** `modernc.org/sqlite` (NOT `mattn/go-sqlite3`). Scanning SQL NULL into a plain `string` causes an error — always use `*string` or provide explicit `""` in test fixtures for nullable string columns.
+
+### Database Migrations
+
+Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expected version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go`.
+
+- `InitDB()` stamps `user_version = 1` on fresh databases (when `user_version == 0`)
+- `autentico start` calls `migrations.Check()` — refuses to start if the DB is behind, printing a message to run `autentico migrate`
+- `autentico start --auto-migrate` calls `migrations.Run()` instead, applying pending migrations silently (for Docker/CI)
+- `autentico migrate` is the interactive migration command — shows versions, warns about irreversibility, requires typing the target version number to confirm
+
+**Adding a new migration:**
+1. Increment `SchemaVersion` in `pkg/db/migrations/migrations.go`
+2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE ...\``
+3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`
 
 ### Testing
 

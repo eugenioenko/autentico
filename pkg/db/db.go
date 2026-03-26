@@ -275,6 +275,18 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	var userVersion int
+	if err = db.QueryRow("PRAGMA user_version").Scan(&userVersion); err != nil {
+		log.Fatalf("Failed to read user_version: %v", err)
+		return nil, err
+	}
+	if userVersion == 0 {
+		if _, err = db.Exec("PRAGMA user_version = 1"); err != nil {
+			log.Fatalf("Failed to set user_version: %v", err)
+			return nil, err
+		}
+	}
+
 	return db, nil
 }
 
