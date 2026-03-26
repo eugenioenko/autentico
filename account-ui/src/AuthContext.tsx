@@ -48,8 +48,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUserManager(mgr);
 
       try {
-        const u = await mgr.signinSilent();
-        setUser(u ?? null);
+        const stored = await mgr.getUser();
+        if (stored) {
+          // Refresh the stored session (uses refresh token via token endpoint, no redirect)
+          const u = await mgr.signinSilent();
+          setUser(u ?? null);
+        } else {
+          // No stored session — skip silent renew, Layout will call signinRedirect()
+          setUser(null);
+        }
       } catch {
         await mgr.removeUser();
         setUser(null);
