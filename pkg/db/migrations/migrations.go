@@ -36,35 +36,42 @@ func Check(db *sql.DB) error {
 	}
 	if current < SchemaVersion {
 		return fmt.Errorf(
-			"database is at version %d, this binary requires version %d — run: autentico migrate",
+			"database is at version %d, this binary requires version %d — run: autentico migrate (or start with --auto-migrate)",
 			current, SchemaVersion,
 		)
 	}
 	return nil
 }
 
-// Run applies any pending migrations. Prints "Already up to date." if none are needed.
-func Run(db *sql.DB) error {
+// Run applies any pending migrations. If verbose is true, prints progress and
+// "Already up to date." when no migrations are needed.
+func Run(db *sql.DB, verbose bool) error {
 	current, err := getUserVersion(db)
 	if err != nil {
 		return err
 	}
 	if current >= SchemaVersion {
-		fmt.Println("Already up to date.")
+		if verbose {
+			fmt.Println("Already up to date.")
+		}
 		return nil
 	}
 	for _, m := range migrations {
 		if m.Version <= current {
 			continue
 		}
-		fmt.Printf("Applying migration v%d...\n", m.Version)
+		if verbose {
+			fmt.Printf("Applying migration v%d...\n", m.Version)
+		}
 		if _, err := db.Exec(m.SQL); err != nil {
 			return fmt.Errorf("migrations: failed to apply v%d: %w", m.Version, err)
 		}
 		if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", m.Version)); err != nil {
 			return fmt.Errorf("migrations: failed to set user_version to %d: %w", m.Version, err)
 		}
-		fmt.Printf("Migration v%d applied.\n", m.Version)
+		if verbose {
+			fmt.Printf("Migration v%d applied.\n", m.Version)
+		}
 	}
 	return nil
 }

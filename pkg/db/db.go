@@ -48,7 +48,7 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 
 	// Fresh database — run all migrations to build the schema from scratch.
 	if userVersion == 0 {
-		if err = migrations.Run(db); err != nil {
+		if err = migrations.Run(db, false); err != nil {
 			log.Fatalf("Failed to initialize database schema: %v", err)
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func InitTestDB() (*sql.DB, error) {
 		return nil, err
 	}
 
-	if err = migrations.Run(db); err != nil {
+	if err = migrations.Run(db, false); err != nil {
 		log.Fatalf("Failed to initialize test database schema: %v", err)
 		return nil, err
 	}

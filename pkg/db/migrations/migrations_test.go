@@ -50,13 +50,13 @@ func TestCheck_Behind(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("version %d", SchemaVersion-1))
 	assert.Contains(t, err.Error(), fmt.Sprintf("version %d", SchemaVersion))
-	assert.Contains(t, err.Error(), "autentico migrate")
+	assert.Contains(t, err.Error(), "--auto-migrate")
 }
 
 func TestRun_AlreadyUpToDate(t *testing.T) {
 	db := newTestDB(t)
 	setUserVersion(t, db, SchemaVersion)
-	assert.NoError(t, Run(db))
+	assert.NoError(t, Run(db, false))
 	v, _ := getUserVersion(db)
 	assert.Equal(t, SchemaVersion, v)
 }
@@ -78,7 +78,7 @@ func TestRun_AppliesPendingMigrations(t *testing.T) {
 	}
 	SchemaVersion = 2
 
-	err := Run(db)
+	err := Run(db, false)
 	require.NoError(t, err)
 
 	v, _ := getUserVersion(db)
@@ -115,7 +115,7 @@ func TestRun_SkipsAlreadyApplied(t *testing.T) {
 	_, err := db.Exec(`CREATE TABLE migration_skip_1 (id INTEGER PRIMARY KEY)`)
 	require.NoError(t, err)
 
-	err = Run(db)
+	err = Run(db, false)
 	require.NoError(t, err)
 
 	v, _ := getUserVersion(db)
@@ -139,7 +139,7 @@ func TestRun_BadSQLReturnsError(t *testing.T) {
 		{Version: 1, SQL: `THIS IS NOT VALID SQL !!!`},
 	}
 
-	err := Run(db)
+	err := Run(db, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "v1")
 
@@ -153,8 +153,8 @@ func TestRun_Idempotent(t *testing.T) {
 	setUserVersion(t, db, SchemaVersion)
 
 	// Calling Run twice should be fine
-	assert.NoError(t, Run(db))
-	assert.NoError(t, Run(db))
+	assert.NoError(t, Run(db, false))
+	assert.NoError(t, Run(db, false))
 
 	v, _ := getUserVersion(db)
 	assert.Equal(t, SchemaVersion, v)

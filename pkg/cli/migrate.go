@@ -54,5 +54,5 @@ func RunMigrate(_ *cli.Context) error {
 		return nil
 	}
 
-	return migrations.Run(database)
+	return migrations.Run(database, true)
 }
