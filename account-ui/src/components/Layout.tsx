@@ -3,7 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import {
   IconUser, IconShield, IconKey, IconHistory, IconLogout,
-  IconMenu2, IconX, IconDevices, IconLink,
+  IconMenu2, IconX, IconDevices, IconLink, IconTrash,
 } from '@tabler/icons-react';
 import SidebarItem from './SidebarItem';
 import Spinner from './Spinner';
@@ -15,6 +15,7 @@ const SecurityPage = React.lazy(() => import('../pages/SecurityPage'));
 const SessionsPage = React.lazy(() => import('../pages/SessionsPage'));
 const TrustedDevicesPage = React.lazy(() => import('../pages/TrustedDevicesPage'));
 const ConnectedProvidersPage = React.lazy(() => import('../pages/ConnectedProvidersPage'));
+const DeletionPage = React.lazy(() => import('../pages/DeletionPage'));
 
 const navItems = [
   { to: '/', icon: IconShield, label: 'Overview' },
@@ -23,6 +24,7 @@ const navItems = [
   { to: '/sessions', icon: IconHistory, label: 'Sessions' },
   { to: '/trusted-devices', icon: IconDevices, label: 'Trusted Devices' },
   { to: '/connected-providers', icon: IconLink, label: 'Connected Providers' },
+  { to: '/deletion', icon: IconTrash, label: 'Delete Account' },
 ];
 
 const Layout: React.FC = () => {
@@ -131,6 +133,7 @@ const Layout: React.FC = () => {
               <Route path="/sessions" element={<SessionsPage />} />
               <Route path="/trusted-devices" element={<TrustedDevicesPage />} />
               <Route path="/connected-providers" element={<ConnectedProvidersPage />} />
+              <Route path="/deletion" element={<DeletionPage />} />
             </Routes>
           </Suspense>
         </div>

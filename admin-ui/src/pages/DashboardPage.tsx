@@ -7,6 +7,7 @@ import {
   PlusOutlined,
   CopyOutlined,
   CheckOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -74,6 +75,21 @@ export default function DashboardPage() {
             />
           </Card>
         </Col>
+        {(stats?.pending_deletion_requests ?? 0) > 0 && (
+          <Col xs={24} sm={12} lg={6}>
+            <Card
+              style={{ cursor: "pointer" }}
+              onClick={() => navigate("/deletion-requests")}
+            >
+              <Statistic
+                title="Pending Deletions"
+                value={stats?.pending_deletion_requests ?? 0}
+                prefix={<DeleteOutlined />}
+                valueStyle={{ color: "#cf1322" }}
+              />
+            </Card>
+          </Col>
+        )}
       </Row>
 
       <Card title="Quick Actions">

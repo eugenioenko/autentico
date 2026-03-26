@@ -34,6 +34,7 @@ var defaults = map[string]string{
 	"smtp_port":                      "587",
 	"theme_title":                    "Autentico",
 	"onboarded":                      "false",
+	"allow_self_service_deletion":    "false",
 	"allow_username_change":          "false",
 	"allow_email_change":             "false",
 	"signup_show_optional_fields":    "false",
@@ -118,6 +119,9 @@ func LoadIntoConfig() error {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.ValidationMaxPasswordLength = n
 		}
+	}
+	if v, ok := all["allow_self_service_deletion"]; ok {
+		cfg.AllowSelfServiceDeletion = parseBool(v, false)
 	}
 	if v, ok := all["allow_username_change"]; ok {
 		cfg.AllowUsernameChange = parseBool(v, false)

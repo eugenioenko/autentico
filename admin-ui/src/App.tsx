@@ -13,6 +13,7 @@ const UsersPage = lazy(() => import("./pages/UsersPage"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const FederationPage = lazy(() => import("./pages/FederationPage"));
+const DeletionRequestsPage = lazy(() => import("./pages/DeletionRequestsPage"));
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ export default function App() {
                 <Route path="sessions" element={<SessionsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="federation" element={<FederationPage />} />
+                <Route path="deletion-requests" element={<DeletionRequestsPage />} />
               </Route>
             </Route>
           </Routes>

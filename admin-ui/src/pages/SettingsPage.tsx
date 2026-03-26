@@ -30,6 +30,7 @@ const tip = makeTip({
   allow_self_signup: "Allow users to create their own accounts.",
   allow_username_change: "Let users change their own username from the account portal.",
   allow_email_change: "Let users change their own email address from the account portal.",
+  allow_self_service_deletion: "When enabled, users can delete their own account immediately without admin approval.",
   require_mfa: "Force all users to complete a second authentication factor at login. Users can also enroll in TOTP voluntarily without this being enabled.",
   mfa_method: "Preferred second-factor authentication method.",
   sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable.",
@@ -178,6 +179,16 @@ export default function SettingsPage() {
                     valuePropName="checked"
                     getValueProps={boolProp}
                     tooltip={{ title: tip("allow_email_change"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Allow Self-Service Deletion"
+                    name="allow_self_service_deletion"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    tooltip={{ title: tip("allow_self_service_deletion"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>

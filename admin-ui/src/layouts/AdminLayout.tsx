@@ -13,6 +13,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   DownOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 
@@ -25,6 +26,7 @@ const menuItems: any[] = [
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
+  { key: "/deletion-requests", icon: <DeleteOutlined />, label: "Deletion Requests" },
   { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
   { type: "divider" },
   {

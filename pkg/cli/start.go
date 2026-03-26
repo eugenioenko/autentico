@@ -16,6 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/docs"
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
+	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/cleanup"
@@ -153,6 +154,9 @@ func RunStart(_ *cli.Context) error {
 	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))
 	mux.Handle("GET /admin/api/settings", adminAPI(appsettings.HandleGetSettings))
 	mux.Handle("PUT /admin/api/settings", adminAPI(appsettings.HandlePutSettings))
+	mux.Handle("GET /admin/api/deletion-requests", adminAPI(deletion.HandleListDeletionRequests))
+	mux.Handle("POST /admin/api/deletion-requests/{id}/approve", adminAPI(deletion.HandleApproveDeletionRequest))
+	mux.Handle("DELETE /admin/api/deletion-requests/{id}", adminAPI(deletion.HandleAdminCancelDeletionRequest))
 
 	// -------------------------------------------------------------------------
 	// Account self-service API (bearer-token authenticated per handler)
@@ -176,6 +180,9 @@ func RunStart(_ *cli.Context) error {
 	mux.HandleFunc("GET /account/api/connected-providers", account.HandleListConnectedProviders)
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", account.HandleDisconnectProvider)
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
+	mux.HandleFunc("GET /account/api/deletion-request", deletion.HandleGetDeletionRequest)
+	mux.HandleFunc("POST /account/api/deletion-request", deletion.HandleRequestDeletion)
+	mux.HandleFunc("DELETE /account/api/deletion-request", deletion.HandleCancelDeletionRequest)
 
 	// -------------------------------------------------------------------------
 	// Embedded UIs

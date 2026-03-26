@@ -1,0 +1,207 @@
+package deletion
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/utils"
+)
+
+// HandleRequestDeletion godoc
+// @Summary Request account deletion
+// @Description Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.
+// @Tags account
+// @Accept json
+// @Produce json
+// @Param body body CreateDeletionRequestInput false "Optional deletion reason"
+// @Success 200 {object} DeletionRequestResponse
+// @Success 204 "Account deleted immediately (self-service mode)"
+// @Failure 401 {object} model.ApiError
+// @Failure 409 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /account/api/deletion-request [post]
+func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
+	usr, err := user.GetUserFromRequest(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+
+	var input CreateDeletionRequestInput
+	_ = json.NewDecoder(r.Body).Decode(&input)
+
+	if config.Get().AllowSelfServiceDeletion {
+		if err := HardDeleteUser(usr.ID); err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Check if a pending request already exists
+	existing, err := DeletionRequestByUserID(usr.ID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if existing != nil {
+		utils.WriteErrorResponse(w, http.StatusConflict, "already_requested", "A deletion request is already pending")
+		return
+	}
+
+	var reason *string
+	if input.Reason != "" {
+		reason = &input.Reason
+	}
+
+	req, err := CreateDeletionRequest(usr.ID, reason)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	utils.SuccessResponse(w, req.ToResponse(), http.StatusCreated)
+}
+
+// HandleGetDeletionRequest godoc
+// @Summary Get pending deletion request for current user
+// @Tags account
+// @Produce json
+// @Success 200 {object} DeletionRequestResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/deletion-request [get]
+func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	usr, err := user.GetUserFromRequest(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+
+	req, err := DeletionRequestByUserID(usr.ID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if req == nil {
+		utils.SuccessResponse(w, (*DeletionRequestResponse)(nil), http.StatusOK)
+		return
+	}
+	utils.SuccessResponse(w, req.ToResponse(), http.StatusOK)
+}
+
+// HandleCancelDeletionRequest godoc
+// @Summary Cancel the current user's pending deletion request
+// @Tags account
+// @Produce json
+// @Success 204
+// @Failure 401 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
+// @Router /account/api/deletion-request [delete]
+func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	usr, err := user.GetUserFromRequest(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+
+	req, err := DeletionRequestByUserID(usr.ID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if req == nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "No pending deletion request found")
+		return
+	}
+
+	if err := CancelDeletionRequest(req.ID); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleListDeletionRequests godoc
+// @Summary List all pending deletion requests
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} DeletionRequestResponse
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/deletion-requests [get]
+func HandleListDeletionRequests(w http.ResponseWriter, _ *http.Request) {
+	requests, err := ListDeletionRequests()
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	var response []DeletionRequestResponse
+	for _, req := range requests {
+		response = append(response, req.ToResponse())
+	}
+	if response == nil {
+		response = []DeletionRequestResponse{}
+	}
+	utils.SuccessResponse(w, response, http.StatusOK)
+}
+
+// HandleApproveDeletionRequest godoc
+// @Summary Approve a deletion request — permanently deletes the user
+// @Tags admin
+// @Produce json
+// @Param id path string true "Deletion request ID"
+// @Security BearerAuth
+// @Success 204
+// @Failure 404 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/deletion-requests/{id}/approve [post]
+func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing request id")
+		return
+	}
+
+	req, err := DeletionRequestByID(id)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if req == nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Deletion request not found")
+		return
+	}
+
+	if err := HardDeleteUser(req.UserID); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleAdminCancelDeletionRequest godoc
+// @Summary Cancel (dismiss) a deletion request without deleting the user
+// @Tags admin
+// @Produce json
+// @Param id path string true "Deletion request ID"
+// @Security BearerAuth
+// @Success 204
+// @Failure 404 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/deletion-requests/{id} [delete]
+func HandleAdminCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing request id")
+		return
+	}
+
+	if err := CancelDeletionRequest(id); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

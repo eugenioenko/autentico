@@ -6,6 +6,7 @@ export interface StatsResponse {
   active_sessions: number;
   total_sessions: number;
   recent_logins: number;
+  pending_deletion_requests: number;
 }
 
 export async function getStats(): Promise<StatsResponse> {
