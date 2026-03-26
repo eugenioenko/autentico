@@ -228,7 +228,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Println()
 	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
-	fmt.Printf("  Docs:       https://docs.autentico.top\n")
+	fmt.Printf("  Docs:       https://autentico.top\n")
 	fmt.Println()
 	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
 	fmt.Printf("  JWKS:       %s/.well-known/jwks.json\n", baseURL)

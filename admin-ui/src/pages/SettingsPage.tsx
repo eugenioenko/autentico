@@ -67,7 +67,7 @@ const tip = makeTip({
   theme_title: "Custom title for the login and account pages.",
   theme_logo_url: "URL for the custom logo shown on login and account pages.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
-}, "https://docs.autentico.top/configuration/runtime-settings");
+}, "https://autentico.top/configuration/runtime-settings");
 
 export default function SettingsPage() {
   const { data: settings, isLoading, error } = useSettings();
