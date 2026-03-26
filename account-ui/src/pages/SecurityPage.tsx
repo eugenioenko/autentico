@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { IconKey } from '@tabler/icons-react';
 import api from '../api';
 import { performPasskeyRegistration } from '../lib/passkey';
@@ -8,8 +8,21 @@ import Button from '../components/Button';
 import Alert from '../components/Alert';
 import StatusDot from '../components/StatusDot';
 import TotpSetupModal from '../components/TotpSetupModal';
+import { useSettings } from '../context/SettingsContext';
+import { useAuth } from '../AuthContext';
+
+interface DeletionRequest {
+  id: string;
+  user_id: string;
+  reason?: string;
+  requested_at: string;
+}
 
 const SecurityPage: React.FC = () => {
+  const settings = useSettings();
+  const { logout } = useAuth();
+  const queryClient = useQueryClient();
+
   const { data: mfa, refetch: refetchMfa } = useQuery({
     queryKey: ['mfa'],
     queryFn: () => api.get('/mfa').then((res) => res.data.data),
@@ -33,6 +46,46 @@ const SecurityPage: React.FC = () => {
   const [addPasskeyError, setAddPasskeyError] = useState('');
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
   const [deletePasskeyError, setDeletePasskeyError] = useState('');
+
+  const { data: deletionRequest } = useQuery<DeletionRequest | null>({
+    queryKey: ['deletion-request'],
+    queryFn: () => api.get('/deletion-request').then((res) => res.data.data ?? null),
+  });
+  const [deletionReason, setDeletionReason] = useState('');
+  const [showDeletionConfirm, setShowDeletionConfirm] = useState(false);
+  const [deletionSubmitError, setDeletionSubmitError] = useState('');
+  const [deletionCancelError, setDeletionCancelError] = useState('');
+
+  const submitDeletionMutation = useMutation({
+    mutationFn: () =>
+      api.post('/deletion-request', deletionReason.trim() ? { reason: deletionReason.trim() } : {}),
+    onSuccess: () => {
+      if (settings.allow_self_service_deletion) {
+        logout();
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['deletion-request'] });
+      setDeletionReason('');
+      setShowDeletionConfirm(false);
+      setDeletionSubmitError('');
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { error_description?: string } } };
+      setDeletionSubmitError(axiosErr.response?.data?.error_description || 'Failed to submit request.');
+    },
+  });
+
+  const cancelDeletionMutation = useMutation({
+    mutationFn: () => api.delete('/deletion-request'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deletion-request'] });
+      setDeletionCancelError('');
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { error_description?: string } } };
+      setDeletionCancelError(axiosErr.response?.data?.error_description || 'Failed to cancel request.');
+    },
+  });
 
   const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -218,6 +271,90 @@ const SecurityPage: React.FC = () => {
           </div>
         ) : (
           <p className="text-sm text-zinc-600 mt-1">No passkeys registered yet.</p>
+        )}
+      </Card>
+
+      <Card
+        title="Danger Zone"
+        description={
+          settings.allow_self_service_deletion
+            ? 'Permanently delete your account. This action cannot be undone.'
+            : 'Request account deletion. An admin will review and process your request.'
+        }
+      >
+        {deletionRequest ? (
+          <div className="mt-2 space-y-4">
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              A deletion request was submitted on{' '}
+              <strong>{new Date(deletionRequest.requested_at).toLocaleDateString()}</strong>.
+              {settings.allow_self_service_deletion
+                ? ' Your account has been deleted.'
+                : ' An admin will review and process your request. Your account remains active until then.'}
+            </div>
+            {deletionRequest.reason && (
+              <p className="text-sm text-zinc-600">
+                <span className="font-medium">Reason:</span> {deletionRequest.reason}
+              </p>
+            )}
+            {deletionCancelError && <Alert type="danger" message={deletionCancelError} />}
+            {!settings.allow_self_service_deletion && (
+              <Button
+                variant="ghost"
+                onClick={() => cancelDeletionMutation.mutate()}
+                disabled={cancelDeletionMutation.isPending}
+              >
+                {cancelDeletionMutation.isPending ? 'Cancelling…' : 'Cancel Deletion Request'}
+              </Button>
+            )}
+          </div>
+        ) : !showDeletionConfirm ? (
+          <div className="mt-2">
+            <Button variant="danger" onClick={() => setShowDeletionConfirm(true)}>
+              {settings.allow_self_service_deletion ? 'Delete My Account' : 'Request Account Deletion'}
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-2 space-y-4 border-t border-zinc-100 pt-4">
+            <p className="text-sm text-zinc-700 font-medium">
+              {settings.allow_self_service_deletion
+                ? 'Are you sure you want to permanently delete your account? This cannot be undone.'
+                : 'A deletion request will be submitted for admin review.'}
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Reason <span className="text-zinc-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                rows={3}
+                placeholder="Tell us why you want to delete your account…"
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+              />
+            </div>
+            {deletionSubmitError && <Alert type="danger" message={deletionSubmitError} />}
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => { setShowDeletionConfirm(false); setDeletionSubmitError(''); }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => submitDeletionMutation.mutate()}
+                disabled={submitDeletionMutation.isPending}
+                className="flex-1"
+              >
+                {submitDeletionMutation.isPending
+                  ? 'Submitting…'
+                  : settings.allow_self_service_deletion
+                  ? 'Delete Account'
+                  : 'Submit Request'}
+              </Button>
+            </div>
+          </div>
         )}
       </Card>
     </div>

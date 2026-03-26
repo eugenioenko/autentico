@@ -10,16 +10,16 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SettingsProvider>
+      <SettingsProvider>
+        <AuthProvider>
           <BrowserRouter basename="/account">
             <Routes>
               <Route path="/callback" element={<Callback />} />
               <Route path="/*" element={<Layout />} />
             </Routes>
           </BrowserRouter>
-        </SettingsProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </QueryClientProvider>
   );
 }

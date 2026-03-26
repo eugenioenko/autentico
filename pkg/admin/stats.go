@@ -8,11 +8,12 @@ import (
 )
 
 type StatsResponse struct {
-	TotalUsers     int `json:"total_users"`
-	ActiveClients  int `json:"active_clients"`
-	ActiveSessions int `json:"active_sessions"`
-	TotalSessions  int `json:"total_sessions"`
-	RecentLogins   int `json:"recent_logins"`
+	TotalUsers              int `json:"total_users"`
+	ActiveClients           int `json:"active_clients"`
+	ActiveSessions          int `json:"active_sessions"`
+	TotalSessions           int `json:"total_sessions"`
+	RecentLogins            int `json:"recent_logins"`
+	PendingDeletionRequests int `json:"pending_deletion_requests"`
 }
 
 // HandleStats returns system-wide statistics for the admin dashboard.
@@ -38,6 +39,7 @@ func HandleStats(w http.ResponseWriter, r *http.Request) {
 	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions WHERE deactivated_at IS NULL AND expires_at > CURRENT_TIMESTAMP`).Scan(&stats.ActiveSessions)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&stats.TotalSessions)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions WHERE created_at > datetime('now', '-24 hours')`).Scan(&stats.RecentLogins)
+	_ = d.QueryRow(`SELECT COUNT(*) FROM deletion_requests`).Scan(&stats.PendingDeletionRequests)
 
 	utils.SuccessResponse(w, stats, http.StatusOK)
 }

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { UserManager, type User } from 'oidc-client-ts';
 import { setUserManager } from './api';
+import { useSettings } from './context/SettingsContext';
 
 const CLIENT_ID = 'autentico-account';
 const REDIRECT_URI = window.location.origin + '/account/callback';
@@ -11,7 +12,6 @@ interface AuthContextType {
   signinRedirect: () => Promise<void>;
   signinCallback: () => Promise<void>;
   logout: () => Promise<void>;
-  oauthPath: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,34 +30,36 @@ function createUserManager(authority: string) {
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { oauth_path } = useSettings();
   const [userManager, setMgr] = useState<UserManager | null>(null);
-  const [oauthPath, setOauthPath] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const initialized = useRef(false);
+
   useEffect(() => {
-    fetch('/account/api/settings')
-      .then((r) => r.json())
-      .then((res: { data: { oauth_path: string } }) => {
-        const authority = window.location.origin + res.data.oauth_path;
-        const mgr = createUserManager(authority);
-        setMgr(mgr);
-        setOauthPath(res.data.oauth_path);
-        setUserManager(mgr);
-        return mgr.getUser();
-      })
-      .then((u) => {
-        if (u && !u.expired) setUser(u);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        const mgr = createUserManager(window.location.origin + '/oauth2');
-        setMgr(mgr);
-        setOauthPath('/oauth2');
-        setUserManager(mgr);
-        setIsLoading(false);
-      });
-  }, []);
+    if (initialized.current) return;
+    initialized.current = true;
+
+    async function init() {
+      const authority = window.location.origin + oauth_path;
+      const mgr = createUserManager(authority);
+      setMgr(mgr);
+      setUserManager(mgr);
+
+      try {
+        const u = await mgr.signinSilent();
+        setUser(u ?? null);
+      } catch {
+        await mgr.removeUser();
+        setUser(null);
+      }
+
+      setIsLoading(false);
+    }
+
+    init();
+  }, [oauth_path]);
 
   useEffect(() => {
     if (!userManager) return;
@@ -87,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const currentUser = await userManager.getUser();
     if (currentUser?.access_token) {
       try {
-        await fetch(window.location.origin + oauthPath + '/logout', {
+        await fetch(window.location.origin + oauth_path + '/logout', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${currentUser.access_token}`,
@@ -99,10 +101,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     await userManager.removeUser();
     setUser(null);
-  }, [userManager, oauthPath]);
+  }, [userManager, oauth_path]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signinRedirect, signinCallback, logout, oauthPath }}>
+    <AuthContext.Provider value={{ user, isLoading, signinRedirect, signinCallback, logout }}>
       {children}
     </AuthContext.Provider>
   );

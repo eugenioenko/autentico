@@ -10,6 +10,7 @@ import (
 func HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	utils.SuccessResponse(w, map[string]any{
+		"allow_self_service_deletion": cfg.AllowSelfServiceDeletion,
 		"auth_mode":                cfg.AuthMode,
 		"require_mfa":              cfg.RequireMfa,
 		"mfa_method":               cfg.MfaMethod,

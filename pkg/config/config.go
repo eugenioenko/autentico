@@ -93,6 +93,8 @@ type Config struct {
 	ValidationMaxPasswordLength        int
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
+	// When true, users can delete their own account immediately without admin approval.
+	AllowSelfServiceDeletion bool
 	// When false (default), users cannot change their own username via the account portal.
 	AllowUsernameChange bool
 	// When false (default), users cannot change their own email via the account portal.
@@ -149,6 +151,7 @@ var defaultConfig = Config{
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
 	Theme:                              ThemeConfig{Title: "Autentico"},
+	AllowSelfServiceDeletion:           false,
 	AllowUsernameChange:                false,
 	AllowEmailChange:                   false,
 	SignupShowOptionalFields:           false,

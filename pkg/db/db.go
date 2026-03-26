@@ -212,6 +212,14 @@ var createTableSQL = `
 		UNIQUE(provider_id, provider_user_id)
 	);
 
+	CREATE TABLE IF NOT EXISTS deletion_requests (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		reason TEXT,
+		requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_tokens_refresh_token ON tokens(refresh_token);
 	CREATE INDEX IF NOT EXISTS idx_tokens_access_token ON tokens(access_token);
 	CREATE INDEX IF NOT EXISTS idx_sessions_access_token ON sessions(access_token);
@@ -219,6 +227,7 @@ var createTableSQL = `
 	CREATE INDEX IF NOT EXISTS idx_idp_sessions_user_id ON idp_sessions(user_id);
 	CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user_id ON passkey_credentials(user_id);
 	CREATE INDEX IF NOT EXISTS idx_federated_identities_user_id ON federated_identities(user_id);
+	CREATE INDEX IF NOT EXISTS idx_deletion_requests_user_id ON deletion_requests(user_id);
 `
 
 var dropTableSQL = `
@@ -235,6 +244,7 @@ var dropTableSQL = `
 		DROP TABLE IF EXISTS settings;
 		DROP TABLE IF EXISTS federated_identities;
 		DROP TABLE IF EXISTS federation_providers;
+		DROP TABLE IF EXISTS deletion_requests;
 	`
 
 func InitDB(dbFilePath string) (*sql.DB, error) {

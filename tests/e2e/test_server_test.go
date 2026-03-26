@@ -9,6 +9,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
+	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
@@ -127,6 +128,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
 	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
+	mux.HandleFunc("GET /account/api/deletion-request", deletion.HandleGetDeletionRequest)
+	mux.HandleFunc("POST /account/api/deletion-request", deletion.HandleRequestDeletion)
+	mux.HandleFunc("DELETE /account/api/deletion-request", deletion.HandleCancelDeletionRequest)
 
 	// Admin API routes
 	mux.Handle("GET /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleListUsers)))
@@ -145,6 +149,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("GET /admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
 	mux.Handle("GET /admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandleGetSettings)))
 	mux.Handle("PUT /admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandlePutSettings)))
+	mux.Handle("GET /admin/api/deletion-requests", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleListDeletionRequests)))
+	mux.Handle("POST /admin/api/deletion-requests/{id}/approve", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleApproveDeletionRequest)))
+	mux.Handle("DELETE /admin/api/deletion-requests/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleAdminCancelDeletionRequest)))
 
 	// Apply logging middleware and start server
 	server.Config.Handler = middleware.LoggingMiddleware(mux)
