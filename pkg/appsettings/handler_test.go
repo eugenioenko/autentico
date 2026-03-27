@@ -163,6 +163,21 @@ func TestHandleImportPreview_UnknownKeysReported(t *testing.T) {
 	assert.Contains(t, resp.Data.Unknown, "totally_unknown_key")
 }
 
+func TestHandleImportPreview_EmptyPayload_ReturnsEmptySlices(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	payload := settingsExport{Version: 1, Settings: map[string]string{}}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/settings/import/preview", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandleImportPreview(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// Ensure rows and unknown are JSON arrays, not null
+	assert.Contains(t, rr.Body.String(), `"rows":[]`)
+	assert.Contains(t, rr.Body.String(), `"unknown":[]`)
+}
+
 func TestHandleImportPreview_InvalidJSON(t *testing.T) {
 	testutils.WithTestDB(t)
 	req := httptest.NewRequest(http.MethodPost, "/admin/api/settings/import/preview", bytes.NewBufferString("{bad"))

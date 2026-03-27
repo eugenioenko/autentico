@@ -131,8 +131,8 @@ func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var rows []settingsPreviewRow
-	var unknown []string
+	rows := []settingsPreviewRow{}
+	unknown := []string{}
 
 	for k, incoming := range payload.Settings {
 		if _, known := defaults[k]; !known {
