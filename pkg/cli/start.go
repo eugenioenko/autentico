@@ -163,6 +163,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))
 	mux.Handle("GET /admin/api/settings", adminAPI(appsettings.HandleGetSettings))
 	mux.Handle("PUT /admin/api/settings", adminAPI(appsettings.HandlePutSettings))
+	mux.Handle("POST /admin/api/settings/test-smtp", adminAPI(appsettings.HandleTestSmtp))
 	mux.Handle("GET /admin/api/deletion-requests", adminAPI(deletion.HandleListDeletionRequests))
 	mux.Handle("POST /admin/api/deletion-requests/{id}/approve", adminAPI(deletion.HandleApproveDeletionRequest))
 	mux.Handle("DELETE /admin/api/deletion-requests/{id}", adminAPI(deletion.HandleAdminCancelDeletionRequest))

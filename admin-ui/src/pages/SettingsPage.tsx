@@ -16,7 +16,8 @@ import {
 } from "antd";
 import { SaveOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import apiClient from "../api/client";
 import { makeTip } from "../lib/tips";
 
 const { Title, Text } = Typography;
@@ -77,6 +78,21 @@ export default function SettingsPage() {
   const mfaMethod = Form.useWatch("mfa_method", form);
   const smtpHost = Form.useWatch("smtp_host", form);
   const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
+  const [testingSmtp, setTestingSmtp] = useState(false);
+
+  const handleTestSmtp = async () => {
+    setTestingSmtp(true);
+    try {
+      await apiClient.post("/admin/api/settings/test-smtp");
+      message.success("Test email sent — check your inbox");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error_description?: string } } };
+      const msg = axiosErr.response?.data?.error_description ?? "Failed to send test email";
+      message.error(msg);
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -414,6 +430,11 @@ export default function SettingsPage() {
                     tooltip={{ title: tip("smtp_from"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="noreply@example.com" />
+                  </Form.Item>
+                  <Form.Item label=" " colon={false}>
+                    <Button onClick={handleTestSmtp} loading={testingSmtp} disabled={!smtpHost}>
+                      Send Test Email
+                    </Button>
                   </Form.Item>
                 </Card>
               ),

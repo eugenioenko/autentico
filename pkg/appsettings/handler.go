@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -61,4 +63,34 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	_ = LoadIntoConfig()
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleTestSmtp godoc
+// @Summary Test SMTP configuration
+// @Description Sends a test email to the currently authenticated admin's registered email address.
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/settings/test-smtp [post]
+func HandleTestSmtp(w http.ResponseWriter, r *http.Request) {
+	usr, err := user.GetUserFromRequest(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+
+	if usr.Email == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "no_email", "Admin account has no registered email address. Add an email to your profile before testing SMTP.")
+		return
+	}
+
+	if err := mfa.SendTestEmail(usr.Email); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, map[string]string{"message": "Test email sent to " + usr.Email}, http.StatusOK)
 }

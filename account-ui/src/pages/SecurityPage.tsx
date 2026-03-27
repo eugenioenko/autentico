@@ -6,8 +6,8 @@ import { performPasskeyRegistration } from '../lib/passkey';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
-import StatusDot from '../components/StatusDot';
-import TotpSetupModal from '../components/TotpSetupModal';
+import TotpCard from '../components/TotpCard';
+import EmailOtpCard from '../components/EmailOtpCard';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../AuthContext';
 
@@ -38,10 +38,6 @@ const SecurityPage: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  const [showTotpModal, setShowTotpModal] = useState(false);
-  const [mfaDisablePassword, setMfaDisablePassword] = useState('');
-  const [showMfaDisable, setShowMfaDisable] = useState(false);
-  const [mfaError, setMfaError] = useState('');
 
   const [addPasskeyError, setAddPasskeyError] = useState('');
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
@@ -116,20 +112,6 @@ const SecurityPage: React.FC = () => {
     }
   };
 
-  const handleDisableMfa = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setMfaError('');
-    try {
-      await api.delete('/mfa/totp', { data: { current_password: mfaDisablePassword } });
-      setShowMfaDisable(false);
-      setMfaDisablePassword('');
-      refetchMfa();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setMfaError(axiosErr.response?.data?.error_description || 'Failed to disable 2FA.');
-    }
-  };
-
   const handleAddPasskey = async () => {
     setAddPasskeyError('');
     setIsAddingPasskey(true);
@@ -153,13 +135,6 @@ const SecurityPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {showTotpModal && (
-        <TotpSetupModal
-          onClose={() => setShowTotpModal(false)}
-          onSuccess={() => refetchMfa()}
-        />
-      )}
-
       <Card title="Password" description="Change your password to keep your account secure.">
         <form onSubmit={handleChangePassword} className="space-y-5 mt-2">
           <div>
@@ -186,52 +161,17 @@ const SecurityPage: React.FC = () => {
         </form>
       </Card>
 
-      <Card
-        title="Two-Factor Authentication"
-        description="Authenticator app (TOTP)"
-        action={
-          mfa?.totp_enabled ? (
-            <Button
-              variant="danger"
-              onClick={() => { setShowMfaDisable(!showMfaDisable); setMfaError(''); }}
-              className="text-xs px-3 py-1.5"
-            >
-              Disable
-            </Button>
-          ) : (
-            <Button onClick={() => setShowTotpModal(true)} className="text-xs px-3 py-1.5">
-              Set Up
-            </Button>
-          )
-        }
-      >
-        <div className="flex items-center gap-2 mt-1">
-          <StatusDot active={!!mfa?.totp_enabled} />
-          <span className="text-sm text-zinc-700">
-            {mfa?.totp_enabled ? 'Protecting your account' : 'Not configured'}
-          </span>
-        </div>
-        {showMfaDisable && (
-          <form onSubmit={handleDisableMfa} className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
-            <p className="text-sm text-zinc-600">Enter your password to confirm disabling 2FA.</p>
-            <input
-              type="password"
-              placeholder="Current password"
-              value={mfaDisablePassword}
-              onChange={(e) => setMfaDisablePassword(e.target.value)}
-            />
-            {mfaError && <Alert type="danger" message={mfaError} />}
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowMfaDisable(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" variant="danger" className="flex-1">
-                Disable 2FA
-              </Button>
-            </div>
-          </form>
-        )}
-      </Card>
+      {(settings.mfa_method === 'totp' || settings.mfa_method === 'both') && (
+        <TotpCard
+          totpEnabled={!!mfa?.totp_enabled}
+          preferredLabel={settings.mfa_method === 'both'}
+          onChanged={refetchMfa}
+        />
+      )}
+
+      {(settings.mfa_method === 'email' || settings.mfa_method === 'both') && (
+        <EmailOtpCard fallbackLabel={settings.mfa_method === 'both'} />
+      )}
 
       <Card
         title="Passkeys"
