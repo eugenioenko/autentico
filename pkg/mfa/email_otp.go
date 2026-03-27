@@ -3,10 +3,8 @@ package mfa
 import (
 	"crypto/rand"
 	"fmt"
+	"html/template"
 	"math/big"
-	"net/smtp"
-
-	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 func GenerateEmailOTP() (string, error) {
@@ -17,25 +15,23 @@ func GenerateEmailOTP() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
+func SendTestEmail(to string) error {
+	body := template.HTML(`<p style="margin:0;color:#52525b;">Your SMTP configuration is working correctly. Emails will be delivered successfully.</p>`)
+	return sendEmail(to, "SMTP Test", "Your SMTP configuration is working.", body)
+}
+
 func SendEmailOTP(to, code string) error {
-	cfg := config.Get()
-	if cfg.SmtpHost == "" {
-		return fmt.Errorf("SMTP is not configured")
-	}
-
-	from := cfg.SmtpFrom
-	subject := "Your verification code"
-	body := fmt.Sprintf("Your verification code is: %s\n\nThis code expires in 5 minutes.", code)
-
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=\"utf-8\"\r\n\r\n%s",
-		from, to, subject, body)
-
-	addr := fmt.Sprintf("%s:%s", cfg.SmtpHost, cfg.SmtpPort)
-
-	var auth smtp.Auth
-	if cfg.SmtpUsername != "" {
-		auth = smtp.PlainAuth("", cfg.SmtpUsername, cfg.SmtpPassword, cfg.SmtpHost)
-	}
-
-	return smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
+	body := template.HTML(fmt.Sprintf(`
+<p style="margin:0 0 32px 0;color:#52525b;">Use the code below to complete your sign-in. It expires in <strong>5 minutes</strong>.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px 0;">
+  <tr>
+    <td style="background-color:#f4f4f5;border-radius:8px;padding:20px 40px;">
+      <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#18181b;font-family:'Courier New',Courier,monospace;">%s</span>
+    </td>
+  </tr>
+</table>
+<p style="margin:0;font-size:13px;color:#a1a1aa;">Do not share this code with anyone.</p>`,
+		code,
+	))
+	return sendEmail(to, "Your verification code", "Your sign-in verification code — expires in 5 minutes.", body)
 }

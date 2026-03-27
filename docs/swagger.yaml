@@ -1058,6 +1058,32 @@ paths:
       summary: Update system settings
       tags:
       - admin
+  /admin/api/settings/test-smtp:
+    post:
+      description: Sends a test email to the currently authenticated admin's registered
+        email address.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Test SMTP configuration
+      tags:
+      - admin
   /admin/api/stats:
     get:
       description: Returns a summary of users, clients, and active sessions.
