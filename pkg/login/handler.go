@@ -12,6 +12,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
@@ -111,8 +112,22 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// MFA check: required globally, or user has voluntarily enrolled in TOTP
+	// Email verification gate — non-admin users must verify before proceeding
 	cfg := config.Get()
+	if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
+		emailverification.RenderVerifyEmail(w, r, "blocked", usr.Username, emailverification.OAuthParams{
+			RedirectURI:         request.RedirectURI,
+			State:               request.State,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+		}, "")
+		return
+	}
+
+	// MFA check: required globally, or user has voluntarily enrolled in TOTP
 	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
 	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
 		method := cfg.MfaMethod

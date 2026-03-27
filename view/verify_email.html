@@ -1,0 +1,41 @@
+{{define "content"}}
+<div class="card">
+  {{template "logo" .}}
+  <h1>{{.ThemeTitle}}</h1>
+
+  {{if eq .Mode "sent"}}
+    {{if .Error}}
+      <div class="error" role="alert">{{.Error}}</div>
+    {{else}}
+      <p style="color:var(--color-text);margin:0;">To activate your account, we need to verify your email address.</p>
+      <p style="color:var(--color-text);margin:0;">Check your inbox and click the verification link to continue.</p>
+    {{end}}
+
+  {{else if eq .Mode "blocked"}}
+    <p style="text-align:center;color:var(--color-text-muted);margin:0;">Your email address is not yet verified. Check your inbox for the verification link.</p>
+
+  {{else if eq .Mode "expired"}}
+    <p style="text-align:center;color:var(--color-text-muted);margin:0;">
+      {{if .Error}}{{.Error}}{{else}}This verification link has expired.{{end}}
+      Request a new one below.
+    </p>
+  {{end}}
+
+  {{if ne .Mode "sent"}}
+    <form method="POST" action="{{authURL "/resend-verification"}}" style="width:100%">
+      {{ .csrfField }}
+      <input type="hidden" name="username" value="{{.Username}}" />
+      <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
+      <input type="hidden" name="state" value="{{.State}}" />
+      <input type="hidden" name="client_id" value="{{.ClientID}}" />
+      <input type="hidden" name="scope" value="{{.Scope}}" />
+      <input type="hidden" name="nonce" value="{{.Nonce}}" />
+      <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
+      <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+      <button type="submit">Resend verification email</button>
+    </form>
+  {{end}}
+
+  <div class="auth-link"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a></div>
+</div>
+{{end}}

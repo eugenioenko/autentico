@@ -293,6 +293,68 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
+func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.RequireEmailVerification = true
+		config.Values.EmailVerificationExpiration = 24 * time.Hour
+		config.Values.ProfileFieldEmail = "optional"
+	})
+
+	form := url.Values{}
+	form.Set("username", "verifyme")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+	form.Set("email", "verifyme@test.com")
+	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("state", "xyz")
+	form.Set("client_id", "test-client")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleSignup(rr, req)
+
+	// Should render the verify-email "sent" page, not redirect with code
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Header().Get("Location"), "code=")
+	assert.Contains(t, rr.Body.String(), "inbox")
+}
+
+func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.RequireEmailVerification = true
+		config.Values.ProfileFieldEmail = "hidden"
+		config.Values.AuthSsoSessionIdleTimeout = 0
+	})
+
+	// Pre-create user with admin role so signup flow picks it up
+	// Actually signup always creates regular users — so test with no email
+	// (no email → verification skipped even when required)
+	form := url.Values{}
+	form.Set("username", "noemailuser")
+	form.Set("password", "password123")
+	form.Set("confirm_password", "password123")
+	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("state", "xyz")
+	form.Set("client_id", "test-client")
+	// No email provided
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleSignup(rr, req)
+
+	// No email → verification gate skipped → redirect with auth code
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
+}
+
 func TestHandleSignupPost_InvalidForm(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

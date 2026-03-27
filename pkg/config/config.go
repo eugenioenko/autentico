@@ -82,6 +82,9 @@ type Config struct {
 	AuthPKCEEnforceSHA256              bool
 	RequireMfa                         bool
 	MfaMethod                          string
+	RequireEmailVerification           bool
+	EmailVerificationExpiration        time.Duration
+	EmailVerificationExpirationStr     string
 	SmtpHost                           string
 	SmtpPort                           string
 	SmtpUsername                       string
@@ -145,6 +148,9 @@ var defaultConfig = Config{
 	AuthPKCEEnforceSHA256:              true,
 	RequireMfa:                         false,
 	MfaMethod:                          "totp",
+	RequireEmailVerification:           false,
+	EmailVerificationExpiration:        24 * time.Hour,
+	EmailVerificationExpirationStr:     "24h",
 	SmtpPort:                           "587",
 	ValidationMinUsernameLength:        4,
 	ValidationMaxUsernameLength:        64,

@@ -31,6 +31,8 @@ var defaults = map[string]string{
 	"pkce_enforce_s256":              "true",
 	"require_mfa":                    "false",
 	"mfa_method":                     "totp",
+	"require_email_verification":     "false",
+	"email_verification_expiration":  "24h",
 	"smtp_port":                      "587",
 	"theme_title":                    "Autentico",
 	"onboarded":                      "false",
@@ -173,6 +175,13 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["mfa_method"]; ok {
 		cfg.MfaMethod = v
+	}
+	if v, ok := all["require_email_verification"]; ok {
+		cfg.RequireEmailVerification = parseBool(v, false)
+	}
+	if v, ok := all["email_verification_expiration"]; ok {
+		cfg.EmailVerificationExpirationStr = v
+		cfg.EmailVerificationExpiration = config.ParseDuration(v, cfg.EmailVerificationExpiration)
 	}
 	if v, ok := all["smtp_host"]; ok {
 		cfg.SmtpHost = v

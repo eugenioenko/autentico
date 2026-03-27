@@ -34,6 +34,8 @@ const tip = makeTip({
   allow_self_service_deletion: "When enabled, users can delete their own account immediately without admin approval.",
   require_mfa: "Force all users to complete a second authentication factor at login. Users can also enroll in TOTP voluntarily without this being enabled.",
   mfa_method: "Preferred second-factor authentication method.",
+  require_email_verification: "Require users to verify their email address before they can log in. Admins are exempt. Requires SMTP to be configured.",
+  email_verification_expiration: "How long a verification link remains valid (e.g. 24h, 48h).",
   sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable.",
   trust_device_enabled: "Allow users to trust their current device for MFA.",
   trust_device_expiration: "How long a device remains trusted (e.g. 720h).",
@@ -242,6 +244,26 @@ export default function SettingsPage() {
                       style={{ marginBottom: 16 }}
                     />
                   )}
+
+                  <Divider />
+
+                  <Title level={5}>Email Verification</Title>
+                  <Form.Item
+                    label="Require Email Verification"
+                    name="require_email_verification"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    tooltip={{ title: tip("require_email_verification"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item
+                    label="Verification Link Expiration"
+                    name="email_verification_expiration"
+                    tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="24h" />
+                  </Form.Item>
 
                   <Divider />
 

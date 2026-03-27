@@ -20,6 +20,22 @@ func SendTestEmail(to string) error {
 	return sendEmail(to, "SMTP Test", "Your SMTP configuration is working.", body)
 }
 
+func SendVerificationEmail(to, verifyURL string) error {
+	body := template.HTML(fmt.Sprintf(`
+<p style="margin:0 0 32px 0;color:#52525b;">Click the button below to verify your email address and complete your registration.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px 0;">
+  <tr>
+    <td style="background-color:#18181b;border-radius:8px;padding:0;">
+      <a href="%s" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:-0.1px;">Verify my email</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:0;font-size:13px;color:#a1a1aa;">This link expires in 24 hours. If you did not create an account, no action is required.</p>`,
+		verifyURL,
+	))
+	return sendEmail(to, "Verify your email address", "Verify your email to complete your registration.", body)
+}
+
 func SendEmailOTP(to, code string) error {
 	body := template.HTML(fmt.Sprintf(`
 <p style="margin:0 0 32px 0;color:#52525b;">Use the code below to complete your sign-in. It expires in <strong>5 minutes</strong>.</p>

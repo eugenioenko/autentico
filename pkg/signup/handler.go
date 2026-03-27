@@ -8,7 +8,9 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -164,6 +166,35 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		AddressCountry:    profileFields["address_country"],
 	}
 	_ = user.UpdateUser(usr.ID, profileUpdate)
+
+	// Email verification gate — non-admin users with an email must verify before logging in
+	if config.Get().RequireEmailVerification && usr.Email != "" && usr.Role != "admin" {
+		rawToken, tokenHash, err := emailverification.GenerateToken()
+		if err == nil {
+			expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
+			_ = user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt)
+			verifyURL := emailverification.BuildVerifyURL(rawToken, emailverification.OAuthParams{
+				RedirectURI:         params.RedirectURI,
+				State:               params.State,
+				ClientID:            params.ClientID,
+				Scope:               params.Scope,
+				Nonce:               params.Nonce,
+				CodeChallenge:       params.CodeChallenge,
+				CodeChallengeMethod: params.CodeChallengeMethod,
+			})
+			_ = mfa.SendVerificationEmail(usr.Email, verifyURL)
+		}
+		emailverification.RenderVerifyEmail(w, r, "sent", usr.Username, emailverification.OAuthParams{
+			RedirectURI:         params.RedirectURI,
+			State:               params.State,
+			ClientID:            params.ClientID,
+			Scope:               params.Scope,
+			Nonce:               params.Nonce,
+			CodeChallenge:       params.CodeChallenge,
+			CodeChallengeMethod: params.CodeChallengeMethod,
+		}, "")
+		return
+	}
 
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()

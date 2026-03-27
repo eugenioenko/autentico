@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"golang.org/x/crypto/bcrypt"
@@ -218,4 +219,20 @@ func UnlockUser(id string) error {
 		return fmt.Errorf("user not found")
 	}
 	return nil
+}
+
+func SetEmailVerificationToken(userID, tokenHash string, expiresAt time.Time) error {
+	_, err := db.GetDB().Exec(
+		`UPDATE users SET email_verification_token = ?, email_verification_expires_at = ? WHERE id = ?`,
+		tokenHash, expiresAt, userID,
+	)
+	return err
+}
+
+func MarkEmailVerified(userID string) error {
+	_, err := db.GetDB().Exec(
+		`UPDATE users SET is_email_verified = TRUE, email_verification_token = NULL, email_verification_expires_at = NULL WHERE id = ?`,
+		userID,
+	)
+	return err
 }

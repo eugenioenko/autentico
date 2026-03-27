@@ -10,11 +10,12 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
+	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleLoginUser_Success(t *testing.T) {
@@ -455,6 +456,98 @@ func TestHandleLoginUser_MfaEmailEnrollment(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rr.Code)
 	// Should redirect to /mfa
 	assert.Contains(t, rr.Header().Get("Location"), "/mfa?challenge_id=")
+}
+
+func TestHandleLoginUser_UnverifiedEmail_Blocked(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireEmailVerification = true
+	})
+
+	u, _ := user.CreateUser("unverified", "password123", "unverified@test.com")
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	// Ensure user is NOT email-verified (default)
+	updated, _ := user.UserByID(u.ID)
+	if updated.IsEmailVerified {
+		t.Fatal("user should not be email-verified at creation")
+	}
+
+	form := url.Values{}
+	form.Set("username", "unverified")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	// Should render the "blocked" verify-email page, not redirect with code
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Header().Get("Location"), "code=")
+}
+
+func TestHandleLoginUser_AdminExemptFromEmailVerification(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireEmailVerification = true
+		config.Values.AuthSsoSessionIdleTimeout = 0
+	})
+
+	// Create admin user (role = "admin")
+	u, _ := user.CreateUser("adminuser", "password123", "admin@test.com")
+	_, _ = db.GetDB().Exec("UPDATE users SET role = 'admin' WHERE id = ?", u.ID)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "adminuser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	// Admin bypasses email verification — should get auth code
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
+}
+
+func TestHandleLoginUser_VerifiedUser_Proceeds(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.RequireEmailVerification = true
+		config.Values.AuthSsoSessionIdleTimeout = 0
+	})
+
+	u, err := user.CreateUser("verifieduser", "password123", "verified@test.com")
+	require.NoError(t, err)
+	require.NoError(t, user.MarkEmailVerified(u.ID))
+	// Confirm the flag was actually set
+	{
+		updated, e := user.UserByID(u.ID)
+		require.NoError(t, e)
+		require.True(t, updated.IsEmailVerified, "user must be email-verified before login test")
+	}
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost"})
+
+	form := url.Values{}
+	form.Set("username", "verifieduser")
+	form.Set("password", "password123")
+	form.Set("client_id", "c1")
+	form.Set("redirect_uri", "http://localhost")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleLoginUser(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
 }
 
 func boolPtr(b bool) *bool { return &b }
