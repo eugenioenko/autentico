@@ -3,6 +3,7 @@ package signup
 import (
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -213,7 +214,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
+		slog.Error("signup: failed to generate auth code", "error", err)
+		renderSignup(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -231,7 +233,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
+		slog.Error("signup: failed to create auth code", "error", err)
+		renderSignup(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 

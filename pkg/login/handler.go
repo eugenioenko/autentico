@@ -148,7 +148,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 				method = "totp"
 			} else {
 				slog.Error("login: email MFA required but SMTP is not configured", "request_id", middleware.GetRequestID(r.Context()))
-				utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Email MFA is not available: SMTP is not configured")
+				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
 				return
 			}
 		}
@@ -167,14 +167,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
 			slog.Error("login: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to serialize login state")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
 			slog.Error("login: failed to generate challenge ID", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate challenge ID")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
@@ -188,7 +188,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
 			slog.Error("login: failed to create MFA challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create MFA challenge")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
@@ -216,7 +216,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("login: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
+		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -236,7 +236,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
 		slog.Error("login: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
+		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
 

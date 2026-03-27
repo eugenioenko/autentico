@@ -171,7 +171,9 @@ func TestHandleLoginUser_EmailMfaNoSmtp(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleLoginUser(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	// Now redirects back to login with an error message instead of JSON
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=")
 }
 
 func TestHandleLoginUser_InvalidCredentialsFormat(t *testing.T) {
