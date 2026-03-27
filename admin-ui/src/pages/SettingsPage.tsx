@@ -13,10 +13,17 @@ import {
   Alert,
   Tabs,
   InputNumber,
+  Table,
+  Tag,
 } from "antd";
-import { SaveOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import {
+  SaveOutlined,
+  ExclamationCircleOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import apiClient from "../api/client";
 import { makeTip } from "../lib/tips";
 
@@ -24,6 +31,16 @@ const { Title, Text } = Typography;
 
 // getValueProps for Switch: API sends strings, Switch stores booleans after toggle
 const boolProp = (value: unknown) => ({ checked: value === true || value === "true" });
+
+interface PreviewRow {
+  key: string;
+  current: string;
+  incoming: string;
+}
+interface PreviewResponse {
+  rows: PreviewRow[];
+  unknown: string[];
+}
 
 const tip = makeTip({
   auth_mode: "Controls allowed login methods.",
@@ -81,6 +98,85 @@ export default function SettingsPage() {
   const smtpHost = Form.useWatch("smtp_host", form);
   const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
   const [testingSmtp, setTestingSmtp] = useState(false);
+  const [backupText, setBackupText] = useState("");
+  const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const res = await apiClient.get("/admin/api/settings/export");
+      const json = JSON.stringify(res.data.data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "autentico-settings.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      message.error("Failed to export settings");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setBackupText((ev.target?.result as string) ?? "");
+      setPreviewData(null);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const handlePreview = async () => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(backupText);
+    } catch {
+      message.error("Invalid JSON — check the pasted content");
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const res = await apiClient.post("/admin/api/settings/import/preview", parsed);
+      setPreviewData(res.data.data as PreviewResponse);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error_description?: string } } };
+      message.error(axiosErr.response?.data?.error_description ?? "Preview failed");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleApply = async () => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(backupText);
+    } catch {
+      message.error("Invalid JSON");
+      return;
+    }
+    setApplyLoading(true);
+    try {
+      await apiClient.post("/admin/api/settings/import/apply", parsed);
+      message.success("Settings imported successfully");
+      setPreviewData(null);
+      setBackupText("");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error_description?: string } } };
+      message.error(axiosErr.response?.data?.error_description ?? "Import failed");
+    } finally {
+      setApplyLoading(false);
+    }
+  };
 
   const handleTestSmtp = async () => {
     setTestingSmtp(true);
@@ -657,6 +753,149 @@ export default function SettingsPage() {
                   >
                     <Input />
                   </Form.Item>
+                </Card>
+              ),
+            },
+            {
+              key: "6",
+              label: "Backup",
+              children: (
+                <Card variant="borderless">
+                  <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+                    <div>
+                      <Title level={5} style={{ marginBottom: 4 }}>Export</Title>
+                      <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                        Download all settings as a JSON file.
+                      </Text>
+                      <Button
+                        icon={<DownloadOutlined />}
+                        loading={exportLoading}
+                        onClick={handleExport}
+                      >
+                        Download Settings
+                      </Button>
+                    </div>
+
+                    <Divider />
+
+                    <div>
+                      <Title level={5} style={{ marginBottom: 4 }}>Import</Title>
+                      <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                        Paste a settings JSON file below or upload one. Preview changes before applying.
+                      </Text>
+                      <Space style={{ marginBottom: 8 }}>
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          ref={fileInputRef}
+                          style={{ display: "none" }}
+                          onChange={handleFileUpload}
+                        />
+                        <Button
+                          icon={<UploadOutlined />}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          Upload File
+                        </Button>
+                      </Space>
+                      <Input.TextArea
+                        value={backupText}
+                        onChange={(e) => {
+                          setBackupText(e.target.value);
+                          setPreviewData(null);
+                        }}
+                        placeholder='Paste settings JSON here or upload a file…'
+                        rows={8}
+                        style={{ fontFamily: "monospace", fontSize: 12 }}
+                      />
+                      <Space style={{ marginTop: 12 }}>
+                        <Button
+                          onClick={handlePreview}
+                          loading={previewLoading}
+                          disabled={!backupText.trim()}
+                        >
+                          Preview Import
+                        </Button>
+                        {previewData && (
+                          <Button
+                            type="primary"
+                            onClick={handleApply}
+                            loading={applyLoading}
+                          >
+                            Apply Import
+                          </Button>
+                        )}
+                      </Space>
+                    </div>
+
+                    {previewData && (
+                      <>
+                        {previewData.unknown.length > 0 && (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message="Unknown keys will be skipped"
+                            description={
+                              <Space wrap>
+                                {previewData.unknown.map((k) => (
+                                  <Tag key={k}>{k}</Tag>
+                                ))}
+                              </Space>
+                            }
+                          />
+                        )}
+                        <Table
+                          dataSource={previewData.rows}
+                          rowKey="key"
+                          size="small"
+                          pagination={false}
+                          rowClassName={(row) =>
+                            row.current !== row.incoming ? "ant-table-row-changed" : ""
+                          }
+                          columns={[
+                            {
+                              title: "Setting",
+                              dataIndex: "key",
+                              key: "key",
+                              width: "35%",
+                              render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code>,
+                            },
+                            {
+                              title: "Current Value",
+                              dataIndex: "current",
+                              key: "current",
+                              width: "32%",
+                              render: (v: string) => (
+                                <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
+                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
+                                </span>
+                              ),
+                            },
+                            {
+                              title: "New Value",
+                              dataIndex: "incoming",
+                              key: "incoming",
+                              width: "32%",
+                              render: (v: string, row: PreviewRow) => (
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: row.current !== row.incoming ? 600 : undefined,
+                                    color:
+                                      row.current !== row.incoming
+                                        ? "var(--ant-color-warning-text)"
+                                        : undefined,
+                                  }}
+                                >
+                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
+                                </span>
+                              ),
+                            },
+                          ]}
+                        />
+                      </>
+                    )}
+                  </Space>
                 </Card>
               ),
             },
