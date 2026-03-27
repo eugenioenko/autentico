@@ -22,7 +22,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	var lockedUntil *time.Time
 	var email, passwordHash sql.NullString
 	query := `
-		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified
+		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified
 		FROM users WHERE username = ?
 	`
 	row := db.GetDB().QueryRow(query, username)
@@ -37,6 +37,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 		&lockedUntil,
 		&user.TotpSecret,
 		&user.TotpVerified,
+		&user.IsEmailVerified,
 	)
 	user.Password = nullStringToString(passwordHash)
 	user.Email = nullStringToString(email)

@@ -1,5 +1,5 @@
 {{define "content"}}
-<form method="POST" action="{{authURL "/signup"}}" data-auth-mode="{{.AuthMode}}" onsubmit="handleSignupSubmit(event)">
+<form class="card" method="POST" action="{{authURL "/signup"}}" data-auth-mode="{{.AuthMode}}" onsubmit="handleSignupSubmit(event)">
   {{template "logo" .}}
   <h1>{{.ThemeTitle}}</h1>
   {{ .csrfField }}

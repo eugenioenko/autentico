@@ -17,7 +17,7 @@
 {{end}}
 
 {{define "content"}}
-<form method="POST" action="{{authURL "/mfa"}}">
+<form class="card" method="POST" action="{{authURL "/mfa"}}">
   {{template "logo" .}}
   <h1>Verification</h1>
   <p>Enter the verification code from your {{if eq .Method "email"}}email{{else}}authenticator app{{end}}</p>

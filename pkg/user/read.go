@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -101,6 +102,16 @@ func UserByEmail(email string) (*User, error) {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
 	return u, nil
+}
+
+// GetVerificationTokenInfo returns the userID and expiry for a given token hash.
+// Returns sql.ErrNoRows if the token does not exist.
+func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.Time, err error) {
+	err = db.GetDB().QueryRow(
+		`SELECT id, email_verification_expires_at FROM users WHERE email_verification_token = ? AND deactivated_at IS NULL`,
+		tokenHash,
+	).Scan(&userID, &expiresAt)
+	return
 }
 
 // UserExistsByEmail returns true if any non-deactivated user has the given email,

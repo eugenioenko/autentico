@@ -24,6 +24,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -122,6 +123,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimitedFunc(passkey.HandleLoginFinish))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
+	mux.Handle("GET "+oauth+"/verify-email", csrfProtected(emailverification.HandleVerifyEmail))
+	mux.Handle("POST "+oauth+"/resend-verification", csrfProtected(emailverification.HandleResendVerification))
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
 	mux.Handle(oauth+"/signup", csrfProtected(signup.HandleSignup))

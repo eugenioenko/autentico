@@ -1,5 +1,5 @@
 {{define "content"}}
-<form method="POST" action="{{authURL "/login"}}">
+<form class="card" method="POST" action="{{authURL "/login"}}">
   {{template "logo" .}}
   <h1>{{.ThemeTitle}}</h1>
   {{ .csrfField }}

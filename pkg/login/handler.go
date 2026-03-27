@@ -12,6 +12,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
@@ -111,8 +112,22 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// MFA check: required globally, or user has voluntarily enrolled in TOTP
+	// Email verification gate — non-admin users must verify before proceeding
 	cfg := config.Get()
+	if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
+		emailverification.RenderVerifyEmail(w, r, "blocked", usr.Username, emailverification.OAuthParams{
+			RedirectURI:         request.RedirectURI,
+			State:               request.State,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+		}, "")
+		return
+	}
+
+	// MFA check: required globally, or user has voluntarily enrolled in TOTP
 	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
 	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
 		method := cfg.MfaMethod
@@ -133,7 +148,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 				method = "totp"
 			} else {
 				slog.Error("login: email MFA required but SMTP is not configured", "request_id", middleware.GetRequestID(r.Context()))
-				utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Email MFA is not available: SMTP is not configured")
+				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
 				return
 			}
 		}
@@ -152,14 +167,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
 			slog.Error("login: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to serialize login state")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
 			slog.Error("login: failed to generate challenge ID", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate challenge ID")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
@@ -173,7 +188,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
 			slog.Error("login: failed to create MFA challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create MFA challenge")
+			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
@@ -201,7 +216,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("login: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
+		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -221,7 +236,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
 		slog.Error("login: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
+		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
 

@@ -194,7 +194,8 @@ func TestHandleMfa_Post_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Missing code redirects back to login
+	assert.Equal(t, http.StatusFound, rr.Code)
 }
 
 func TestHandleMfa_GetVerify(t *testing.T) {
@@ -322,7 +323,8 @@ func TestHandleMfa_Post_UnknownMethod(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Now redirects back to login instead of JSON 400
+	assert.Equal(t, http.StatusFound, rr.Code)
 }
 
 func TestHandleMfa_MethodNotAllowed(t *testing.T) {
@@ -346,14 +348,16 @@ func TestHandleMfa_GetEmail(t *testing.T) {
 	_ = CreateMfaChallenge(c)
 
 	testutils.WithConfigOverride(t, func() {
-		config.Values.SmtpHost = "" // Should trigger 500
+		config.Values.SmtpHost = "" // SMTP not configured — should render error on the MFA page
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall1", nil)
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	// Now renders the verify page with an error instead of returning JSON 500
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Failed to send verification code")
 }
 
 func TestHandleMfa_Get_UnknownMethod(t *testing.T) {
@@ -385,8 +389,8 @@ func TestHandleMfa_Post_ChallengeNotFound(t *testing.T) {
 	// Use dummy form with nonexistent challenge
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
-	// Missing challenge_id in form -> 400
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	// Missing challenge_id redirects back to login
+	assert.Equal(t, http.StatusFound, rr.Code)
 }
 
 func boolPtr(b bool) *bool { return &b }

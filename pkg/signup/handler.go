@@ -3,12 +3,15 @@ package signup
 import (
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -165,6 +168,35 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = user.UpdateUser(usr.ID, profileUpdate)
 
+	// Email verification gate — non-admin users with an email must verify before logging in
+	if config.Get().RequireEmailVerification && usr.Email != "" && usr.Role != "admin" {
+		rawToken, tokenHash, err := emailverification.GenerateToken()
+		if err == nil {
+			expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
+			_ = user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt)
+			verifyURL := emailverification.BuildVerifyURL(rawToken, emailverification.OAuthParams{
+				RedirectURI:         params.RedirectURI,
+				State:               params.State,
+				ClientID:            params.ClientID,
+				Scope:               params.Scope,
+				Nonce:               params.Nonce,
+				CodeChallenge:       params.CodeChallenge,
+				CodeChallengeMethod: params.CodeChallengeMethod,
+			})
+			_ = mfa.SendVerificationEmail(usr.Email, verifyURL)
+		}
+		emailverification.RenderVerifyEmail(w, r, "sent", usr.Username, emailverification.OAuthParams{
+			RedirectURI:         params.RedirectURI,
+			State:               params.State,
+			ClientID:            params.ClientID,
+			Scope:               params.Scope,
+			Nonce:               params.Nonce,
+			CodeChallenge:       params.CodeChallenge,
+			CodeChallengeMethod: params.CodeChallengeMethod,
+		}, "")
+		return
+	}
+
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -182,7 +214,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code generation. %v", err))
+		slog.Error("signup: failed to generate auth code", "error", err)
+		renderSignup(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -200,7 +233,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("failed secure code insert. %v", err))
+		slog.Error("signup: failed to create auth code", "error", err)
+		renderSignup(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 
