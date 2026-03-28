@@ -175,12 +175,6 @@ button {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary-bg) 20%, transparent);
 }
 
-.auth-input--code {
-  text-align: center;
-  font-size: 1.5rem;
-  letter-spacing: 0.5rem;
-}
-
 .auth-btn {
   margin-top: 1.5rem;
   width: 100%;
