@@ -17,13 +17,14 @@
 </head>
 
 <body id="autentico">
+  <canvas id="bg-canvas"></canvas>
   <main class="auth-page">
     {{block "content" .}}{{end}}
   </main>
   <footer></footer>
   {{block "scripts" .}}{{end}}
 </body>
-
+<script src="{{authURL "/static/network.js"}}"></script>
 </html>
 {{end}}
 
