@@ -1,0 +1,81 @@
+---
+title: Key Generation
+description: How to generate the RSA private key and secrets required to run Autentico.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico requires three secrets to start:
+
+- `AUTENTICO_PRIVATE_KEY` — an RSA private key (base64-encoded PEM), used to sign JWTs
+- `AUTENTICO_CSRF_SECRET_KEY` — at least 32 random characters
+- `AUTENTICO_ACCESS_TOKEN_SECRET` — at least 32 random characters
+- `AUTENTICO_REFRESH_TOKEN_SECRET` — at least 32 random characters
+
+The easiest way to generate all of them at once is with the built-in `init` command.
+
+## Using `autentico init`
+
+If you have the binary available:
+
+```bash
+./autentico init --url https://auth.example.com
+```
+
+This creates a `.env` file in the current directory with a freshly generated RSA private key, CSRF secret, and token signing secrets — everything needed to start the server. The `--url` flag sets `AUTENTICO_APP_URL` and is used as the OIDC issuer.
+
+<Aside type="caution">
+`autentico init` will error if a `.env` file already exists, to avoid overwriting existing secrets.
+</Aside>
+
+## Using Docker (no local binary)
+
+If you're deploying via Docker and don't have the binary installed locally, run `init` through the image:
+
+```bash
+docker run --rm -v "$(pwd)":/output \
+  ghcr.io/eugenioenko/autentico:latest \
+  init --url https://auth.example.com
+```
+
+This writes the `.env` file into your current directory via the mounted volume.
+
+If you do have the binary handy, the equivalent is:
+
+```bash
+./autentico init --url https://auth.example.com
+```
+
+## Manual generation
+
+If you need to generate the secrets without the binary — for example, in a CI/CD pipeline or secret manager provisioning script:
+
+### RSA private key
+
+```bash
+# Generate the key and encode it as a single-line base64 string
+openssl genrsa 4096 | base64 -w 0
+```
+
+Paste the output as the value of `AUTENTICO_PRIVATE_KEY`.
+
+### Random secrets
+
+```bash
+# Generate a 32-byte random secret (repeat for each secret)
+openssl rand -base64 32
+```
+
+Use one output value each for `AUTENTICO_CSRF_SECRET_KEY`, `AUTENTICO_ACCESS_TOKEN_SECRET`, and `AUTENTICO_REFRESH_TOKEN_SECRET`.
+
+## Storing secrets
+
+Once generated:
+
+- **Local / binary deployment** — keep secrets in a `.env` file, added to `.gitignore`
+- **Docker** — pass via `--env-file .env` or `env_file:` in `docker-compose.yml`
+- **Production** — store in a secrets manager (Vault, AWS Secrets Manager, etc.) and inject at deploy time
+
+<Aside type="tip">
+Back up `AUTENTICO_PRIVATE_KEY` securely. Losing it means all previously issued tokens become unverifiable.
+</Aside>
