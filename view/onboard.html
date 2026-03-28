@@ -1,10 +1,8 @@
 {{define "content"}}
-<form class="card" method="POST" action="{{.FormAction}}">
+<form class="auth-card" method="POST" action="{{.FormAction}}">
   {{template "logo" .}}
-  <h1>Initial Admin Setup</h1>
-  <p style="text-align: center; color: #666; margin-bottom: 20px;">
-    Create the first administrator account to start using Auténtico.
-  </p>
+  <h1 class="auth-title">Initial Admin Setup</h1>
+  <p class="auth-text-muted">Create the first administrator account to start using Auténtico.</p>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
@@ -13,34 +11,34 @@
   <input type="hidden" name="nonce" value="{{.Nonce}}" />
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
-  <div class="control">
+  <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
-    <label for="username">Email</label>
-    <input type="email" id="username" name="username" required autocomplete="email" placeholder="admin@example.com" />
+    <label class="auth-label" for="username">Email</label>
+    <input class="auth-input" type="email" id="username" name="username" required autocomplete="email" placeholder="admin@example.com" />
     {{else}}
-    <label for="username">Administrator Username</label>
-    <input type="text" id="username" name="username" required autocomplete="username" placeholder="admin" />
+    <label class="auth-label" for="username">Administrator Username</label>
+    <input class="auth-input" type="text" id="username" name="username" required autocomplete="username" placeholder="admin" />
     {{end}}
   </div>
   {{if or (eq .ProfileFieldEmail "optional") (eq .ProfileFieldEmail "required")}}
-  <div class="control">
-    <label for="email">Email{{if eq .ProfileFieldEmail "required"}} <span style="color:var(--color-error,#dc2626)">*</span>{{end}}</label>
-    <input type="email" id="email" name="email" autocomplete="email" {{if eq .ProfileFieldEmail "required"}}required{{end}} />
+  <div class="auth-field">
+    <label class="auth-label" for="email">Email{{if eq .ProfileFieldEmail "required"}} <span style="color:var(--color-danger-bg)">*</span>{{end}}</label>
+    <input class="auth-input" type="email" id="email" name="email" autocomplete="email" {{if eq .ProfileFieldEmail "required"}}required{{end}} />
   </div>
   {{end}}
-  <div class="control">
-    <label for="password">Administrator Password</label>
-    <input type="password" id="password" name="password" required autocomplete="new-password" />
+  <div class="auth-field">
+    <label class="auth-label" for="password">Administrator Password</label>
+    <input class="auth-input" type="password" id="password" name="password" required autocomplete="new-password" />
   </div>
-  <div class="control">
-    <label for="confirm_password">Confirm Password</label>
-    <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" />
+  <div class="auth-field">
+    <label class="auth-label" for="confirm_password">Confirm Password</label>
+    <input class="auth-input" type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" />
   </div>
   {{if .Error}}
-     <div class="error" role="alert">{{.Error}}</div>
+  <div class="auth-error" role="alert">{{.Error}}</div>
   {{else}}
-     <div class="error" role="alert" style="display:none"></div>
+  <div class="auth-error" role="alert" style="display:none"></div>
   {{end}}
-  <button type="submit">Complete Setup</button>
+  <button class="auth-btn" type="submit">Complete Setup</button>
 </form>
 {{end}}

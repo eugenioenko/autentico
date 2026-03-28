@@ -1,65 +1,24 @@
 {{define "title"}}{{.ThemeTitle}} - Setup Authenticator{{end}}
 
-{{define "styles"}}
-<style>
-  p {
-    margin: 0;
-    text-align: center;
-    line-height: 1.5;
-  }
-
-  input[type="text"] {
-    text-align: center;
-    font-size: 1.5rem;
-    letter-spacing: 0.5rem;
-    background: var(--color-input);
-    border-color: var(--color-input-border);
-    color: var(--color-text);
-  }
-
-  .qr-code {
-    padding: 1rem;
-    background: #ffffff;
-    border-radius: var(--border-radius);
-  }
-
-  .qr-code img {
-    display: block;
-    width: 200px;
-    height: 200px;
-  }
-
-  .secret-key {
-    font-family: monospace;
-    font-size: 0.9rem;
-    word-break: break-all;
-    padding: 8px 12px;
-    background-color: var(--color-background);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
-  }
-</style>
-{{end}}
-
 {{define "content"}}
-<form class="card" method="POST" action="{{authURL "/mfa"}}">
-  <h1>Setup Authenticator</h1>
-  <p>Scan the QR code with your authenticator app, then enter the code below to verify.</p>
+<form class="auth-card" method="POST" action="{{authURL "/mfa"}}">
+  <h1 class="auth-title">Setup Authenticator</h1>
+  <p class="auth-text-muted">Scan the QR code with your authenticator app, then enter the code below to verify.</p>
   {{ .csrfField }}
   <input type="hidden" name="challenge_id" value="{{.ChallengeID}}" />
   <input type="hidden" name="totp_secret" value="{{.TotpSecret}}" />
-  <div class="qr-code">
+  <div class="auth-qr-code">
     <img src="{{.QRCodeDataURI}}" alt="Scan this QR code with your authenticator app" />
   </div>
-  <p>Or enter this key manually:</p>
-  <div class="secret-key">{{.TotpSecret}}</div>
+  <p class="auth-text-muted">Or enter this key manually:</p>
+  <div class="auth-secret-key">{{.TotpSecret}}</div>
   {{if .Error}}
-  <div class="error" role="alert">{{.Error}}</div>
+  <div class="auth-error" role="alert">{{.Error}}</div>
   {{end}}
-  <div class="control">
-    <label for="code">Verification Code</label>
-    <input type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" />
+  <div class="auth-field">
+    <label class="auth-label" for="code">Verification Code</label>
+    <input class="auth-input auth-input--code" type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" />
   </div>
-  <button type="submit">Verify &amp; Enable</button>
+  <button class="auth-btn" type="submit">Verify &amp; Enable</button>
 </form>
 {{end}}

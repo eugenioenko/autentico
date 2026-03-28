@@ -1,7 +1,7 @@
 {{define "content"}}
-<form class="card" method="POST" action="{{authURL "/login"}}">
+<form class="auth-card" method="POST" action="{{authURL "/login"}}">
   {{template "logo" .}}
-  <h1>{{.ThemeTitle}}</h1>
+  <h1 class="auth-title">{{.ThemeTitle}}</h1>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
@@ -10,34 +10,34 @@
   <input type="hidden" name="nonce" value="{{.Nonce}}" />
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
-  <div class="control">
+  <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
-    <label for="username">Email</label>
-    <input type="email" id="username" name="username" required autocomplete="email" />
+    <label class="auth-label" for="username">Email</label>
+    <input class="auth-input" type="email" id="username" name="username" required autocomplete="email" />
     {{else}}
-    <label for="username">Username</label>
-    <input type="text" id="username" name="username" required autocomplete="username" />
+    <label class="auth-label" for="username">Username</label>
+    <input class="auth-input" type="text" id="username" name="username" required autocomplete="username" />
     {{end}}
   </div>
   {{if ne .AuthMode "passkey_only"}}
-  <div class="control">
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" {{if ne .AuthMode "password_and_passkey"}}required{{end}} autocomplete="current-password" />
+  <div class="auth-field">
+    <label class="auth-label" for="password">Password</label>
+    <input class="auth-input" type="password" id="password" name="password" {{if ne .AuthMode "password_and_passkey"}}required{{end}} autocomplete="current-password" />
   </div>
   {{end}}
   {{if .Error}}
-     <div class="error" role="alert" id="login-error">{{.Error}}</div>
+  <div class="auth-error" role="alert" id="login-error">{{.Error}}</div>
   {{else}}
-     <div class="error" role="alert" id="login-error" style="display:none"></div>
+  <div class="auth-error" role="alert" id="login-error" style="display:none"></div>
   {{end}}
   {{if ne .AuthMode "passkey_only"}}
-  <button type="submit">Log In</button>
+  <button class="auth-btn" type="submit">Log In</button>
   {{end}}
   {{if ne .AuthMode "password"}}
   {{if eq .AuthMode "password_and_passkey"}}
-  <div class="divider">or</div>
+  <div class="auth-divider">or</div>
   {{end}}
-  <button type="button" class="passkey-btn" onclick="startPasskeyLogin()">
+  <button type="button" class="auth-btn-secondary" onclick="startPasskeyLogin()">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="8" cy="8" r="5"/><path d="m13 13 9 9"/><path d="M13 13l-1.5-1.5"/><path d="m16 16 2-2"/><path d="m19 13 2-2"/>
     </svg>
@@ -48,9 +48,9 @@
   <div class="auth-link">Don't have an account? <a href="{{authURL "/signup"}}?state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create one</a></div>
   {{end}}
   {{if .FederatedProviders}}
-  <div class="divider">or</div>
+  <div class="auth-divider">or</div>
   {{range .FederatedProviders}}
-  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="federation-btn">
+  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
     {{if .IconSVG}}{{safeHTML .IconSVG}}{{end}}
     Sign in with {{.Name}}
   </a>
@@ -60,13 +60,13 @@
 {{end}}
 
 {{define "scripts"}}
+{{if ne .AuthMode "password"}}<script src="{{authURL "/static/passkey.js"}}"></script>{{end}}
 <script>
   function showPasskeyError(msg) {
     const el = document.getElementById('login-error');
     el.textContent = msg;
     el.style.display = '';
   }
-  {{template "passkey-utils" .}}
   async function startPasskeyLogin() {
     const username = document.getElementById('username').value.trim();
     if (!username) { showPasskeyError('Please enter your {{if eq .ProfileFieldEmail "is_username"}}email{{else}}username{{end}} first.'); return; }
