@@ -1,21 +1,21 @@
 {{define "content"}}
-<div class="card">
+<div class="auth-card">
   {{template "logo" .}}
-  <h1>{{.ThemeTitle}}</h1>
+  <h1 class="auth-title">{{.ThemeTitle}}</h1>
 
   {{if eq .Mode "sent"}}
     {{if .Error}}
-      <div class="error" role="alert">{{.Error}}</div>
+      <div class="auth-error" role="alert">{{.Error}}</div>
     {{else}}
-      <p style="color:var(--color-text);margin:0;">To activate your account, we need to verify your email address.</p>
-      <p style="color:var(--color-text);margin:0;">Check your inbox and click the verification link to continue.</p>
+      <p class="auth-text">To activate your account, we need to verify your email address.</p>
+      <p class="auth-text">Check your inbox and click the verification link to continue.</p>
     {{end}}
 
   {{else if eq .Mode "blocked"}}
-    <p style="text-align:center;color:var(--color-text-muted);margin:0;">Your email address is not yet verified. Check your inbox for the verification link.</p>
+    <p class="auth-text-muted">Your email address is not yet verified. Check your inbox for the verification link.</p>
 
   {{else if eq .Mode "expired"}}
-    <p style="text-align:center;color:var(--color-text-muted);margin:0;">
+    <p class="auth-text-muted">
       {{if .Error}}{{.Error}}{{else}}This verification link has expired.{{end}}
       Request a new one below.
     </p>
@@ -32,7 +32,7 @@
       <input type="hidden" name="nonce" value="{{.Nonce}}" />
       <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
       <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
-      <button type="submit">Resend verification email</button>
+      <button class="auth-btn" type="submit">Resend verification email</button>
     </form>
   {{end}}
 

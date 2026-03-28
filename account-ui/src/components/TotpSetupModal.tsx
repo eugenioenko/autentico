@@ -57,10 +57,10 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+      <div className="bg-theme-bg rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-fg/10">
           <h2 className="text-base font-semibold">Set Up Authenticator</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-black transition-colors">
+          <button onClick={onClose} className="text-theme-muted hover:text-theme-fg transition-colors">
             <IconX size={18} />
           </button>
         </div>
@@ -68,26 +68,26 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
         <div className="px-6 py-5">
           {step === 'loading' && (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-theme-fg/20 border-t-theme-fg rounded-full animate-spin" />
             </div>
           )}
 
           {step === 'qr' && (
             <div className="space-y-5">
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-theme-muted">
                 Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy).
               </p>
               {qrData && (
-                <div className="flex justify-center p-4 bg-zinc-50 rounded-xl">
+                <div className="flex justify-center p-4 bg-theme-body rounded-xl">
                   <QRCodeSVG value={qrData} size={180} />
                 </div>
               )}
               <div>
-                <p className="text-xs text-zinc-500 mb-1.5">Or enter this code manually:</p>
-                <div className="flex items-center gap-2 px-3 py-2 bg-zinc-50 rounded-lg border border-zinc-200">
-                  <code className="flex-1 text-xs font-mono text-zinc-800 break-all">{secret}</code>
-                  <button onClick={handleCopy} className="flex-shrink-0 text-zinc-400 hover:text-black transition-colors">
-                    {copied ? <IconCheck size={15} className="text-emerald-500" /> : <IconCopy size={15} />}
+                <p className="text-xs text-theme-muted mb-1.5">Or enter this code manually:</p>
+                <div className="flex items-center gap-2 px-3 py-2 bg-theme-body rounded-lg border border-theme-fg/15">
+                  <code className="flex-1 text-xs font-mono text-theme-fg break-all">{secret}</code>
+                  <button onClick={handleCopy} className="flex-shrink-0 text-theme-muted hover:text-theme-fg transition-colors">
+                    {copied ? <IconCheck size={15} className="text-theme-highlight" /> : <IconCopy size={15} />}
                   </button>
                 </div>
               </div>
@@ -99,7 +99,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
 
           {step === 'verify' && (
             <form onSubmit={handleVerify} className="space-y-4">
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-theme-muted">
                 Enter the 6-digit code from your authenticator app to confirm setup.
               </p>
               <div>

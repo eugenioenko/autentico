@@ -1,13 +1,33 @@
+@import "@autentico/theme/theme.css";
 @import "tailwindcss";
 
+@theme inline {
+  --radius-brand:              var(--radius);
+  --color-theme-bg:            var(--color-bg);
+  --color-theme-body:          var(--color-body);
+  --color-theme-fg:            var(--color-fg);
+  --color-theme-muted:         var(--color-muted);
+  --color-theme-primary-bg:    var(--color-primary-bg);
+  --color-theme-primary-fg:    var(--color-primary-fg);
+  --color-theme-accent-bg:     var(--color-accent-bg);
+  --color-theme-accent-fg:     var(--color-accent-fg);
+  --color-theme-danger-bg:     var(--color-danger-bg);
+  --color-theme-danger-fg:     var(--color-danger-fg);
+  --color-theme-highlight:     var(--color-highlight);
+}
+
 @layer base {
+  a, button {
+    cursor: pointer;
+  }
+
   body {
-    @apply bg-zinc-100 text-black antialiased font-light;
+    @apply bg-theme-body text-theme-fg antialiased font-light;
     font-family: 'Inter', sans-serif;
   }
 
   label {
-    @apply block text-[11px] font-normal text-black uppercase tracking-widest mb-1.5;
+    @apply block text-[11px] font-normal text-theme-fg uppercase tracking-widest mb-1.5;
   }
 
   input[type="text"],
@@ -15,6 +35,6 @@
   input[type="password"],
   input[type="phone"],
   input[type="url"] {
-    @apply w-full px-4 py-3 rounded-xl text-sm outline-none bg-white border-1 border-black placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-blue-500/50 disabled:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all;
+    @apply w-full px-4 py-3 rounded-brand text-sm outline-none bg-theme-bg border border-theme-fg/40 placeholder:text-theme-muted focus:border-theme-fg/40 focus:ring-2 focus:ring-theme-highlight disabled:opacity-40 disabled:cursor-not-allowed transition-all;
   }
 }

@@ -1,41 +1,25 @@
 {{define "title"}}{{.ThemeTitle}} - Verification{{end}}
 
-{{define "styles"}}
-<style>
-  .trust-device {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .trust-device label {
-    padding: 0;
-    margin: 0;
-    cursor: pointer;
-  }
-</style>
-{{end}}
-
 {{define "content"}}
-<form class="card" method="POST" action="{{authURL "/mfa"}}">
+<form class="auth-card" method="POST" action="{{authURL "/mfa"}}">
   {{template "logo" .}}
-  <h1>Verification</h1>
-  <p>Enter the verification code from your {{if eq .Method "email"}}email{{else}}authenticator app{{end}}</p>
+  <h1 class="auth-title">Verification</h1>
+  <p class="auth-text-muted">Enter the verification code from your {{if eq .Method "email"}}email{{else}}authenticator app{{end}}</p>
   {{ .csrfField }}
   <input type="hidden" name="challenge_id" value="{{.ChallengeID}}" />
   {{if .Error}}
-  <div class="error" role="alert">{{.Error}}</div>
+  <div class="auth-error" role="alert">{{.Error}}</div>
   {{end}}
-  <div class="control">
-    <label for="code">Code</label>
-    <input type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" />
+  <div class="auth-field">
+    <label class="auth-label" for="code">Code</label>
+    <input class="auth-input auth-input--code" type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" />
   </div>
   {{if .TrustDeviceEnabled}}
-  <div class="control trust-device">
+  <div class="auth-checkbox">
     <input type="checkbox" id="trust_device" name="trust_device" />
     <label for="trust_device">Trust this device for {{.TrustDeviceDays}} days</label>
   </div>
   {{end}}
-  <button type="submit">Verify</button>
+  <button class="auth-btn" type="submit">Verify</button>
 </form>
 {{end}}

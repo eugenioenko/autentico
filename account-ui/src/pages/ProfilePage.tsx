@@ -51,7 +51,7 @@ const emptyForm: ProfileForm = {
 const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({ label, required }) => (
   <label>
     {label}
-    {required && <span className="text-red-500 ml-0.5">*</span>}
+    {required && <span className="text-theme-danger-bg ml-0.5">*</span>}
   </label>
 );
 
@@ -138,7 +138,7 @@ const ProfilePage: React.FC = () => {
           {settings.allow_username_change ? (
             <input type="text" value={form.username} onChange={set('username')} />
           ) : (
-            <p className="text-sm text-zinc-700 py-1">{form.username}</p>
+            <p className="text-sm text-theme-fg py-1">{form.username}</p>
           )}
         </div>
         <div>
@@ -146,143 +146,76 @@ const ProfilePage: React.FC = () => {
           {settings.allow_email_change ? (
             <input type="email" value={form.email} onChange={set('email')} />
           ) : (
-            <p className="text-sm text-zinc-700 py-1">{form.email || <span className="text-zinc-400">Not set</span>}</p>
+            <p className="text-sm text-theme-fg py-1">{form.email || <span className="text-theme-muted">Not set</span>}</p>
           )}
         </div>
 
         {showGivenName && (
           <div>
             <FieldLabel label="First Name" required={req('given_name')} />
-            <input
-              type="text"
-              value={form.given_name}
-              onChange={set('given_name')}
-              required={req('given_name')}
-            />
+            <input type="text" value={form.given_name} onChange={set('given_name')} required={req('given_name')} />
           </div>
         )}
-
         {showFamilyName && (
           <div>
             <FieldLabel label="Last Name" required={req('family_name')} />
-            <input
-              type="text"
-              value={form.family_name}
-              onChange={set('family_name')}
-              required={req('family_name')}
-            />
+            <input type="text" value={form.family_name} onChange={set('family_name')} required={req('family_name')} />
           </div>
         )}
-
         {showMiddleName && (
           <div>
             <FieldLabel label="Middle Name" required={req('middle_name')} />
-            <input
-              type="text"
-              value={form.middle_name}
-              onChange={set('middle_name')}
-              required={req('middle_name')}
-            />
+            <input type="text" value={form.middle_name} onChange={set('middle_name')} required={req('middle_name')} />
           </div>
         )}
-
         {showNickname && (
           <div>
             <FieldLabel label="Nickname" required={req('nickname')} />
-            <input
-              type="text"
-              value={form.nickname}
-              onChange={set('nickname')}
-              required={req('nickname')}
-            />
+            <input type="text" value={form.nickname} onChange={set('nickname')} required={req('nickname')} />
           </div>
         )}
-
         {showPhone && (
           <div>
             <FieldLabel label="Phone Number" required={req('phone')} />
-            <input
-              type="tel"
-              value={form.phone_number}
-              onChange={set('phone_number')}
-              required={req('phone')}
-            />
+            <input type="tel" value={form.phone_number} onChange={set('phone_number')} required={req('phone')} />
           </div>
         )}
-
         {showPicture && (
           <div>
             <FieldLabel label="Profile Picture URL" required={req('picture')} />
-            <input
-              type="url"
-              value={form.picture}
-              onChange={set('picture')}
-              required={req('picture')}
-            />
+            <input type="url" value={form.picture} onChange={set('picture')} required={req('picture')} />
           </div>
         )}
-
         {showWebsite && (
           <div>
             <FieldLabel label="Website" required={req('website')} />
-            <input
-              type="url"
-              value={form.website}
-              onChange={set('website')}
-              required={req('website')}
-            />
+            <input type="url" value={form.website} onChange={set('website')} required={req('website')} />
           </div>
         )}
-
         {showProfileURL && (
           <div>
             <FieldLabel label="Profile Page URL" required={req('profile')} />
-            <input
-              type="url"
-              value={form.profile}
-              onChange={set('profile')}
-              required={req('profile')}
-            />
+            <input type="url" value={form.profile} onChange={set('profile')} required={req('profile')} />
           </div>
         )}
-
         {showGender && (
           <div>
             <FieldLabel label="Gender" required={req('gender')} />
-            <input
-              type="text"
-              value={form.gender}
-              onChange={set('gender')}
-              required={req('gender')}
-            />
+            <input type="text" value={form.gender} onChange={set('gender')} required={req('gender')} />
           </div>
         )}
-
         {showBirthdate && (
           <div>
             <FieldLabel label="Birthdate" required={req('birthdate')} />
-            <input
-              type="date"
-              value={form.birthdate}
-              onChange={set('birthdate')}
-              required={req('birthdate')}
-            />
+            <input type="date" value={form.birthdate} onChange={set('birthdate')} required={req('birthdate')} />
           </div>
         )}
-
         {showLocale && (
           <div>
             <FieldLabel label="Locale" required={req('locale')} />
-            <input
-              type="text"
-              placeholder="e.g. en-US"
-              value={form.locale}
-              onChange={set('locale')}
-              required={req('locale')}
-            />
+            <input type="text" placeholder="e.g. en-US" value={form.locale} onChange={set('locale')} required={req('locale')} />
           </div>
         )}
-
         {showAddress && (
           <>
             <div>
@@ -313,9 +246,11 @@ const ProfilePage: React.FC = () => {
         {error && <Alert type="danger" message={error} />}
         {success && <Alert type="success" message={success} />}
 
-        <Button type="submit" disabled={isUpdating}>
-          {isUpdating ? 'Saving…' : 'Save Changes'}
-        </Button>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isUpdating}>
+            {isUpdating ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
       </form>
     </Card>
   );

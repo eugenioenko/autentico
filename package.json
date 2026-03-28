@@ -1,0 +1,15 @@
+{
+  "name": "autentico-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev:admin": "pnpm --filter autentico-admin-ui run dev",
+    "dev:account": "pnpm --filter account-ui run dev"
+  },
+  "workspaces": [
+    "theme",
+    "account-ui",
+    "admin-ui"
+  ]
+}

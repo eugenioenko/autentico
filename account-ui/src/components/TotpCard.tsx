@@ -61,13 +61,13 @@ const TotpCard: React.FC<TotpCardProps> = ({ totpEnabled, preferredLabel, onChan
       >
         <div className="flex items-center gap-2 mt-1">
           <StatusDot active={totpEnabled} />
-          <span className="text-sm text-zinc-700">
+          <span className="text-sm text-theme-fg">
             {totpEnabled ? 'Protecting your account' : 'Not configured'}
           </span>
         </div>
         {showDisable && (
-          <form onSubmit={handleDisable} className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
-            <p className="text-sm text-zinc-600">Enter your password to confirm disabling 2FA.</p>
+          <form onSubmit={handleDisable} className="mt-4 space-y-3 border-t border-theme-fg/10 pt-4">
+            <p className="text-sm text-theme-muted">Enter your password to confirm disabling 2FA.</p>
             <input
               type="password"
               placeholder="Current password"

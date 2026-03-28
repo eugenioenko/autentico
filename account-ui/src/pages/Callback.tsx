@@ -15,7 +15,7 @@ const Callback: React.FC = () => {
   }, [signinCallback, navigate, isLoading]);
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-zinc-950">
+    <div className="min-h-dvh flex items-center justify-center bg-theme-accent-bg">
       <Spinner />
     </div>
   );

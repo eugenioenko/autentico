@@ -15,13 +15,13 @@
     "antd": "^5.22.0",
     "axios": "^1.7.9",
     "oidc-client-ts": "^3.4.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "openapi-typescript": "^7.12.0",
     "swagger2openapi": "^7.0.8",

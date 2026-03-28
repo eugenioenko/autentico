@@ -38,19 +38,19 @@ const TrustedDevicesPage: React.FC = () => {
       description="Devices that skip two-factor authentication prompts."
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
-      <div className="divide-y divide-zinc-100 mt-1">
+      <div className="divide-y divide-theme-fg/10 mt-1">
         {devices?.map((d: TrustedDevice) => (
           <div key={d.id} className="py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                <IconDevices size={15} className="text-zinc-700" />
+              <div className="w-9 h-9 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
+                <IconDevices size={15} className="text-theme-fg" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{d.device_name || 'Unknown Device'}</p>
-                <p className="text-xs text-zinc-600">
+                <p className="text-xs text-theme-muted">
                   Last used {new Date(d.last_used_at).toLocaleDateString()}
                 </p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
+                <p className="text-[11px] text-theme-muted mt-0.5">
                   Expires {new Date(d.expires_at).toLocaleDateString()}
                 </p>
               </div>
@@ -61,7 +61,7 @@ const TrustedDevicesPage: React.FC = () => {
           </div>
         ))}
         {(!devices || devices.length === 0) && (
-          <p className="text-sm text-zinc-600 py-4">No trusted devices. You'll always be prompted for 2FA.</p>
+          <p className="text-sm text-theme-muted py-4">No trusted devices. You'll always be prompted for 2FA.</p>
         )}
       </div>
     </Card>

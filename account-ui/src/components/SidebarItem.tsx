@@ -12,8 +12,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label, active
   <Link
     to={to}
     className={cn(
-      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-      active ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+      'flex items-center gap-3 px-3 py-2.5 rounded-brand text-sm font-medium transition-all',
+      active ? 'bg-theme-accent-fg text-theme-accent-bg shadow-sm' : 'text-theme-accent-fg/70 hover:text-theme-accent-fg hover:bg-theme-accent-fg/10'
     )}
   >
     <Icon size={16} stroke={1} />
