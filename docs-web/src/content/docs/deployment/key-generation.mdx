@@ -37,7 +37,7 @@ If you're deploying via Docker and don't have the binary installed locally, run 
 ```bash
 docker run --rm -v "$(pwd)":/output \
   ghcr.io/eugenioenko/autentico:latest \
-  init --url https://auth.example.com
+  init --url https://auth.example.com --output /output
 ```
 
 This writes the `.env` file into your current directory via the mounted volume.

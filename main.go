@@ -38,6 +38,11 @@ func main() {
 						Name:  "dev",
 						Usage: "Disable secure cookie flags for local HTTP development (do not use in production)",
 					},
+					&cli.StringFlag{
+						Name:  "output",
+						Usage: "Directory to write the .env file into (default: current directory)",
+						Value: ".",
+					},
 				},
 				Action: appCli.RunInit,
 			},
