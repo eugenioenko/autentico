@@ -15,12 +15,29 @@ The image is a minimal Linux container with just the `autentico` binary. All con
 
 ## Run
 
+### Using an env file
+
+The simplest approach — generate your secrets once with `autentico init`, save them to a `.env` file, and pass it to Docker:
+
 ```bash
 docker run \
   --name autentico \
   -p 9999:9999 \
   -v autentico-data:/data \
-  -e AUTENTICO_APP_URL=http://localhost:9999\
+  --env-file .env \
+  ghcr.io/eugenioenko/autentico:latest
+```
+
+The `.env` file must be in the current working directory (or provide an absolute path). Add it to `.gitignore` to avoid committing secrets.
+
+### Using inline environment variables
+
+```bash
+docker run \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/data \
+  -e AUTENTICO_APP_URL=http://localhost:9999 \
   -e AUTENTICO_LISTEN_PORT=9999 \
   -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
   -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \

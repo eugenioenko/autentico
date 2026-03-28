@@ -5,6 +5,30 @@ description: A production-ready Docker Compose setup for Autentico with persiste
 
 The following `docker-compose.yml` runs Autentico with persistent data storage. Add a reverse proxy service (Caddy, nginx, Traefik) in the same compose file for TLS termination.
 
+### Using an env file
+
+The recommended approach — generate your secrets once with `autentico init`, save them to a `.env` file in the same directory as `docker-compose.yml`, and reference it with `env_file`:
+
+```yaml
+services:
+  autentico:
+    image: ghcr.io/eugenioenko/autentico:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9999:9999"   # bind to localhost only — proxy handles TLS
+    volumes:
+      - autentico-data:/data
+    env_file:
+      - .env
+
+volumes:
+  autentico-data:
+```
+
+Add `.env` to `.gitignore` to avoid committing secrets.
+
+### Using inline environment variables
+
 ```yaml
 services:
   autentico:
