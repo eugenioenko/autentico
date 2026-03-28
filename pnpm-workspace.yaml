@@ -1,7 +1,0 @@
-packages:
-  - theme
-  - account-ui
-  - admin-ui
-
-onlyBuiltDependencies:
-  - esbuild

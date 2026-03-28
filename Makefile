@@ -38,16 +38,14 @@ generate-docs:
 
 # Build admin UI and copy to pkg/admin/dist
 admin-ui-build: generate-docs
-	pnpm install
-	cd admin-ui && pnpm run build
+	cd admin-ui && pnpm install && pnpm run build
 	rm -rf pkg/admin/dist
 	cp -r admin-ui/dist pkg/admin/dist
 	cp docs/index.html pkg/admin/dist/docs.html
 
 # Build account UI and copy to pkg/account/dist
 account-ui-build:
-	pnpm install
-	cd account-ui && pnpm run build
+	cd account-ui && pnpm install && pnpm run build
 	rm -rf pkg/account/dist
 	cp -r account-ui/dist pkg/account/dist
 
