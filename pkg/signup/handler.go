@@ -2,19 +2,18 @@ package signup
 
 import (
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 )
 
@@ -254,38 +253,40 @@ type signupParams struct {
 
 func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, errMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("signup")
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	bs := config.GetBootstrap()
+
+	data := authui.SignupPageData{
+		CsrfToken: csrf.Token(r),
+		OAuth: authui.OAuthParams{
+			State:               params.State,
+			RedirectURI:         params.RedirectURI,
+			ClientID:            params.ClientID,
+			Scope:               params.Scope,
+			Nonce:               params.Nonce,
+			CodeChallenge:       params.CodeChallenge,
+			CodeChallengeMethod: params.CodeChallengeMethod,
+		},
+		OAuthPath:              bs.AppOAuthPath,
+		Error:                  errMsg,
+		AuthMode:               cfg.AuthMode,
+		ProfileFieldEmail:      visibleField(cfg.ProfileFieldEmail, cfg.SignupShowOptionalFields),
+		ProfileFieldGivenName:  visibleField(cfg.ProfileFieldGivenName, cfg.SignupShowOptionalFields),
+		ProfileFieldFamilyName: visibleField(cfg.ProfileFieldFamilyName, cfg.SignupShowOptionalFields),
+		ProfileFieldPhone:      visibleField(cfg.ProfileFieldPhone, cfg.SignupShowOptionalFields),
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
 
-	data := map[string]any{
-		"State":               params.State,
-		"RedirectURI":         params.RedirectURI,
-		"ClientID":            params.ClientID,
-		"Scope":               params.Scope,
-		"Nonce":               params.Nonce,
-		"CodeChallenge":       params.CodeChallenge,
-		"CodeChallengeMethod": params.CodeChallengeMethod,
-		"Error":               errMsg,
-		"AuthMode":            cfg.AuthMode,
-		"ProfileFieldEmail":        cfg.ProfileFieldEmail,
-		"ShowOptionalFields":       cfg.SignupShowOptionalFields,
-		csrf.TemplateTag:      csrf.TemplateField(r),
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		// Profile field visibility
-		"ProfileFieldGivenName":  cfg.ProfileFieldGivenName,
-		"ProfileFieldFamilyName": cfg.ProfileFieldFamilyName,
-		"ProfileFieldPhone":      cfg.ProfileFieldPhone,
-		"ProfileFieldPicture":    cfg.ProfileFieldPicture,
-		"ProfileFieldLocale":     cfg.ProfileFieldLocale,
-		"ProfileFieldAddress":    cfg.ProfileFieldAddress,
-	}
+	authui.RenderPage(w, "signup", data, http.StatusOK)
+}
 
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
+// visibleField returns "hidden" for optional fields when showOptional is false.
+func visibleField(field string, showOptional bool) string {
+	if field == "optional" && !showOptional {
+		return "hidden"
 	}
+	return field
 }

@@ -5,19 +5,18 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 )
 
@@ -63,34 +62,34 @@ func BuildVerifyURL(rawToken string, p OAuthParams) string {
 	return bs.AppURL + bs.AppOAuthPath + "/verify-email?" + q.Encode()
 }
 
-// RenderVerifyEmail renders the verify_email template.
+// RenderVerifyEmail renders the verify-email page.
 // mode: "sent" (after signup/resend), "blocked" (login attempt), "expired" (stale link).
 func RenderVerifyEmail(w http.ResponseWriter, r *http.Request, mode, username string, params OAuthParams, errMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("verify_email")
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	bs := config.GetBootstrap()
+
+	data := authui.VerifyEmailPageData{
+		CsrfToken: csrf.Token(r),
+		OAuth: authui.OAuthParams{
+			State:               params.State,
+			RedirectURI:         params.RedirectURI,
+			ClientID:            params.ClientID,
+			Scope:               params.Scope,
+			Nonce:               params.Nonce,
+			CodeChallenge:       params.CodeChallenge,
+			CodeChallengeMethod: params.CodeChallengeMethod,
+		},
+		OAuthPath: bs.AppOAuthPath,
+		Mode:      mode,
+		Username:  username,
+		Error:     errMsg,
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
-	data := map[string]any{
-		"Mode":                mode,
-		"Username":            username,
-		"RedirectURI":         params.RedirectURI,
-		"State":               params.State,
-		"ClientID":            params.ClientID,
-		"Scope":               params.Scope,
-		"Nonce":               params.Nonce,
-		"CodeChallenge":       params.CodeChallenge,
-		"CodeChallengeMethod": params.CodeChallengeMethod,
-		"Error":               errMsg,
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		csrf.TemplateTag:      csrf.TemplateField(r),
-	}
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
+	authui.RenderPage(w, "verify-email", data, http.StatusOK)
 }
 
 // HandleVerifyEmail handles GET /oauth2/verify-email?token=...&<oauth params>

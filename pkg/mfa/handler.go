@@ -4,20 +4,19 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -270,28 +269,20 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string) {
-	tmpl, err := view.ParseTemplate("mfa")
-	if err != nil {
-		slog.Error("mfa: failed to parse verify template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	data := authui.MfaPageData{
+		CsrfToken:          csrf.Token(r),
+		ChallengeID:        challenge.ID,
+		Method:             challenge.Method,
+		Error:              errorMsg,
+		TrustDeviceEnabled: cfg.TrustDeviceEnabled,
+		TrustDeviceDays:    int(cfg.TrustDeviceExpiration.Hours() / 24),
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
-
-	data := map[string]any{
-		"ChallengeID":        challenge.ID,
-		"Method":             challenge.Method,
-		"Error":              errorMsg,
-		csrf.TemplateTag:     csrf.TemplateField(r),
-		"ThemeTitle":         cfg.Theme.Title,
-		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
-		"ThemeCssResolved":   template.CSS(cfg.ThemeCssResolved),
-		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
-		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
-	}
-
-	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("mfa: failed to execute verify template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-	}
+	authui.RenderPage(w, "mfa", data, http.StatusOK)
 }
 
 func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, usr *user.User, cfg *config.Config, errorMsg string) {
@@ -310,27 +301,19 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	}
 	qrDataURI := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
 
-	tmpl, err := view.ParseTemplate("mfa_enroll")
-	if err != nil {
-		slog.Error("mfa: failed to parse enroll template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	data := authui.MfaEnrollPageData{
+		CsrfToken:     csrf.Token(r),
+		ChallengeID:   challenge.ID,
+		TotpSecret:    secret,
+		QRCodeDataURI: qrDataURI,
+		Error:         errorMsg,
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
-
-	data := map[string]any{
-		"ChallengeID":      challenge.ID,
-		"TotpSecret":       secret,
-		"QRCodeDataURI":    template.URL(qrDataURI),
-		"Error":            errorMsg,
-		csrf.TemplateTag:   csrf.TemplateField(r),
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
-	}
-
-	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("mfa: failed to execute enroll template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-	}
+	authui.RenderPage(w, "mfa-enroll", data, http.StatusOK)
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {

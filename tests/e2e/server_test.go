@@ -84,14 +84,10 @@ func TestServerAuthorizeRendersLoginPage(t *testing.T) {
 
 	bodyStr := string(body)
 
-	// Verify the login form is rendered
-	assert.True(t, strings.Contains(bodyStr, "<form"), "response should contain a form element")
+	csrfToken := getCSRFToken(resp)
+	assert.NotEmpty(t, csrfToken, "CSRF token should be present")
+
 	assert.True(t, strings.Contains(bodyStr, `name="username"`), "response should contain username field")
 	assert.True(t, strings.Contains(bodyStr, `name="password"`), "response should contain password field")
-	assert.True(t, strings.Contains(bodyStr, `name="state"`), "response should contain state hidden field")
-	assert.True(t, strings.Contains(bodyStr, `value="abc123"`), "state value should be preserved")
-
-	// Verify CSRF token is present
-	csrfToken := getCSRFToken(bodyStr)
-	assert.NotEmpty(t, csrfToken, "CSRF token should be present in the login page")
+	assert.True(t, strings.Contains(bodyStr, `value="abc123"`), "OAuth state should be preserved in form")
 }

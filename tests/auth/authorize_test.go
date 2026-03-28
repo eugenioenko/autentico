@@ -20,7 +20,7 @@ func TestAuthorizeRequest(t *testing.T) {
 	doc := string(res)
 
 	assert.Contains(t, doc, "https://client.example.com/callback")
-	assert.Contains(t, doc, "<body id=\"autentico\">")
+	assert.Contains(t, doc, `name="username"`)
 
 }
 

@@ -320,7 +320,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	// Should render the verify-email "sent" page, not redirect with code
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.NotContains(t, rr.Header().Get("Location"), "code=")
-	assert.Contains(t, rr.Body.String(), "inbox")
+	assert.Contains(t, rr.Body.String(), "A verification link has been sent", "should show verify email sent page")
 }
 
 func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {

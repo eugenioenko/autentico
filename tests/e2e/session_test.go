@@ -199,7 +199,7 @@ func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page when idle timeout expired")
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.True(t, strings.Contains(string(body), "<form"), "should render login form")
+	assert.True(t, strings.Contains(string(body), `name="username"`), "should render login page")
 }
 
 func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
@@ -231,7 +231,7 @@ func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page when IdP session deactivated")
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.True(t, strings.Contains(string(body), "<form"), "should render login form")
+	assert.True(t, strings.Contains(string(body), `name="username"`), "should render login page")
 }
 
 func TestAdminSessionDeactivation_BlocksFurtherRequests(t *testing.T) {

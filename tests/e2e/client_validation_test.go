@@ -33,7 +33,7 @@ func csrfTokenFromAuthorize(t *testing.T, ts *TestServer) string {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
-	token := getCSRFToken(string(body))
+	token := getCSRFToken(resp)
 	require.NotEmpty(t, token, "CSRF token not found in authorize page")
 	return token
 }
@@ -41,7 +41,7 @@ func csrfTokenFromAuthorize(t *testing.T, ts *TestServer) string {
 // postLogin sends a POST to /oauth2/login with the given form values and CSRF token.
 func postLogin(t *testing.T, ts *TestServer, form url.Values, csrfToken string) *http.Response {
 	t.Helper()
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -10,13 +9,13 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/view"
 
 	"github.com/gorilla/csrf"
 )
@@ -191,38 +190,39 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 // configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
 func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("login")
-	if err != nil {
-		slog.Error("authorize: failed to parse login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	bs := config.GetBootstrap()
+
+	rawProviders, _ := federation.ListEnabledProviderViews()
+	providers := make([]authui.FederatedProvider, len(rawProviders))
+	for i, p := range rawProviders {
+		providers[i] = authui.FederatedProvider{ID: p.ID, Name: p.Name, IconSVG: string(p.IconSVG)}
 	}
 
-	federatedProviders, _ := federation.ListEnabledProviderViews()
-
-	data := map[string]any{
-		"State":               request.State,
-		"RedirectURI":         request.RedirectURI,
-		"ClientID":            request.ClientID,
-		"Scope":               request.Scope,
-		"Nonce":               request.Nonce,
-		"CodeChallenge":       request.CodeChallenge,
-		"CodeChallengeMethod": request.CodeChallengeMethod,
-		"Error":               errorMsg,
-		"AuthMode":            cfg.AuthMode,
-		"AllowSelfSignup":     cfg.AuthAllowSelfSignup,
-		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
-		csrf.TemplateTag:      csrf.TemplateField(r),
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		"FederatedProviders":  federatedProviders,
+	data := authui.LoginPageData{
+		CsrfToken: csrf.Token(r),
+		OAuth: authui.OAuthParams{
+			State:               request.State,
+			RedirectURI:         request.RedirectURI,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+		},
+		OAuthPath:          bs.AppOAuthPath,
+		Error:              errorMsg,
+		AuthMode:           cfg.AuthMode,
+		AllowSelfSignup:    cfg.AuthAllowSelfSignup,
+		ProfileFieldEmail:  cfg.ProfileFieldEmail,
+		FederatedProviders: providers,
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
 
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
+	authui.RenderPage(w, "login", data, http.StatusOK)
 }
 
 // redirectWithError redirects back to the redirect_uri with OAuth2 error params.
@@ -251,22 +251,13 @@ func parseMaxAge(s string) int64 {
 // Use this for fatal errors where redirecting or submitting credentials makes no sense.
 func renderError(w http.ResponseWriter, errorMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("error")
-	if err != nil {
-		slog.Error("authorize: failed to parse error template", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	data := authui.ErrorPageData{
+		Error: errorMsg,
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
-
-	data := map[string]any{
-		"Error":            errorMsg,
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
-	}
-
-	w.WriteHeader(http.StatusBadRequest)
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
+	authui.RenderPage(w, "error", data, http.StatusBadRequest)
 }

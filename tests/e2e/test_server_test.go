@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
-	"regexp"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/account"
@@ -82,6 +81,7 @@ func startTestServer(t *testing.T) *TestServer {
 		[]byte(config.GetBootstrap().AuthCSRFProtectionSecretKey),
 		csrf.Secure(false),
 		csrf.Path("/"),
+		csrf.FieldName("_csrf"),
 	)
 	plaintextCSRF := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -192,12 +192,7 @@ func newClientWithJar() *http.Client {
 	}
 }
 
-// getCSRFToken extracts the CSRF token value from the rendered login HTML body.
-func getCSRFToken(body string) string {
-	re := regexp.MustCompile(`<input type="hidden" name="gorilla\.csrf\.Token" value="([^"]+)"`)
-	matches := re.FindStringSubmatch(body)
-	if len(matches) < 2 {
-		return ""
-	}
-	return matches[1]
+// getCSRFToken reads the CSRF token from the X-CSRF-Token response header.
+func getCSRFToken(resp *http.Response) string {
+	return resp.Header.Get("X-CSRF-Token")
 }

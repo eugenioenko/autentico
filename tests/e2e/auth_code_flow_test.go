@@ -193,10 +193,8 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
 
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken)
 
 	// POST /oauth2/login
@@ -206,7 +204,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", expectedState)
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -529,7 +527,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "state1")
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", "invalid-forged-csrf-token")
+	form.Set("_csrf", "invalid-forged-csrf-token")
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)

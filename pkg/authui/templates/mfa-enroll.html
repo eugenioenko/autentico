@@ -1,0 +1,62 @@
+{{define "mfa-enroll"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<div class="auth-page">
+  <div class="auth-card">
+    <div style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;">
+      {{if .Theme.LogoURL}}
+        <img src="{{.Theme.LogoURL}}" alt="Logo" style="max-width:100%;max-height:100%;" />
+      {{else}}
+        <svg fill="#ff7b00" width="72px" height="72px" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" transform="matrix(-1,0,0,1,0,0)">
+          <rect x="40" y="40" width="440" height="440" fill="#ffffff" rx="30" ry="30" />
+          <path d="M454,31H58A26.9635,26.9635,0,0,0,31,58V454a27.02,27.02,0,0,0,27,27H454a27.0225,27.0225,0,0,0,27-27V58A26.9663,26.9663,0,0,0,454,31ZM225.0361,116.0507a118.1831,118.1831,0,0,1,148.86,113.85,9.8987,9.8987,0,1,1-19.7974,0A98.215,98.215,0,0,0,256,131.8007a96.0267,96.0267,0,0,0-25.8311,3.42,9.9226,9.9226,0,0,1-5.1328-19.17ZM256,166a64.1092,64.1092,0,0,1,29.6982,7.2905,9.9028,9.9028,0,0,1-9.18,17.55A42.7651,42.7651,0,0,0,256,185.8007a44.116,44.116,0,0,0-44.1035,44.1V249.61a9.8987,9.8987,0,1,1-19.7974,0V229.9009A63.9722,63.9722,0,0,1,256,166Z" />
+        </svg>
+      {{end}}
+    </div>
+
+    <h1 class="auth-title">Setup Authenticator</h1>
+
+    <p style="text-align:center;color:var(--color-muted);font-size:0.875rem;">
+      Scan the QR code with your authenticator app, then enter the verification code below.
+    </p>
+
+    {{if .QRCodeDataURI}}
+    <div style="display:flex;justify-content:center;">
+      <img src="{{.QRCodeDataURI}}" alt="QR Code" style="background:#fff;border-radius:0.5rem;padding:8px;" width="200" height="200" />
+    </div>
+    {{end}}
+
+    {{if .TotpSecret}}
+    <p style="font-family:monospace;text-align:center;font-size:0.875rem;padding:0.5rem 1rem;border-radius:var(--radius);background:color-mix(in oklab,var(--color-fg) 5%,transparent);word-break:break-all;">
+      {{.TotpSecret}}
+    </p>
+    {{end}}
+
+    {{if .Error}}<div class="auth-error" role="alert">{{.Error}}</div>{{end}}
+
+    <form method="POST" action="/oauth2/mfa" style="width:100%;display:flex;flex-direction:column;gap:1.25rem;">
+      <input type="hidden" name="_csrf" value="{{.CsrfToken}}" />
+      <input type="hidden" name="challenge_id" value="{{.ChallengeID}}" />
+      <input type="hidden" name="totp_secret" value="{{.TotpSecret}}" />
+
+      <div class="auth-field">
+        <label class="auth-label">Verification Code</label>
+        <input
+          type="text"
+          name="code"
+          class="auth-input"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="6"
+          autocomplete="one-time-code"
+          autofocus
+          required
+          style="text-align:center;font-size:1.5rem;letter-spacing:0.5em;"
+        />
+      </div>
+
+      <button type="submit" class="auth-btn">Verify &amp; Enable</button>
+    </form>
+  </div>
+</div>
+{{end}}

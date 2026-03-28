@@ -102,7 +102,7 @@ func TestHandleMfaGet_EmailOtpCooldown(t *testing.T) {
 
 	// Should render the verify page without attempting to send a new email
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Verification")
+	assert.Contains(t, rr.Body.String(), `"challenge_id"`, "should show MFA verify page")
 }
 
 func TestHandleMfaPost_EmailEmptyUserEmail(t *testing.T) {

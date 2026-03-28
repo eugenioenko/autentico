@@ -84,7 +84,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
 	// Step 2: Extract CSRF token from the HTML
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
 
 	// Step 3: POST /oauth2/login with credentials and CSRF token
@@ -94,7 +94,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", clientID)
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -151,7 +151,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	require.NoError(t, err, "failed to read authorize response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
 
 	form := url.Values{}
@@ -162,7 +162,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	form.Set("client_id", clientID)
 	form.Set("scope", scope)
 	form.Set("nonce", nonce)
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -221,7 +221,7 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	require.NoError(t, err, "failed to read authorize response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
 
 	form := url.Values{}
@@ -234,7 +234,7 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	form.Set("nonce", nonce)
 	form.Set("code_challenge", codeChallenge)
 	form.Set("code_challenge_method", codeChallengeMethod)
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -278,7 +278,7 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	require.NoError(t, err, "failed to read signup page")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "signup page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in signup page")
 
 	// Step 2: POST /oauth2/signup with credentials
@@ -289,7 +289,7 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create signup request")

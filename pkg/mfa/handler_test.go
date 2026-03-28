@@ -48,7 +48,7 @@ func TestHandleMfa_GetEnroll(t *testing.T) {
 	HandleMfa(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Setup Authenticator")
+	assert.Contains(t, rr.Body.String(), `"totp_secret"`, "should show MFA enroll page")
 }
 
 func TestHandleMfa_Post_Success(t *testing.T) {
@@ -219,8 +219,8 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 	HandleMfa(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Verification")
-	assert.Contains(t, rr.Body.String(), "Enter the verification code")
+	assert.Contains(t, rr.Body.String(), `name="challenge_id"`, "should show MFA verify page")
+	assert.Contains(t, rr.Body.String(), `authenticator app`, "should show MFA method description")
 }
 
 func TestHandleMfa_Post_EmailSuccess(t *testing.T) {

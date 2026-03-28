@@ -44,11 +44,9 @@ func TestSelfSignup_RendersForm(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	bodyStr := string(body)
-	assert.Contains(t, bodyStr, `name="username"`)
-	assert.Contains(t, bodyStr, `name="password"`)
-	assert.Contains(t, bodyStr, `name="confirm_password"`)
-	assert.Contains(t, bodyStr, `value="abc123"`)
-	assert.NotEmpty(t, getCSRFToken(bodyStr), "CSRF token should be present")
+	assert.Contains(t, bodyStr, `value="abc123"`, "OAuth state should be in form")
+	assert.Contains(t, bodyStr, `name="username"`, "username field should be present")
+	assert.NotEmpty(t, getCSRFToken(resp), "CSRF token should be present")
 }
 
 func TestSelfSignup_Complete(t *testing.T) {
@@ -120,11 +118,9 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken)
 
 	// POST signup
@@ -135,7 +131,7 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", expectedState)
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -164,9 +160,8 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	// GET signup page for CSRF token
 	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
 	require.NoError(t, err)
-	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken)
 
 	form := url.Values{}
@@ -176,7 +171,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s1")
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -207,9 +202,8 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	// GET signup page for a new CSRF token
 	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s2&client_id=test-client")
 	require.NoError(t, err)
-	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken)
 
 	form := url.Values{}
@@ -219,7 +213,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s2")
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -257,9 +251,8 @@ func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 	}.Encode()
 	resp, err := freshClient.Get(signupURL)
 	require.NoError(t, err)
-	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	csrfToken := getCSRFToken(string(body))
+	csrfToken := getCSRFToken(resp)
 	require.NotEmpty(t, csrfToken)
 
 	// Second signup with a different email — must succeed without hitting unique constraint
@@ -270,7 +263,7 @@ func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s2")
 	form.Set("client_id", "test-client")
-	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("_csrf", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -303,7 +296,7 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	form.Set("confirm_password", "password123")
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s1")
-	form.Set("gorilla.csrf.Token", "forged-invalid-csrf-token")
+	form.Set("_csrf", "forged-invalid-csrf-token")
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)

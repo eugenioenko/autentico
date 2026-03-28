@@ -25,9 +25,9 @@ func TestHandleAuthorize(t *testing.T) {
 
 	// Verify the response
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
-	assert.Contains(t, rr.Body.String(), "username")
-	assert.Contains(t, rr.Body.String(), "password")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
+	assert.Contains(t, rr.Body.String(), `name="password"`)
+	assert.Contains(t, rr.Body.String(), `class="auth-card"`)
 }
 
 func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
@@ -254,8 +254,8 @@ func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 
 	// Should show login form, not redirect
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
-	assert.Contains(t, rr.Body.String(), "username")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
+	assert.Contains(t, rr.Body.String(), `name="password"`)
 }
 
 func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
@@ -290,7 +290,7 @@ func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 
 	// Should show login form since last activity was too long ago
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
@@ -325,7 +325,7 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 
 	// Should show login form since session is deactivated
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
@@ -356,7 +356,7 @@ func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
 
 	// Should render login form, not an error
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
@@ -369,7 +369,7 @@ func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_InvalidScope(t *testing.T) {
@@ -406,7 +406,7 @@ func TestHandleAuthorize_AllowedScope(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
@@ -424,7 +424,7 @@ func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 
 	// Should show login form since no cookie
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_PromptNone_NoSession(t *testing.T) {
@@ -493,7 +493,7 @@ func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
@@ -593,7 +593,7 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Create one")
+	assert.Contains(t, rr.Body.String(), `Don't have an account?`)
 }
 
 func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
@@ -607,7 +607,7 @@ func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
 
 	// Should ignore invalid prompt and show login form
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), `name="username"`)
 }
 
 func TestHandleAuthorize_InvalidRedirectURI_Extra(t *testing.T) {

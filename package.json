@@ -6,6 +6,15 @@
   "workspaces": [
     "theme",
     "account-ui",
-    "admin-ui"
-  ]
+    "admin-ui",
+    "auth-ui"
+  ],
+  "scripts": {
+    "build":        "pnpm -r --filter='!@autentico/theme' run build",
+    "dev:account":  "pnpm --filter @autentico/account-ui run dev",
+    "dev:admin":    "pnpm --filter @autentico/admin-ui run dev",
+    "dev:auth":     "pnpm --filter @autentico/auth-ui run dev",
+    "lint":         "pnpm -r --filter='!@autentico/theme' run lint",
+    "typecheck":    "pnpm -r --filter='!@autentico/theme' run typecheck"
+  }
 }

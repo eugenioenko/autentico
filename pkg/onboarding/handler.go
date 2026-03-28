@@ -1,16 +1,15 @@
 package onboarding
 
 import (
-	"html/template"
 	"net/http"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 )
 
@@ -110,23 +109,16 @@ type onboardParams struct {
 
 func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams, errMsg string) {
 	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("onboard")
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	data := authui.OnboardPageData{
+		CsrfToken:         csrf.Token(r),
+		FormAction:        params.FormAction,
+		Error:             errMsg,
+		ProfileFieldEmail: cfg.ProfileFieldEmail,
+		Theme: authui.ThemeData{
+			Title:   cfg.Theme.Title,
+			LogoURL: cfg.Theme.LogoUrl,
+			CSS:     cfg.ThemeCssResolved,
+		},
 	}
-
-	data := map[string]any{
-		"FormAction":        params.FormAction,
-		"Error":             errMsg,
-		"ProfileFieldEmail": cfg.ProfileFieldEmail,
-		csrf.TemplateTag:    csrf.TemplateField(r),
-		"ThemeTitle":        cfg.Theme.Title,
-		"ThemeLogoUrl":      cfg.Theme.LogoUrl,
-		"ThemeCssResolved":  template.CSS(cfg.ThemeCssResolved),
-	}
-
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
+	authui.RenderPage(w, "onboard", data, http.StatusOK)
 }

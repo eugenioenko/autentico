@@ -16,6 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/docs"
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
+	"github.com/eugenioenko/autentico/pkg/authui"
 	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
@@ -202,6 +203,7 @@ func RunStart(c *cli.Context) error {
 	// -------------------------------------------------------------------------
 	mux.Handle("/admin/", admin.Handler())
 	mux.Handle("/account/", account.Handler())
+	mux.Handle("/auth/", authui.StaticHandler())
 
 	// -------------------------------------------------------------------------
 	// First-time onboarding (only if no users exist, otherwise redirect to login)
