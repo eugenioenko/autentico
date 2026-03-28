@@ -11,11 +11,11 @@ type AlertProps = {
 const config = {
   danger: {
     icon: IconAlertCircle,
-    className: 'bg-red-50 border border-red-200 text-red-700',
+    className: 'bg-theme-danger-bg border border-theme-danger-bg text-theme-danger-fg',
   },
   success: {
     icon: IconCircleCheck,
-    className: 'bg-emerald-50 border border-emerald-200 text-emerald-700',
+    className: 'bg-theme-highlight border border-theme-highlight text-theme-accent-fg',
   },
 };
 

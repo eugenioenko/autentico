@@ -38,17 +38,17 @@ const ConnectedProvidersPage: React.FC = () => {
       description="External identity providers linked to your account."
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
-      <div className="divide-y divide-zinc-100 mt-1">
+      <div className="divide-y divide-theme-fg/10 mt-1">
         {providers?.map((p: ConnectedProvider) => (
           <div key={p.id} className="py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                <IconLink size={15} className="text-zinc-700" />
+              <div className="w-9 h-9 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
+                <IconLink size={15} className="text-theme-fg" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{p.provider_name}</p>
-                {p.email && <p className="text-xs text-zinc-600">{p.email}</p>}
-                <p className="text-[11px] text-zinc-500 mt-0.5">
+                {p.email && <p className="text-xs text-theme-muted">{p.email}</p>}
+                <p className="text-[11px] text-theme-muted mt-0.5">
                   Connected {new Date(p.created_at).toLocaleDateString()}
                 </p>
               </div>
@@ -63,7 +63,7 @@ const ConnectedProvidersPage: React.FC = () => {
           </div>
         ))}
         {(!providers || providers.length === 0) && (
-          <p className="text-sm text-zinc-600 py-4">No external providers connected to your account.</p>
+          <p className="text-sm text-theme-muted py-4">No external providers connected to your account.</p>
         )}
       </div>
     </Card>

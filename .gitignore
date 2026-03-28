@@ -38,8 +38,13 @@ Thumbs.db
 # Test output
 coverage.out
 
-# Admin UI
-admin-ui/node_modules/
+# Node
+node_modules/
+**/node_modules/
+
+# Build output
+admin-ui/dist/
+account-ui/dist/
 pkg/admin/dist/
 pkg/account/dist/
 

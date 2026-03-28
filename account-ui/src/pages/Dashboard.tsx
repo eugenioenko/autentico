@@ -33,7 +33,7 @@ const Dashboard: React.FC = () => {
           <StatusDot active={!!mfa?.totp_enabled} />
           <span className="text-sm">
             Two-factor authentication{' '}
-            <span className={cn('font-semibold', mfa?.totp_enabled ? 'text-emerald-600' : 'text-zinc-600')}>
+            <span className={cn('font-semibold', mfa?.totp_enabled ? 'text-theme-highlight' : 'text-theme-muted')}>
               {mfa?.totp_enabled ? 'enabled' : 'not configured'}
             </span>
           </span>
@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
             { label: 'Email', value: profile?.email || '—' },
           ].map((row) => (
             <div key={row.label} className="flex justify-between items-center">
-              <dt className="text-sm text-zinc-600">{row.label}</dt>
+              <dt className="text-sm text-theme-muted">{row.label}</dt>
               <dd className="text-sm font-semibold">{row.value}</dd>
             </div>
           ))}

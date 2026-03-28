@@ -155,9 +155,11 @@ const SecurityPage: React.FC = () => {
           </div>
           {passwordError && <Alert type="danger" message={passwordError} />}
           {passwordSuccess && <Alert type="success" message={passwordSuccess} />}
-          <Button type="submit" disabled={isChangingPass || !currentPassword || !newPassword}>
-            Update Password
-          </Button>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isChangingPass || !currentPassword || !newPassword}>
+              Update Password
+            </Button>
+          </div>
         </form>
       </Card>
 
@@ -185,16 +187,16 @@ const SecurityPage: React.FC = () => {
         {addPasskeyError && <Alert type="danger" message={addPasskeyError} className="mb-2" />}
         {deletePasskeyError && <Alert type="danger" message={deletePasskeyError} className="mb-2" />}
         {passkeys && passkeys.length > 0 ? (
-          <div className="divide-y divide-zinc-100 mt-1">
+          <div className="divide-y divide-theme-fg/10 mt-1">
             {passkeys.map((pk: { id: string; name: string; created_at: string }) => (
               <div key={pk.id} className="py-3.5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                    <IconKey size={14} className="text-zinc-700" />
+                  <div className="w-8 h-8 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
+                    <IconKey size={14} className="text-theme-fg" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{pk.name || 'Unnamed Passkey'}</p>
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-theme-muted">
                       Added {new Date(pk.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -210,7 +212,7 @@ const SecurityPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-zinc-600 mt-1">No passkeys registered yet.</p>
+          <p className="text-sm text-theme-muted mt-1">No passkeys registered yet.</p>
         )}
       </Card>
 
@@ -224,7 +226,7 @@ const SecurityPage: React.FC = () => {
       >
         {deletionRequest ? (
           <div className="mt-2 space-y-4">
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl bg-theme-danger-bg border border-theme-danger-bg px-4 py-3 text-sm text-theme-danger-fg">
               A deletion request was submitted on{' '}
               <strong>{new Date(deletionRequest.requested_at).toLocaleDateString()}</strong>.
               {settings.allow_self_service_deletion
@@ -232,7 +234,7 @@ const SecurityPage: React.FC = () => {
                 : ' An admin will review and process your request. Your account remains active until then.'}
             </div>
             {deletionRequest.reason && (
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-theme-muted">
                 <span className="font-medium">Reason:</span> {deletionRequest.reason}
               </p>
             )}
@@ -254,18 +256,18 @@ const SecurityPage: React.FC = () => {
             </Button>
           </div>
         ) : (
-          <div className="mt-2 space-y-4 border-t border-zinc-100 pt-4">
-            <p className="text-sm text-zinc-700 font-medium">
+          <div className="mt-2 space-y-4 border-t border-theme-fg/10 pt-4">
+            <p className="text-sm text-theme-fg font-medium">
               {settings.allow_self_service_deletion
                 ? 'Are you sure you want to permanently delete your account? This cannot be undone.'
                 : 'A deletion request will be submitted for admin review.'}
             </p>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Reason <span className="text-zinc-400 font-normal">(optional)</span>
+              <label className="block text-sm font-medium mb-1">
+                Reason <span className="text-theme-muted font-normal">(optional)</span>
               </label>
               <textarea
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                className="w-full rounded-xl border border-theme-fg/20 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-theme-highlight bg-theme-bg text-theme-fg"
                 rows={3}
                 placeholder="Tell us why you want to delete your account…"
                 value={deletionReason}

@@ -18,7 +18,7 @@ const EmailOtpCard: React.FC<EmailOtpCardProps> = ({ fallbackLabel }) => {
     >
       <div className="flex items-center gap-2 mt-1">
         <StatusDot active={true} />
-        <span className="text-sm text-zinc-700">Active — code sent to your email at login</span>
+        <span className="text-sm text-theme-fg">Active — code sent to your email at login</span>
       </div>
     </Card>
   );
