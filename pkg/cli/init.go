@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/urfave/cli/v2"
@@ -110,7 +111,10 @@ func buildEnvContent(p envParams) string {
 
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
-	envPath := outputDir + "/.env"
+	if outputDir == "" {
+		outputDir = "."
+	}
+	envPath := filepath.Join(outputDir, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
 	}
