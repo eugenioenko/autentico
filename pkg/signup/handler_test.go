@@ -14,6 +14,7 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleSignup_DisabledReturns404(t *testing.T) {
@@ -353,6 +354,70 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 	// No email → verification gate skipped → redirect with auth code
 	assert.Equal(t, http.StatusFound, rr.Code)
 	assert.Contains(t, rr.Header().Get("Location"), "code=")
+}
+
+func TestHandleSignup_Get_OptionalFieldsHiddenByDefault(t *testing.T) {
+	testutils.WithTestDB(t)
+	_ = appsettings.SetSetting("onboarded", "true")
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.SignupShowOptionalFields = false
+		config.Values.ProfileFieldGivenName = "optional"
+		config.Values.ProfileFieldFamilyName = "optional"
+		config.Values.ProfileFieldPhone = "optional"
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/signup?redirect_uri=http://localhost/callback&state=s1&client_id=test", nil)
+	rr := httptest.NewRecorder()
+	HandleSignup(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.NotContains(t, body, `name="given_name"`, "optional given_name should be hidden")
+	assert.NotContains(t, body, `name="family_name"`, "optional family_name should be hidden")
+	assert.NotContains(t, body, `name="phone"`, "optional phone should be hidden")
+}
+
+func TestHandleSignup_Get_OptionalFieldsShownWhenEnabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	_ = appsettings.SetSetting("onboarded", "true")
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.SignupShowOptionalFields = true
+		config.Values.ProfileFieldGivenName = "optional"
+		config.Values.ProfileFieldFamilyName = "optional"
+		config.Values.ProfileFieldPhone = "optional"
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/signup?redirect_uri=http://localhost/callback&state=s1&client_id=test", nil)
+	rr := httptest.NewRecorder()
+	HandleSignup(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, `name="given_name"`, "optional given_name should be shown")
+	assert.Contains(t, body, `name="family_name"`, "optional family_name should be shown")
+	assert.Contains(t, body, `name="phone"`, "optional phone should be shown")
+}
+
+func TestHandleSignup_Get_RequiredFieldsAlwaysShown(t *testing.T) {
+	testutils.WithTestDB(t)
+	_ = appsettings.SetSetting("onboarded", "true")
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.SignupShowOptionalFields = false
+		config.Values.ProfileFieldGivenName = "required"
+		config.Values.ProfileFieldPhone = "optional"
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/signup?redirect_uri=http://localhost/callback&state=s1&client_id=test", nil)
+	rr := httptest.NewRecorder()
+	HandleSignup(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, `name="given_name"`, "required given_name must always appear")
+	assert.NotContains(t, body, `name="phone"`, "optional phone should still be hidden")
 }
 
 func TestHandleSignupPost_InvalidForm(t *testing.T) {

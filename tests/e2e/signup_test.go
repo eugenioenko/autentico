@@ -309,3 +309,64 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, postResp.StatusCode, "forged CSRF token should be rejected")
 }
+
+func TestSelfSignup_OptionalFieldsHiddenByDefault(t *testing.T) {
+	ts := startTestServer(t)
+	config.Values.AuthAllowSelfSignup = true
+	config.Values.SignupShowOptionalFields = false
+	config.Values.ProfileFieldGivenName = "optional"
+	config.Values.ProfileFieldFamilyName = "optional"
+	config.Values.ProfileFieldPhone = "optional"
+
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=http://localhost:3000/callback&state=s1&client_id=test-client")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.NotContains(t, string(body), `name="given_name"`, "optional given_name should be hidden")
+	assert.NotContains(t, string(body), `name="family_name"`, "optional family_name should be hidden")
+	assert.NotContains(t, string(body), `name="phone"`, "optional phone should be hidden")
+}
+
+func TestSelfSignup_OptionalFieldsShownWhenEnabled(t *testing.T) {
+	ts := startTestServer(t)
+	config.Values.AuthAllowSelfSignup = true
+	config.Values.SignupShowOptionalFields = true
+	config.Values.ProfileFieldGivenName = "optional"
+	config.Values.ProfileFieldFamilyName = "optional"
+	config.Values.ProfileFieldPhone = "optional"
+
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=http://localhost:3000/callback&state=s1&client_id=test-client")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.Contains(t, string(body), `name="given_name"`, "optional given_name should be shown")
+	assert.Contains(t, string(body), `name="family_name"`, "optional family_name should be shown")
+	assert.Contains(t, string(body), `name="phone"`, "optional phone should be shown")
+}
+
+func TestSelfSignup_RequiredFieldsAlwaysShown(t *testing.T) {
+	ts := startTestServer(t)
+	config.Values.AuthAllowSelfSignup = true
+	config.Values.SignupShowOptionalFields = false
+	config.Values.ProfileFieldGivenName = "required"
+	config.Values.ProfileFieldPhone = "optional"
+
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=http://localhost:3000/callback&state=s1&client_id=test-client")
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.Contains(t, string(body), `name="given_name"`, "required given_name must always appear")
+	assert.NotContains(t, string(body), `name="phone"`, "optional phone should be hidden")
+}
