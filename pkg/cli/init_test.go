@@ -23,6 +23,7 @@ func TestRunInit(t *testing.T) {
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://test.com", "")
 	set.Bool("dev", false, "")
+	set.String("output", ".", "")
 	ctx := cli.NewContext(app, set, nil)
 
 	err = RunInit(ctx)
@@ -61,6 +62,7 @@ func TestRunInit_DevMode(t *testing.T) {
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://localhost:9999", "")
 	set.Bool("dev", false, "")
+	set.String("output", ".", "")
 	ctx := cli.NewContext(app, set, nil)
 	_ = set.Set("dev", "true")
 
@@ -97,6 +99,7 @@ func TestRunInit_DefaultURL(t *testing.T) {
 
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("output", ".", "")
 	ctx := cli.NewContext(app, set, nil)
 
 	err := RunInit(ctx)
@@ -154,8 +157,9 @@ func TestRunInit_EnvDirectoryError(t *testing.T) {
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://test.com", "")
+	set.String("output", ".", "")
 	ctx := cli.NewContext(app, set, nil)
-	
+
 	err := RunInit(ctx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), ".env already exists")

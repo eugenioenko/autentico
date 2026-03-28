@@ -109,8 +109,10 @@ func buildEnvContent(p envParams) string {
 }
 
 func RunInit(c *cli.Context) error {
-	if _, err := os.Stat(".env"); err == nil {
-		return fmt.Errorf(".env already exists. Delete it first if you want to reinitialize")
+	outputDir := c.String("output")
+	envPath := outputDir + "/.env"
+	if _, err := os.Stat(envPath); err == nil {
+		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
 	}
 
 	appURL := c.String("url")
@@ -165,7 +167,7 @@ func RunInit(c *cli.Context) error {
 		dev:           dev,
 	})
 
-	if err := os.WriteFile(".env", []byte(content), 0600); err != nil {
+	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
 

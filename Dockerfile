@@ -44,4 +44,5 @@ VOLUME ["/app/db"]
 
 EXPOSE 9999
 
-ENTRYPOINT ["./autentico", "start"]
+ENTRYPOINT ["./autentico"]
+CMD ["start"]
