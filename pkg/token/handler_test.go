@@ -837,8 +837,8 @@ func TestHandleRevoke_InvalidToken(t *testing.T) {
 
 	HandleRevoke(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_token")
+	// RFC 7009 §2.2: invalid tokens MUST return 200, not 401.
+	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleRevoke_ValidToken(t *testing.T) {

@@ -19,6 +19,32 @@ const (
 	testPassword = "password"
 )
 
+// TestHandleRevoke_InvalidToken_Returns200 verifies RFC 7009 §2.2:
+// "The authorization server responds with HTTP status code 200 if the token
+// has been revoked successfully or if the client submitted an invalid token."
+// "Note: invalid tokens do not cause an error response."
+func TestHandleRevoke_InvalidToken_Returns200(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body := map[string]string{"token": "this-is-not-a-valid-jwt"}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+
+	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: invalid token MUST return 200, not 4xx")
+}
+
+// TestHandleRevoke_UnknownToken_Returns200 verifies RFC 7009 §2.2 for a
+// well-formed but unrecognised token (e.g. issued by a different server).
+func TestHandleRevoke_UnknownToken_Returns200(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// A syntactically valid JWT that won't validate (wrong signature)
+	fakeJWT := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1bmtub3duIiwiZXhwIjo5OTk5OTk5OTk5fQ.invalidsignature"
+	body := map[string]string{"token": fakeJWT}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+
+	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: unrecognised token MUST return 200, not 4xx")
+}
+
 func TestHandleRevoke(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
