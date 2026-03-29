@@ -20,20 +20,20 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 
 ## Bug Inventory
 
-| Severity | Location | Issue | Spec Reference |
-|---|---|---|---|
-| High | `pkg/token/revoke.go:55` | Returns `401` for expired/invalid tokens instead of `200` | RFC 7009 §2.2 |
-| High | `pkg/introspect/handler.go:52` | Returns `401 invalid_token` for inactive tokens instead of `200 {"active":false}` | RFC 7662 §2.2 |
-| High | `pkg/introspect/handler.go:31` | Accepts only `application/json`; spec requires `application/x-www-form-urlencoded` | RFC 7662 §2.1 |
-| Medium | `pkg/authorize/handler.go:229` | `error_description` not URL-encoded in redirect URL | RFC 6749 §4.1.2.1 |
-| Medium | `pkg/token/handler.go` + `pkg/token/revoke.go` | No client authentication on revoke and introspect endpoints | RFC 7009 §2.1, RFC 7662 §2.1 |
-| Medium | `pkg/wellknown/handler.go` | Missing `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` | RFC 7662 §4, RFC 7009 §4, RFC 7636 §6.2 |
-| Medium | `pkg/token/generate.go:26-44` | Access token always embeds profile/email claims regardless of scope | OIDC Core §5.4 |
-| Medium | all protected endpoints | Missing `WWW-Authenticate` header on 401 responses | RFC 6750 §3 |
-| Low | `pkg/token/authorization_code.go:84` | `code_verifier` length/charset not validated (43–128 chars, unreserved only) | RFC 7636 §4.1 |
-| Low | `pkg/wellknown/handler.go:33` | Advertises `token`, `id_token` response types that are not implemented | OIDC Discovery §3 |
-| Low | `pkg/token/generate.go:37` | `acr: "password"` in access token is non-standard | OIDC Core §2 |
-| Low | `pkg/token/handler.go` | `scope` absent from token response for `refresh_token` grant | RFC 6749 §5.1 |
+| Severity | Location | Issue | Spec Reference | Status |
+|---|---|---|---|---|
+| High | `pkg/token/revoke.go:55` | Returns `401` for expired/invalid tokens instead of `200` | RFC 7009 §2.2 | ✅ Fixed (PR #108) |
+| High | `pkg/introspect/handler.go:52` | Returns `401 invalid_token` for inactive tokens instead of `200 {"active":false}` | RFC 7662 §2.2 | ✅ Fixed (PR #108) |
+| High | `pkg/introspect/handler.go:31` | Accepts only `application/json`; spec requires `application/x-www-form-urlencoded` | RFC 7662 §2.1 | ✅ Fixed (PR #108) |
+| Medium | `pkg/authorize/handler.go:229` | `error_description` not URL-encoded in redirect URL | RFC 6749 §4.1.2.1 | ✅ Fixed (PR #108) |
+| Medium | `pkg/token/handler.go` + `pkg/token/revoke.go` | No client authentication on revoke and introspect endpoints | RFC 7009 §2.1, RFC 7662 §2.1 | ⏭ Skipped (public endpoints by design) |
+| Medium | `pkg/wellknown/handler.go` | Missing `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` | RFC 7662 §4, RFC 7009 §4, RFC 7636 §6.2 | ✅ Fixed (PR #108) |
+| Medium | `pkg/token/generate.go:26-44` | Access token always embeds profile/email claims regardless of scope | OIDC Core §5.4 | ✅ Fixed (PR #108) |
+| Medium | all protected endpoints | Missing `WWW-Authenticate` header on 401 responses | RFC 6750 §3 | ✅ Fixed (PR #108) |
+| Low | `pkg/token/authorization_code.go:84` | `code_verifier` length/charset not validated (43–128 chars, unreserved only) | RFC 7636 §4.1 | ✅ Fixed (PR #108) |
+| Low | `pkg/wellknown/handler.go:33` | Advertises `token`, `id_token` response types that are not implemented | OIDC Discovery §3 | ✅ Fixed (PR #108) |
+| Low | `pkg/token/generate.go:37` | `acr: "password"` in access token is non-standard | OIDC Core §2 | ✅ Fixed (PR #108) |
+| Low | `pkg/token/handler.go` | `scope` absent from token response for `refresh_token` grant | RFC 6749 §5.1 | ✅ Fixed (PR #108) |
 
 ---
 
