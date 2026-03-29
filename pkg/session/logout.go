@@ -2,6 +2,8 @@ package session
 
 import (
 	"encoding/json"
+	"html/template"
+	"log/slog"
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
@@ -12,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/view"
 )
 
 // HandleLogout godoc
@@ -180,6 +183,24 @@ func HandleRpInitiatedLogout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fall back to the app root if no valid redirect URI was provided.
-	http.Redirect(w, r, "/", http.StatusFound)
+	// No valid redirect URI — render a signed-out confirmation page.
+	renderLogoutSuccess(w)
+}
+
+func renderLogoutSuccess(w http.ResponseWriter) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("logout_success")
+	if err != nil {
+		slog.Error("session: failed to parse logout_success template", "error", err)
+		http.Error(w, "You have been signed out.", http.StatusOK)
+		return
+	}
+	data := map[string]any{
+		"ThemeTitle":       cfg.Theme.Title,
+		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
+		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+	}
+	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Error("session: failed to execute logout_success template", "error", err)
+	}
 }

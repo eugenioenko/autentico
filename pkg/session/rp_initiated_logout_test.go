@@ -42,7 +42,7 @@ func createTestClient(t *testing.T, clientID string, postLogoutURIs []string) {
 	require.NoError(t, err)
 }
 
-func TestHandleRpInitiatedLogout_NoParams_RedirectsToRoot(t *testing.T) {
+func TestHandleRpInitiatedLogout_NoParams_ShowsLogoutPage(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/logout", nil)
@@ -50,8 +50,8 @@ func TestHandleRpInitiatedLogout_NoParams_RedirectsToRoot(t *testing.T) {
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Equal(t, "/", rr.Header().Get("Location"))
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "signed out")
 }
 
 func TestHandleRpInitiatedLogout_ClearsIdpSessionCookie(t *testing.T) {
@@ -77,7 +77,7 @@ func TestHandleRpInitiatedLogout_ClearsIdpSessionCookie(t *testing.T) {
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var cleared *http.Cookie
 	for _, c := range rr.Result().Cookies() {
@@ -112,7 +112,7 @@ func TestHandleRpInitiatedLogout_WithIdTokenHint_DeactivatesSessions(t *testing.
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Session should be deactivated.
 	var deactivatedAt interface{}
@@ -162,7 +162,7 @@ func TestHandleRpInitiatedLogout_ValidPostLogoutRedirectURIWithState(t *testing.
 	assert.Equal(t, postLogoutURI+"?state=abc123", rr.Header().Get("Location"))
 }
 
-func TestHandleRpInitiatedLogout_UnregisteredPostLogoutRedirectURI_RedirectsToRoot(t *testing.T) {
+func TestHandleRpInitiatedLogout_UnregisteredPostLogoutRedirectURI_ShowsLogoutPage(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	clientID := "test-rp-logout-unregistered"
@@ -177,11 +177,11 @@ func TestHandleRpInitiatedLogout_UnregisteredPostLogoutRedirectURI_RedirectsToRo
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Equal(t, "/", rr.Header().Get("Location"), "unregistered URI must be rejected")
+	assert.Equal(t, http.StatusOK, rr.Code, "unregistered URI must be rejected, fallback to logout page")
+	assert.Contains(t, rr.Body.String(), "signed out")
 }
 
-func TestHandleRpInitiatedLogout_UnknownClientID_RedirectsToRoot(t *testing.T) {
+func TestHandleRpInitiatedLogout_UnknownClientID_ShowsLogoutPage(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	target := "/oauth2/logout?" + url.Values{
@@ -193,8 +193,8 @@ func TestHandleRpInitiatedLogout_UnknownClientID_RedirectsToRoot(t *testing.T) {
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Equal(t, "/", rr.Header().Get("Location"))
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "signed out")
 }
 
 func TestHandleRpInitiatedLogout_ClientIdFromIdTokenHint(t *testing.T) {
@@ -231,11 +231,11 @@ func TestHandleRpInitiatedLogout_ClientIdFromIdTokenHint(t *testing.T) {
 
 	HandleRpInitiatedLogout(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
 	if clientIDFromAud != "" {
+		assert.Equal(t, http.StatusFound, rr.Code)
 		assert.Equal(t, postLogoutURI, rr.Header().Get("Location"))
 	} else {
-		assert.Equal(t, "/", rr.Header().Get("Location"))
+		assert.Equal(t, http.StatusOK, rr.Code)
 	}
 }
 
@@ -247,8 +247,8 @@ func TestHandleRpInitiatedLogout_InvalidIdTokenHint_StillLoggedOut(t *testing.T)
 
 	HandleRpInitiatedLogout(rr, req)
 
-	// Should still redirect (gracefully, no 4xx)
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Equal(t, "/", rr.Header().Get("Location"))
+	// Should still show logout page gracefully (no 4xx)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "signed out")
 }
 

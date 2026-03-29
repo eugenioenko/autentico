@@ -191,6 +191,7 @@ button {
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.1em;
+  text-decoration: none;
   color: var(--color-primary-fg);
   text-transform: uppercase;
   box-shadow:
@@ -200,6 +201,7 @@ button {
     opacity 0.15s,
     scale 0.15s;
   font-family: inherit;
+  text-align: center;
 }
 
 @media (hover: hover) {
