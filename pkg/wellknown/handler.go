@@ -29,8 +29,10 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		RegistrationEndpoint:  fmt.Sprintf("%s/register", issuer),
 		EndSessionEndpoint:    fmt.Sprintf("%s/logout", issuer),
 		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppAuthIssuer),
+		// Only "code" is implemented; implicit flow variants are not supported.
+		// OIDC Discovery §3: advertise only what the OP actually supports.
 		ResponseTypesSupported: []string{
-			"code", "token", "id_token", "code token", "code id_token",
+			"code",
 		},
 		SubjectTypesSupported: []string{
 			"public",
