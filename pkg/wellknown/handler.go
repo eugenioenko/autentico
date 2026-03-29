@@ -56,6 +56,10 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password"},
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false,
+		// RFC 8414 §2
+		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),
+		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),
+		CodeChallengeMethodsSupported: []string{"S256"},
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

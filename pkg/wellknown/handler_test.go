@@ -87,6 +87,24 @@ func TestHandleWellKnownConfig_RequestParameterNotSupported(t *testing.T) {
 	assert.False(t, response.RequestParameterSupported)
 }
 
+// TestHandleWellKnownConfig_RFC8414_Endpoints verifies that the discovery document
+// includes introspection_endpoint, revocation_endpoint, and code_challenge_methods_supported
+// per RFC 8414 §2 (lines 318, 350, 376).
+func TestHandleWellKnownConfig_RFC8414_Endpoints(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, response.IntrospectionEndpoint, "RFC 8414 §2: introspection_endpoint must be present")
+	assert.NotEmpty(t, response.RevocationEndpoint, "RFC 8414 §2: revocation_endpoint must be present")
+	assert.Contains(t, response.CodeChallengeMethodsSupported, "S256", "RFC 8414 §2 + RFC 7636: S256 must be advertised")
+}
+
 func TestHandleJWKS(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
