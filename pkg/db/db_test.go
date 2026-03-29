@@ -85,11 +85,9 @@ func TestInitTestDB(t *testing.T) {
 	CloseDB()
 }
 
-func TestInitDB_Panic(t *testing.T) {
-	// Invalid path (e.g., a directory that doesn't exist and we can't create)
-	assert.Panics(t, func() {
-		_, _ = InitDB("/nonexistent/path/to/db.sqlite")
-	})
+func TestInitDB_InvalidPath(t *testing.T) {
+	_, err := InitDB("/nonexistent/path/to/db.sqlite")
+	assert.Error(t, err)
 }
 
 func TestCloseDB_Success(t *testing.T) {
@@ -127,7 +125,6 @@ func TestInitDB_ExistingDir(t *testing.T) {
 	_ = os.Mkdir(dbPath, 0755)
 
 	// InitDB should fail because it can't open a directory as a DB
-	assert.Panics(t, func() {
-		_, _ = InitDB(dbPath)
-	})
+	_, err := InitDB(dbPath)
+	assert.Error(t, err)
 }
