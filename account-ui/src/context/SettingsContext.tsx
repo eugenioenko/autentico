@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 export interface Settings {
+  theme_logo_url: string;
+  theme_title: string;
   auth_mode: string;
   require_mfa: boolean;
   mfa_method: string;
@@ -23,6 +25,8 @@ export interface Settings {
 }
 
 const defaultSettings: Settings = {
+  theme_logo_url: '',
+  theme_title: 'Autentico',
   auth_mode: 'password',
   require_mfa: false,
   mfa_method: 'totp',
@@ -52,7 +56,14 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     fetch('/account/api/settings')
       .then((r) => r.json())
-      .then((res: { data: Settings }) => setSettings({ ...defaultSettings, ...res.data }))
+      .then((res: { data: Settings }) => {
+        const merged = { ...defaultSettings, ...res.data };
+        setSettings(merged);
+        if (merged.theme_logo_url) {
+          const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+          if (link) link.href = merged.theme_logo_url;
+        }
+      })
       .catch(() => { });
   }, []);
 

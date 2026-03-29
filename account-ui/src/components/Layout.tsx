@@ -56,7 +56,6 @@ const Layout: React.FC = () => {
         onClose={() => setMobileMenuOpen(false)}
         username={user.profile.preferred_username ?? ''}
         initials={initials}
-        appName="Autentico"
         onLogout={logout}
       />
 

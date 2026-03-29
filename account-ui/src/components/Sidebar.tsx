@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { cn } from '../lib/utils';
 import SidebarItem from './SidebarItem';
+import { useSettings } from '../context/SettingsContext';
 
 const navItems = [
   { to: '/', icon: IconShield, label: 'Overview' },
@@ -21,12 +22,12 @@ interface SidebarProps {
   onClose: () => void;
   username: string;
   initials: string;
-  appName: string;
   onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, appName, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, onLogout }) => {
   const location = useLocation();
+  const settings = useSettings();
 
   return (
     <aside
@@ -37,7 +38,14 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, ap
       )}
     >
       <div className="flex items-center justify-between px-5 h-16">
-        <span className="text-theme-accent-fg font-bold tracking-tight">{appName}</span>
+        <div className="flex items-center gap-2">
+          <img
+            src={settings.theme_logo_url || '/favicon.svg'}
+            alt="Logo"
+            className="h-6 w-6 object-contain"
+          />
+          <span className="text-theme-accent-fg font-bold tracking-tight">{settings.theme_title}</span>
+        </div>
         <button
           className="md:hidden text-theme-accent-fg/70 hover:text-theme-accent-fg"
           onClick={onClose}
