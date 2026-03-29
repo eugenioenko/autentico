@@ -5,7 +5,6 @@ import { IconMenu2 } from '@tabler/icons-react';
 import Sidebar from './Sidebar';
 import AppHeader from './AppHeader';
 import Spinner from './Spinner';
-import { useSettings } from '../context/SettingsContext';
 
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
 const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
@@ -26,7 +25,6 @@ const pageTitles: Record<string, string> = {
 const Layout: React.FC = () => {
   const { user, logout, isLoading, signinRedirect } = useAuth();
   const location = useLocation();
-  const settings = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   useEffect(() => {
@@ -58,7 +56,6 @@ const Layout: React.FC = () => {
         onClose={() => setMobileMenuOpen(false)}
         username={user.profile.preferred_username ?? ''}
         initials={initials}
-        appName={settings.theme_title}
         onLogout={logout}
       />
 
