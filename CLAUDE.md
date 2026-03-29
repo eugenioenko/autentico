@@ -38,6 +38,70 @@ make docs                     # Serves Swagger UI at localhost:8888
 make generate-docs            # Regenerate swagger files from handler annotations
 ```
 
+## OIDC Conformance Testing
+
+The OpenID Foundation conformance suite runs locally via Docker. Specs and review plan are in `rfc/`.
+
+### Setup
+
+1. **Start the conformance suite** (docker-compose in `/tmp/conformance-suite`):
+   ```bash
+   cd /tmp/conformance-suite && docker compose -f docker-compose-local.yml up -d
+   ```
+   Suite UI at **https://localhost:8444** (callbacks use port 8443 — both are exposed by docker-compose)
+
+2. **Start Autentico in conformance mode** (in a terminal — must stay running):
+   ```bash
+   make conformance-server
+   ```
+   Overrides `APP_URL=http://172.17.0.1:9999`, disables secure cookies and rate limiting.
+
+3. **Stop the suite:**
+   ```bash
+   cd /tmp/conformance-suite && docker compose -f docker-compose-local.yml down
+   ```
+
+### Notes
+
+- Access the admin UI at **http://localhost:9999/admin** (not `172.17.0.1` — browser blocks `Crypto.subtle` on non-localhost HTTP)
+- `AUTENTICO_APP_URL` in `.env` should stay as `http://localhost:9999`; `make conformance-server` overrides it for the conformance suite
+- If the admin client has wrong redirect URIs (after URL change), delete the DB and restart: `rm autentico.db && make conformance-server`
+- Conformance clients must be recreated after wiping the DB (see below)
+
+### Conformance Clients
+
+Create these 3 clients via the admin API after onboarding. Get a Bearer token from the admin UI first.
+
+```bash
+TOKEN="<admin bearer token>"
+
+curl -s -X POST http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"openid1","client_name":"Conformance Client 1","client_secret":"openid1secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
+
+curl -s -X POST http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"openid2","client_name":"Conformance Client 2 (secret_post)","client_secret":"openid2secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_post"}'
+
+curl -s -X POST http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"openid3","client_name":"Conformance Client 3","client_secret":"openid3secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
+```
+
+| Role | client_id | client_secret | auth method |
+|---|---|---|---|
+| client | `openid1` | `openid1secret` | `client_secret_basic` |
+| client_secret_post | `openid2` | `openid2secret` | `client_secret_post` |
+| client2 | `openid3` | `openid3secret` | `client_secret_basic` |
+
+Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callback` (wildcard — the suite uses a dynamic run ID in the path, which changes per test run).
+
+### Test Plans Run
+
+| Plan | Status |
+|---|---|
+| `oidcc-basic-certification-test-plan` | ✅ Passed (2026-03-24) — issues documented in `openid.md` |
+
 ## Architecture
 
 ### CLI Entry Points
