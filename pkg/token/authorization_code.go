@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -56,6 +57,12 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "code_verifier is required")
 			return nil, nil, fmt.Errorf("code_verifier is required")
 		}
+		// RFC 7636 §4.1: 43–128 chars, unreserved chars only
+		if err := validateCodeVerifier(request.CodeVerifier); err != nil {
+			slog.Warn("token: PKCE code_verifier invalid", "client_id", request.ClientID, "error", err)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("code_verifier invalid: %v", err))
+			return nil, nil, err
+		}
 		if !verifyCodeChallenge(code.CodeChallenge, code.CodeChallengeMethod, request.CodeVerifier) {
 			slog.Warn("token: PKCE verification failed", "client_id", request.ClientID)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
@@ -76,6 +83,22 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, err
 	}
 	return usr, code, nil
+}
+
+// codeVerifierRe matches the unreserved character set defined in RFC 3986 §2.3
+// and required by RFC 7636 §4.1: ALPHA / DIGIT / "-" / "." / "_" / "~"
+var codeVerifierRe = regexp.MustCompile(`^[A-Za-z0-9\-._~]+$`)
+
+// validateCodeVerifier checks that the code_verifier satisfies RFC 7636 §4.1:
+// length 43–128, unreserved characters only.
+func validateCodeVerifier(v string) error {
+	if len(v) < 43 || len(v) > 128 {
+		return fmt.Errorf("code_verifier must be 43-128 characters, got %d", len(v))
+	}
+	if !codeVerifierRe.MatchString(v) {
+		return fmt.Errorf("code_verifier contains invalid characters (unreserved chars only: A-Z a-z 0-9 - . _ ~)")
+	}
+	return nil
 }
 
 // verifyCodeChallenge validates the PKCE code_verifier against the stored code_challenge.

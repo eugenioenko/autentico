@@ -1218,7 +1218,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 	form.Add("grant_type", "authorization_code")
 	form.Add("code", "pkce-wrong-verifier")
 	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("code_verifier", "wrong-verifier-value")
+	form.Add("code_verifier", "wrong-verifier-value-padded-to-43-chars-abcde")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
