@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"os/signal"
 	"syscall"
 	"time"
@@ -60,7 +61,8 @@ func RunStart(c *cli.Context) error {
 	}
 
 	if _, err := db.InitDB(bs.DbFilePath); err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		absPath, _ := filepath.Abs(bs.DbFilePath)
+		return fmt.Errorf("failed to initialize database at %s: %w", absPath, err)
 	}
 	defer db.CloseDB()
 
