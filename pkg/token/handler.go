@@ -10,6 +10,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -148,6 +149,12 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		// RFC 6749 §5.1: scope must be included in the response when it may differ
+		// from what the client originally requested. Look up the scope stored with
+		// the original token so the refresh response reflects the granted scope.
+		var tokenScope string
+		_ = db.GetDB().QueryRow(`SELECT scope FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope)
+		codeScope = tokenScope
 	default:
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "The provided grant type is not supported")
 		return
