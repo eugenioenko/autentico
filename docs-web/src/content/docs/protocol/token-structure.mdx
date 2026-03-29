@@ -31,7 +31,7 @@ The ID token is a JWT signed with the server's RSA private key (RS256). It is re
 | `iat` | Issued-at timestamp (Unix) |
 | `nonce` | The `nonce` value from the authorization request, if provided. Used by relying parties to prevent replay attacks. |
 
-Relying parties verify the ID token signature using the public JWK Set at `/.well-known/jwks.json`. The `kid` header identifies which key to use.
+Relying parties verify the ID token signature using the public JWK Set at `/oauth2/.well-known/jwks.json`. The `kid` header identifies which key to use.
 
 ## Access token
 
@@ -71,7 +71,7 @@ Refresh tokens are opaque to relying parties — do not parse or depend on their
 Verify ID and access tokens using the public keys at:
 
 ```
-GET /.well-known/jwks.json
+GET /oauth2/.well-known/jwks.json
 ```
 
 Most OIDC libraries do this automatically when you point them at the discovery endpoint:

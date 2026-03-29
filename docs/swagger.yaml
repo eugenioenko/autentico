@@ -558,21 +558,6 @@ info:
   title: Autentico OIDC
   version: "1.0"
 paths:
-  /.well-known/jwks.json:
-    get:
-      consumes:
-      - application/json
-      description: Returns the JSON Web Key Set for verifying JWTs
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/model.JWKSResponse'
-      summary: Get JWKS
-      tags:
-      - Well-Known
   /.well-known/openid-configuration:
     get:
       consumes:
@@ -1282,6 +1267,21 @@ paths:
       summary: Health check
       tags:
       - Health
+  /oauth2/.well-known/jwks.json:
+    get:
+      consumes:
+      - application/json
+      description: Returns the JSON Web Key Set for verifying JWTs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.JWKSResponse'
+      summary: Get JWKS
+      tags:
+      - Well-Known
   /oauth2/authorize:
     get:
       consumes:

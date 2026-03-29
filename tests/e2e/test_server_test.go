@@ -96,7 +96,7 @@ func startTestServer(t *testing.T) *TestServer {
 	// Public routes
 	mux.HandleFunc("/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
-	mux.HandleFunc("/.well-known/jwks.json", wellknown.HandleJWKS)
+	mux.HandleFunc(oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)

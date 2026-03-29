@@ -93,7 +93,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 ### Standards & Protocol
 
 - **OIDC Discovery** — publishes `/.well-known/openid-configuration` so relying parties auto-configure without hardcoding endpoints
-- **JWK Set** — exposes public signing keys at `/.well-known/jwks.json` for independent token verification
+- **JWK Set** — exposes public signing keys at `/oauth2/.well-known/jwks.json` for independent token verification
 - **RS256 JWT Signing** — asymmetric signing; the private key never leaves the IdP
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
@@ -627,7 +627,7 @@ The dev server proxies API requests to the Go server on port 9999.
 | Endpoint                                   | Method   | Description                                   |
 | ------------------------------------------ | -------- | --------------------------------------------- |
 | `/.well-known/openid-configuration`        | GET      | OIDC discovery document                       |
-| `/.well-known/jwks.json`                   | GET      | JWK Set — public keys for token verification  |
+| `/oauth2/.well-known/jwks.json`            | GET      | JWK Set — public keys for token verification  |
 | `/oauth2/certs`                            | GET      | Alias for JWKS (legacy path)                  |
 | `/oauth2/authorize`                        | GET      | Authorization endpoint — renders login page   |
 | `/oauth2/token`                            | POST     | Token endpoint — code exchange, refresh, ROPC |

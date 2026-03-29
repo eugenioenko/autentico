@@ -31,7 +31,7 @@ The tradeoff: you can't run multiple Autentico instances pointing at the same SQ
 Tokens are signed with RSA-SHA256 (asymmetric).
 
 **Why:**
-- Resource servers can verify tokens using only the public key (from `/.well-known/jwks.json`) — they never need access to the private key or to make a network call to Autentico per request
+- Resource servers can verify tokens using only the public key (from `/oauth2/.well-known/jwks.json`) — they never need access to the private key or to make a network call to Autentico per request
 - OIDC Discovery mandates JWKS exposure; RS256 is the most widely supported algorithm
 - The alternative, HS256 (symmetric), would require sharing the signing secret with every resource server — a credential distribution problem
 

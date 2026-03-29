@@ -4,45 +4,6 @@
  */
 
 export interface paths {
-    "/.well-known/jwks.json": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get JWKS
-         * @description Returns the JSON Web Key Set for verifying JWTs
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["model.JWKSResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/.well-known/openid-configuration": {
         parameters: {
             query?: never;
@@ -70,6 +31,1318 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["model.WellKnownConfigResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/api/deletion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get pending deletion request for current user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["deletion.DeletionRequestResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Request account deletion
+         * @description Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Optional deletion reason */
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["deletion.CreateDeletionRequestInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["deletion.DeletionRequestResponse"];
+                    };
+                };
+                /** @description Account deleted immediately (self-service mode) */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        /** Cancel the current user's pending deletion request */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all clients
+         * @description Lists all registered clients (admin only)
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["client.ClientInfoResponse"][];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Register a new OAuth2 client
+         * @description Registers a new OAuth2/OIDC client (admin only)
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["client.ClientCreateRequest"];
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["client.ClientResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/clients/{client_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get client information
+         * @description Retrieves information about a registered client (admin only)
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Client ID */
+                    client_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["client.ClientInfoResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update client information
+         * @description Updates a registered client (admin only)
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Client ID */
+                    client_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["client.ClientUpdateRequest"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["client.ClientInfoResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Deactivate a client
+         * @description Deactivates (soft deletes) a registered client (admin only)
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Client ID */
+                    client_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["model.AuthErrorResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all pending deletion requests */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["deletion.DeletionRequestResponse"][];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/deletion-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel (dismiss) a deletion request without deleting the user */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Deletion request ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/deletion-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a deletion request — permanently deletes the user */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Deletion request ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/federation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List federation providers */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["federation.ProviderResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a federation provider */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["federation.FederationProviderRequest"];
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/federation/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a federation provider */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Provider ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["federation.ProviderResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        /** Update a federation provider */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Provider ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: components["requestBodies"]["federation.FederationProviderRequest"];
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete a federation provider */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Provider ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List sessions
+         * @description Lists all active sessions, optionally filtered by user ID.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Filter by User ID */
+                    user_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["session.SessionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deactivate a session */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Session ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get system settings
+         * @description Retrieve all system settings (except sensitive values).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        /**
+         * Update system settings
+         * @description Update multiple settings by key-value pairs.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "*/*": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/settings/test-smtp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test SMTP configuration
+         * @description Sends a test email to the currently authenticated admin's registered email address.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System statistics
+         * @description Returns a summary of users, clients, and active sessions.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["admin.StatsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all users */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["user.UserResponse"][];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a new user
+         * @description Registers a new user in the system (admin only)
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description User creation payload */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["user.UserCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["user.UserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a user by ID */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description User ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["user.UserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        /** Update a user */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description User ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            /** @description User update payload */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["user.UserUpdateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["user.UserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete a user */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description User ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api/users/{id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock user account
+         * @description Resets the failed login attempts and clears the lockout time for a user.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description User ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["user.UserResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health check
+         * @description Returns the health status of the server and its dependencies. Returns 200 when healthy, 503 when the database is unreachable.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["health.HealthResponse"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["health.HealthResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/.well-known/jwks.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get JWKS
+         * @description Returns the JSON Web Key Set for verifying JWTs
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.JWKSResponse"];
                     };
                 };
             };
@@ -360,6 +1633,296 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth2/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Multi-factor authentication
+         * @description Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description MFA challenge ID (GET) */
+                    challenge_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: components["requestBodies"]["getOauth2Mfa"];
+            responses: {
+                /** @description MFA form (GET) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect back to client with code after success (POST) */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Multi-factor authentication
+         * @description Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).
+         */
+        post: {
+            parameters: {
+                query?: {
+                    /** @description MFA challenge ID (GET) */
+                    challenge_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: components["requestBodies"]["getOauth2Mfa"];
+            responses: {
+                /** @description MFA form (GET) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect back to client with code after success (POST) */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/passkey/login/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin passkey login
+         * @description Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description User's username */
+                    username: string;
+                    /** @description Redirect URI */
+                    redirect_uri?: string;
+                    /** @description OAuth2 state */
+                    state?: string;
+                    /** @description OAuth2 client ID */
+                    client_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description WebAuthn assertion options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/passkey/login/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete passkey login
+         * @description Processes the WebAuthn assertion from the client and issues an authorization code.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Challenge ID from BeginLogin */
+                    challenge_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description WebAuthn assertion response */
+            requestBody: {
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            responses: {
+                /** @description Redirect URL */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/passkey/register/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Begin passkey registration
+         * @description Creates a user account (if not already present) and initiates a WebAuthn registration ceremony.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Desired username */
+                    username: string;
+                    /** @description Email address */
+                    email?: string;
+                    /** @description Redirect URI */
+                    redirect_uri?: string;
+                    /** @description OAuth2 state */
+                    state?: string;
+                    /** @description OAuth2 client ID */
+                    client_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description WebAuthn registration options */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/passkey/register/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete passkey registration
+         * @description Processes the WebAuthn attestation from the client and registers the passkey.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description Challenge ID from BeginRegistration */
+                    challenge_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description WebAuthn attestation response */
+            requestBody: {
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            responses: {
+                /** @description Redirect URL */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/oauth2/register": {
         parameters: {
             query?: never;
@@ -412,12 +1975,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description Client registration request */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["client.ClientCreateRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["client.ClientCreateRequest"];
             responses: {
                 /** @description Created */
                 201: {
@@ -430,15 +1988,6 @@ export interface paths {
                 };
                 /** @description Bad Request */
                 400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["model.AuthErrorResponse"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -520,12 +2069,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            /** @description Client update request */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["client.ClientUpdateRequest"];
-                };
-            };
+            requestBody: components["requestBodies"]["client.ClientUpdateRequest"];
             responses: {
                 /** @description OK */
                 200: {
@@ -586,7 +2130,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["model.AuthErrorResponse"];
+                        "*/*": components["schemas"]["model.AuthErrorResponse"];
                     };
                 };
             };
@@ -650,6 +2194,86 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User signup
+         * @description Renders the signup page (GET) or processes a new user registration (POST).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: components["requestBodies"]["getOauth2Signup"];
+            responses: {
+                /** @description Signup form (GET) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect back to client with code (POST) */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * User signup
+         * @description Renders the signup page (GET) or processes a new user registration (POST).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: components["requestBodies"]["getOauth2Signup"];
+            responses: {
+                /** @description Signup form (GET) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect back to client with code (POST) */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
                     };
                 };
             };
@@ -796,18 +2420,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/create": {
+    "/onboard": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Initial admin setup
+         * @description Renders the onboarding page (GET) or creates the initial administrator (POST).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: components["requestBodies"]["getOnboard"];
+            responses: {
+                /** @description Onboarding form (GET) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Redirect to /admin/ after success (POST) */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+            };
+        };
         put?: never;
         /**
-         * Create a new user
-         * @description Registers a new user in the system
+         * Initial admin setup
+         * @description Renders the onboarding page (GET) or creates the initial administrator (POST).
          */
         post: {
             parameters: {
@@ -816,38 +2472,24 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            /** @description User creation payload */
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["user.UserCreateRequest"];
-                };
-            };
+            requestBody?: components["requestBodies"]["getOnboard"];
             responses: {
-                /** @description Created */
-                201: {
+                /** @description Onboarding form (GET) */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["user.UserResponse"];
+                        "text/html": string;
                     };
                 };
-                /** @description Bad Request */
-                400: {
+                /** @description Redirect to /admin/ after success (POST) */
+                302: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["model.ApiError"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["model.ApiError"];
+                        "text/html": string;
                     };
                 };
             };
@@ -862,25 +2504,54 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        "admin.StatsResponse": {
+            active_clients?: number;
+            active_sessions?: number;
+            pending_deletion_requests?: number;
+            recent_logins?: number;
+            total_sessions?: number;
+            total_users?: number;
+        };
         "client.ClientCreateRequest": {
+            /** @description Per-client overrides */
+            access_token_expiration?: string;
+            allow_self_signup?: boolean;
+            allowed_audiences?: string[];
+            authorization_code_expiration?: string;
+            client_id?: string;
             client_name?: string;
             client_type?: string;
             grant_types?: string[];
+            post_logout_redirect_uris?: string[];
             redirect_uris?: string[];
+            refresh_token_expiration?: string;
             response_types?: string[];
             scopes?: string;
+            sso_session_idle_timeout?: string;
             token_endpoint_auth_method?: string;
+            trust_device_enabled?: boolean;
+            trust_device_expiration?: string;
         };
         "client.ClientInfoResponse": {
+            /** @description Per-client overrides */
+            access_token_expiration?: string;
+            allow_self_signup?: boolean;
+            allowed_audiences?: string[];
+            authorization_code_expiration?: string;
             client_id?: string;
             client_name?: string;
             client_type?: string;
             grant_types?: string[];
             is_active?: boolean;
+            post_logout_redirect_uris?: string[];
             redirect_uris?: string[];
+            refresh_token_expiration?: string;
             response_types?: string[];
             scopes?: string;
+            sso_session_idle_timeout?: string;
             token_endpoint_auth_method?: string;
+            trust_device_enabled?: boolean;
+            trust_device_expiration?: string;
         };
         "client.ClientResponse": {
             client_id?: string;
@@ -889,19 +2560,62 @@ export interface components {
             client_secret_expires_at?: number;
             client_type?: string;
             grant_types?: string[];
+            post_logout_redirect_uris?: string[];
             redirect_uris?: string[];
             response_types?: string[];
             scopes?: string;
             token_endpoint_auth_method?: string;
         };
         "client.ClientUpdateRequest": {
+            /** @description Per-client overrides */
+            access_token_expiration?: string;
+            allow_self_signup?: boolean;
+            allowed_audiences?: string[];
+            authorization_code_expiration?: string;
             client_name?: string;
             grant_types?: string[];
             is_active?: boolean;
+            post_logout_redirect_uris?: string[];
             redirect_uris?: string[];
+            refresh_token_expiration?: string;
             response_types?: string[];
             scopes?: string;
+            sso_session_idle_timeout?: string;
             token_endpoint_auth_method?: string;
+            trust_device_enabled?: boolean;
+            trust_device_expiration?: string;
+        };
+        "deletion.CreateDeletionRequestInput": {
+            reason?: string;
+        };
+        "deletion.DeletionRequestResponse": {
+            id?: string;
+            reason?: string;
+            requested_at?: string;
+            user_id?: string;
+        };
+        "federation.FederationProviderRequest": {
+            client_id?: string;
+            client_secret?: string;
+            enabled?: boolean;
+            icon_svg?: string;
+            id?: string;
+            issuer?: string;
+            name?: string;
+            sort_order?: number;
+        };
+        "federation.ProviderResponse": {
+            client_id?: string;
+            enabled?: boolean;
+            icon_svg?: string;
+            id?: string;
+            issuer?: string;
+            name?: string;
+            sort_order?: number;
+        };
+        "health.HealthResponse": {
+            database?: string;
+            status?: string;
         };
         "introspect.IntrospectRequest": {
             token?: string;
@@ -958,13 +2672,16 @@ export interface components {
             keys?: components["schemas"]["model.JWK"][];
         };
         "model.WellKnownConfigResponse": {
+            acr_values_supported?: string[];
             authorization_endpoint?: string;
             claims_supported?: string[];
             end_session_endpoint?: string;
+            grant_types_supported?: string[];
             id_token_signing_alg_values_supported?: string[];
             issuer?: string;
             jwks_uri?: string;
             registration_endpoint?: string;
+            request_parameter_supported?: boolean;
             response_types_supported?: string[];
             scopes_supported?: string[];
             subject_types_supported?: string[];
@@ -972,9 +2689,23 @@ export interface components {
             token_endpoint_auth_methods_supported?: string[];
             userinfo_endpoint?: string;
         };
+        "session.SessionResponse": {
+            created_at?: string;
+            deactivated_at?: string;
+            device_id?: string;
+            expires_at?: string;
+            id?: string;
+            ip_address?: string;
+            last_activity_at?: string;
+            location?: string;
+            status?: string;
+            user_agent?: string;
+            user_id?: string;
+        };
         "token.TokenResponse": {
             access_token?: string;
             expires_in?: number;
+            id_token?: string;
             refresh_token?: string;
             scope?: string;
             token_type?: string;
@@ -987,16 +2718,131 @@ export interface components {
             username?: string;
         };
         "user.UserResponse": {
-            createdAt?: string;
+            address_country?: string;
+            address_locality?: string;
+            address_postal_code?: string;
+            address_region?: string;
+            address_street?: string;
+            birthdate?: string;
+            created_at?: string;
             email?: string;
+            failed_login_attempts?: number;
+            family_name?: string;
+            gender?: string;
+            /** @description OIDC standard profile claims */
+            given_name?: string;
             id?: string;
+            is_email_verified?: boolean;
+            locale?: string;
+            locked_until?: string;
+            middle_name?: string;
+            nickname?: string;
+            phone_number?: string;
+            phone_number_verified?: boolean;
+            picture?: string;
+            profile?: string;
             role?: string;
+            totp_verified?: boolean;
             username?: string;
+            website?: string;
+            zoneinfo?: string;
+        };
+        "user.UserUpdateRequest": {
+            address_country?: string;
+            address_locality?: string;
+            address_postal_code?: string;
+            address_region?: string;
+            address_street?: string;
+            birthdate?: string;
+            email?: string;
+            family_name?: string;
+            gender?: string;
+            /** @description OIDC standard profile claims */
+            given_name?: string;
+            is_email_verified?: boolean;
+            locale?: string;
+            middle_name?: string;
+            nickname?: string;
+            password?: string;
+            phone_number?: string;
+            phone_number_verified?: boolean;
+            picture?: string;
+            profile?: string;
+            role?: string;
+            totp_verified?: boolean;
+            username?: string;
+            website?: string;
+            zoneinfo?: string;
         };
     };
     responses: never;
     parameters: never;
-    requestBodies: never;
+    requestBodies: {
+        getOauth2Signup: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @description Desired username */
+                    username?: string;
+                    /** @description Password */
+                    password?: string;
+                    /** @description Confirm password */
+                    confirm_password?: string;
+                    /** @description Email address */
+                    email?: string;
+                    /** @description Redirect URI */
+                    redirect_uri?: string;
+                    /** @description OAuth2 state */
+                    state?: string;
+                };
+            };
+        };
+        /** @description Client registration request */
+        "client.ClientCreateRequest": {
+            content: {
+                "application/json": components["schemas"]["client.ClientCreateRequest"];
+            };
+        };
+        /** @description Client update request */
+        "client.ClientUpdateRequest": {
+            content: {
+                "application/json": components["schemas"]["client.ClientUpdateRequest"];
+            };
+        };
+        /** @description Provider request */
+        "federation.FederationProviderRequest": {
+            content: {
+                "application/json": components["schemas"]["federation.FederationProviderRequest"];
+            };
+        };
+        getOauth2Mfa: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @description MFA challenge ID (POST) */
+                    challenge_id?: string;
+                    /** @description Verification code (POST) */
+                    code?: string;
+                    /** @description TOTP secret for enrollment (POST) */
+                    totp_secret?: string;
+                    /** @description Whether to trust the device (POST) */
+                    trust_device?: string;
+                };
+            };
+        };
+        getOnboard: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    /** @description Admin username */
+                    username?: string;
+                    /** @description Admin password */
+                    password?: string;
+                    /** @description Confirm password */
+                    confirm_password?: string;
+                    /** @description Admin email */
+                    email?: string;
+                };
+            };
+        };
+    };
     headers: never;
     pathItems: never;
 }

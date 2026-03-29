@@ -111,7 +111,7 @@ func RunStart(c *cli.Context) error {
 	// -------------------------------------------------------------------------
 	mux.HandleFunc("GET /.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc("GET "+oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
-	mux.HandleFunc("GET /.well-known/jwks.json", wellknown.HandleJWKS)
+	mux.HandleFunc("GET "+oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 
 	// -------------------------------------------------------------------------
 	// OAuth2 / OIDC protocol endpoints
@@ -239,7 +239,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Printf("  Docs:       https://autentico.top\n")
 	fmt.Println()
 	fmt.Printf("  WellKnown:  %s/.well-known/openid-configuration\n", baseURL)
-	fmt.Printf("  JWKS:       %s/.well-known/jwks.json\n", baseURL)
+	fmt.Printf("  JWKS:       %s%s/.well-known/jwks.json\n", baseURL, oauth)
 	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)
 	fmt.Printf("  Token:      %s%s/token\n", baseURL, oauth)
 	fmt.Println()

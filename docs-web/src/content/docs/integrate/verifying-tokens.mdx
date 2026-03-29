@@ -10,7 +10,7 @@ Autentico signs all tokens with RS256 (RSA + SHA-256). Your resource server can 
 ## JWKS endpoint
 
 ```
-GET https://auth.example.com/.well-known/jwks.json
+GET https://auth.example.com/oauth2/.well-known/jwks.json
 ```
 
 Fetch this once at startup and cache it. Refresh it when you encounter an unknown `kid` in a token header.
@@ -36,7 +36,7 @@ For each incoming access token or ID token:
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const JWKS = createRemoteJWKSet(
-  new URL('https://auth.example.com/.well-known/jwks.json')
+  new URL('https://auth.example.com/oauth2/.well-known/jwks.json')
 );
 
 async function verifyToken(token) {
@@ -56,7 +56,7 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 
 const client = jwksClient({
-  jwksUri: 'https://auth.example.com/.well-known/jwks.json',
+  jwksUri: 'https://auth.example.com/oauth2/.well-known/jwks.json',
   cache: true,
 });
 

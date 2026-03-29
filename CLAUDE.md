@@ -150,7 +150,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/user` | User CRUD, bcrypt password hashing, account lockout, TOTP secret storage |
 | `pkg/userinfo` | `/oauth2/userinfo` endpoint |
 | `pkg/utils` | Shared helpers: response writers, bearer token extraction, redirect URI validation, SHA-256 hashing, client IP |
-| `pkg/wellknown` | `/.well-known/openid-configuration` and `/.well-known/jwks.json` |
+| `pkg/wellknown` | `/.well-known/openid-configuration` and `/oauth2/.well-known/jwks.json` |
 
 ### OAuth2 / Auth Flow
 

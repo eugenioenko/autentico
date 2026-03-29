@@ -15,29 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/.well-known/jwks.json": {
-            "get": {
-                "description": "Returns the JSON Web Key Set for verifying JWTs",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Well-Known"
-                ],
-                "summary": "Get JWKS",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.JWKSResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/.well-known/openid-configuration": {
             "get": {
                 "description": "Returns the OpenID Connect Well-Known Configuration",
@@ -1160,6 +1137,29 @@ const docTemplate = `{
                         "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/health.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/.well-known/jwks.json": {
+            "get": {
+                "description": "Returns the JSON Web Key Set for verifying JWTs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Well-Known"
+                ],
+                "summary": "Get JWKS",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.JWKSResponse"
                         }
                     }
                 }
