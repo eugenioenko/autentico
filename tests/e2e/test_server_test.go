@@ -102,7 +102,8 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
-	mux.HandleFunc(oauth+"/logout", session.HandleLogout)
+	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)
+	mux.HandleFunc("GET "+oauth+"/logout", session.HandleRpInitiatedLogout)
 	mux.HandleFunc(oauth+"/introspect", introspect.HandleIntrospect)
 
 	// CSRF-protected routes (using plaintext wrapper for HTTP test server)
