@@ -17,7 +17,7 @@ import (
 // GenerateTokens creates a signed access token and refresh token for the given user.
 // cfg should be the per-client resolved config (via config.GetForClient) so that
 // per-client overrides for expiration and audience are applied.
-func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthToken, error) {
+func GenerateTokens(user user.User, clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
@@ -35,13 +35,21 @@ func GenerateTokens(user user.User, clientID string, cfg *config.Config) (*AuthT
 		"azp":       clientID,
 		"sid":       sessionID,
 		"acr":       "password",
-		"scope":              "openid profile email",
-		"email_verified":     false,
-		"name":               user.Username,
-		"preferred_username": user.Username,
-		"given_name":         user.Username,
-		"family_name":        user.Username,
-		"email":              user.Email,
+		"scope":     scope,
+	}
+
+	// OIDC Core §5.4: only embed profile claims when "profile" scope was requested
+	if containsScope(scope, "profile") {
+		accessClaims["name"] = user.Username
+		accessClaims["preferred_username"] = user.Username
+		accessClaims["given_name"] = user.GivenName
+		accessClaims["family_name"] = user.FamilyName
+	}
+
+	// OIDC Core §5.4: only embed email claims when "email" scope was requested
+	if containsScope(scope, "email") {
+		accessClaims["email"] = user.Email
+		accessClaims["email_verified"] = user.IsEmailVerified
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = bs.AuthJwkCertKeyID

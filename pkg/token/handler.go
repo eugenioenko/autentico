@@ -165,7 +165,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		clientCfg = &resolved
 	}
 
-	authToken, err := GenerateTokens(*usr, request.ClientID, clientCfg)
+	authToken, err := GenerateTokens(*usr, request.ClientID, codeScope, clientCfg)
 	if err != nil {
 		slog.Error("token: failed to generate tokens", "request_id", middleware.GetRequestID(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))

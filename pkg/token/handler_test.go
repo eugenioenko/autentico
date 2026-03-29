@@ -948,7 +948,7 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 	}
 
 	// Generate tokens to get a valid refresh token (session won't exist in DB)
-	authToken, err := GenerateTokens(usr, "", config.Get())
+	authToken, err := GenerateTokens(usr, "", "openid profile email", config.Get())
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
