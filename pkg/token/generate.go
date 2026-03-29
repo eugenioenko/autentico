@@ -34,7 +34,7 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"typ":       "Bearer",
 		"azp":       clientID,
 		"sid":       sessionID,
-		"acr":       "password",
+		"acr":       "1",
 		"scope":     scope,
 	}
 

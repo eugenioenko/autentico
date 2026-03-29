@@ -206,6 +206,27 @@ func TestGenerateTokens_ScopeFiltering(t *testing.T) {
 	assert.Equal(t, "openid email", claims["scope"], "scope claim must match requested scope")
 }
 
+// TestGenerateTokens_AcrValue verifies the access token uses a standard acr value.
+// OIDC Core §2: acr SHOULD be an absolute URI or RFC 6711 registered name.
+// "password" is non-standard; "1" is consistent with the ID token and acr_values_supported.
+func TestGenerateTokens_AcrValue(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com"}
+
+	tokens, err := GenerateTokens(testUser, "", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	assert.Equal(t, "1", claims["acr"], "OIDC Core §2: acr in access token must be '1', not 'password'")
+}
+
 func TestContainsScope(t *testing.T) {
 	assert.True(t, containsScope("openid profile email", "openid"))
 	assert.True(t, containsScope("openid profile email", "profile"))
