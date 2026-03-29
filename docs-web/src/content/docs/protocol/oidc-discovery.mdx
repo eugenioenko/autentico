@@ -22,7 +22,7 @@ Both paths return the same document. Most OIDC client libraries accept this URL 
   "userinfo_endpoint": "https://auth.example.com/oauth2/userinfo",
   "registration_endpoint": "https://auth.example.com/oauth2/register",
   "end_session_endpoint": "https://auth.example.com/oauth2/logout",
-  "jwks_uri": "https://auth.example.com/.well-known/jwks.json",
+  "jwks_uri": "https://auth.example.com/oauth2/.well-known/jwks.json",
   "response_types_supported": ["code", "token", "id_token", "code token", "code id_token"],
   "subject_types_supported": ["public"],
   "id_token_signing_alg_values_supported": ["RS256"],
@@ -37,7 +37,7 @@ Both paths return the same document. Most OIDC client libraries accept this URL 
 The JSON Web Key Set (public keys for token verification) is at:
 
 ```
-GET /.well-known/jwks.json
+GET /oauth2/.well-known/jwks.json
 ```
 
 ```json

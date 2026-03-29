@@ -89,7 +89,7 @@ curl -X POST https://auth.example.com/oauth2/token \
 
 ## Step 5: Verify the ID token
 
-Fetch the JWKS from `/.well-known/jwks.json` and verify the ID token signature using the public key. Check:
+Fetch the JWKS from `/oauth2/.well-known/jwks.json` and verify the ID token signature using the public key. Check:
 
 - `iss` matches `https://auth.example.com/oauth2`
 - `aud` matches your `client_id`

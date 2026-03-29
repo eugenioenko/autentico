@@ -71,7 +71,7 @@ func buildEnvContent(p envParams) string {
 		"# If unset, an ephemeral key is generated on each startup — all tokens are invalidated on restart.",
 		fmt.Sprintf("AUTENTICO_PRIVATE_KEY=%s", p.privateKeyB64),
 		"#",
-		"# Key ID included in the JWK Set (/.well-known/jwks.json). Change if rotating keys.",
+		"# Key ID included in the JWK Set (/oauth2/.well-known/jwks.json). Change if rotating keys.",
 		"AUTENTICO_JWK_CERT_KEY_ID=autentico-key-1",
 		"",
 		"# ── Cookies ─────────────────────────────────────────────────────────────────",

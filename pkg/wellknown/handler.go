@@ -28,7 +28,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", issuer),
 		RegistrationEndpoint:  fmt.Sprintf("%s/register", issuer),
 		EndSessionEndpoint:    fmt.Sprintf("%s/logout", issuer),
-		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppURL),
+		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppAuthIssuer),
 		ResponseTypesSupported: []string{
 			"code", "token", "id_token", "code token", "code id_token",
 		},
@@ -68,7 +68,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} model.JWKSResponse
-// @Router /.well-known/jwks.json [get]
+// @Router /oauth2/.well-known/jwks.json [get]
 func HandleJWKS(w http.ResponseWriter, r *http.Request) {
 	kid := config.GetBootstrap().AuthJwkCertKeyID
 	kMap := key.GetRSAPublicKeyJWK(kid)

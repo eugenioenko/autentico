@@ -49,7 +49,7 @@ func TestHandleWellKnownConfigResponse(t *testing.T) {
 	assert.NotEmpty(t, response.AuthorizationEndpoint)
 	assert.NotEmpty(t, response.TokenEndpoint)
 	assert.NotEmpty(t, response.UserInfoEndpoint)
-	assert.NotEmpty(t, response.JwksURI)
+	assert.Equal(t, "http://localhost:9999/oauth2/.well-known/jwks.json", response.JwksURI)
 	assert.Contains(t, response.ResponseTypesSupported, "code")
 	assert.Contains(t, response.ScopesSupported, "openid")
 	assert.Contains(t, response.TokenEndpointAuthMethodsSupported, "client_secret_basic")
@@ -88,7 +88,7 @@ func TestHandleWellKnownConfig_RequestParameterNotSupported(t *testing.T) {
 }
 
 func TestHandleJWKS(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
 
 	HandleJWKS(rr, req)
@@ -100,7 +100,7 @@ func TestHandleJWKS(t *testing.T) {
 }
 
 func TestHandleJWKSResponse(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
 
 	HandleJWKS(rr, req)

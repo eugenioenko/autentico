@@ -9,7 +9,7 @@ Autentico requires four secrets to start:
 
 | Variable | Purpose |
 |---|---|
-| `AUTENTICO_PRIVATE_KEY` | RSA private key (base64-encoded PEM). Used to sign all JWTs (access tokens, ID tokens, refresh tokens) with RS256. Clients and resource servers verify tokens against the public key exposed at `/.well-known/jwks.json`. If unset, an ephemeral key is generated on startup and all tokens are invalidated on restart. |
+| `AUTENTICO_PRIVATE_KEY` | RSA private key (base64-encoded PEM). Used to sign all JWTs (access tokens, ID tokens, refresh tokens) with RS256. Clients and resource servers verify tokens against the public key exposed at `/oauth2/.well-known/jwks.json`. If unset, an ephemeral key is generated on startup and all tokens are invalidated on restart. |
 | `AUTENTICO_CSRF_SECRET_KEY` | HMAC secret for CSRF token signing. Protects browser-facing form submissions (login, MFA, onboarding) from cross-site request forgery. |
 | `AUTENTICO_ACCESS_TOKEN_SECRET` | Secret used when generating opaque access token identifiers stored in the database. Not the JWT signing key — that is the RSA key above. |
 | `AUTENTICO_REFRESH_TOKEN_SECRET` | Secret used when generating opaque refresh token identifiers stored in the database. Keeps refresh tokens unpredictable even if the database is compromised. |

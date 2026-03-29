@@ -33,13 +33,14 @@ func TestServerStarts(t *testing.T) {
 	assert.NotEmpty(t, wkConfig.AuthorizationEndpoint)
 	assert.NotEmpty(t, wkConfig.TokenEndpoint)
 	assert.NotEmpty(t, wkConfig.JwksURI)
+	assert.Contains(t, wkConfig.JwksURI, "/oauth2/.well-known/jwks.json")
 	assert.Contains(t, wkConfig.Issuer, ts.BaseURL)
 }
 
 func TestServerJWKS(t *testing.T) {
 	ts := startTestServer(t)
 
-	resp, err := ts.Client.Get(ts.BaseURL + "/.well-known/jwks.json")
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/.well-known/jwks.json")
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
