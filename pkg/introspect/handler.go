@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -38,11 +39,21 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode and validate request body
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
-		return
+	// RFC 7662 §2.1: request MUST be application/x-www-form-urlencoded.
+	// Also accept application/json for backwards compatibility with existing callers.
+	var err error
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+		if err = r.ParseForm(); err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
+			return
+		}
+		req.Token = r.FormValue("token")
+	} else {
+		if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+			return
+		}
 	}
 
 	if req.Token == "" {
