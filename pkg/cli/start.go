@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,9 +16,7 @@ import (
 
 	"github.com/eugenioenko/autentico/docs"
 	"github.com/eugenioenko/autentico/pkg/account"
-	"github.com/eugenioenko/autentico/view"
 	"github.com/eugenioenko/autentico/pkg/admin"
-	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/cleanup"
@@ -26,6 +24,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
+	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/health"
@@ -43,6 +42,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
+	"github.com/eugenioenko/autentico/view"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -139,6 +139,7 @@ func RunStart(c *cli.Context) error {
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)
+	mux.HandleFunc("GET "+oauth+"/logout", session.HandleRpInitiatedLogout)
 	mux.Handle("GET "+oauth+"/register", adminAPI(client.HandleListClients))
 	mux.Handle("POST "+oauth+"/register", adminAPI(client.HandleRegister))
 	mux.Handle("GET "+oauth+"/register/{client_id}", adminAPI(client.HandleGetClient))
@@ -238,6 +239,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
 	fmt.Printf("  Docs:       https://autentico.top\n")
 	fmt.Println()
+	fmt.Printf("  Issuer:     %s%s\n", baseURL, oauth)
 	fmt.Printf("  WellKnown:  %s%s/.well-known/openid-configuration\n", baseURL, oauth)
 	fmt.Printf("  JWKS:       %s%s/.well-known/jwks.json\n", baseURL, oauth)
 	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)
