@@ -10,6 +10,8 @@ import (
 func HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	utils.SuccessResponse(w, map[string]any{
+		"theme_logo_url":              cfg.Theme.LogoUrl,
+		"theme_title":                 cfg.Theme.Title,
 		"allow_self_service_deletion": cfg.AllowSelfServiceDeletion,
 		"auth_mode":                cfg.AuthMode,
 		"require_mfa":              cfg.RequireMfa,
