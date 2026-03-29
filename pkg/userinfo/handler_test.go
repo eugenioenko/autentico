@@ -99,7 +99,7 @@ func TestHandleUserInfoMissingAuth(t *testing.T) {
 	HandleUserInfo(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Access token is required")
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be set")
 }
 
 func TestHandleUserInfoInvalidToken(t *testing.T) {
@@ -124,7 +124,7 @@ func TestHandleUserInfoInvalidAuthFormat(t *testing.T) {
 	HandleUserInfo(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Access token is required")
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be set")
 }
 
 func TestHandleUserInfoTokenNotInDB(t *testing.T) {
@@ -526,4 +526,39 @@ func TestHandleUserInfo_CompleteProfile(t *testing.T) {
 	HandleUserInfo(rr, req)
 	
 	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+// TestUserInfo_WWWAuthenticate_MissingToken verifies RFC 6750 §3:
+// "the resource server MUST include the HTTP WWW-Authenticate response header field"
+// on 401 responses. No token → Bearer realm only (no error attributes).
+func TestUserInfo_WWWAuthenticate_MissingToken(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	wwwAuth := rr.Header().Get("WWW-Authenticate")
+	assert.NotEmpty(t, wwwAuth, "RFC 6750 §3: WWW-Authenticate header MUST be present on 401")
+	assert.Contains(t, wwwAuth, "Bearer", "WWW-Authenticate scheme must be Bearer")
+}
+
+// TestUserInfo_WWWAuthenticate_InvalidToken verifies RFC 6750 §3:
+// invalid token → Bearer with error and error_description attributes.
+func TestUserInfo_WWWAuthenticate_InvalidToken(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer not-a-valid-token")
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	wwwAuth := rr.Header().Get("WWW-Authenticate")
+	assert.NotEmpty(t, wwwAuth, "RFC 6750 §3: WWW-Authenticate header MUST be present on 401")
+	assert.Contains(t, wwwAuth, "Bearer")
+	assert.Contains(t, wwwAuth, "error=")
 }

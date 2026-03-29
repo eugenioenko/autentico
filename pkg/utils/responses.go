@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/model"
@@ -47,4 +48,18 @@ func WriteErrorResponse(w http.ResponseWriter, statusCode int, errorType, errorD
 		Error:            errorType,
 		ErrorDescription: errorDescription,
 	}, statusCode)
+}
+
+// WriteBearerUnauthorized writes a 401 response with the WWW-Authenticate header
+// required by RFC 6750 §3. When errType is empty only the realm is included
+// (no credentials presented); otherwise error and error_description are added.
+func WriteBearerUnauthorized(w http.ResponseWriter, realm, errType, errDescription string) {
+	var challenge string
+	if errType == "" {
+		challenge = fmt.Sprintf(`Bearer realm="%s"`, realm)
+	} else {
+		challenge = fmt.Sprintf(`Bearer realm="%s", error="%s", error_description="%s"`, realm, errType, errDescription)
+	}
+	w.Header().Set("WWW-Authenticate", challenge)
+	WriteErrorResponse(w, http.StatusUnauthorized, errType, errDescription)
 }

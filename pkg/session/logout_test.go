@@ -86,7 +86,7 @@ func TestHandleLogoutMissingAuth(t *testing.T) {
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Authorization header is required")
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be set")
 }
 
 func TestHandleLogoutInvalidToken(t *testing.T) {

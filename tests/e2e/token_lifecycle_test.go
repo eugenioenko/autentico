@@ -34,6 +34,7 @@ func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired token should be rejected by userinfo")
+	assert.Contains(t, resp.Header.Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be present on 401")
 }
 
 func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
@@ -86,6 +87,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token should be rejected by userinfo")
+	assert.Contains(t, resp.Header.Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be present on 401")
 }
 
 func TestRevokedToken_IntrospectRejects(t *testing.T) {

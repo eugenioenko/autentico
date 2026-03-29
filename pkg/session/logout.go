@@ -6,6 +6,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
@@ -25,21 +26,22 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/logout [post]
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
+	realm := config.GetBootstrap().AppAuthIssuer
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Authorization header is required")
+		utils.WriteBearerUnauthorized(w, realm, "", "")
 		return
 	}
 
 	accessToken := utils.ExtractBearerToken(authHeader)
 	if accessToken == "" {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Invalid Authorization header")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_request", "Invalid Authorization header")
 		return
 	}
 
 	claims, err := jwtutil.ValidateAccessToken(accessToken)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
 		return
 	}
 
