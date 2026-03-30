@@ -69,7 +69,7 @@ func TestRpInitiatedLogout_DeactivatesIdpSession(t *testing.T) {
 	logoutResp, err := ts.Client.Get(logoutURL)
 	require.NoError(t, err)
 	defer func() { _ = logoutResp.Body.Close() }()
-	assert.Equal(t, http.StatusFound, logoutResp.StatusCode)
+	assert.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
 	// Step 5: Verify the IdP session cookie is cleared.
 	cookieName := config.GetBootstrap().AuthIdpSessionCookieName
@@ -126,9 +126,9 @@ func TestRpInitiatedLogout_PostLogoutRedirectWithState(t *testing.T) {
 	assert.Equal(t, postLogoutURI+"?state=logout-state-xyz", resp.Header.Get("Location"))
 }
 
-// TestRpInitiatedLogout_UnregisteredURIFallsBackToRoot confirms that an unregistered
-// post_logout_redirect_uri is silently rejected and the server falls back to /.
-func TestRpInitiatedLogout_UnregisteredURIFallsBackToRoot(t *testing.T) {
+// TestRpInitiatedLogout_UnregisteredURIShowsLogoutPage confirms that an unregistered
+// post_logout_redirect_uri is silently rejected and the server renders the logout page.
+func TestRpInitiatedLogout_UnregisteredURIShowsLogoutPage(t *testing.T) {
 	ts := startTestServer(t)
 
 	_, adminToken := createTestAdmin(t, ts, "admin@test.com", "password123", "admin@test.com")
@@ -150,6 +150,7 @@ func TestRpInitiatedLogout_UnregisteredURIFallsBackToRoot(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusFound, resp.StatusCode)
-	assert.Equal(t, "/", resp.Header.Get("Location"), "unregistered URI must be rejected")
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "unregistered URI must be rejected, fallback to logout page")
+	body, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(body), "signed out")
 }

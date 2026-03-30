@@ -161,8 +161,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if request.Prompt == "none" {
-		redirectURL := fmt.Sprintf("%s?error=login_required&state=%s", request.RedirectURI, request.State)
-		http.Redirect(w, r, redirectURL, http.StatusFound)
+		redirectWithError(w, r, request.RedirectURI, request.State, "login_required", "")
 		return
 	}
 
@@ -226,12 +225,17 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 }
 
 // redirectWithError redirects back to the redirect_uri with OAuth2 error params.
+// Per RFC 6749 §4.1.2.1 and Appendix B, all query values are percent-encoded.
 func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, state, errCode, errDesc string) {
-	u := fmt.Sprintf("%s?error=%s&error_description=%s", redirectURI, errCode, errDesc)
-	if state != "" {
-		u += "&state=" + state
+	q := url.Values{}
+	q.Set("error", errCode)
+	if errDesc != "" {
+		q.Set("error_description", errDesc)
 	}
-	http.Redirect(w, r, u, http.StatusFound)
+	if state != "" {
+		q.Set("state", state)
+	}
+	http.Redirect(w, r, redirectURI+"?"+q.Encode(), http.StatusFound)
 }
 
 // parseMaxAge parses the max_age query parameter as seconds.

@@ -1360,6 +1360,50 @@ const docTemplate = `{
             }
         },
         "/oauth2/logout": {
+            "get": {
+                "description": "OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0.\nClears the IdP session and optionally redirects to post_logout_redirect_uri.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "RP-Initiated Logout (GET)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Previously issued ID token",
+                        "name": "id_token_hint",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "URI to redirect to after logout",
+                        "name": "post_logout_redirect_uri",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque value passed back to post_logout_redirect_uri",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client identifier (used to validate post_logout_redirect_uri when no id_token_hint)",
+                        "name": "client_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Terminates the user's session",
                 "consumes": [
@@ -2857,6 +2901,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "code_challenge_methods_supported": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "end_session_endpoint": {
                     "type": "string"
                 },
@@ -2871,6 +2921,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "introspection_endpoint": {
+                    "description": "RFC 8414 §2",
+                    "type": "string"
                 },
                 "issuer": {
                     "type": "string"
@@ -2889,6 +2943,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "revocation_endpoint": {
+                    "type": "string"
                 },
                 "scopes_supported": {
                     "type": "array",

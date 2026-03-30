@@ -34,6 +34,7 @@ func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired token should be rejected by userinfo")
+	assert.Contains(t, resp.Header.Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be present on 401")
 }
 
 func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
@@ -54,7 +55,12 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "expired token should be rejected by introspect")
+	// RFC 7662 §2.2: expired token → 200 {"active":false}, not 401
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "RFC 7662 §2.2: expired token must return 200 with active=false")
+	var result map[string]interface{}
+	body2, _ := io.ReadAll(resp.Body)
+	_ = json.Unmarshal(body2, &result)
+	assert.Equal(t, false, result["active"], "active must be false for expired token")
 }
 
 func TestRevokedToken_UserInfoRejects(t *testing.T) {
@@ -81,6 +87,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token should be rejected by userinfo")
+	assert.Contains(t, resp.Header.Get("WWW-Authenticate"), "Bearer", "RFC 6750 §3: WWW-Authenticate must be present on 401")
 }
 
 func TestRevokedToken_IntrospectRejects(t *testing.T) {
@@ -106,7 +113,12 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "revoked token should be rejected by introspect")
+	// RFC 7662 §2.2: revoked token → 200 {"active":false}, not 401
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "RFC 7662 §2.2: revoked token must return 200 with active=false")
+	var result map[string]interface{}
+	respBody, _ := io.ReadAll(resp.Body)
+	_ = json.Unmarshal(respBody, &result)
+	assert.Equal(t, false, result["active"], "active must be false for revoked token")
 }
 
 func TestRevokedToken_RefreshRejects(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -49,27 +50,28 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 			accessToken = r.PostFormValue("access_token")
 		}
 	}
+	realm := config.GetBootstrap().AppAuthIssuer
 	if accessToken == "" {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_request", "Access token is required")
+		utils.WriteBearerUnauthorized(w, realm, "", "")
 		return
 	}
 
 	// Validate the access token cryptographically
 	_, err := jwtutil.ValidateAccessToken(accessToken)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token is invalid or expired")
 		return
 	}
 
 	tok, err := introspect.IntrospectToken(accessToken)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
 		return
 	}
 
 	sess, err := session.SessionByAccessToken(tok.AccessToken)
 	if err != nil || sess == nil || sess.DeactivatedAt != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
 		return
 	}
 

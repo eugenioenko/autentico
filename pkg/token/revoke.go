@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -50,13 +49,8 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the access token cryptographically
-	_, err = jwtutil.ValidateAccessToken(tokenID)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
-		return
-	}
-
+	// Per RFC 7009 §2.2: respond with 200 whether the token is valid, invalid,
+	// or unknown — the UPDATE is simply a no-op if the token is not found.
 	query := `
 		UPDATE tokens
 		SET revoked_at = ?

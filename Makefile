@@ -31,8 +31,13 @@ lint:
 	golangci-lint run ./...
 
 
+# Install required tools if missing
+tool-check:
+	@which go > /dev/null 2>&1 || (echo "Error: Go is not installed. Install it from https://go.dev/dl/" && exit 1)
+	@which $(SWAG) > /dev/null 2>&1 || (echo "Installing swag..." && go install github.com/swaggo/swag/cmd/swag@latest)
+
 # Generate swagger docs
-generate-docs:
+generate-docs: tool-check
 	$(SWAG) init
 	npx --yes @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 

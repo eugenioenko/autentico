@@ -214,6 +214,15 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("/onboard", csrfProtected(onboarding.HandleOnboardDirect))
 	mux.Handle("/onboard/", csrfProtected(onboarding.HandleOnboardDirect))
 
+	// Root redirect — send visitors to the account profile page
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/account/", http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 

@@ -17,4 +17,8 @@ type WellKnownConfigResponse struct {
 	GrantTypesSupported               []string `json:"grant_types_supported,omitempty"`
 	AcrValuesSupported                []string `json:"acr_values_supported,omitempty"`
 	RequestParameterSupported         bool     `json:"request_parameter_supported"`
+	// RFC 8414 §2
+	IntrospectionEndpoint        string   `json:"introspection_endpoint,omitempty"`
+	RevocationEndpoint           string   `json:"revocation_endpoint,omitempty"`
+	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
 }

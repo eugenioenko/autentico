@@ -19,6 +19,7 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // insertROPCTestClient seeds a public OAuth2 client that allows password and refresh_token grants.
@@ -452,6 +453,53 @@ func TestHandleToken_RefreshTokenGrant(t *testing.T) {
 	assert.Contains(t, rr2.Body.String(), "access_token")
 }
 
+// TestHandleToken_RefreshTokenGrant_ScopeInResponse verifies that the refresh_token
+// grant includes the scope in the token response per RFC 6749 §5.1.
+func TestHandleToken_RefreshTokenGrant_ScopeInResponse(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
+	})
+
+	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	assert.NoError(t, err)
+	insertROPCTestClient(t)
+
+	// Get initial tokens via password grant
+	form := url.Values{}
+	form.Add("grant_type", "password")
+	form.Add("client_id", "ropc-test-client")
+	form.Add("username", "testuser")
+	form.Add("password", "password123")
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleToken(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
+	require.NoError(t, err)
+	originalScope := tokenResp.Scope
+	require.NotEmpty(t, originalScope, "password grant should return scope")
+
+	// Refresh and assert scope is present in the response
+	form2 := url.Values{}
+	form2.Add("grant_type", "refresh_token")
+	form2.Add("refresh_token", tokenResp.RefreshToken)
+	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr2 := httptest.NewRecorder()
+	HandleToken(rr2, req2)
+	require.Equal(t, http.StatusOK, rr2.Code)
+
+	var refreshResp TokenResponse
+	err = json.Unmarshal(rr2.Body.Bytes(), &refreshResp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, refreshResp.Scope, "RFC 6749 §5.1: scope must be present in refresh_token grant response")
+	assert.Equal(t, originalScope, refreshResp.Scope, "scope must match the original grant scope")
+}
+
 func TestHandleToken_RefreshTokenGrant_MissingToken(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -837,8 +885,8 @@ func TestHandleRevoke_InvalidToken(t *testing.T) {
 
 	HandleRevoke(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_token")
+	// RFC 7009 §2.2: invalid tokens MUST return 200, not 401.
+	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleRevoke_ValidToken(t *testing.T) {
@@ -948,7 +996,7 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 	}
 
 	// Generate tokens to get a valid refresh token (session won't exist in DB)
-	authToken, err := GenerateTokens(usr, "", config.Get())
+	authToken, err := GenerateTokens(usr, "", "openid profile email", config.Get())
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -1218,7 +1266,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 	form.Add("grant_type", "authorization_code")
 	form.Add("code", "pkce-wrong-verifier")
 	form.Add("redirect_uri", "http://localhost/callback")
-	form.Add("code_verifier", "wrong-verifier-value")
+	form.Add("code_verifier", "wrong-verifier-value-padded-to-43-chars-abcde")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

@@ -2,15 +2,20 @@ package introspect
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
+
+// inactive returns the RFC 7662 §2.2 required response for any token that is
+// not active: HTTP 200 with {"active":false} and no additional claims.
+func inactive(w http.ResponseWriter) {
+	utils.WriteApiResponse(w, IntrospectResponse{Active: false}, http.StatusOK)
+}
 
 // HandleIntrospect godoc
 // @Summary Introspect a token
@@ -34,23 +39,25 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode and validate request body
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
-		return
+	// RFC 7662 §2.1: request MUST be application/x-www-form-urlencoded.
+	// Also accept application/json for backwards compatibility with existing callers.
+	var err error
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+		if err = r.ParseForm(); err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
+			return
+		}
+		req.Token = r.FormValue("token")
+	} else {
+		if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+			return
+		}
 	}
 
 	if req.Token == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
-		return
-	}
-
-	// Validate the access token cryptographically
-	_, err = jwtutil.ValidateAccessToken(req.Token)
-	if err != nil {
-		slog.Warn("introspect: invalid token", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
 		return
 	}
 
@@ -60,23 +67,19 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Per RFC 7662 §2.2: any token that is invalid, expired, revoked, or unknown
+	// MUST return 200 {"active":false} — never a 4xx error.
 	tkn, err := IntrospectToken(req.Token)
 	if err != nil {
-		slog.Warn("introspect: token not found in store", "request_id", middleware.GetRequestID(r.Context()))
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
+		slog.Info("introspect: inactive token", "request_id", middleware.GetRequestID(r.Context()), "reason", err)
+		inactive(w)
 		return
 	}
 
 	sess, err := session.SessionByAccessToken(tkn.AccessToken)
-	if err != nil {
-		slog.Warn("introspect: failed to retrieve session", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
-		return
-	}
-
-	if sess == nil || sess.DeactivatedAt != nil {
-		slog.Warn("introspect: session deactivated", "request_id", middleware.GetRequestID(r.Context()))
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_grant", "Session has been deactivated")
+	if err != nil || sess == nil || sess.DeactivatedAt != nil {
+		slog.Info("introspect: session not active", "request_id", middleware.GetRequestID(r.Context()))
+		inactive(w)
 		return
 	}
 

@@ -350,6 +350,10 @@ definitions:
         items:
           type: string
         type: array
+      code_challenge_methods_supported:
+        items:
+          type: string
+        type: array
       end_session_endpoint:
         type: string
       grant_types_supported:
@@ -360,6 +364,9 @@ definitions:
         items:
           type: string
         type: array
+      introspection_endpoint:
+        description: RFC 8414 §2
+        type: string
       issuer:
         type: string
       jwks_uri:
@@ -372,6 +379,8 @@ definitions:
         items:
           type: string
         type: array
+      revocation_endpoint:
+        type: string
       scopes_supported:
         items:
           type: string
@@ -1413,6 +1422,38 @@ paths:
       tags:
       - auth
   /oauth2/logout:
+    get:
+      description: |-
+        OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0.
+        Clears the IdP session and optionally redirects to post_logout_redirect_uri.
+      parameters:
+      - description: Previously issued ID token
+        in: query
+        name: id_token_hint
+        type: string
+      - description: URI to redirect to after logout
+        in: query
+        name: post_logout_redirect_uri
+        type: string
+      - description: Opaque value passed back to post_logout_redirect_uri
+        in: query
+        name: state
+        type: string
+      - description: Client identifier (used to validate post_logout_redirect_uri
+          when no id_token_hint)
+        in: query
+        name: client_id
+        type: string
+      produces:
+      - text/html
+      responses:
+        "302":
+          description: Redirect
+          schema:
+            type: string
+      summary: RP-Initiated Logout (GET)
+      tags:
+      - session
     post:
       consumes:
       - application/json

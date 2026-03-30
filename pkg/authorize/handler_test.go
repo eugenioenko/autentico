@@ -3,6 +3,7 @@ package authorize
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleAuthorize(t *testing.T) {
@@ -681,4 +683,38 @@ func TestHandleAuthorize_RequestObjectRejected(t *testing.T) {
 	loc := rr.Header().Get("Location")
 	assert.Contains(t, loc, "error=request_not_supported")
 	assert.Contains(t, loc, "state=xyz")
+}
+
+// TestRedirectWithError_ErrorDescriptionEncoded verifies RFC 6749 §4.1.2.1:
+// error parameters MUST be added using application/x-www-form-urlencoded
+// format (Appendix B), which requires percent-encoding of special characters.
+func TestRedirectWithError_ErrorDescriptionEncoded(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Trigger an unsupported_response_type error — description contains spaces
+	// ("response_type not allowed for this client") which MUST be percent-encoded.
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=my+state",
+		nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	require.Equal(t, http.StatusFound, rr.Code)
+	location := rr.Header().Get("Location")
+	require.NotEmpty(t, location)
+
+	parsed, err := url.Parse(location)
+	require.NoError(t, err)
+
+	// RFC 6749 §4.1.2.1 + Appendix B: no raw (unencoded) spaces in the redirect URL.
+	// url.Values.Encode() uses + for spaces, which is valid form-encoding.
+	errDesc := parsed.Query().Get("error_description")
+	assert.NotEmpty(t, errDesc, "error_description must be present")
+	assert.NotContains(t, location, "error_description=response_type not allowed",
+		"spaces in error_description must be encoded (as + or %%20), not passed raw")
+
+	// State value must round-trip correctly through encoding.
+	assert.Equal(t, "my state", parsed.Query().Get("state"), "state must decode back to its original value")
 }

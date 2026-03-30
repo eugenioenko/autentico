@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,6 +63,62 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 	return signedToken, sessionID, err
 }
 
+// TestHandleIntrospect_FormEncoded verifies RFC 7662 §2.1:
+// "The protected resource calls the introspection endpoint using an HTTP POST
+// request with parameters sent as application/x-www-form-urlencoded data."
+func TestHandleIntrospect_FormEncoded_InvalidToken_ActiveFalse(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	form := url.Values{}
+	form.Set("token", "some-unknown-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.1: form-encoded request must be accepted")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
+}
+
+func TestHandleIntrospect_FormEncoded_ValidToken_Active(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	defer db.CloseDB()
+
+	userID := xid.New().String()
+	_, err = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+		userID, "formuser", "form@example.com", "hash")
+	assert.NoError(t, err)
+
+	accessToken, _, err := generateTestTokenAndStore(userID)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Set("token", accessToken)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.True(t, resp.Active)
+	assert.Equal(t, userID, resp.Sub)
+}
+
 func TestHandleIntrospectEmptyBody(t *testing.T) {
 	_, err := db.InitTestDB()
 	if err != nil {
@@ -74,7 +132,7 @@ func TestHandleIntrospectEmptyBody(t *testing.T) {
 	HandleIntrospect(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid JSON payload")
+	assert.Contains(t, rr.Body.String(), "Invalid request payload")
 }
 
 func TestHandleIntrospectInvalidJSON(t *testing.T) {
@@ -90,7 +148,7 @@ func TestHandleIntrospectInvalidJSON(t *testing.T) {
 	HandleIntrospect(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid JSON payload")
+	assert.Contains(t, rr.Body.String(), "Invalid request payload")
 }
 
 func TestHandleIntrospectMissingToken(t *testing.T) {
@@ -112,6 +170,10 @@ func TestHandleIntrospectMissingToken(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Token is required")
 }
 
+// TestHandleIntrospectInvalidToken verifies RFC 7662 §2.2:
+// "If the token is not active... the authorization server MUST return...
+// a JSON object with the 'active' field set to 'false'."
+// The response MUST be 200, not 401.
 func TestHandleIntrospectInvalidToken(t *testing.T) {
 	_, err := db.InitTestDB()
 	if err != nil {
@@ -127,7 +189,10 @@ func TestHandleIntrospectInvalidToken(t *testing.T) {
 
 	HandleIntrospect(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: invalid token MUST return 200 with active=false")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
 }
 
 func TestHandleIntrospectValidToken(t *testing.T) {
@@ -251,7 +316,11 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 
 	HandleIntrospect(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	// RFC 7662 §2.2: valid JWT not in DB → 200 {"active":false}
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: unknown token MUST return 200 with active=false")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
 }
 
 func TestHandleIntrospectTokenNoSession(t *testing.T) {
@@ -304,8 +373,11 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 
 	HandleIntrospect(rr, req)
 
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Failed to retrieve session")
+	// RFC 7662 §2.2: no session → 200 {"active":false}
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: token with no session MUST return 200 with active=false")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
 }
 
 func TestIntrospectTokenRevoked(t *testing.T) {
@@ -368,6 +440,9 @@ func TestHandleIntrospect_DbError(t *testing.T) {
 
 	HandleIntrospect(rr, req)
 
-	// Implementation returns 401 on generic IntrospectToken error
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	// RFC 7662 §2.2: DB error → treat as inactive, return 200 {"active":false}
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: lookup error MUST return 200 with active=false")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
 }

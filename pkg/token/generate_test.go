@@ -25,7 +25,7 @@ func TestGenerateTokens(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	tokens, err := GenerateTokens(testUser, "", config.Get())
+	tokens, err := GenerateTokens(testUser, "", "openid profile email", config.Get())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokens.AccessToken)
 	assert.NotEmpty(t, tokens.RefreshToken)
@@ -159,6 +159,72 @@ func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
 	authTime := int64(claims["auth_time"].(float64))
 	assert.Equal(t, originalLoginTime.Unix(), authTime, "auth_time must equal the original login time, not now")
 	assert.NotEqual(t, time.Now().Unix(), authTime, "auth_time must not be the current time")
+}
+
+// TestGenerateTokens_ScopeFiltering verifies that the access token only embeds
+// profile/email claims when the corresponding scope was requested.
+// OIDC Core §5.4: scope values control which claims are made available.
+func TestGenerateTokens_ScopeFiltering(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com"}
+
+	parseAccessClaims := func(t *testing.T, tok *AuthToken) jwt.MapClaims {
+		t.Helper()
+		parsed, err := jwt.Parse(tok.AccessToken, func(token *jwt.Token) (interface{}, error) {
+			return key.GetPublicKey(), nil
+		})
+		require.NoError(t, err)
+		return parsed.Claims.(jwt.MapClaims)
+	}
+
+	// openid only — no profile or email claims in access token
+	tokens, err := GenerateTokens(testUser, "", "openid", config.Get())
+	require.NoError(t, err)
+	claims := parseAccessClaims(t, tokens)
+	assert.Nil(t, claims["name"], "OIDC Core §5.4: name must not be in access token without profile scope")
+	assert.Nil(t, claims["email"], "OIDC Core §5.4: email must not be in access token without email scope")
+	assert.Nil(t, claims["email_verified"], "email_verified must not be present without email scope")
+
+	// openid profile — profile claims included, email not
+	tokens, err = GenerateTokens(testUser, "", "openid profile", config.Get())
+	require.NoError(t, err)
+	claims = parseAccessClaims(t, tokens)
+	assert.NotNil(t, claims["name"], "name must be in access token with profile scope")
+	assert.Nil(t, claims["email"], "email must not be present without email scope")
+
+	// openid email — email claims included, profile not
+	tokens, err = GenerateTokens(testUser, "", "openid email", config.Get())
+	require.NoError(t, err)
+	claims = parseAccessClaims(t, tokens)
+	assert.Nil(t, claims["name"], "name must not be present without profile scope")
+	assert.NotNil(t, claims["email"], "email must be in access token with email scope")
+
+	// scope in access token must reflect requested scope, not hardcoded value
+	assert.Equal(t, "openid email", claims["scope"], "scope claim must match requested scope")
+}
+
+// TestGenerateTokens_AcrValue verifies the access token uses a standard acr value.
+// OIDC Core §2: acr SHOULD be an absolute URI or RFC 6711 registered name.
+// "password" is non-standard; "1" is consistent with the ID token and acr_values_supported.
+func TestGenerateTokens_AcrValue(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com"}
+
+	tokens, err := GenerateTokens(testUser, "", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	assert.Equal(t, "1", claims["acr"], "OIDC Core §2: acr in access token must be '1', not 'password'")
 }
 
 func TestContainsScope(t *testing.T) {
