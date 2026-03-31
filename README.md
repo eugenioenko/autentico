@@ -1,8 +1,8 @@
 # Autentico — OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-74.6%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-715-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-73.4%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-821-blue.svg)](https://github.com/eugenioenko/autentico)
 [![OIDC Certified](https://img.shields.io/badge/OIDC-certified-brightgreen.svg)](https://openid.net/certification/)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
@@ -889,7 +889,7 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico maintains comprehensive test coverage with **715+ test functions** across unit, integration, and end-to-end tests.
+Auténtico maintains comprehensive test coverage with **821+ test functions** across unit, integration, and end-to-end tests.
 
 ### Running Tests
 
@@ -913,9 +913,9 @@ Tests run with `-p 1` (sequential) because they share a process-level SQLite han
 
 ### Test Categories
 
-- **Unit tests** (430+): handler behavior, model validation, service logic, utility functions
-- **Integration tests** (135+): cross-package flows — authorization, token lifecycle, session management, client authentication
-- **End-to-end tests** (69+): full HTTP flows against a real test server instance
+- **Unit tests** (500+): handler behavior, model validation, service logic, utility functions
+- **Integration tests** (150+): cross-package flows — authorization, token lifecycle, session management, client authentication
+- **End-to-end tests** (75+): full HTTP flows against a real test server instance
 
 ---
 

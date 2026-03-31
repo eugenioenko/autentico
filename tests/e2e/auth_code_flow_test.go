@@ -13,6 +13,7 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -366,12 +367,20 @@ func TestAuthorizationCodeFlow_IDTokenWithNonce(t *testing.T) {
 	assert.Equal(t, "Bearer", tokens.TokenType)
 	assert.Contains(t, tokens.Scope, "openid")
 
-	// Verify the ID token is a valid JWT with expected claims
-	// Parse without verification (we trust the server in E2E tests)
-	parts := strings.SplitN(tokens.IDToken, ".", 3)
-	assert.Len(t, parts, 3, "id_token should be a JWT with 3 parts")
+	// OIDC Core §3.1.3.3: verify required claims in the ID token
+	claims := decodeJWTPayload(t, tokens.IDToken)
+	assert.NotEmpty(t, claims["iss"], "OIDC Core §3.1.3.3: iss MUST be present")
+	assert.NotEmpty(t, claims["sub"], "OIDC Core §3.1.3.3: sub MUST be present")
+	assert.NotEmpty(t, claims["aud"], "OIDC Core §3.1.3.3: aud MUST be present")
+	assert.NotNil(t, claims["exp"], "OIDC Core §3.1.3.3: exp MUST be present")
+	assert.NotNil(t, claims["iat"], "OIDC Core §3.1.3.3: iat MUST be present")
+	// OIDC Core §3.1.3.3: nonce MUST be present if sent in the authorization request
+	assert.Equal(t, "my-test-nonce-42", claims["nonce"], "OIDC Core §3.1.3.3: nonce must match the value sent in the authorization request")
+	// OIDC Core §3.1.3.3: aud must contain the client_id
+	assert.Equal(t, "test-client", claims["aud"])
 }
 
+// OIDC Core §3.1.2.1: without "openid" scope, no ID token is issued (plain OAuth 2.0 flow)
 func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
 	ts := startTestServer(t)
 	redirectURI := "http://localhost:3000/callback"
@@ -504,6 +513,82 @@ func TestAuthorizationCodeFlow_PKCE_MissingVerifier(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, tokenResp.StatusCode, "missing verifier should fail: %s", string(body))
 }
 
+// RFC 7636 §4.6: end-to-end PKCE flow using plain method.
+// plain is allowed when AuthPKCEEnforceSHA256 is disabled.
+func TestAuthorizationCodeFlow_PKCE_Plain(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	// Disable S256 enforcement so plain is accepted at the authorize endpoint
+	config.Values.AuthPKCEEnforceSHA256 = false
+	t.Cleanup(func() { config.Values.AuthPKCEEnforceSHA256 = true })
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// For plain method, code_challenge == code_verifier
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeChallenge := codeVerifier // plain: no transformation
+
+	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "plain")
+
+	// Exchange code with correct verifier
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", codeVerifier)
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "PKCE plain exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tokens.AccessToken)
+}
+
+// RFC 7636 §7.2: plain SHOULD NOT be used — rejected when AuthPKCEEnforceSHA256 is true (default)
+func TestAuthorizationCodeFlow_PKCE_PlainRejected(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Ensure S256 enforcement is on (default)
+	config.Values.AuthPKCEEnforceSHA256 = true
+
+	// Use a client that does not follow redirects so we can inspect the Location header
+	noRedirectClient := *ts.Client
+	noRedirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"test-state"},
+		"scope":                 {"openid"},
+		"code_challenge":        {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
+		"code_challenge_method": {"plain"},
+	}.Encode()
+
+	resp, err := noRedirectClient.Get(authorizeURL)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	// Should redirect back to redirect_uri with error=invalid_request
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "error=invalid_request", "plain method must be rejected when S256 enforcement is enabled")
+}
+
 func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	ts := startTestServer(t)
 	redirectURI := "http://localhost:3000/callback"
@@ -556,4 +641,162 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 	defer func() { _ = loginResp2.Body.Close() }()
 
 	assert.Equal(t, http.StatusForbidden, loginResp2.StatusCode, "missing CSRF token should be rejected with 403")
+}
+
+// TestAuthorizationCodeFlow_StateWithSpecialChars verifies that a state value containing
+// URL-special characters (=, &, +, spaces) is preserved byte-for-byte in the auth response
+// per RFC 6749 §4.1.2. This exercises the url.Values encoding fix in login/handler.go.
+func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+	// state with characters that would corrupt an unencoded fmt.Sprintf redirect
+	specialState := "tok=abc&foo=bar+baz"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"client_id":     {"test-client"},
+		"redirect_uri":  {redirectURI},
+		"state":         {specialState},
+	}.Encode()
+
+	resp, err := ts.Client.Get(authorizeURL)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	csrfToken := getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	form := url.Values{}
+	form.Set("username", "user@test.com")
+	form.Set("password", "password123")
+	form.Set("redirect_uri", redirectURI)
+	form.Set("state", specialState)
+	form.Set("client_id", "test-client")
+	form.Set("gorilla.csrf.Token", csrfToken)
+
+	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+
+	loginResp, err := ts.Client.Do(loginReq)
+	require.NoError(t, err)
+	defer func() { _ = loginResp.Body.Close() }()
+	require.Equal(t, http.StatusFound, loginResp.StatusCode)
+
+	location := loginResp.Header.Get("Location")
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err)
+
+	// RFC 6749 §4.1.2: state MUST be echoed unchanged, including special characters
+	assert.Equal(t, specialState, redirectURL.Query().Get("state"), "state with special chars must be preserved exactly")
+	assert.NotEmpty(t, redirectURL.Query().Get("code"))
+}
+
+// TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected verifies that a refresh
+// request asking for scope beyond the original grant is rejected per RFC 6749 §6.
+func TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Obtain tokens with a limited scope
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state1", "openid", "")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	require.NotEmpty(t, tokens.RefreshToken)
+
+	// Refresh and request a broader scope — must be rejected
+	refreshForm := url.Values{}
+	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("refresh_token", tokens.RefreshToken)
+	refreshForm.Set("scope", "openid profile email") // more than "openid"
+
+	refreshResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
+	require.NoError(t, err)
+	defer func() { _ = refreshResp.Body.Close() }()
+
+	refreshBody, err := io.ReadAll(refreshResp.Body)
+	require.NoError(t, err)
+	// RFC 6749 §6: scope expansion MUST be rejected
+	assert.Equal(t, http.StatusBadRequest, refreshResp.StatusCode, "scope expansion on refresh must be rejected: %s", string(refreshBody))
+	var errResp map[string]interface{}
+	_ = json.Unmarshal(refreshBody, &errResp)
+	assert.Equal(t, "invalid_scope", errResp["error"])
+}
+
+// TestAuthorizationCodeFlow_ScopeDownscope verifies that a refresh request can
+// narrow the scope of the original grant per RFC 6749 §6.
+func TestAuthorizationCodeFlow_ScopeDownscope(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Obtain tokens with a broad scope via authorization code flow
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state1", "openid profile", "")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	require.NotEmpty(t, tokens.RefreshToken)
+	assert.Contains(t, tokens.Scope, "profile", "original grant should include profile scope")
+
+	// Refresh with a narrower scope — must succeed
+	refreshForm := url.Values{}
+	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("refresh_token", tokens.RefreshToken)
+	refreshForm.Set("scope", "openid") // subset of "openid profile"
+
+	refreshResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
+	require.NoError(t, err)
+	defer func() { _ = refreshResp.Body.Close() }()
+
+	refreshBody, err := io.ReadAll(refreshResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, refreshResp.StatusCode, "scope downscope on refresh must succeed: %s", string(refreshBody))
+
+	var newTokens token.TokenResponse
+	err = json.Unmarshal(refreshBody, &newTokens)
+	require.NoError(t, err)
+	// RFC 6749 §6: returned scope MUST reflect the downscoped request
+	assert.Equal(t, "openid", newTokens.Scope, "downscoped refresh must return the requested subset scope")
+	assert.NotEmpty(t, newTokens.AccessToken)
 }

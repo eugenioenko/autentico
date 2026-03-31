@@ -39,6 +39,7 @@ type Client struct {
 // ClientCreateRequest represents the request body for client registration
 type ClientCreateRequest struct {
 	ClientID                string   `json:"client_id,omitempty"`
+	ClientSecret            string   `json:"client_secret,omitempty"`
 	ClientName              string   `json:"client_name"`
 	RedirectURIs            []string `json:"redirect_uris"`
 	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris,omitempty"`

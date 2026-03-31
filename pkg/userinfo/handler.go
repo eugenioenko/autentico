@@ -12,11 +12,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-func nilIfEmpty(s string) interface{} {
-	if s == "" {
-		return nil
+// setIfNotEmpty adds the key to the map only if the value is non-empty.
+// OIDC Core §5.1: claims with empty values should be omitted rather than
+// returned as null, since null values may fail validation.
+func setIfNotEmpty(m map[string]interface{}, key, value string) {
+	if value != "" {
+		m[key] = value
 	}
-	return s
 }
 
 func containsScope(scope, s string) bool {
@@ -40,17 +42,28 @@ func containsScope(scope, s string) bool {
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/userinfo [get]
 func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
-	// RFC 6750: token may arrive as Bearer header, or as access_token in POST body
-	var accessToken string
+	// RFC 6750 §2.1: token may arrive as Bearer Authorization header
+	// RFC 6750 §2.2: or as access_token in POST application/x-www-form-urlencoded body
+	var headerToken, bodyToken string
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
-		accessToken = utils.ExtractBearerToken(authHeader)
-	} else if r.Method == http.MethodPost {
+		headerToken = utils.ExtractBearerToken(authHeader)
+	}
+	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err == nil {
-			accessToken = r.PostFormValue("access_token")
+			bodyToken = r.PostFormValue("access_token")
 		}
 	}
+	// RFC 6750 §2.2: MUST NOT accept a request using more than one method
 	realm := config.GetBootstrap().AppAuthIssuer
+	if headerToken != "" && bodyToken != "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request must not pass the access token using more than one method")
+		return
+	}
+	accessToken := headerToken
+	if accessToken == "" {
+		accessToken = bodyToken
+	}
 	if accessToken == "" {
 		utils.WriteBearerUnauthorized(w, realm, "", "")
 		return
@@ -81,12 +94,15 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// OIDC Core §5.3: the sub claim MUST always be returned; it MUST match the sub in the ID token.
 	scope := tok.Scope
 	response := map[string]interface{}{
 		"sub":   tok.UserID,
 		"scope": scope,
 	}
 
+	// OIDC Core §5.4: claims are returned based on the granted scope values.
+	// OIDC Core §5.1: claims with empty values are omitted rather than returned as null.
 	if containsScope(scope, "profile") {
 		name := user.Username
 		if user.GivenName != "" || user.FamilyName != "" {
@@ -94,17 +110,17 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		response["name"] = name
 		response["preferred_username"] = user.Username
-		response["given_name"] = nilIfEmpty(user.GivenName)
-		response["family_name"] = nilIfEmpty(user.FamilyName)
-		response["middle_name"] = nilIfEmpty(user.MiddleName)
-		response["nickname"] = nilIfEmpty(user.Nickname)
-		response["website"] = nilIfEmpty(user.Website)
-		response["gender"] = nilIfEmpty(user.Gender)
-		response["birthdate"] = nilIfEmpty(user.Birthdate)
-		response["profile"] = nilIfEmpty(user.ProfileURL)
-		response["picture"] = nilIfEmpty(user.Picture)
-		response["locale"] = nilIfEmpty(user.Locale)
-		response["zoneinfo"] = nilIfEmpty(user.Zoneinfo)
+		setIfNotEmpty(response, "given_name", user.GivenName)
+		setIfNotEmpty(response, "family_name", user.FamilyName)
+		setIfNotEmpty(response, "middle_name", user.MiddleName)
+		setIfNotEmpty(response, "nickname", user.Nickname)
+		setIfNotEmpty(response, "website", user.Website)
+		setIfNotEmpty(response, "gender", user.Gender)
+		setIfNotEmpty(response, "birthdate", user.Birthdate)
+		setIfNotEmpty(response, "profile", user.ProfileURL)
+		setIfNotEmpty(response, "picture", user.Picture)
+		setIfNotEmpty(response, "locale", user.Locale)
+		setIfNotEmpty(response, "zoneinfo", user.Zoneinfo)
 		response["updated_at"] = user.UpdatedAt.Unix()
 	}
 
@@ -114,22 +130,20 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if containsScope(scope, "phone") {
-		response["phone_number"] = nilIfEmpty(user.PhoneNumber)
+		setIfNotEmpty(response, "phone_number", user.PhoneNumber)
 		response["phone_number_verified"] = user.PhoneNumberVerified
 	}
 
 	if containsScope(scope, "address") {
 		if user.AddressStreet != "" || user.AddressLocality != "" || user.AddressRegion != "" ||
 			user.AddressPostalCode != "" || user.AddressCountry != "" {
-			response["address"] = map[string]interface{}{
-				"street_address": nilIfEmpty(user.AddressStreet),
-				"locality":       nilIfEmpty(user.AddressLocality),
-				"region":         nilIfEmpty(user.AddressRegion),
-				"postal_code":    nilIfEmpty(user.AddressPostalCode),
-				"country":        nilIfEmpty(user.AddressCountry),
-			}
-		} else {
-			response["address"] = nil
+			addr := map[string]interface{}{}
+			setIfNotEmpty(addr, "street_address", user.AddressStreet)
+			setIfNotEmpty(addr, "locality", user.AddressLocality)
+			setIfNotEmpty(addr, "region", user.AddressRegion)
+			setIfNotEmpty(addr, "postal_code", user.AddressPostalCode)
+			setIfNotEmpty(addr, "country", user.AddressCountry)
+			response["address"] = addr
 		}
 	}
 	utils.WriteApiResponse(w, response, http.StatusOK)
