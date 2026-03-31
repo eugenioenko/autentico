@@ -5,7 +5,7 @@
 [![Tests](https://img.shields.io/badge/tests-715-blue.svg)](https://github.com/eugenioenko/autentico)
 [![OIDC Certified](https://img.shields.io/badge/OIDC-certified-brightgreen.svg)](https://openid.net/certification/)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
 **Auténtico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
@@ -24,6 +24,11 @@ Access the full documentation at [autentico.top](https://autentico.top)
 Try Autentico instantly: [Launch a Live Demo](https://demo.autentico.top/launch)
 
 _Each demo session provisions a dedicated, ephemeral Autentico instance—isolated for your use, with all data and configuration automatically purged after 24 hours. No shared state, no persistence, no surprises._
+
+## Using Autentico?
+
+We'd love to hear from you — what you're protecting, what's working, what's missing.
+[Share your use case in Discussions](https://github.com/eugenioenko/autentico/discussions/113)
 
 ---
 

@@ -12,6 +12,16 @@ build-go:
 # Build admin UI + account UI + Go binary
 build: admin-ui-build account-ui-build
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
+	@echo ""
+	@echo "Build complete. Binary: ./$(APP_NAME)"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  ./$(APP_NAME) init     # generate .env with keys and secrets"
+	@echo "  ./$(APP_NAME) start    # start the server"
+	@echo ""
+	@echo "Using Autentico? We'd love to hear from you."
+	@echo "Share your use case: https://github.com/eugenioenko/autentico/discussions/113"
+	@echo ""
 
 # Run the application
 run:
