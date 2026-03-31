@@ -20,6 +20,9 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 
 ## Cross-Cutting Rules (apply to every phase)
 
+### 0. Read the spec first
+Before touching any code, read every section listed in the phase's "What to check" table in the actual RFC file (`rfc/` directory). Do not rely on the table alone — it was written before the code was fully reviewed and may be incomplete. If a section references other sections, read those too. The goal is to find requirements the table does not yet list, not just to confirm the ones it does. Add missing rows to the table before starting any code work.
+
 ### 1. Inline RFC Comments — responses
 For every code path that returns an API value or error (success responses, error responses, redirects with error params), add an inline comment referencing the exact spec section that mandates the behavior:
 
@@ -28,6 +31,8 @@ For every code path that returns an API value or error (success responses, error
 // RFC 6749 §5.2: invalid_client MUST use 401, all other errors use 400
 // OIDC Core §3.1.3.3: nonce MUST be included in ID token if present in auth request
 ```
+
+Never remove or replace an existing RFC annotation. If the section reference needs correcting, keep the original and add the corrected one alongside it.
 
 ### 2. Inline RFC Comments — request validation
 Same rule for input validation: wherever a parameter is validated or rejected, annotate with the spec clause that requires the check:
@@ -48,8 +53,12 @@ Each phase section includes a small table tracking keyword-level compliance:
 
 This makes the compliance posture explicit and helps prioritise what is a hard requirement vs best-effort.
 
+Before marking any item ✅, read the relevant code and confirm the implementation actually exists. "pending" means not yet implemented — do not change status without verifying the code first.
+
 ### 4. Tests — positive and negative
 For every bug fixed or behavior enforced, add both a positive test (the happy path works) and a negative test (the violation is rejected). This applies to unit tests and e2e tests. A fix with only one polarity is incomplete: a positive-only test doesn't prove the guard works; a negative-only test doesn't prove the feature works.
+
+List both polarities explicitly in the phase's Tests section, even when the positive counterpart is a pre-existing test. Nothing should be left implicit.
 
 ### 5. Security Considerations checklist
 Each RFC has a Security Considerations section. At the end of each phase, review it and add a checklist item for anything actionable. Mark items as implemented, skipped (with reason), or a new bug.
