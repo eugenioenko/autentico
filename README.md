@@ -13,7 +13,7 @@ Identity infrastructure is typically complex to operate: a separate database to 
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
-**Correctness is verified through 800+ tests, RFC-by-RFC compliance audits, official OIDC conformance certification, and full-flow load testing.**
+**Correctness is verified through 800+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
 
 ---
 
@@ -891,7 +891,7 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico treats authentication as a correctness-critical system, not just an application layer. Testing is validated at four levels: automated tests, RFC compliance review, OIDC conformance certification, and load testing.
+Auténtico treats authentication as a correctness-critical system, not just an application layer. Testing is validated at four levels: automated tests, RFC compliance review, OIDC conformance testing, and load testing.
 
 ### Testing Philosophy
 
@@ -953,11 +953,11 @@ The review found and fixed **11 protocol-level bugs**, including:
 
 These were identified *by reading the RFCs line-by-line*, not by observing runtime failures — a class of issues that typical test suites miss. See [`rfc/rfc.md`](rfc/rfc.md) for the full bug inventory, MUST/SHOULD/MAY compliance tables, and per-phase test lists. All protocol-facing code now carries inline comments referencing the exact spec section that mandates the behavior.
 
-### OIDC Conformance Certification
+### OIDC Conformance Testing
 
-Auténtico passes the [OpenID Foundation `oidcc-basic-certification-test-plan`](https://openid.net/certification/) — the standard conformance suite for Basic OpenID Providers. The suite covers the full Authorization Code flow: discovery, authorization, token exchange, token refresh, ID token validation, UserInfo, and session management.
+Auténtico passes the [OpenID Foundation `oidcc-basic-certification-test-plan`](https://openid.net/certification/) — the official conformance test suite for Basic OpenID Providers. The suite covers the full Authorization Code flow: discovery, authorization, token exchange, token refresh, ID token validation, UserInfo, and session management.
 
-Passing this suite validates interoperability with real-world OIDC clients and confirms that Auténtico behaves as a standards-compliant OpenID Provider under strict test conditions. This is the same certification process used by production identity providers.
+Passing this suite validates interoperability with real-world OIDC clients and confirms that Auténtico behaves as a standards-compliant OpenID Provider under strict test conditions. These are the same tests used in the official OIDC certification process.
 
 ```bash
 # Start Auténtico with conformance-compatible settings (HTTP, no rate limiting)
