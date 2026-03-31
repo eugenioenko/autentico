@@ -889,37 +889,42 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico maintains comprehensive test coverage with **821+ test functions** across unit, integration, and end-to-end tests.
+Auténtico's correctness is validated at four levels: automated tests, RFC compliance review, OIDC conformance certification, and load testing.
 
-### Running Tests
+### Automated Tests
 
-```bash
-# Run all tests
-make test
-# Or: go test -p 1 -v ./...
-
-# Run a specific package
-go test ./pkg/token/... -v
-
-# Generate HTML coverage report
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out -o coverage.html
-
-# Run end-to-end tests only
-go test ./tests/e2e/... -v
-```
-
-Tests run with `-p 1` (sequential) because they share a process-level SQLite handle. Unit tests use an in-memory database, making them fast and isolated.
-
-### Test Categories
+**821+ test functions** across unit, integration, and end-to-end tests at **73.4% coverage**.
 
 - **Unit tests** (500+): handler behavior, model validation, service logic, utility functions
 - **Integration tests** (150+): cross-package flows — authorization, token lifecycle, session management, client authentication
 - **End-to-end tests** (75+): full HTTP flows against a real test server instance
 
----
+```bash
+make test                                        # Run all tests
+go test ./pkg/token/... -v                       # Run a specific package
+go test -run TestCreateUser ./pkg/user/... -v    # Run a single test
+go test ./tests/e2e/... -v                       # Run end-to-end tests only
+```
 
-## OIDC Conformance
+Tests run with `-p 1` (sequential) because they share a process-level SQLite handle. Unit tests use an in-memory database, making them fast and isolated.
+
+### RFC Compliance Review
+
+Every protocol-facing code path has been reviewed against the source RFCs in a structured 7-phase audit. Each phase reads the spec, verifies every MUST/SHOULD/MAY requirement against the implementation, annotates the code with inline RFC section references, adds both positive and negative tests, and checks the Security Considerations section.
+
+| Phase | Spec | Status |
+|---|---|---|
+| 1 | RFC 6749 — OAuth 2.0 Core | ✅ Done |
+| 2 | RFC 6750 — Bearer Token Usage | ✅ Done |
+| 3 | RFC 7636 — PKCE | ✅ Done |
+| 4 | RFC 7009 — Token Revocation | ✅ Done |
+| 5 | RFC 7662 — Token Introspection | ✅ Done |
+| 6 | OIDC Core 1.0 | ✅ Done |
+| 7 | OIDC Discovery 1.0 | ✅ Done |
+
+The review found and fixed 11 bugs (see [`rfc/rfc.md`](rfc/rfc.md) for the full bug inventory, MUST/SHOULD/MAY compliance tables, and per-phase test lists). All protocol-facing code now carries inline comments referencing the exact spec section that mandates the behavior.
+
+### OIDC Conformance Certification
 
 Auténtico passes the [OpenID Foundation `oidcc-basic-certification-test-plan`](https://openid.net/certification/) — the standard conformance suite for Basic OpenID Providers. The suite covers the full Authorization Code flow: discovery, authorization, token exchange, token refresh, ID token validation, UserInfo, and session management.
 
@@ -930,6 +935,18 @@ make conformance-server
 # Pull and start the conformance suite at https://localhost:8443
 make conformance-suite
 ```
+
+### Load Testing
+
+Stress tests using [k6](https://k6.io) exercise the full PKCE auth code flow (authorize → login → token exchange → introspect → refresh). See [`stress/README.md`](stress/README.md) for the full methodology, test profiles, and how to reproduce.
+
+| Concurrency | Error rate | Login p95 | Token p95 | Assessment |
+|-------------|------------|-----------|-----------|------------|
+| 20 VUs | 0% | 86ms | 54ms | Comfortable — imperceptible to users |
+| 100 VUs | 0% | 611ms | 647ms | Supported — fully functional |
+| 500 VUs | 0% | 3.36s | 3.89s | Degraded — users feel the wait |
+
+*Measured on a developer laptop, single process, SQLite backend. The bottleneck is bcrypt, not SQLite — real-world traffic is much lighter than all-login load because SSO sessions and refresh tokens eliminate most password checks.*
 
 ---
 
