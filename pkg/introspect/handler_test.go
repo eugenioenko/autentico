@@ -416,6 +416,66 @@ func TestValidateTokenIntrospectRequest_Empty(t *testing.T) {
 	assert.Contains(t, err.Error(), "token is required")
 }
 
+// RFC 7662 §2.2: verify that active token response includes all populated OPTIONAL fields
+func TestHandleIntrospect_ActiveToken_AllFields(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+		userID, "allfieldsuser", "allfields@example.com", "hash")
+	assert.NoError(t, err)
+
+	accessToken, _, err := generateTestTokenAndStore(userID)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Set("token", accessToken)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+
+	// RFC 7662 §2.2: "active" is REQUIRED
+	assert.Equal(t, true, resp["active"])
+	// OPTIONAL fields that our implementation populates
+	assert.NotEmpty(t, resp["scope"], "scope should be populated for active tokens")
+	assert.NotEmpty(t, resp["token_type"], "token_type should be populated")
+	assert.NotEmpty(t, resp["sub"], "sub should be populated")
+	assert.NotEmpty(t, resp["jti"], "jti should be populated")
+	assert.NotNil(t, resp["exp"], "exp should be populated")
+	assert.NotNil(t, resp["iat"], "iat should be populated")
+	assert.NotEmpty(t, resp["iss"], "iss should be populated for active tokens")
+}
+
+// RFC 7662 §2.2: inactive token SHOULD NOT include additional information
+func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("token", "nonexistent-token")
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+
+	assert.Equal(t, false, resp["active"])
+	// RFC 7662 §2.2: SHOULD NOT include extra claims for inactive tokens
+	_, hasSub := resp["sub"]
+	_, hasScope := resp["scope"]
+	assert.False(t, hasSub, "inactive token should not include sub")
+	assert.False(t, hasScope, "inactive token should not include scope")
+}
+
 func TestHandleIntrospect_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
 	

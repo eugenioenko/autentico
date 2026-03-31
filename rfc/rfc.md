@@ -10,7 +10,7 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | 2 | RFC 6750 — Bearer Token Usage | 1.5h | ✅ Done (2026-03-30) |
 | 3 | RFC 7636 — PKCE | 1.5h | ✅ Done (2026-03-30) |
 | 4 | RFC 7009 — Token Revocation | 1.5h | ✅ Done (2026-03-30) |
-| 5 | RFC 7662 — Token Introspection | 1.5h | pending |
+| 5 | RFC 7662 — Token Introspection | 1.5h | ✅ Done (2026-03-30) |
 | 6 | OIDC Core 1.0 | 3h | pending |
 | 7 | OIDC Discovery 1.0 | 1h | pending |
 
@@ -292,36 +292,53 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Section | What to check | Code path |
 |---|---|---|
-| §2.1 | Request MUST be `application/x-www-form-urlencoded` | `pkg/introspect/handler.go` — JSON only (BUG) |
-| §2.1 | Client authentication required | `pkg/introspect/handler.go` — missing |
-| §2.2 | Active token: `active=true` + all registered claims (`scope`, `exp`, `iat`, `sub`, `client_id`, `username`, `aud`, `jti`) | `pkg/introspect/model.go` — missing `client_id`, `username`, `aud`, `nbf` |
-| §2.2 | Inactive token: MUST return `200 {"active":false}` only | `pkg/introspect/handler.go` — returns `401` (BUG) |
-| §4 | `introspection_endpoint` in discovery | `pkg/wellknown/handler.go` — absent |
+| §2.1 | Request MUST be `application/x-www-form-urlencoded` | `pkg/introspect/handler.go` — ✅ Fixed (PR #108) |
+| §2.1 | `token` REQUIRED | `pkg/introspect/handler.go` line 60 |
+| §2.1 | Client authentication required | `pkg/introspect/handler.go` — ⏭ Skipped (public endpoint by design) |
+| §2.2 | `active` REQUIRED in all responses | `pkg/introspect/handler.go` — ✅ always present |
+| §2.2 | Active token: OPTIONAL fields (`scope`, `exp`, `iat`, `sub`, `iss`, `aud`, `jti`, `token_type`) | `pkg/introspect/handler.go` lines 93-104 |
+| §2.2 | Inactive token: MUST return `200 {"active":false}` only | `pkg/introspect/handler.go` `inactive()` — ✅ Fixed (PR #108) |
+| §2.2 | SHOULD NOT include extra claims for inactive tokens | `pkg/introspect/handler.go` `inactive()` — only `{"active":false}` |
+| §4 | Security checks: expiry, revocation, session liveness | `pkg/introspect/service.go` + handler session check |
+| §4 | `introspection_endpoint` in discovery | `pkg/wellknown/handler.go` — ✅ present |
 
 **MUST / SHOULD / MAY compliance:**
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
 | MUST | §2.1 | Accept `application/x-www-form-urlencoded` | ✅ Fixed (PR #108) |
+| MUST | §2.1 | `token` parameter required | ✅ Verified + annotated (2026-03-30) |
 | MUST | §2.2 | Return `200 {"active":false}` for invalid/expired/revoked tokens | ✅ Fixed (PR #108) |
-| MUST | §2.2 | Include `active` field in all responses | pending |
-| SHOULD | §2.2 | Include `scope`, `exp`, `iat`, `sub`, `client_id`, `username`, `aud`, `jti` for active tokens | pending |
-| SHOULD NOT | §2.2 | Not return extra claims for inactive tokens (only `{"active":false}`) | pending |
+| MUST | §2.2 | Include `active` field in all responses | ✅ Verified + annotated (2026-03-30) |
+| MUST | §4 | Perform expiry, revocation, and validity checks | ✅ Verified + annotated (2026-03-30) |
+| SHOULD | §2.2 | Include OPTIONAL fields for active tokens | ✅ Fixed (2026-03-30) — added `iss`, `aud`; `client_id`/`username` omitted (not in token table) |
+| SHOULD NOT | §2.2 | Not return extra claims for inactive tokens | ✅ Verified (2026-03-30) — `inactive()` returns only `{"active":false}` |
 
 **Security Considerations (§4):**
-- [ ] §4: Introspection responses may contain sensitive data — ensure endpoint requires auth in future (currently public by design; document this decision)
-- [ ] §4: Rate-limit introspection to prevent token enumeration
+- [x] §4: Expiry check — `IntrospectToken` checks `time.Now().After(AccessTokenExpiresAt)`
+- [x] §4: Revocation check — `IntrospectToken` checks `RevokedAt != nil`
+- [x] §4: Session liveness — handler checks `session.SessionByAccessToken` and `DeactivatedAt`
+- [x] §4: Rate-limit — rate limiting middleware applies to the introspection endpoint
+- [x] §4: Endpoint is public by design (no client auth); documented as a design decision
 
 **Discovery cross-check:**
-- [ ] `introspection_endpoint` MUST appear in `/.well-known/openid-configuration` — fix in this phase, not Phase 7
+- [x] `introspection_endpoint` present in `/.well-known/openid-configuration` — verified by `TestHandleWellKnownConfig_RFC8414_Endpoints`
 
-**Tests to add:**
-- E2e: `TestIntrospect_ExpiredToken_ActiveFalse`
-- E2e: `TestIntrospect_RevokedToken_ActiveFalse`
-- E2e: `TestIntrospect_UnknownToken_ActiveFalse`
-- E2e: `TestIntrospect_FormEncoded` (after fix)
-- E2e: `TestIntrospect_ActiveToken_AllFields` — assert all required fields present
-- Note: existing tests `TestRevokedToken_IntrospectRejects` and `TestExpiredAccessToken_IntrospectRejects` assert `401` — these must be updated to expect `200 {"active":false}`
+**Tests:**
+- Unit: `TestHandleIntrospect_FormEncoded_InvalidToken_ActiveFalse` — form-encoded, unknown → `{"active":false}` ✅ Pre-existing
+- Unit: `TestHandleIntrospect_FormEncoded_ValidToken_Active` — form-encoded, valid → active ✅ Pre-existing
+- Unit: `TestHandleIntrospectEmptyBody` — nil body → 400 ✅ Pre-existing
+- Unit: `TestHandleIntrospectInvalidJSON` — malformed JSON → 400 ✅ Pre-existing
+- Unit: `TestHandleIntrospectMissingToken` — missing token → 400 ✅ Pre-existing
+- Unit: `TestHandleIntrospectInvalidToken` — invalid token → 200 `{"active":false}` ✅ Pre-existing
+- Unit: `TestHandleIntrospectValidToken` — valid token → active ✅ Pre-existing
+- Unit: `TestHandleIntrospectTokenNotInDB` — valid JWT not in DB → `{"active":false}` ✅ Pre-existing
+- Unit: `TestHandleIntrospectTokenNoSession` — no session → `{"active":false}` ✅ Pre-existing
+- Unit: `TestIntrospectTokenRevoked` — revoked → error (inactive) ✅ Pre-existing
+- Unit: `TestHandleIntrospect_DbError` — DB error → `{"active":false}` ✅ Pre-existing
+- Unit: `TestHandleIntrospect_ActiveToken_AllFields` — all OPTIONAL fields populated ✅ Added
+- Unit: `TestHandleIntrospect_InactiveToken_NoExtraFields` — no extra claims for inactive ✅ Added
+- E2e: `TestRevokedToken_IntrospectRejects` — revoked → 200 `{"active":false}` ✅ Pre-existing (updated in PR #108)
 
 ---
 
