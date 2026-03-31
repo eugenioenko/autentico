@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -81,6 +80,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.3: redirect_uri MUST match a URI registered for the client;
+	// if invalid, do not redirect — render an error page instead to avoid open redirector.
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
 		slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
 		renderError(w, "Redirect URI not allowed for this client")
@@ -150,8 +151,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 							CreatedAt:           session.CreatedAt,
 						}
 						if authcode.CreateAuthCode(ac) == nil {
-							redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
-							http.Redirect(w, r, redirectURL, http.StatusFound)
+							// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
+							redirectParams := url.Values{}
+							redirectParams.Set("code", ac.Code)
+							if request.State != "" {
+								redirectParams.Set("state", request.State)
+							}
+							http.Redirect(w, r, request.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
 							return
 						}
 					}

@@ -46,7 +46,8 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, fmt.Errorf("session has been deactivated")
 	}
 
-	// RFC 6749 §10.4: refresh token must be bound to the client it was issued to
+	// RFC 6749 §10.4: refresh token MUST be bound to the client it was issued to;
+	// presenting a refresh token issued to a different client MUST be rejected.
 	if authToken.ClientID != "" && request.ClientID != "" && authToken.ClientID != request.ClientID {
 		slog.Warn("token: refresh token client mismatch", "token_client", authToken.ClientID, "request_client", request.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token was not issued to this client")

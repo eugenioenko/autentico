@@ -2,11 +2,11 @@
 
 ## Overview
 
-Seven phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests, annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
+Seven phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
-| 1 | RFC 6749 — OAuth 2.0 Core | 2–3h | pending |
+| 1 | RFC 6749 — OAuth 2.0 Core | 2–3h | ✅ Done (2026-03-30) |
 | 2 | RFC 6750 — Bearer Token Usage | 1.5h | pending |
 | 3 | RFC 7636 — PKCE | 1.5h | pending |
 | 4 | RFC 7009 — Token Revocation | 1.5h | pending |
@@ -48,10 +48,13 @@ Each phase section includes a small table tracking keyword-level compliance:
 
 This makes the compliance posture explicit and helps prioritise what is a hard requirement vs best-effort.
 
-### 4. Security Considerations checklist
+### 4. Tests — positive and negative
+For every bug fixed or behavior enforced, add both a positive test (the happy path works) and a negative test (the violation is rejected). This applies to unit tests and e2e tests. A fix with only one polarity is incomplete: a positive-only test doesn't prove the guard works; a negative-only test doesn't prove the feature works.
+
+### 5. Security Considerations checklist
 Each RFC has a Security Considerations section. At the end of each phase, review it and add a checklist item for anything actionable. Mark items as implemented, skipped (with reason), or a new bug.
 
-### 5. Discovery cross-check
+### 6. Discovery cross-check
 At the end of each phase, verify that every endpoint or capability introduced by that spec is correctly advertised in `/.well-known/openid-configuration`. Do not defer discovery gaps to Phase 7 — fix them in the phase that owns the feature.
 
 ---
@@ -95,26 +98,30 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
-| MUST | §4.1.2 | Echo `state` unchanged in auth response | pending |
+| MUST | §4.1.2 | Echo `state` unchanged in auth response | ✅ Fixed (2026-03-30) |
 | MUST | §4.1.2.1 | URL-encode `error_description` in redirect | ✅ Fixed (PR #108) |
-| MUST | §4.1.3 | Validate `redirect_uri` matches registered value | pending |
-| MUST | §5.2 | Use HTTP 400 for all errors except `invalid_client` (401) | pending |
-| MUST NOT | §4.6 | Refresh grant MUST NOT issue scope broader than original | pending |
-| SHOULD | §4.1.4 | Omit `scope` from token response if identical to requested | pending |
-| SHOULD | §10.6 | Revoke all tokens on auth code replay detection | pending |
+| MUST | §4.1.3 | Validate `redirect_uri` matches registered value | ✅ Verified + annotated (2026-03-30) |
+| MUST | §5.2 | Use HTTP 400 for all errors except `invalid_client` (401) | ✅ Verified + annotated (2026-03-30) |
+| MUST NOT | §4.6 | Refresh grant MUST NOT issue scope broader than original | ✅ Fixed (2026-03-30) |
+| SHOULD | §4.1.4 | Omit `scope` from token response if identical to requested | ⏭ Skipped — always including scope is safe and aids client transparency |
+| SHOULD | §10.6 | Revoke all tokens on auth code replay detection | ✅ Verified + annotated (2026-03-30) |
 
 **Security Considerations (§10):**
-- [ ] §10.3: Auth codes MUST be single-use and short-lived — verify `auth_codes` table enforces single-use flag
-- [ ] §10.6: Auth code interception — PKCE mitigates; ensure PKCE is enforced for public clients
-- [ ] §10.12: CSRF on redirect — `state` parameter enforced by client; server must echo it unchanged
+- [x] §10.3: Auth codes MUST be single-use and short-lived — `auth_codes.used` flag enforced, expiry validated in `authorization_code.go`
+- [x] §10.6: Auth code interception — PKCE mitigates; `RevokeTokensByUserAndClient` called on replay; note PKCE is not yet enforced for all public clients (covered in Phase 3)
+- [x] §10.12: CSRF on redirect — `state` is now URL-encoded and echoed unchanged via `url.Values` in both `login/handler.go` and `authorize/handler.go` SSO path
 
 **Discovery cross-check:** RFC 6749 does not define a discovery document — no action needed.
 
-**Tests to add:**
-- Unit: `error_description` with spaces/special chars is URL-encoded in redirect
-- Unit: `scope` present in token response for `refresh_token` grant
-- Unit: `refresh_token` grant rejects scope expansion
-- E2e: `TestAuthorizationCodeFlow_ScopeDownscope`
+**Tests:**
+- Unit: `error_description` URL-encoding — covered by `redirectWithError` using `url.Values` (no separate test needed; existing redirect tests exercise this path)
+- Unit: `scope` present in token response for `refresh_token` grant — `TestHandleToken_RefreshTokenGrant_ScopeInResponse` (pre-existing)
+- Unit: `TestHandleToken_RefreshTokenGrant_ScopeExpansion_Rejected` ✅ Added
+- Unit: `TestHandleToken_RefreshTokenGrant_ScopeDownscope` ✅ Added
+- Unit: `TestIsScopeSubset` ✅ Added
+- E2e: `TestAuthorizationCodeFlow_StateWithSpecialChars` ✅ Added — verifies state with `=`, `&`, `+` is preserved exactly (exercises URL-encoding fix)
+- E2e: `TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected` ✅ Added — negative test
+- E2e: `TestAuthorizationCodeFlow_ScopeDownscope` ✅ Added — positive test
 
 ---
 

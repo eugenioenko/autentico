@@ -557,3 +557,161 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, loginResp2.StatusCode, "missing CSRF token should be rejected with 403")
 }
+
+// TestAuthorizationCodeFlow_StateWithSpecialChars verifies that a state value containing
+// URL-special characters (=, &, +, spaces) is preserved byte-for-byte in the auth response
+// per RFC 6749 §4.1.2. This exercises the url.Values encoding fix in login/handler.go.
+func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+	// state with characters that would corrupt an unencoded fmt.Sprintf redirect
+	specialState := "tok=abc&foo=bar+baz"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"client_id":     {"test-client"},
+		"redirect_uri":  {redirectURI},
+		"state":         {specialState},
+	}.Encode()
+
+	resp, err := ts.Client.Get(authorizeURL)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	csrfToken := getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	form := url.Values{}
+	form.Set("username", "user@test.com")
+	form.Set("password", "password123")
+	form.Set("redirect_uri", redirectURI)
+	form.Set("state", specialState)
+	form.Set("client_id", "test-client")
+	form.Set("gorilla.csrf.Token", csrfToken)
+
+	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+
+	loginResp, err := ts.Client.Do(loginReq)
+	require.NoError(t, err)
+	defer func() { _ = loginResp.Body.Close() }()
+	require.Equal(t, http.StatusFound, loginResp.StatusCode)
+
+	location := loginResp.Header.Get("Location")
+	redirectURL, err := url.Parse(location)
+	require.NoError(t, err)
+
+	// RFC 6749 §4.1.2: state MUST be echoed unchanged, including special characters
+	assert.Equal(t, specialState, redirectURL.Query().Get("state"), "state with special chars must be preserved exactly")
+	assert.NotEmpty(t, redirectURL.Query().Get("code"))
+}
+
+// TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected verifies that a refresh
+// request asking for scope beyond the original grant is rejected per RFC 6749 §6.
+func TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Obtain tokens with a limited scope
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state1", "openid", "")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	require.NotEmpty(t, tokens.RefreshToken)
+
+	// Refresh and request a broader scope — must be rejected
+	refreshForm := url.Values{}
+	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("refresh_token", tokens.RefreshToken)
+	refreshForm.Set("scope", "openid profile email") // more than "openid"
+
+	refreshResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
+	require.NoError(t, err)
+	defer func() { _ = refreshResp.Body.Close() }()
+
+	refreshBody, err := io.ReadAll(refreshResp.Body)
+	require.NoError(t, err)
+	// RFC 6749 §6: scope expansion MUST be rejected
+	assert.Equal(t, http.StatusBadRequest, refreshResp.StatusCode, "scope expansion on refresh must be rejected: %s", string(refreshBody))
+	var errResp map[string]interface{}
+	_ = json.Unmarshal(refreshBody, &errResp)
+	assert.Equal(t, "invalid_scope", errResp["error"])
+}
+
+// TestAuthorizationCodeFlow_ScopeDownscope verifies that a refresh request can
+// narrow the scope of the original grant per RFC 6749 §6.
+func TestAuthorizationCodeFlow_ScopeDownscope(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Obtain tokens with a broad scope via authorization code flow
+	code := performAuthorizationCodeFlowWithScope(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state1", "openid profile", "")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "token exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	require.NotEmpty(t, tokens.RefreshToken)
+	assert.Contains(t, tokens.Scope, "profile", "original grant should include profile scope")
+
+	// Refresh with a narrower scope — must succeed
+	refreshForm := url.Values{}
+	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("refresh_token", tokens.RefreshToken)
+	refreshForm.Set("scope", "openid") // subset of "openid profile"
+
+	refreshResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
+	require.NoError(t, err)
+	defer func() { _ = refreshResp.Body.Close() }()
+
+	refreshBody, err := io.ReadAll(refreshResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, refreshResp.StatusCode, "scope downscope on refresh must succeed: %s", string(refreshBody))
+
+	var newTokens token.TokenResponse
+	err = json.Unmarshal(refreshBody, &newTokens)
+	require.NoError(t, err)
+	// RFC 6749 §6: returned scope MUST reflect the downscoped request
+	assert.Equal(t, "openid", newTokens.Scope, "downscoped refresh must return the requested subset scope")
+	assert.NotEmpty(t, newTokens.AccessToken)
+}
