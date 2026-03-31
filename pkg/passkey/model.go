@@ -1,6 +1,9 @@
 package passkey
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -62,6 +65,16 @@ func (u WebAuthnUser) WebAuthnID() []byte                         { return u.ID 
 func (u WebAuthnUser) WebAuthnName() string                       { return u.Name }
 func (u WebAuthnUser) WebAuthnDisplayName() string                { return u.Name }
 func (u WebAuthnUser) WebAuthnCredentials() []webauthn.Credential { return u.Credentials }
+
+// GeneratePasskeyName returns a default name like "Passkey a3f2".
+func GeneratePasskeyName() string {
+	b := make([]byte, 2)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "Passkey"
+	}
+	return fmt.Sprintf("Passkey %s", hex.EncodeToString(b))
+}
 
 // NewWebAuthn creates a WebAuthn instance from the current config.
 func NewWebAuthn() (*webauthn.WebAuthn, error) {
