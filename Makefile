@@ -20,7 +20,7 @@ build: admin-ui-build account-ui-build
 	@echo "  ./$(APP_NAME) start    # start the server"
 	@echo ""
 	@echo "Using Autentico? We'd love to hear from you."
-	@echo "Open an issue and tell us your use case: https://github.com/eugenioenko/autentico/issues"
+	@echo "Share your use case: https://github.com/eugenioenko/autentico/discussions/113"
 	@echo ""
 
 # Run the application
