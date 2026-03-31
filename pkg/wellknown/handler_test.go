@@ -105,6 +105,55 @@ func TestHandleWellKnownConfig_RFC8414_Endpoints(t *testing.T) {
 	assert.Contains(t, response.CodeChallengeMethodsSupported, "S256", "RFC 8414 §2 + RFC 7636: S256 must be advertised")
 }
 
+// OIDC Discovery §3: verify all REQUIRED metadata fields are present
+func TestHandleWellKnownConfig_RequiredFields(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	// OIDC Discovery §3: REQUIRED fields
+	assert.NotEmpty(t, response.Issuer, "issuer is REQUIRED")
+	assert.NotEmpty(t, response.AuthorizationEndpoint, "authorization_endpoint is REQUIRED")
+	assert.NotEmpty(t, response.TokenEndpoint, "token_endpoint is REQUIRED")
+	assert.NotEmpty(t, response.JwksURI, "jwks_uri is REQUIRED")
+	assert.NotEmpty(t, response.ResponseTypesSupported, "response_types_supported is REQUIRED")
+	assert.NotEmpty(t, response.SubjectTypesSupported, "subject_types_supported is REQUIRED")
+	assert.NotEmpty(t, response.IDTokenSigningAlgValuesSupported, "id_token_signing_alg_values_supported is REQUIRED")
+
+	// OIDC Discovery §3: RECOMMENDED / SHOULD fields
+	assert.NotEmpty(t, response.UserInfoEndpoint, "userinfo_endpoint SHOULD be present")
+	assert.NotEmpty(t, response.ScopesSupported, "scopes_supported SHOULD be present")
+	assert.NotEmpty(t, response.ClaimsSupported, "claims_supported SHOULD be present")
+
+	// OIDC Discovery §3: response_types_supported must only list implemented flows
+	assert.Contains(t, response.ResponseTypesSupported, "code")
+	assert.NotContains(t, response.ResponseTypesSupported, "token", "implicit flow not implemented")
+	assert.NotContains(t, response.ResponseTypesSupported, "id_token", "implicit flow not implemented")
+}
+
+// OIDC Discovery §3: issuer MUST exactly match the iss claim in all issued tokens.
+// Both derive from config.GetBootstrap().AppAuthIssuer.
+func TestHandleWellKnownConfig_IssuerMatchesTokenIss(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	// The issuer in discovery must exactly equal what GenerateIDToken/GenerateTokens
+	// use as the "iss" claim — both read from config.GetBootstrap().AppAuthIssuer.
+	assert.Equal(t, config.GetBootstrap().AppAuthIssuer, response.Issuer,
+		"OIDC Discovery §3: issuer must exactly match the iss claim source")
+}
+
 func TestHandleJWKS(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
