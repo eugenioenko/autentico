@@ -390,8 +390,8 @@ func TestHandleUserInfo_FullProfile(t *testing.T) {
 	assert.NotContains(t, body, "Main St")
 }
 
-// Issue #5: all standard profile claims must be present (even as null) when profile scope is requested
-func TestHandleUserInfo_ProfileScope_NullClaimsPresent(t *testing.T) {
+// OIDC Core §5.1: empty profile claims should be omitted, not returned as null.
+func TestHandleUserInfo_ProfileScope_EmptyClaimsOmitted(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -410,15 +410,20 @@ func TestHandleUserInfo_ProfileScope_NullClaimsPresent(t *testing.T) {
 	var body map[string]interface{}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
-	// All standard OIDC profile claims must be present (may be null, but the key must exist)
-	for _, claim := range []string{"given_name", "family_name", "middle_name", "nickname", "website", "gender", "birthdate", "profile", "picture", "locale", "zoneinfo", "updated_at"} {
+	// Claims that always have a value must be present
+	assert.NotEmpty(t, body["name"], "name must be present (falls back to username)")
+	assert.NotEmpty(t, body["preferred_username"])
+	assert.NotNil(t, body["updated_at"])
+
+	// Empty optional claims must be omitted, not null
+	for _, claim := range []string{"given_name", "family_name", "middle_name", "nickname", "website", "gender", "birthdate", "profile", "picture", "locale", "zoneinfo"} {
 		_, exists := body[claim]
-		assert.True(t, exists, "claim %q must be present in profile scope response", claim)
+		assert.False(t, exists, "empty claim %q must be omitted from response", claim)
 	}
 }
 
-// Issue #7: address claim must be present as null when address scope requested but user has no address data
-func TestHandleUserInfo_AddressScope_NullWhenEmpty(t *testing.T) {
+// OIDC Core §5.1: address claim should be omitted when user has no address data
+func TestHandleUserInfo_AddressScope_OmittedWhenEmpty(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -437,12 +442,11 @@ func TestHandleUserInfo_AddressScope_NullWhenEmpty(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
 	_, exists := body["address"]
-	assert.True(t, exists, "address claim must be present even when user has no address data")
-	assert.Nil(t, body["address"], "address must be null when user has no address data")
+	assert.False(t, exists, "address claim must be omitted when user has no address data")
 }
 
-// Issue #7: phone_number must be present as null when phone scope requested but user has no phone
-func TestHandleUserInfo_PhoneScope_NullWhenEmpty(t *testing.T) {
+// OIDC Core §5.1: phone_number should be omitted when user has no phone
+func TestHandleUserInfo_PhoneScope_OmittedWhenEmpty(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -461,8 +465,7 @@ func TestHandleUserInfo_PhoneScope_NullWhenEmpty(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
 	_, exists := body["phone_number"]
-	assert.True(t, exists, "phone_number must be present even when user has no phone")
-	assert.Nil(t, body["phone_number"], "phone_number must be null when user has no phone")
+	assert.False(t, exists, "phone_number must be omitted when user has no phone")
 }
 
 // Issue #8: phone_number_verified must always be emitted when phone scope is present
@@ -561,4 +564,45 @@ func TestUserInfo_WWWAuthenticate_InvalidToken(t *testing.T) {
 	assert.NotEmpty(t, wwwAuth, "RFC 6750 §3: WWW-Authenticate header MUST be present on 401")
 	assert.Contains(t, wwwAuth, "Bearer")
 	assert.Contains(t, wwwAuth, "error=")
+}
+
+// TestHandleUserInfo_DualCredentials_Rejected verifies RFC 6750 §2.2:
+// a request using more than one method to pass the token MUST be rejected.
+func TestHandleUserInfo_DualCredentials_Rejected(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'dualuser', 'dual@example.com', 'pass')`, userID)
+	token, _ := generateTestTokensWithScope(userID, "openid profile email")
+
+	// Send the token in both the Authorization header AND the POST body
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/userinfo", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.PostForm = map[string][]string{"access_token": {token}}
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	// RFC 6750 §2.2: MUST NOT use more than one method — must be rejected with 400
+	assert.Equal(t, http.StatusBadRequest, rr.Code, "dual credentials must be rejected with 400")
+	assert.Contains(t, rr.Body.String(), "invalid_request")
+}
+
+// TestHandleUserInfo_CaseInsensitiveBearer verifies RFC 6750 §2.1 / RFC 7235:
+// the Bearer scheme name is case-insensitive, so lowercase "bearer" must be accepted.
+func TestHandleUserInfo_CaseInsensitiveBearer(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'beareruser', 'bearer@example.com', 'pass')`, userID)
+	token, _ := generateTestTokensWithScope(userID, "openid profile email")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "bearer "+token) // lowercase
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "lowercase 'bearer' scheme must be accepted")
 }

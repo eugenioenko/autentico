@@ -83,3 +83,65 @@ func TestHandleRevoke(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt)
 }
+
+// RFC 7009 §2.1: token_type_hint is OPTIONAL; the server MAY ignore it.
+// §2.2: an invalid token_type_hint value is ignored and does not influence the response.
+func TestHandleRevoke_TokenTypeHint_Accepted(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body := map[string]string{
+		"token":           "nonexistent-token",
+		"token_type_hint": "refresh_token",
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.1: token_type_hint must be accepted without error")
+}
+
+// RFC 7009 §2.2: invalid token_type_hint is ignored
+func TestHandleRevoke_InvalidTokenTypeHint_Ignored(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body := map[string]string{
+		"token":           "nonexistent-token",
+		"token_type_hint": "totally_invalid_hint",
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: invalid hint must be ignored, still return 200")
+}
+
+// RFC 7009 §2.2: revoking a refresh token SHOULD also invalidate the access token
+// on the same authorization grant. Our schema stores both on the same row.
+func TestHandleRevoke_RefreshToken_AlsoRevokesAccess(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
+		VALUES ('revoke-refresh-id', 'revoke-refresh-client', 'Revoke Refresh Client', 'public', '[]', '["password","refresh_token"]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	body := map[string]string{
+		"grant_type": "password",
+		"client_id":  "revoke-refresh-client",
+		"username":   testEmail,
+		"password":   testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+
+	var tkn token.TokenResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &tkn)
+	assert.NotEmpty(t, tkn.RefreshToken)
+	assert.NotEmpty(t, tkn.AccessToken)
+
+	// Revoke by refresh_token
+	body = map[string]string{"token": tkn.RefreshToken}
+	res = testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+	assert.Equal(t, http.StatusOK, res.Code)
+
+	// Both tokens on the same row should now be revoked
+	var revokedAt string
+	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, revokedAt, "RFC 7009 §2.2: revoking refresh_token must also revoke the access_token")
+}

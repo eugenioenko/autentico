@@ -16,15 +16,19 @@ import (
 // with an admin role. Used to protect admin-only endpoints.
 func AdminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		realm := config.GetBootstrap().AppAuthIssuer
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Missing Authorization header")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "", "")
 			return
 		}
 
+		// RFC 6750 §2.1 / RFC 7235: scheme name is case-insensitive
 		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid Authorization header format")
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_request", "Invalid Authorization header format")
 			return
 		}
 
@@ -32,7 +36,8 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		claims, err := jwtutil.ValidateAccessToken(tokenString)
 		if err != nil {
 			slog.Warn("admin_auth: invalid or expired token", "error", err, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid or expired token")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
 			return
 		}
 
@@ -46,7 +51,8 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		usr, err := user.UserByID(claims.UserID)
 		if err != nil {
 			slog.Warn("admin_auth: user not found", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "User not found")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "User not found")
 			return
 		}
 
@@ -60,7 +66,8 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		sess, err := session.SessionByAccessToken(tokenString)
 		if err != nil || sess == nil || sess.DeactivatedAt != nil {
 			slog.Warn("admin_auth: deactivated session", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Session has been deactivated")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
 			return
 		}
 

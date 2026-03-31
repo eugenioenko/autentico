@@ -20,26 +20,31 @@ import (
 // @Router /.well-known/openid-configuration [get]
 func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 	bs := config.GetBootstrap()
+	// OIDC Discovery §3: issuer MUST exactly match the iss claim in issued tokens.
 	issuer := bs.AppAuthIssuer
 	response := model.WellKnownConfigResponse{
+		// OIDC Discovery §3: REQUIRED fields
 		Issuer:                issuer,
 		AuthorizationEndpoint: fmt.Sprintf("%s/authorize", issuer),
 		TokenEndpoint:         fmt.Sprintf("%s/token", issuer),
-		UserInfoEndpoint:      fmt.Sprintf("%s/userinfo", issuer),
-		RegistrationEndpoint:  fmt.Sprintf("%s/register", issuer),
-		EndSessionEndpoint:    fmt.Sprintf("%s/logout", issuer),
 		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppAuthIssuer),
-		// Only "code" is implemented; implicit flow variants are not supported.
-		// OIDC Discovery §3: advertise only what the OP actually supports.
+		// OIDC Discovery §3: REQUIRED — only "code" is implemented; implicit flow
+		// variants are not supported, so only advertise what the OP actually supports.
 		ResponseTypesSupported: []string{
 			"code",
 		},
+		// OIDC Discovery §3: REQUIRED
 		SubjectTypesSupported: []string{
 			"public",
 		},
+		// OIDC Discovery §3: REQUIRED
 		IDTokenSigningAlgValuesSupported: []string{
 			"RS256",
 		},
+		// OIDC Discovery §3: RECOMMENDED / SHOULD fields
+		UserInfoEndpoint:     fmt.Sprintf("%s/userinfo", issuer),
+		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer),
+		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),
 		ScopesSupported: []string{
 			"openid", "profile", "email", "address", "phone", "offline_access",
 		},
@@ -57,11 +62,11 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		},
 		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password"},
 		AcrValuesSupported:        []string{"1"},
-		RequestParameterSupported: false,
-		// RFC 8414 §2
+		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
+		// RFC 8414 §2 / OIDC Discovery §3: additional endpoint metadata
 		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),
 		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),
-		CodeChallengeMethodsSupported: []string{"S256"},
+		CodeChallengeMethodsSupported: []string{"S256"}, // RFC 7636 §6.2
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

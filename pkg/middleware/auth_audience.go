@@ -13,21 +13,26 @@ import (
 // AuthAudienceMiddleware checks that the JWT token has the correct audience (aud claim)
 func AuthAudienceMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		realm := config.GetBootstrap().AppAuthIssuer
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Missing Authorization header")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "", "")
 			return
 		}
+		// RFC 6750 §2.1 / RFC 7235: scheme name is case-insensitive
 		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid Authorization header format")
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_request", "Invalid Authorization header format")
 			return
 		}
 		tokenString := parts[1]
 		claims, err := jwtutil.ValidateAccessToken(tokenString)
 		if err != nil {
 			slog.Warn("auth_audience: invalid or expired token", "request_id", GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Invalid or expired token")
+			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
 			return
 		}
 		if err := jwtutil.ValidateAudience(claims.Audience, config.Get().AuthAccessTokenAudience); err != nil {

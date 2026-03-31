@@ -240,8 +240,13 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, code.Code, request.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
+	params := url.Values{}
+	params.Set("code", code.Code)
+	if request.State != "" {
+		params.Set("state", request.State)
+	}
+	http.Redirect(w, r, request.RedirectURI+"?"+params.Encode(), http.StatusFound)
 }
 
 // redirectToLogin redirects back to the authorize endpoint with an error message,

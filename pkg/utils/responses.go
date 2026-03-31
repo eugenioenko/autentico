@@ -43,6 +43,9 @@ func WriteApiResponse(w http.ResponseWriter, data any, statusCode int) {
 	}
 }
 
+// WriteErrorResponse writes an OAuth2 error response.
+// RFC 6749 §5.2: error responses MUST include "error" and MAY include "error_description".
+// HTTP status MUST be 400 for all error codes except invalid_client, which MUST use 401.
 func WriteErrorResponse(w http.ResponseWriter, statusCode int, errorType, errorDescription string) {
 	WriteApiResponse(w, model.AuthErrorResponse{
 		Error:            errorType,

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -48,6 +49,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
 			return
 		}
+		// RFC 7662 §2.1: "token" parameter is REQUIRED
 		req.Token = r.FormValue("token")
 	} else {
 		if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -56,6 +58,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// RFC 7662 §2.1: "token" is REQUIRED
 	if req.Token == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
 		return
@@ -67,7 +70,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Per RFC 7662 §2.2: any token that is invalid, expired, revoked, or unknown
+	// RFC 7662 §2.2: any token that is invalid, expired, revoked, or unknown
 	// MUST return 200 {"active":false} — never a 4xx error.
 	tkn, err := IntrospectToken(req.Token)
 	if err != nil {
@@ -76,6 +79,8 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7662 §4: check session liveness — deactivated sessions mean the token
+	// should no longer be considered active.
 	sess, err := session.SessionByAccessToken(tkn.AccessToken)
 	if err != nil || sess == nil || sess.DeactivatedAt != nil {
 		slog.Info("introspect: session not active", "request_id", middleware.GetRequestID(r.Context()))
@@ -83,6 +88,9 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
+	// Note: client_id and username are not stored in the tokens table — omitted per spec allowance.
+	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")
 	introspect := IntrospectResponse{
 		Active:    true,
 		Scope:     tkn.Scope,
@@ -90,6 +98,8 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		Exp:       tkn.AccessTokenExpiresAt.Unix(),
 		Iat:       tkn.IssuedAt.Unix(),
 		Sub:       tkn.UserID,
+		Iss:       config.GetBootstrap().AppAuthIssuer,
+		Aud:       aud,
 		Jti:       tkn.ID,
 	}
 

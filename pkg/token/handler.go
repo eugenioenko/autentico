@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -79,6 +80,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	authenticatedClient, err = client.AuthenticateClientFromRequest(r)
 	if err != nil {
 		slog.Warn("token: invalid client credentials", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		// RFC 6749 §5.2: invalid_client MUST use HTTP 401; all other errors use HTTP 400
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
 		return
 	}
@@ -125,6 +127,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			slog.Warn("token: invalid ROPC credentials", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+			// RFC 6749 §4.3.2: invalid credentials in ROPC MUST return invalid_grant (not invalid_client)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
@@ -150,11 +153,27 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// RFC 6749 §5.1: scope must be included in the response when it may differ
-		// from what the client originally requested. Look up the scope stored with
-		// the original token so the refresh response reflects the granted scope.
+		// from what the client originally requested. Look up the scope and issued_at
+		// stored with the original token.
 		var tokenScope string
-		_ = db.GetDB().QueryRow(`SELECT scope FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope)
-		codeScope = tokenScope
+		var tokenIssuedAt time.Time
+		_ = db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt)
+		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
+		// authentication time, not the refresh time.
+		if !tokenIssuedAt.IsZero() {
+			codeAuthTime = tokenIssuedAt
+		}
+		// RFC 6749 §6: if scope is present on a refresh request, it MUST NOT exceed the original grant;
+		// a subset is allowed (downscoping). If absent, the original scope is reused unchanged.
+		if request.Scope != "" {
+			if !isScopeSubset(request.Scope, tokenScope) {
+				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "Requested scope exceeds the scope of the original grant")
+				return
+			}
+			codeScope = request.Scope
+		} else {
+			codeScope = tokenScope
+		}
 	default:
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "The provided grant type is not supported")
 		return
@@ -221,7 +240,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		Scope:        codeScope,
 	}
 
-	// Generate ID token when "openid" scope is requested
+	// OIDC Core §3.1.2.1: ID token is only issued when the "openid" scope is present.
+	// Without "openid", this is a plain OAuth 2.0 request — no ID token is returned.
 	if containsScope(codeScope, "openid") {
 		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID, codeAuthTime)
 		if idErr != nil {
@@ -243,4 +263,19 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	utils.WriteApiResponse(w, response, http.StatusOK)
 
+}
+
+// isScopeSubset reports whether every scope token in requested is present in original.
+// RFC 6749 §6: a refresh request MUST NOT ask for scope broader than the original grant.
+func isScopeSubset(requested, original string) bool {
+	orig := make(map[string]bool)
+	for _, s := range strings.Fields(original) {
+		orig[s] = true
+	}
+	for _, s := range strings.Fields(requested) {
+		if !orig[s] {
+			return false
+		}
+	}
+	return true
 }

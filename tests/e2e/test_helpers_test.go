@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -315,6 +316,19 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	require.Equal(t, state, returnedState, "state parameter should be preserved")
 
 	return code
+}
+
+// decodeJWTPayload decodes the payload (second segment) of a JWT without verifying the signature.
+// Useful in e2e tests where we trust the server and just want to inspect claims.
+func decodeJWTPayload(t *testing.T, jwtStr string) map[string]interface{} {
+	t.Helper()
+	parts := strings.SplitN(jwtStr, ".", 3)
+	require.Len(t, parts, 3, "JWT must have 3 parts")
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	require.NoError(t, err, "failed to base64-decode JWT payload")
+	var claims map[string]interface{}
+	require.NoError(t, json.Unmarshal(payload, &claims), "failed to unmarshal JWT claims")
+	return claims
 }
 
 // createTestClient creates an OAuth2 client via the admin API endpoint.

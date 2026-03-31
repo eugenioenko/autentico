@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -81,6 +80,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.3: redirect_uri MUST match a URI registered for the client;
+	// if invalid, do not redirect — render an error page instead to avoid open redirector.
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
 		slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
 		renderError(w, "Redirect URI not allowed for this client")
@@ -100,7 +101,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
+	// RFC 7636 §7.2: "plain" SHOULD NOT be used; §4.2: S256 is MTI on the server
 	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
 		return
@@ -119,11 +120,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check for valid IdP session (auto-login)
-	// prompt=login requires fresh authentication — skip SSO auto-login
+	// OIDC Core §3.1.2.1: prompt=login requires fresh authentication — skip SSO auto-login
+	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
 	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
 	maxAgeSecs := parseMaxAge(request.MaxAge)
-	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" {
+	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" && request.Prompt != "consent" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)
@@ -150,8 +152,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 							CreatedAt:           session.CreatedAt,
 						}
 						if authcode.CreateAuthCode(ac) == nil {
-							redirectURL := fmt.Sprintf("%s?code=%s&state=%s", request.RedirectURI, ac.Code, request.State)
-							http.Redirect(w, r, redirectURL, http.StatusFound)
+							// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
+							redirectParams := url.Values{}
+							redirectParams.Set("code", ac.Code)
+							if request.State != "" {
+								redirectParams.Set("state", request.State)
+							}
+							http.Redirect(w, r, request.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
 							return
 						}
 					}
