@@ -414,7 +414,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	pCred := PasskeyCredential{
 		ID:         credentialID,
 		UserID:     usr.ID,
-		Name:       "",
+		Name:       GeneratePasskeyName(),
 		Credential: string(credJSON),
 	}
 	if err := CreatePasskeyCredential(pCred); err != nil {

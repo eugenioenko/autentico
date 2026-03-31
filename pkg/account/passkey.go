@@ -226,7 +226,7 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	pCred := passkey.PasskeyCredential{
 		ID:         credentialID,
 		UserID:     usr.ID,
-		Name:       "",
+		Name:       passkey.GeneratePasskeyName(),
 		Credential: string(credJSON),
 	}
 	if err := passkey.CreatePasskeyCredential(pCred); err != nil {
