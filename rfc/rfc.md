@@ -7,7 +7,7 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
 | 1 | RFC 6749 — OAuth 2.0 Core | 2–3h | ✅ Done (2026-03-30) |
-| 2 | RFC 6750 — Bearer Token Usage | 1.5h | pending |
+| 2 | RFC 6750 — Bearer Token Usage | 1.5h | ✅ Done (2026-03-30) |
 | 3 | RFC 7636 — PKCE | 1.5h | pending |
 | 4 | RFC 7009 — Token Revocation | 1.5h | pending |
 | 5 | RFC 7662 — Token Introspection | 1.5h | pending |
@@ -140,22 +140,29 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
-| MUST | §3.1 | Set `WWW-Authenticate` header on 401 | ✅ Fixed (PR #108) |
-| MUST NOT | §2.2 | Reject requests with token in both header and body | pending |
-| SHOULD | §2.1 | Accept `Bearer` prefix case-insensitively | pending |
-| SHOULD | §2.2 | Support form-encoded `access_token` on POST endpoints | pending |
+| MUST | §3.1 | Set `WWW-Authenticate` header on 401 | ✅ Fixed (PR #108); extended to `admin_auth` and `auth_audience` middleware (2026-03-30) |
+| MUST NOT | §2.2 | Reject requests with token in both header and body | ✅ Fixed (2026-03-30) |
+| SHOULD | §2.1 | Accept `Bearer` prefix case-insensitively | ✅ Fixed (2026-03-30) |
+| SHOULD | §2.2 | Support form-encoded `access_token` on POST endpoints | ✅ Verified — already implemented in `userinfo/handler.go` |
 
 **Security Considerations (§5):**
-- [ ] §5.3: Token in URI query string — verify no endpoint accepts `access_token` as query param (not recommended by spec)
-- [ ] §5.1: Always use TLS — enforced at infrastructure level; note in code that secure cookie flags depend on `AUTENTICO_CSRF_SECURE_COOKIE`
+- [x] §5.3: No endpoint accepts `access_token` as a URI query parameter — verified; `TestUserInfo_QueryParamToken_NotAccepted` confirms 401 for query-param attempts
+- [x] §5.1: TLS enforced at infrastructure level; secure cookie flags gated on `AUTENTICO_CSRF_SECURE_COOKIE` / `AUTENTICO_REFRESH_TOKEN_SECURE`
 
 **Discovery cross-check:** RFC 6750 does not add discovery fields — no action needed.
 
-**Tests to add:**
-- E2e: `TestUserInfo_WWWAuthenticateHeader` — assert header on 401
-- E2e: `TestUserInfo_FormBodyToken` — POST with `access_token` in form body
-- E2e: `TestUserInfo_DualCredentials_Rejected` — header + body token simultaneously
-- Unit: `ExtractBearerToken` with case variations
+**Tests:**
+- Unit: `TestExtractBearerToken_CaseInsensitive` ✅ Added — positive (lowercase, uppercase, mixed) and negative (wrong scheme)
+- Unit: `TestHandleUserInfo_DualCredentials_Rejected` ✅ Added — negative
+- Unit: `TestHandleUserInfo_CaseInsensitiveBearer` ✅ Added — positive
+- Unit: `TestAdminAuthMiddleware_WWWAuthenticate_On401` ✅ Added — negative (missing, invalid format, invalid token)
+- Unit: `TestAdminAuthMiddleware_CaseInsensitiveBearer` ✅ Added — positive
+- Unit: `TestAuthAudienceMiddleware_WWWAuthenticate_On401` ✅ Added — negative
+- Unit: `TestAuthAudienceMiddleware_CaseInsensitiveBearer` ✅ Added — positive
+- E2e: `TestUserInfo_WWWAuthenticateHeader` ✅ Added — negative (no token, invalid token)
+- E2e: `TestUserInfo_FormBodyToken` ✅ Added — positive
+- E2e: `TestUserInfo_DualCredentials_Rejected` ✅ Added — negative
+- E2e: `TestUserInfo_QueryParamToken_NotAccepted` ✅ Added — negative (§5.3 guard)
 
 ---
 

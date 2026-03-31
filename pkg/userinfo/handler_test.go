@@ -562,3 +562,44 @@ func TestUserInfo_WWWAuthenticate_InvalidToken(t *testing.T) {
 	assert.Contains(t, wwwAuth, "Bearer")
 	assert.Contains(t, wwwAuth, "error=")
 }
+
+// TestHandleUserInfo_DualCredentials_Rejected verifies RFC 6750 §2.2:
+// a request using more than one method to pass the token MUST be rejected.
+func TestHandleUserInfo_DualCredentials_Rejected(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'dualuser', 'dual@example.com', 'pass')`, userID)
+	token, _ := generateTestTokensWithScope(userID, "openid profile email")
+
+	// Send the token in both the Authorization header AND the POST body
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/userinfo", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.PostForm = map[string][]string{"access_token": {token}}
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	// RFC 6750 §2.2: MUST NOT use more than one method — must be rejected with 400
+	assert.Equal(t, http.StatusBadRequest, rr.Code, "dual credentials must be rejected with 400")
+	assert.Contains(t, rr.Body.String(), "invalid_request")
+}
+
+// TestHandleUserInfo_CaseInsensitiveBearer verifies RFC 6750 §2.1 / RFC 7235:
+// the Bearer scheme name is case-insensitive, so lowercase "bearer" must be accepted.
+func TestHandleUserInfo_CaseInsensitiveBearer(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'beareruser', 'bearer@example.com', 'pass')`, userID)
+	token, _ := generateTestTokensWithScope(userID, "openid profile email")
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "bearer "+token) // lowercase
+	rr := httptest.NewRecorder()
+
+	HandleUserInfo(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "lowercase 'bearer' scheme must be accepted")
+}

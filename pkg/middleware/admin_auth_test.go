@@ -52,8 +52,9 @@ func TestAdminAuthMiddlewareMissingAuth(t *testing.T) {
 
 	wrapped.ServeHTTP(rr, req)
 
+	// RFC 6750 §3.1: 401 MUST be returned; body text not specified for missing-credentials case
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Missing Authorization header")
+	assert.NotEmpty(t, rr.Header().Get("WWW-Authenticate"), "WWW-Authenticate must be present")
 }
 
 func TestAdminAuthMiddlewareInvalidFormat(t *testing.T) {
@@ -288,6 +289,72 @@ func TestAdminAuthMiddleware_SessionDeactivated(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Session has been deactivated")
+}
+
+// TestAdminAuthMiddleware_WWWAuthenticate_On401 verifies RFC 6750 §3.1:
+// all 401 responses from the admin auth middleware MUST include WWW-Authenticate.
+func TestAdminAuthMiddleware_WWWAuthenticate_On401(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{"missing token", ""},
+		{"invalid format", "Basic dXNlcjpwYXNz"},
+		{"invalid token", "Bearer not-a-valid-token"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			rr := httptest.NewRecorder()
+			wrapped.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusUnauthorized, rr.Code)
+			wwwAuth := rr.Header().Get("WWW-Authenticate")
+			assert.NotEmpty(t, wwwAuth, "RFC 6750 §3.1: WWW-Authenticate MUST be present on 401")
+			assert.Contains(t, wwwAuth, "Bearer")
+		})
+	}
+}
+
+// TestAdminAuthMiddleware_CaseInsensitiveBearer verifies that lowercase "bearer" is accepted.
+func TestAdminAuthMiddleware_CaseInsensitiveBearer(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password, role) VALUES (?, 'admin2', 'admin2@example.com', 'hashed', 'admin')`, userID)
+
+	token, _ := generateTestAccessToken(userID)
+
+	sessionID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
+	`, sessionID, userID, token, "")
+
+	handlerCalled := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "bearer "+token) // lowercase
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "lowercase 'bearer' must be accepted by admin middleware")
+	assert.True(t, handlerCalled)
 }
 
 func TestAdminAuthMiddleware_DbError(t *testing.T) {

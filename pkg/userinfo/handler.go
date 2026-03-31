@@ -40,17 +40,28 @@ func containsScope(scope, s string) bool {
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/userinfo [get]
 func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
-	// RFC 6750: token may arrive as Bearer header, or as access_token in POST body
-	var accessToken string
+	// RFC 6750 §2.1: token may arrive as Bearer Authorization header
+	// RFC 6750 §2.2: or as access_token in POST application/x-www-form-urlencoded body
+	var headerToken, bodyToken string
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
-		accessToken = utils.ExtractBearerToken(authHeader)
-	} else if r.Method == http.MethodPost {
+		headerToken = utils.ExtractBearerToken(authHeader)
+	}
+	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err == nil {
-			accessToken = r.PostFormValue("access_token")
+			bodyToken = r.PostFormValue("access_token")
 		}
 	}
+	// RFC 6750 §2.2: MUST NOT accept a request using more than one method
 	realm := config.GetBootstrap().AppAuthIssuer
+	if headerToken != "" && bodyToken != "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request must not pass the access token using more than one method")
+		return
+	}
+	accessToken := headerToken
+	if accessToken == "" {
+		accessToken = bodyToken
+	}
 	if accessToken == "" {
 		utils.WriteBearerUnauthorized(w, realm, "", "")
 		return
