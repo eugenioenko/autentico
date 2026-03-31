@@ -9,7 +9,7 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | 1 | RFC 6749 — OAuth 2.0 Core | 2–3h | ✅ Done (2026-03-30) |
 | 2 | RFC 6750 — Bearer Token Usage | 1.5h | ✅ Done (2026-03-30) |
 | 3 | RFC 7636 — PKCE | 1.5h | ✅ Done (2026-03-30) |
-| 4 | RFC 7009 — Token Revocation | 1.5h | pending |
+| 4 | RFC 7009 — Token Revocation | 1.5h | ✅ Done (2026-03-30) |
 | 5 | RFC 7662 — Token Introspection | 1.5h | pending |
 | 6 | OIDC Core 1.0 | 3h | pending |
 | 7 | OIDC Discovery 1.0 | 1h | pending |
@@ -240,33 +240,49 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Section | What to check | Code path |
 |---|---|---|
-| §2.1 | `token` required, `token_type_hint` optional | `pkg/token/revoke.go` |
-| §2.1 | Client auth required for confidential clients | `pkg/token/revoke.go` — missing |
-| §2.2 | MUST return `200` for all requests incl. invalid/expired/unknown tokens | `pkg/token/revoke.go` — currently returns `401` (BUG) |
-| §2.2 | Refresh token revocation SHOULD also revoke associated access token | `pkg/token/revoke.go` |
-| §4 | `revocation_endpoint` in discovery | `pkg/wellknown/handler.go` — absent |
+| §2 | MUST support revocation of refresh tokens; SHOULD support access tokens | `pkg/token/revoke.go` — both supported (same row) |
+| §2.1 | `token` REQUIRED, `token_type_hint` OPTIONAL | `pkg/token/revoke.go` lines 47-49 |
+| §2.1 | Request MUST be HTTP POST with form-encoded body | `pkg/token/revoke.go` lines 35-43 |
+| §2.1 | Client auth required for confidential clients | `pkg/token/revoke.go` — ⏭ Skipped (public endpoints by design) |
+| §2.2 | MUST return `200` for all requests incl. invalid/expired/unknown tokens | `pkg/token/revoke.go` — ✅ Fixed (PR #108) |
+| §2.2 | Refresh token revocation SHOULD also revoke associated access token | `pkg/token/revoke.go` — same row, both invalidated |
+| §2.2 | Invalid `token_type_hint` MUST be ignored | `pkg/token/revoke.go` — hint not parsed, ignored |
+| §4 | `revocation_endpoint` in discovery | `pkg/wellknown/handler.go` — ✅ present |
 
 **MUST / SHOULD / MAY compliance:**
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
+| MUST | §2 | Support revocation of refresh tokens | ✅ Verified + annotated (2026-03-30) |
 | MUST | §2.2 | Return 200 for all revocation requests, including invalid/unknown tokens | ✅ Fixed (PR #108) |
-| MUST | §2.1 | `token` parameter required | pending |
-| SHOULD | §2.2 | Revoking a refresh token SHOULD also revoke associated access token | pending |
-| MAY | §2.1 | Accept and use `token_type_hint` to optimise lookup | pending |
+| MUST | §2.1 | `token` parameter required | ✅ Verified + annotated (2026-03-30) |
+| MUST | §2.1 | Request is HTTP POST with `application/x-www-form-urlencoded` | ✅ Verified + annotated (2026-03-30) |
+| SHOULD | §2 | Support revocation of access tokens | ✅ Verified (2026-03-30) — both token types supported |
+| SHOULD | §2.2 | Revoking a refresh token SHOULD also revoke associated access token | ✅ Verified + annotated (2026-03-30) — same DB row |
+| MAY | §2.1 | Accept `token_type_hint` | ✅ Silently accepted; server ignores it per spec allowance |
 
-**Security Considerations (§4 / RFC 6749 §10):**
-- [ ] §4.1: Ensure revocation endpoint is only reachable over TLS in production
-- [ ] Revocation of a token that was already revoked must still return 200 — no information leakage
+**Security Considerations (§5):**
+- [x] §5: DoS countermeasures — rate limiting middleware applies to the revocation endpoint
+- [x] §5: Already-revoked token returns 200 — no information leakage; `UPDATE` is a no-op on already-revoked rows
+- [x] §5: TLS enforced at infrastructure level in production
 
 **Discovery cross-check:**
-- [ ] `revocation_endpoint` MUST appear in `/.well-known/openid-configuration` — fix in this phase, not Phase 7
+- [x] `revocation_endpoint` present in `/.well-known/openid-configuration` — verified by `TestHandleWellKnownConfig_RFC8414_Endpoints`
 
-**Tests to add:**
-- E2e: `TestRevoke_ExpiredToken_Returns200`
-- E2e: `TestRevoke_UnknownToken_Returns200`
-- E2e: `TestRevoke_RefreshToken_RevokesAccessToo`
-- Unit: `token_type_hint` present — accepted and ignored without error
+**Tests:**
+- Unit: `TestHandleRevoke_NonPostMethod` — GET rejected ✅ Pre-existing, annotated
+- Unit: `TestHandleRevoke_MissingToken` — missing token → 400 ✅ Pre-existing, annotated
+- Unit: `TestHandleRevoke_InvalidToken` — invalid token → 200 ✅ Pre-existing
+- Unit: `TestHandleRevoke_ValidToken` — valid token revoked → 200 ✅ Pre-existing
+- Unit: `TestHandleRevoke_InvalidToken_Returns200` — RFC 7009 §2.2 invalid token → 200 ✅ Pre-existing
+- Unit: `TestHandleRevoke_UnknownToken_Returns200` — RFC 7009 §2.2 unknown token → 200 ✅ Pre-existing
+- Unit: `TestHandleRevoke` — full revoke + verify DB ✅ Pre-existing
+- Unit: `TestHandleRevoke_TokenTypeHint_Accepted` — `token_type_hint` accepted without error ✅ Added
+- Unit: `TestHandleRevoke_InvalidTokenTypeHint_Ignored` — invalid hint ignored, still 200 ✅ Added
+- Unit: `TestHandleRevoke_RefreshToken_AlsoRevokesAccess` — revoke by refresh → access also revoked ✅ Added
+- E2e: `TestRevokedToken_UserInfoRejects` — revoked token rejected by userinfo ✅ Pre-existing
+- E2e: `TestRevokedToken_IntrospectRejects` — revoked token → `{"active":false}` ✅ Pre-existing
+- E2e: `TestRevokedToken_RefreshRejects` — revoked token's refresh rejected ✅ Pre-existing
 
 ---
 

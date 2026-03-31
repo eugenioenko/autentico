@@ -847,6 +847,7 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
 }
 
+// RFC 7009 §2.1: revocation request MUST be HTTP POST
 func TestHandleRevoke_NonPostMethod(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -859,6 +860,7 @@ func TestHandleRevoke_NonPostMethod(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Only POST method is allowed")
 }
 
+// RFC 7009 §2.1: "token" parameter is REQUIRED
 func TestHandleRevoke_MissingToken(t *testing.T) {
 	testutils.WithTestDB(t)
 
