@@ -2,7 +2,7 @@
 
 ## Overview
 
-Seven phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests.
+Seven phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests, annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
@@ -15,6 +15,44 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | 7 | OIDC Discovery 1.0 | 1h | pending |
 
 **Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7
+
+---
+
+## Cross-Cutting Rules (apply to every phase)
+
+### 1. Inline RFC Comments — responses
+For every code path that returns an API value or error (success responses, error responses, redirects with error params), add an inline comment referencing the exact spec section that mandates the behavior:
+
+```go
+// RFC 7009 §2.2: server MUST return 200 for all revocation requests, including invalid tokens
+// RFC 6749 §5.2: invalid_client MUST use 401, all other errors use 400
+// OIDC Core §3.1.3.3: nonce MUST be included in ID token if present in auth request
+```
+
+### 2. Inline RFC Comments — request validation
+Same rule for input validation: wherever a parameter is validated or rejected, annotate with the spec clause that requires the check:
+
+```go
+// RFC 7636 §4.1: code_verifier MUST be 43–128 characters, unreserved charset only
+// RFC 6749 §4.1.3: redirect_uri MUST match the value used in the authorization request
+```
+
+### 3. MUST / SHOULD / MAY compliance table
+Each phase section includes a small table tracking keyword-level compliance:
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2.2 | Return 200 for all revocation requests | ✅ |
+| SHOULD | §2.2 | Revoke associated access token on refresh revocation | ✅ |
+| MAY | §2.1 | Accept `token_type_hint` | ✅ |
+
+This makes the compliance posture explicit and helps prioritise what is a hard requirement vs best-effort.
+
+### 4. Security Considerations checklist
+Each RFC has a Security Considerations section. At the end of each phase, review it and add a checklist item for anything actionable. Mark items as implemented, skipped (with reason), or a new bug.
+
+### 5. Discovery cross-check
+At the end of each phase, verify that every endpoint or capability introduced by that spec is correctly advertised in `/.well-known/openid-configuration`. Do not defer discovery gaps to Phase 7 — fix them in the phase that owns the feature.
 
 ---
 
@@ -53,6 +91,25 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §5.2 | Error response: `error`, `error_description`, HTTP 400 (401 only for `invalid_client`) | `pkg/utils/responses.go` |
 | §10.6 | Auth code replay: revoke all tokens for user/client | `pkg/token/revoke.go` |
 
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §4.1.2 | Echo `state` unchanged in auth response | pending |
+| MUST | §4.1.2.1 | URL-encode `error_description` in redirect | ✅ Fixed (PR #108) |
+| MUST | §4.1.3 | Validate `redirect_uri` matches registered value | pending |
+| MUST | §5.2 | Use HTTP 400 for all errors except `invalid_client` (401) | pending |
+| MUST NOT | §4.6 | Refresh grant MUST NOT issue scope broader than original | pending |
+| SHOULD | §4.1.4 | Omit `scope` from token response if identical to requested | pending |
+| SHOULD | §10.6 | Revoke all tokens on auth code replay detection | pending |
+
+**Security Considerations (§10):**
+- [ ] §10.3: Auth codes MUST be single-use and short-lived — verify `auth_codes` table enforces single-use flag
+- [ ] §10.6: Auth code interception — PKCE mitigates; ensure PKCE is enforced for public clients
+- [ ] §10.12: CSRF on redirect — `state` parameter enforced by client; server must echo it unchanged
+
+**Discovery cross-check:** RFC 6749 does not define a discovery document — no action needed.
+
 **Tests to add:**
 - Unit: `error_description` with spaces/special chars is URL-encoded in redirect
 - Unit: `scope` present in token response for `refresh_token` grant
@@ -71,6 +128,21 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §2.2 | Form-encoded `access_token`: only `application/x-www-form-urlencoded`, POST only, not alongside header | `pkg/userinfo/handler.go` |
 | §3.1 | `WWW-Authenticate` header MUST be set on 401 responses | all protected endpoints |
 | §3.1 | `WWW-Authenticate: Bearer realm="...", error="...", error_description="..."` format | all protected endpoints |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §3.1 | Set `WWW-Authenticate` header on 401 | ✅ Fixed (PR #108) |
+| MUST NOT | §2.2 | Reject requests with token in both header and body | pending |
+| SHOULD | §2.1 | Accept `Bearer` prefix case-insensitively | pending |
+| SHOULD | §2.2 | Support form-encoded `access_token` on POST endpoints | pending |
+
+**Security Considerations (§5):**
+- [ ] §5.3: Token in URI query string — verify no endpoint accepts `access_token` as query param (not recommended by spec)
+- [ ] §5.1: Always use TLS — enforced at infrastructure level; note in code that secure cookie flags depend on `AUTENTICO_CSRF_SECURE_COOKIE`
+
+**Discovery cross-check:** RFC 6750 does not add discovery fields — no action needed.
 
 **Tests to add:**
 - E2e: `TestUserInfo_WWWAuthenticateHeader` — assert header on 401
@@ -91,6 +163,22 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §4.2 | `code_challenge_method` absent → default to S256 | `pkg/token/authorization_code.go` line 86 |
 | §4.3 | If challenge was sent, verifier MUST be sent on exchange | `pkg/token/authorization_code.go` line 54 |
 | §6.1 | `code_challenge_methods_supported` in discovery | `pkg/wellknown/handler.go` — absent |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §4.1 | Validate verifier length (43–128) and charset | ✅ Fixed (PR #108) |
+| MUST | §4.3 | Require verifier on exchange if challenge was present | pending |
+| SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | pending |
+| SHOULD | §7.1 | Servers SHOULD reject `plain` method if `S256` is available | pending |
+
+**Security Considerations (§7):**
+- [ ] §7.1: `plain` method offers no protection against eavesdroppers — consider rejecting it or logging a warning; document the decision
+- [ ] §7.2: Entropy of `code_verifier` — client-side concern but worth noting in docs
+
+**Discovery cross-check:**
+- [ ] `code_challenge_methods_supported` MUST be present in `/.well-known/openid-configuration` (RFC 7636 §6.2) — fix in this phase, not Phase 7
 
 **Tests to add:**
 - Unit: verifier shorter than 43 chars — rejected
@@ -113,6 +201,22 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §2.2 | Refresh token revocation SHOULD also revoke associated access token | `pkg/token/revoke.go` |
 | §4 | `revocation_endpoint` in discovery | `pkg/wellknown/handler.go` — absent |
 
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2.2 | Return 200 for all revocation requests, including invalid/unknown tokens | ✅ Fixed (PR #108) |
+| MUST | §2.1 | `token` parameter required | pending |
+| SHOULD | §2.2 | Revoking a refresh token SHOULD also revoke associated access token | pending |
+| MAY | §2.1 | Accept and use `token_type_hint` to optimise lookup | pending |
+
+**Security Considerations (§4 / RFC 6749 §10):**
+- [ ] §4.1: Ensure revocation endpoint is only reachable over TLS in production
+- [ ] Revocation of a token that was already revoked must still return 200 — no information leakage
+
+**Discovery cross-check:**
+- [ ] `revocation_endpoint` MUST appear in `/.well-known/openid-configuration` — fix in this phase, not Phase 7
+
 **Tests to add:**
 - E2e: `TestRevoke_ExpiredToken_Returns200`
 - E2e: `TestRevoke_UnknownToken_Returns200`
@@ -132,6 +236,23 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §2.2 | Active token: `active=true` + all registered claims (`scope`, `exp`, `iat`, `sub`, `client_id`, `username`, `aud`, `jti`) | `pkg/introspect/model.go` — missing `client_id`, `username`, `aud`, `nbf` |
 | §2.2 | Inactive token: MUST return `200 {"active":false}` only | `pkg/introspect/handler.go` — returns `401` (BUG) |
 | §4 | `introspection_endpoint` in discovery | `pkg/wellknown/handler.go` — absent |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2.1 | Accept `application/x-www-form-urlencoded` | ✅ Fixed (PR #108) |
+| MUST | §2.2 | Return `200 {"active":false}` for invalid/expired/revoked tokens | ✅ Fixed (PR #108) |
+| MUST | §2.2 | Include `active` field in all responses | pending |
+| SHOULD | §2.2 | Include `scope`, `exp`, `iat`, `sub`, `client_id`, `username`, `aud`, `jti` for active tokens | pending |
+| SHOULD NOT | §2.2 | Not return extra claims for inactive tokens (only `{"active":false}`) | pending |
+
+**Security Considerations (§4):**
+- [ ] §4: Introspection responses may contain sensitive data — ensure endpoint requires auth in future (currently public by design; document this decision)
+- [ ] §4: Rate-limit introspection to prevent token enumeration
+
+**Discovery cross-check:**
+- [ ] `introspection_endpoint` MUST appear in `/.well-known/openid-configuration` — fix in this phase, not Phase 7
 
 **Tests to add:**
 - E2e: `TestIntrospect_ExpiredToken_ActiveFalse`
@@ -158,6 +279,27 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — always includes profile claims (BUG) |
 | §11 | `offline_access` requires `prompt=consent` | `pkg/token/handler.go` — not enforced |
 
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §3.1.2.1 | `scope` includes `openid` for OIDC requests | pending |
+| MUST | §3.1.3.3 | ID token contains `iss`, `sub`, `aud`, `exp`, `iat` | pending |
+| MUST | §3.1.3.3 | `nonce` echoed in ID token if sent in request | pending |
+| MUST | §5.3 | UserInfo `sub` matches ID token `sub` | pending |
+| MUST | §5.4 | Access token claims respect requested scope | ✅ Fixed (PR #108) |
+| SHOULD | §11 | `offline_access` only issued with `prompt=consent` | pending |
+
+**Security Considerations (§16):**
+- [ ] §16.3: ID token audience — `aud` MUST be validated by clients; verify our tokens set `aud` to the correct client ID
+- [ ] §16.6: `nonce` replay prevention — once an ID token with a given nonce is consumed, it should not be reusable; note this is client-side but worth documenting
+- [ ] §16.14: `acr` value consistency — using `"password"` vs `"1"` inconsistently; standardise to a registered value
+
+**Discovery cross-check:**
+- [ ] `userinfo_endpoint` present in `/.well-known/openid-configuration`
+- [ ] `scopes_supported` lists all supported scopes (`openid`, `profile`, `email`, `offline_access`, etc.)
+- [ ] `claims_supported` lists all claims returned by UserInfo and ID token
+
 **Tests to add:**
 - E2e: `TestIDToken_Claims_Verification` — parse and validate all required claims
 - E2e: `TestIDToken_Nonce_Preserved` — nonce in decoded token matches sent value
@@ -172,19 +314,35 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 
 **File:** `rfc/openid-connect-discovery-1_0.html`
 
+Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_methods_supported` should already be present by the time this phase runs (fixed in Phases 3–5). This phase focuses on completeness of all remaining fields and JWKS correctness.
+
 | Section | What to check | Code path |
 |---|---|---|
 | §3 | Required: `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `response_types_supported`, `subject_types_supported`, `id_token_signing_alg_values_supported` | `pkg/wellknown/handler.go` — all present |
-| §3 | `introspection_endpoint` — absent | `pkg/model/well_known_config.go` |
-| §3 | `revocation_endpoint` — absent | `pkg/model/well_known_config.go` |
-| §3 | `code_challenge_methods_supported` — absent | `pkg/model/well_known_config.go` |
+| §3 | `introspection_endpoint` — should be fixed in Phase 5 | `pkg/model/well_known_config.go` |
+| §3 | `revocation_endpoint` — should be fixed in Phase 4 | `pkg/model/well_known_config.go` |
+| §3 | `code_challenge_methods_supported` — should be fixed in Phase 3 | `pkg/model/well_known_config.go` |
 | §3 | `response_types_supported` lists `token`, `id_token` — implicit flow not implemented | `pkg/wellknown/handler.go` |
 | §3 | `issuer` MUST exactly match `iss` in tokens | `pkg/wellknown/handler.go` vs `pkg/token/generate.go` |
 | §3 | JWKS keys: `kty`, `use`, `alg`, `kid`, `n`, `e` all present | `pkg/wellknown/handler.go` `HandleJWKS` |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §3 | `issuer` exactly matches `iss` claim in all issued tokens | pending |
+| MUST | §3 | All required metadata fields present | pending |
+| MUST | §4.3 | `/.well-known/openid-configuration` served at correct path relative to issuer | pending |
+| SHOULD | §3 | `userinfo_endpoint`, `scopes_supported`, `claims_supported` present | pending |
+| SHOULD | §3 | `response_types_supported` only lists implemented flows | pending |
+
+**Security Considerations (§5):**
+- [ ] §5: Discovery document integrity — served over TLS in production; no action needed in code but worth verifying `issuer` URL uses HTTPS in production config
+- [ ] Ensure `issuer` in discovery exactly matches the `iss` in tokens to prevent token substitution attacks across issuers
 
 **Tests to add:**
 - E2e: `TestWellKnown_RequiredFields` — all required fields present with correct types
 - E2e: `TestWellKnown_IssuerMatchesTokenIss` — compare `issuer` in discovery to `iss` in token
 - E2e: `TestJWKS_Structure` — assert key fields present
 - E2e: `TestJWKS_ValidatesIDToken` — use JWKS to verify ID token signature
-- Unit: assert `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` present once added
+- Unit: assert `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` present (should pass after earlier phases)
