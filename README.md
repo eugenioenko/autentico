@@ -13,6 +13,8 @@ Identity infrastructure is typically complex to operate: a separate database to 
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
+**Correctness is verified through 800+ tests, RFC-by-RFC compliance audits, official OIDC conformance certification, and full-flow load testing.**
+
 ---
 
 ## Documentation
@@ -889,15 +891,27 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## Testing
 
-Auténtico's correctness is validated at four levels: automated tests, RFC compliance review, OIDC conformance certification, and load testing.
+Auténtico treats authentication as a correctness-critical system, not just an application layer. Testing is validated at four levels: automated tests, RFC compliance review, OIDC conformance certification, and load testing.
+
+### Testing Philosophy
+
+Testing is designed around three principles:
+
+- **Spec alignment over implementation convenience** — behavior is derived from RFC and OIDC specifications, not inferred
+- **Full-flow validation** — tests exercise complete authentication lifecycles, not isolated functions
+- **Failure-driven coverage** — edge cases and negative paths are explicitly tested (invalid tokens, expired codes, replay attempts, malformed requests)
+
+The goal is not just high coverage, but **high confidence that every externally observable behavior matches the protocol specification**.
 
 ### Automated Tests
 
 **821+ test functions** across unit, integration, and end-to-end tests at **73.4% coverage**.
 
-- **Unit tests** (500+): handler behavior, model validation, service logic, utility functions
-- **Integration tests** (150+): cross-package flows — authorization, token lifecycle, session management, client authentication
-- **End-to-end tests** (75+): full HTTP flows against a real test server instance
+- **Unit tests** (500+) — validate deterministic logic (token generation, validation rules, claim construction)
+- **Integration tests** (150+) — verify cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
+- **End-to-end tests** (75+) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, and token exchange
+
+Critical invariants (e.g., "authorization code can only be used once", "refresh token rotation invalidates previous token") are tested explicitly across layers.
 
 ```bash
 make test                                        # Run all tests
@@ -910,7 +924,14 @@ Tests run with `-p 1` (sequential) because they share a process-level SQLite han
 
 ### RFC Compliance Review
 
-Every protocol-facing code path has been reviewed against the source RFCs in a structured 7-phase audit. Each phase reads the spec, verifies every MUST/SHOULD/MAY requirement against the implementation, annotates the code with inline RFC section references, adds both positive and negative tests, and checks the Security Considerations section.
+Unlike typical implementations that rely on partial compliance or framework defaults, Auténtico performs a **systematic, spec-driven audit** of every protocol feature.
+
+Each RFC is treated as a source of truth:
+- Every **MUST** requirement is implemented and verified
+- **SHOULD/MAY** clauses are evaluated and explicitly accepted or rejected
+- All decisions are documented and tested
+
+The review is structured as a 7-phase audit. Each phase reads the spec, verifies every MUST/SHOULD/MAY requirement against the implementation, annotates the code with inline RFC section references, adds both positive and negative tests, and checks the Security Considerations section.
 
 | Phase | Spec | Status |
 |---|---|---|
@@ -922,11 +943,21 @@ Every protocol-facing code path has been reviewed against the source RFCs in a s
 | 6 | OIDC Core 1.0 | ✅ Done |
 | 7 | OIDC Discovery 1.0 | ✅ Done |
 
-The review found and fixed 11 bugs (see [`rfc/rfc.md`](rfc/rfc.md) for the full bug inventory, MUST/SHOULD/MAY compliance tables, and per-phase test lists). All protocol-facing code now carries inline comments referencing the exact spec section that mandates the behavior.
+This process effectively turns the RFCs into an executable specification enforced by tests.
+
+The review found and fixed **11 protocol-level bugs**, including:
+
+- Incorrect edge-case handling in token validation
+- Missing negative-path checks (e.g., malformed or replayed inputs)
+- Subtle spec violations that would not surface in normal testing
+
+These were identified *by reading the RFCs line-by-line*, not by observing runtime failures — a class of issues that typical test suites miss. See [`rfc/rfc.md`](rfc/rfc.md) for the full bug inventory, MUST/SHOULD/MAY compliance tables, and per-phase test lists. All protocol-facing code now carries inline comments referencing the exact spec section that mandates the behavior.
 
 ### OIDC Conformance Certification
 
 Auténtico passes the [OpenID Foundation `oidcc-basic-certification-test-plan`](https://openid.net/certification/) — the standard conformance suite for Basic OpenID Providers. The suite covers the full Authorization Code flow: discovery, authorization, token exchange, token refresh, ID token validation, UserInfo, and session management.
+
+Passing this suite validates interoperability with real-world OIDC clients and confirms that Auténtico behaves as a standards-compliant OpenID Provider under strict test conditions. This is the same certification process used by production identity providers.
 
 ```bash
 # Start Auténtico with conformance-compatible settings (HTTP, no rate limiting)
@@ -947,6 +978,17 @@ Stress tests using [k6](https://k6.io) exercise the full PKCE auth code flow (au
 | 500 VUs | 0% | 3.36s | 3.89s | Degraded — users feel the wait |
 
 *Measured on a developer laptop, single process, SQLite backend. The bottleneck is bcrypt, not SQLite — real-world traffic is much lighter than all-login load because SSO sessions and refresh tokens eliminate most password checks.*
+
+### Reproducibility
+
+All testing layers are reproducible locally:
+
+- Automated tests: `make test`
+- RFC audit artifacts: see [`rfc/rfc.md`](rfc/rfc.md)
+- OIDC conformance suite: `make conformance-suite`
+- Load testing: see [`stress/README.md`](stress/README.md)
+
+No internal or proprietary tooling is required — the entire validation pipeline is transparent and executable by anyone.
 
 ---
 
