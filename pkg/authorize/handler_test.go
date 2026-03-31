@@ -582,6 +582,34 @@ func TestHandleAuthorize_PromptLogin_BypassesSSO(t *testing.T) {
 }
 
 
+// OIDC Core §3.1.2.1: prompt=consent must skip SSO auto-login and show login form
+func TestHandleAuthorize_PromptConsent_BypassesSSO(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Create an active IdP session
+	testutils.InsertTestUser(t, "sso-user-1")
+	session := idpsession.IdpSession{
+		ID:             "idp-consent-1",
+		UserID:         "sso-user-1",
+		LastActivityAt: time.Now(),
+	}
+	_ = idpsession.CreateIdpSession(session)
+
+	// prompt=consent must force re-authentication even with an active SSO session
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=consent", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-consent-1"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "prompt=consent must show login form, not auto-login")
+	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code via SSO bypass")
+}
+
 func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
