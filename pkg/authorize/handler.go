@@ -120,11 +120,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check for valid IdP session (auto-login)
-	// prompt=login requires fresh authentication — skip SSO auto-login
+	// OIDC Core §3.1.2.1: prompt=login requires fresh authentication — skip SSO auto-login
+	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
 	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
 	maxAgeSecs := parseMaxAge(request.MaxAge)
-	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" {
+	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" && request.Prompt != "consent" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)

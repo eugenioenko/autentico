@@ -390,8 +390,8 @@ func TestHandleUserInfo_FullProfile(t *testing.T) {
 	assert.NotContains(t, body, "Main St")
 }
 
-// Issue #5: all standard profile claims must be present (even as null) when profile scope is requested
-func TestHandleUserInfo_ProfileScope_NullClaimsPresent(t *testing.T) {
+// OIDC Core §5.1: empty profile claims should be omitted, not returned as null.
+func TestHandleUserInfo_ProfileScope_EmptyClaimsOmitted(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -410,15 +410,20 @@ func TestHandleUserInfo_ProfileScope_NullClaimsPresent(t *testing.T) {
 	var body map[string]interface{}
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
-	// All standard OIDC profile claims must be present (may be null, but the key must exist)
-	for _, claim := range []string{"given_name", "family_name", "middle_name", "nickname", "website", "gender", "birthdate", "profile", "picture", "locale", "zoneinfo", "updated_at"} {
+	// Claims that always have a value must be present
+	assert.NotEmpty(t, body["name"], "name must be present (falls back to username)")
+	assert.NotEmpty(t, body["preferred_username"])
+	assert.NotNil(t, body["updated_at"])
+
+	// Empty optional claims must be omitted, not null
+	for _, claim := range []string{"given_name", "family_name", "middle_name", "nickname", "website", "gender", "birthdate", "profile", "picture", "locale", "zoneinfo"} {
 		_, exists := body[claim]
-		assert.True(t, exists, "claim %q must be present in profile scope response", claim)
+		assert.False(t, exists, "empty claim %q must be omitted from response", claim)
 	}
 }
 
-// Issue #7: address claim must be present as null when address scope requested but user has no address data
-func TestHandleUserInfo_AddressScope_NullWhenEmpty(t *testing.T) {
+// OIDC Core §5.1: address claim should be omitted when user has no address data
+func TestHandleUserInfo_AddressScope_OmittedWhenEmpty(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -437,12 +442,11 @@ func TestHandleUserInfo_AddressScope_NullWhenEmpty(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
 	_, exists := body["address"]
-	assert.True(t, exists, "address claim must be present even when user has no address data")
-	assert.Nil(t, body["address"], "address must be null when user has no address data")
+	assert.False(t, exists, "address claim must be omitted when user has no address data")
 }
 
-// Issue #7: phone_number must be present as null when phone scope requested but user has no phone
-func TestHandleUserInfo_PhoneScope_NullWhenEmpty(t *testing.T) {
+// OIDC Core §5.1: phone_number should be omitted when user has no phone
+func TestHandleUserInfo_PhoneScope_OmittedWhenEmpty(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -461,8 +465,7 @@ func TestHandleUserInfo_PhoneScope_NullWhenEmpty(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 
 	_, exists := body["phone_number"]
-	assert.True(t, exists, "phone_number must be present even when user has no phone")
-	assert.Nil(t, body["phone_number"], "phone_number must be null when user has no phone")
+	assert.False(t, exists, "phone_number must be omitted when user has no phone")
 }
 
 // Issue #8: phone_number_verified must always be emitted when phone scope is present

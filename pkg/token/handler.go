@@ -153,10 +153,16 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// RFC 6749 §5.1: scope must be included in the response when it may differ
-		// from what the client originally requested. Look up the scope stored with
-		// the original token so the refresh response reflects the granted scope.
+		// from what the client originally requested. Look up the scope and issued_at
+		// stored with the original token.
 		var tokenScope string
-		_ = db.GetDB().QueryRow(`SELECT scope FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope)
+		var tokenIssuedAt time.Time
+		_ = db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt)
+		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
+		// authentication time, not the refresh time.
+		if !tokenIssuedAt.IsZero() {
+			codeAuthTime = tokenIssuedAt
+		}
 		// RFC 6749 §6: if scope is present on a refresh request, it MUST NOT exceed the original grant;
 		// a subset is allowed (downscoping). If absent, the original scope is reused unchanged.
 		if request.Scope != "" {

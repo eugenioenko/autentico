@@ -25,10 +25,15 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 	clientSecret := ""
 	hashedSecret := ""
 	if req.ClientType != "public" {
-		var err error
-		clientSecret, err = authcode.GenerateSecureCode()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate client secret: %w", err)
+		if req.ClientSecret != "" {
+			// Use the caller-provided secret
+			clientSecret = req.ClientSecret
+		} else {
+			var err error
+			clientSecret, err = authcode.GenerateSecureCode()
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate client secret: %w", err)
+			}
 		}
 		hashed, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
 		if err != nil {
