@@ -101,7 +101,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enforce S256 — reject plain per RFC 7636 §4.2 ("SHOULD NOT be used")
+	// RFC 7636 §7.2: "plain" SHOULD NOT be used; §4.2: S256 is MTI on the server
 	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")
 		return

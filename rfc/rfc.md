@@ -8,7 +8,7 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 |---|---|---|---|
 | 1 | RFC 6749 — OAuth 2.0 Core | 2–3h | ✅ Done (2026-03-30) |
 | 2 | RFC 6750 — Bearer Token Usage | 1.5h | ✅ Done (2026-03-30) |
-| 3 | RFC 7636 — PKCE | 1.5h | pending |
+| 3 | RFC 7636 — PKCE | 1.5h | ✅ Done (2026-03-30) |
 | 4 | RFC 7009 — Token Revocation | 1.5h | pending |
 | 5 | RFC 7662 — Token Introspection | 1.5h | pending |
 | 6 | OIDC Core 1.0 | 3h | pending |
@@ -181,34 +181,56 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Section | What to check | Code path |
 |---|---|---|
-| §4.1 | `code_verifier`: 43–128 chars, unreserved chars only | `pkg/token/authorization_code.go` `verifyCodeChallenge` |
-| §4.2 | `code_challenge`: `BASE64URL(SHA256(ASCII(verifier)))`, no padding | `pkg/token/authorization_code.go` |
-| §4.2 | `code_challenge_method` absent → default to S256 | `pkg/token/authorization_code.go` line 86 |
-| §4.3 | If challenge was sent, verifier MUST be sent on exchange | `pkg/token/authorization_code.go` line 54 |
-| §6.1 | `code_challenge_methods_supported` in discovery | `pkg/wellknown/handler.go` — absent |
+| §4.1 | `code_verifier`: 43–128 chars, unreserved chars only | `pkg/token/authorization_code.go` `validateCodeVerifier` |
+| §4.2 | `code_challenge`: `BASE64URL(SHA256(ASCII(verifier)))`, no padding | `pkg/token/authorization_code.go` `verifyCodeChallenge` |
+| §4.2 | `code_challenge_method` absent → default to S256 | `pkg/token/authorization_code.go` line 116 |
+| §4.3 | If challenge was sent, verifier MUST be sent on exchange | `pkg/token/authorization_code.go` line 56 |
+| §4.4.1 | Unsupported method → `invalid_request` error | `pkg/authorize/handler.go` (only S256 advertised) |
+| §4.6 | Server verifies code_verifier before returning tokens | `pkg/token/authorization_code.go` line 70 |
+| §6.2 | `code_challenge_methods_supported` in discovery | `pkg/wellknown/handler.go` |
+| §7.2 | `plain` SHOULD NOT be used | `pkg/authorize/handler.go` — rejected when `AuthPKCEEnforceSHA256` is true (default) |
 
 **MUST / SHOULD / MAY compliance:**
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
 | MUST | §4.1 | Validate verifier length (43–128) and charset | ✅ Fixed (PR #108) |
-| MUST | §4.3 | Require verifier on exchange if challenge was present | pending |
-| SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | pending |
-| SHOULD | §7.1 | Servers SHOULD reject `plain` method if `S256` is available | pending |
+| MUST | §4.3 | Require verifier on exchange if challenge was present | ✅ Verified + annotated (2026-03-30) |
+| MUST | §4.6 | Verify code_verifier against code_challenge; return `invalid_grant` on mismatch | ✅ Verified + annotated (2026-03-30) |
+| MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Verified + annotated (2026-03-30) |
+| SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | ✅ Verified + annotated (2026-03-30) — defaults to S256 (MTI) |
+| SHOULD NOT | §7.2 | `plain` method SHOULD NOT be used | ✅ Rejected by default (`AuthPKCEEnforceSHA256=true`); configurable for backwards-compat |
+| MAY | §5 | Accept clients that do not use PKCE (backwards compatibility) | ✅ Non-PKCE flows work — PKCE is optional |
 
 **Security Considerations (§7):**
-- [ ] §7.1: `plain` method offers no protection against eavesdroppers — consider rejecting it or logging a warning; document the decision
-- [ ] §7.2: Entropy of `code_verifier` — client-side concern but worth noting in docs
+- [x] §7.1: Entropy of `code_verifier` — client-side concern; `validateCodeVerifier` enforces 43–128 chars (≥256 bits of entropy when base64url-encoded from 32 octets)
+- [x] §7.2: `plain` rejected by default when `AuthPKCEEnforceSHA256` is true (the default); only `S256` is advertised in discovery; `plain` can be enabled via config for legacy compatibility
+- [x] §7.3: Salting not needed — code_verifier contains sufficient entropy per spec
+- [x] §7.5: TLS enforced at infrastructure level; secure cookie flags gated on bootstrap config
 
 **Discovery cross-check:**
-- [ ] `code_challenge_methods_supported` MUST be present in `/.well-known/openid-configuration` (RFC 7636 §6.2) — fix in this phase, not Phase 7
+- [x] `code_challenge_methods_supported: ["S256"]` present in `/.well-known/openid-configuration` — verified by `TestHandleWellKnownConfig_RFC8414_Endpoints`
 
-**Tests to add:**
-- Unit: verifier shorter than 43 chars — rejected
-- Unit: verifier with invalid chars (`+`, `/`) — rejected
-- Unit: verifier at exactly 43 and 128 chars (boundary)
-- E2e: `TestPKCE_PlainMethod_E2E`
-- Unit: wellknown asserts `code_challenge_methods_supported` once added
+**Tests:**
+- Unit: `TestValidateCodeVerifier_TooShort` — verifier shorter than 43 chars → rejected ✅ Pre-existing
+- Unit: `TestValidateCodeVerifier_TooLong` — verifier longer than 128 chars → rejected ✅ Pre-existing
+- Unit: `TestValidateCodeVerifier_MinLength` — boundary at 43 chars → accepted ✅ Pre-existing
+- Unit: `TestValidateCodeVerifier_MaxLength` — boundary at 128 chars → accepted ✅ Pre-existing
+- Unit: `TestValidateCodeVerifier_InvalidChars` — `+`, `/`, space → rejected ✅ Pre-existing
+- Unit: `TestValidateCodeVerifier_AllUnreservedChars` — full unreserved charset → accepted ✅ Pre-existing
+- Unit: `TestVerifyCodeChallenge_S256` — S256 valid + invalid (RFC 7636 Appendix B vector) ✅ Pre-existing, annotated
+- Unit: `TestVerifyCodeChallenge_Plain` — plain valid + invalid ✅ Pre-existing, annotated
+- Unit: `TestVerifyCodeChallenge_DefaultsToS256` — empty method defaults to S256 ✅ Pre-existing, annotated
+- Unit: `TestVerifyCodeChallenge_UnsupportedMethod` — unknown method rejected ✅ Pre-existing, annotated
+- Unit: `TestHandleWellKnownConfig_RFC8414_Endpoints` — asserts `code_challenge_methods_supported` includes `S256` ✅ Pre-existing
+- Unit: `TestHandleAuthorize_PKCE_PlainRejected` — plain rejected at authorize endpoint (default config) ✅ Pre-existing
+- Unit: `TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled` — plain allowed when enforcement off ✅ Pre-existing
+- Unit: `TestHandleAuthorize_PKCE_S256Accepted` — S256 accepted at authorize endpoint ✅ Pre-existing
+- E2e: `TestAuthorizationCodeFlow_PKCE_S256` — full S256 flow end-to-end ✅ Pre-existing
+- E2e: `TestAuthorizationCodeFlow_PKCE_WrongVerifier` — wrong verifier → `invalid_grant` ✅ Pre-existing
+- E2e: `TestAuthorizationCodeFlow_PKCE_MissingVerifier` — missing verifier when challenge present → error ✅ Pre-existing
+- E2e: `TestAuthorizationCodeFlow_PKCE_Plain` — full plain flow end-to-end (enforcement off) ✅ Added
+- E2e: `TestAuthorizationCodeFlow_PKCE_PlainRejected` — plain rejected when enforcement on (default) ✅ Added
 
 ---
 

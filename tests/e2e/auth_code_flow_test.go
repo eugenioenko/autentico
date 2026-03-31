@@ -13,6 +13,7 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -502,6 +503,82 @@ func TestAuthorizationCodeFlow_PKCE_MissingVerifier(t *testing.T) {
 	body, err := io.ReadAll(tokenResp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, tokenResp.StatusCode, "missing verifier should fail: %s", string(body))
+}
+
+// RFC 7636 §4.6: end-to-end PKCE flow using plain method.
+// plain is allowed when AuthPKCEEnforceSHA256 is disabled.
+func TestAuthorizationCodeFlow_PKCE_Plain(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	// Disable S256 enforcement so plain is accepted at the authorize endpoint
+	config.Values.AuthPKCEEnforceSHA256 = false
+	t.Cleanup(func() { config.Values.AuthPKCEEnforceSHA256 = true })
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// For plain method, code_challenge == code_verifier
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeChallenge := codeVerifier // plain: no transformation
+
+	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "plain")
+
+	// Exchange code with correct verifier
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", codeVerifier)
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, err := io.ReadAll(tokenResp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode, "PKCE plain exchange failed: %s", string(body))
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tokens.AccessToken)
+}
+
+// RFC 7636 §7.2: plain SHOULD NOT be used — rejected when AuthPKCEEnforceSHA256 is true (default)
+func TestAuthorizationCodeFlow_PKCE_PlainRejected(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Ensure S256 enforcement is on (default)
+	config.Values.AuthPKCEEnforceSHA256 = true
+
+	// Use a client that does not follow redirects so we can inspect the Location header
+	noRedirectClient := *ts.Client
+	noRedirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"test-state"},
+		"scope":                 {"openid"},
+		"code_challenge":        {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
+		"code_challenge_method": {"plain"},
+	}.Encode()
+
+	resp, err := noRedirectClient.Get(authorizeURL)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	// Should redirect back to redirect_uri with error=invalid_request
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "error=invalid_request", "plain method must be rejected when S256 enforcement is enabled")
 }
 
 func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {

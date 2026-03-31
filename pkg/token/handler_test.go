@@ -1128,10 +1128,9 @@ func TestHandleToken_PasswordGrant_ReturnsIDToken(t *testing.T) {
 	assert.NotEmpty(t, tokenResp.IDToken, "id_token should be present for password grant")
 }
 
+// RFC 7636 §4.6: S256 — BASE64URL-ENCODE(SHA256(ASCII(code_verifier))) == code_challenge
+// Test vector from RFC 7636 Appendix B
 func TestVerifyCodeChallenge_S256(t *testing.T) {
-	// code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-	// SHA256 of that, base64url-encoded = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-	// (This is the RFC 7636 example)
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 
@@ -1139,6 +1138,7 @@ func TestVerifyCodeChallenge_S256(t *testing.T) {
 	assert.False(t, verifyCodeChallenge(challenge, "S256", "wrong-verifier"))
 }
 
+// RFC 7636 §4.6: plain — code_verifier == code_challenge (direct comparison)
 func TestVerifyCodeChallenge_Plain(t *testing.T) {
 	verifier := "my-plain-verifier"
 	challenge := "my-plain-verifier"
@@ -1147,14 +1147,15 @@ func TestVerifyCodeChallenge_Plain(t *testing.T) {
 	assert.False(t, verifyCodeChallenge(challenge, "plain", "wrong"))
 }
 
+// RFC 7636 §4.2: S256 is MTI — empty method defaults to S256
 func TestVerifyCodeChallenge_DefaultsToS256(t *testing.T) {
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 
-	// Empty method should default to S256
 	assert.True(t, verifyCodeChallenge(challenge, "", verifier))
 }
 
+// RFC 7636 §4.4.1: unsupported transformation method MUST be rejected
 func TestVerifyCodeChallenge_UnsupportedMethod(t *testing.T) {
 	assert.False(t, verifyCodeChallenge("challenge", "unsupported", "verifier"))
 }
