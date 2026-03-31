@@ -92,12 +92,14 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// OIDC Core §5.3: the sub claim MUST always be returned; it MUST match the sub in the ID token.
 	scope := tok.Scope
 	response := map[string]interface{}{
 		"sub":   tok.UserID,
 		"scope": scope,
 	}
 
+	// OIDC Core §5.4: claims are returned based on the granted scope values.
 	if containsScope(scope, "profile") {
 		name := user.Username
 		if user.GivenName != "" || user.FamilyName != "" {

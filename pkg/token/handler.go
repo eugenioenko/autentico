@@ -234,7 +234,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		Scope:        codeScope,
 	}
 
-	// Generate ID token when "openid" scope is requested
+	// OIDC Core §3.1.2.1: ID token is only issued when the "openid" scope is present.
+	// Without "openid", this is a plain OAuth 2.0 request — no ID token is returned.
 	if containsScope(codeScope, "openid") {
 		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID, codeAuthTime)
 		if idErr != nil {

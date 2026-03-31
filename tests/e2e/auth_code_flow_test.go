@@ -367,12 +367,20 @@ func TestAuthorizationCodeFlow_IDTokenWithNonce(t *testing.T) {
 	assert.Equal(t, "Bearer", tokens.TokenType)
 	assert.Contains(t, tokens.Scope, "openid")
 
-	// Verify the ID token is a valid JWT with expected claims
-	// Parse without verification (we trust the server in E2E tests)
-	parts := strings.SplitN(tokens.IDToken, ".", 3)
-	assert.Len(t, parts, 3, "id_token should be a JWT with 3 parts")
+	// OIDC Core §3.1.3.3: verify required claims in the ID token
+	claims := decodeJWTPayload(t, tokens.IDToken)
+	assert.NotEmpty(t, claims["iss"], "OIDC Core §3.1.3.3: iss MUST be present")
+	assert.NotEmpty(t, claims["sub"], "OIDC Core §3.1.3.3: sub MUST be present")
+	assert.NotEmpty(t, claims["aud"], "OIDC Core §3.1.3.3: aud MUST be present")
+	assert.NotNil(t, claims["exp"], "OIDC Core §3.1.3.3: exp MUST be present")
+	assert.NotNil(t, claims["iat"], "OIDC Core §3.1.3.3: iat MUST be present")
+	// OIDC Core §3.1.3.3: nonce MUST be present if sent in the authorization request
+	assert.Equal(t, "my-test-nonce-42", claims["nonce"], "OIDC Core §3.1.3.3: nonce must match the value sent in the authorization request")
+	// OIDC Core §3.1.3.3: aud must contain the client_id
+	assert.Equal(t, "test-client", claims["aud"])
 }
 
+// OIDC Core §3.1.2.1: without "openid" scope, no ID token is issued (plain OAuth 2.0 flow)
 func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
 	ts := startTestServer(t)
 	redirectURI := "http://localhost:3000/callback"

@@ -11,7 +11,7 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | 3 | RFC 7636 — PKCE | 1.5h | ✅ Done (2026-03-30) |
 | 4 | RFC 7009 — Token Revocation | 1.5h | ✅ Done (2026-03-30) |
 | 5 | RFC 7662 — Token Introspection | 1.5h | ✅ Done (2026-03-30) |
-| 6 | OIDC Core 1.0 | 3h | pending |
+| 6 | OIDC Core 1.0 | 3h | ✅ Done (2026-03-30) |
 | 7 | OIDC Discovery 1.0 | 1h | pending |
 
 **Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7
@@ -348,43 +348,53 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 | Section | What to check | Code path |
 |---|---|---|
-| §3.1.2.1 | `scope` MUST include `openid` for OIDC requests | `pkg/authorize/model.go` |
-| §3.1.3.3 | ID token required claims: `iss`, `sub`, `aud`, `exp`, `iat` | `pkg/token/generate.go` `GenerateIDToken` |
-| §3.1.3.3 | `nonce` MUST be present in ID token if sent in auth request | `pkg/token/generate.go` |
-| §3.1.3.3 | `acr: "password"` non-standard; ID token uses `"1"` — inconsistency | `pkg/token/generate.go` lines 37, 95 |
-| §5.1 | UserInfo standard claims scope-filtered | `pkg/userinfo/handler.go` |
-| §5.3 | UserInfo `sub` MUST match ID token `sub` | `pkg/userinfo/handler.go` |
-| §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — always includes profile claims (BUG) |
-| §11 | `offline_access` requires `prompt=consent` | `pkg/token/handler.go` — not enforced |
+| §3.1.2.1 | `scope` MUST include `openid` for OIDC requests; no ID token without it | `pkg/token/handler.go` line 237 |
+| §3.1.3.3 | ID token required claims: `iss`, `sub`, `aud`, `exp`, `iat` | `pkg/token/generate.go` `GenerateIDToken` lines 96-104 |
+| §3.1.3.3 | `nonce` MUST be present in ID token if sent in auth request | `pkg/token/generate.go` lines 110-112 |
+| §3.1.3.7 | `azp` SHOULD be present when ID token has a single audience | `pkg/token/generate.go` lines 115-117 |
+| §5.1 | UserInfo standard claims scope-filtered | `pkg/userinfo/handler.go` lines 102-145 |
+| §5.3 | UserInfo `sub` MUST match ID token `sub` | `pkg/userinfo/handler.go` — both use `user.ID` / `tok.UserID` |
+| §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — ✅ Fixed (PR #108) |
+| §11 | `offline_access` requires `prompt=consent` | ⏭ Skipped — refresh tokens always issued; `offline_access` is effectively always on |
+| §16.14 | `acr` value consistency | `pkg/token/generate.go` — consistently `"1"` in both access and ID tokens ✅ |
 
 **MUST / SHOULD / MAY compliance:**
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
-| MUST | §3.1.2.1 | `scope` includes `openid` for OIDC requests | pending |
-| MUST | §3.1.3.3 | ID token contains `iss`, `sub`, `aud`, `exp`, `iat` | pending |
-| MUST | §3.1.3.3 | `nonce` echoed in ID token if sent in request | pending |
-| MUST | §5.3 | UserInfo `sub` matches ID token `sub` | pending |
+| MUST | §3.1.2.1 | ID token only issued when `openid` scope present | ✅ Verified + annotated (2026-03-30) |
+| MUST | §3.1.3.3 | ID token contains `iss`, `sub`, `aud`, `exp`, `iat` | ✅ Verified + annotated (2026-03-30) |
+| MUST | §3.1.3.3 | `nonce` echoed in ID token if sent in request | ✅ Verified + annotated (2026-03-30) |
+| MUST | §3.1.3.3 | `aud` contains the client_id | ✅ Verified + annotated (2026-03-30) |
+| MUST | §5.3 | UserInfo `sub` matches ID token `sub` | ✅ Verified + annotated (2026-03-30) — both use same user ID |
 | MUST | §5.4 | Access token claims respect requested scope | ✅ Fixed (PR #108) |
-| SHOULD | §11 | `offline_access` only issued with `prompt=consent` | pending |
+| SHOULD | §3.1.3.7 | `azp` present in ID token | ✅ Verified + annotated (2026-03-30) |
+| SHOULD | §11 | `offline_access` only with `prompt=consent` | ⏭ Skipped — refresh tokens always issued by design |
 
 **Security Considerations (§16):**
-- [ ] §16.3: ID token audience — `aud` MUST be validated by clients; verify our tokens set `aud` to the correct client ID
-- [ ] §16.6: `nonce` replay prevention — once an ID token with a given nonce is consumed, it should not be reusable; note this is client-side but worth documenting
-- [ ] §16.14: `acr` value consistency — using `"password"` vs `"1"` inconsistently; standardise to a registered value
+- [x] §16.3: ID token `aud` is set to the `client_id` — verified in `GenerateIDToken` line 98
+- [x] §16.6: `nonce` replay prevention — client-side responsibility per spec; server correctly echoes nonce from auth request
+- [x] §16.14: `acr` value consistency — standardised to `"1"` in both access token and ID token (was `"password"` in access token before PR #108)
 
 **Discovery cross-check:**
-- [ ] `userinfo_endpoint` present in `/.well-known/openid-configuration`
-- [ ] `scopes_supported` lists all supported scopes (`openid`, `profile`, `email`, `offline_access`, etc.)
-- [ ] `claims_supported` lists all claims returned by UserInfo and ID token
+- [x] `userinfo_endpoint` present in `/.well-known/openid-configuration` — verified
+- [x] `scopes_supported` lists `openid`, `profile`, `email`, `address`, `phone`, `offline_access` — verified
+- [x] `claims_supported` lists all claims from UserInfo and ID token — verified
 
-**Tests to add:**
-- E2e: `TestIDToken_Claims_Verification` — parse and validate all required claims
-- E2e: `TestIDToken_Nonce_Preserved` — nonce in decoded token matches sent value
-- E2e: `TestUserInfo_Sub_MatchesIDToken`
-- E2e: `TestUserInfo_ScopeFiltering` — `openid` only; no `email`/`profile` claims
-- Unit: `GenerateIDToken` — all required claims, correct absence of optional ones
-- Unit: access token does not include profile claims when `profile` scope absent
+**Tests:**
+- Unit: `TestGenerateIDToken_WithNonce` — nonce present in claims ✅ Pre-existing
+- Unit: `TestGenerateIDToken_WithoutNonce` — nonce absent when empty ✅ Pre-existing
+- Unit: `TestGenerateIDToken_ScopeBasedClaims` — profile/email claim filtering ✅ Pre-existing
+- Unit: `TestGenerateIDToken_AcrClaimPresent` — acr = "1" ✅ Pre-existing
+- Unit: `TestGenerateIDToken_AuthTimeReflectsOriginalLogin` — auth_time correctness ✅ Pre-existing
+- Unit: `TestGenerateTokens_ScopeFiltering` — access token scope-based claims ✅ Pre-existing
+- Unit: `TestGenerateTokens_AcrValue` — access token acr = "1" ✅ Pre-existing
+- Unit: `TestHandleUserInfo_ScopeClaims_OpenIDOnly` — openid only, no profile/email claims ✅ Pre-existing
+- Unit: `TestHandleUserInfo_ScopeClaims_ProfileOnly` — profile claims present ✅ Pre-existing
+- Unit: `TestHandleUserInfo_ScopeClaims_EmailOnly` — email claims present ✅ Pre-existing
+- Unit: `TestHandleUserInfo_ScopeClaims_PhoneAndAddress` — phone/address claims ✅ Pre-existing
+- E2e: `TestAuthorizationCodeFlow_IDTokenWithNonce` — ID token claims verification + nonce ✅ Enhanced (2026-03-30) — now parses JWT and verifies iss, sub, aud, exp, iat, nonce
+- E2e: `TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope` — no ID token without openid ✅ Pre-existing
 
 ---
 

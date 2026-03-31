@@ -17,6 +17,7 @@ import (
 // GenerateTokens creates a signed access token and refresh token for the given user.
 // cfg should be the per-client resolved config (via config.GetForClient) so that
 // per-client overrides for expiration and audience are applied.
+// OIDC Core §5.4: scope values control which claims are embedded in the access token.
 func GenerateTokens(user user.User, clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
@@ -85,28 +86,32 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 }
 
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
-// The nonce parameter is included in the token if non-empty (for authorization code flow replay protection).
-// The scope parameter controls which claims are included (e.g. "profile" adds name claims, "email" adds email claims).
+// OIDC Core §3.1.3.3: the ID token MUST contain iss, sub, aud, exp, iat.
+// OIDC Core §3.1.3.3: nonce MUST be present if sent in the authorization request.
+// The scope parameter controls which optional claims are included.
 func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time) (string, error) {
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
 
+	// OIDC Core §3.1.3.3: required claims — iss, sub, aud, exp, iat
 	claims := jwt.MapClaims{
 		"iss":       bs.AppAuthIssuer,
 		"sub":       user.ID,
-		"aud":       clientID,
+		"aud":       clientID, // OIDC Core §3.1.3.3: aud MUST contain the client_id
 		"exp":       idTokenExpiresAt.Unix(),
 		"iat":       now.Unix(),
 		"auth_time": authTime.Unix(),
 		"sid":       sessionID,
-		"acr":       "1",
+		"acr":       "1", // OIDC Core §2: Authentication Context Class Reference
 	}
 
+	// OIDC Core §3.1.3.3: nonce MUST be present in ID token if sent in the authorization request
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
 
+	// OIDC Core §3.1.3.7: azp SHOULD be present when the ID token has a single audience
 	if clientID != "" {
 		claims["azp"] = clientID
 	}
