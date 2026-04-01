@@ -3,6 +3,7 @@ package appsettings
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -62,6 +63,124 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 
 	_ = LoadIntoConfig()
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// settingsExport is the JSON envelope for exported settings.
+type settingsExport struct {
+	Version    int               `json:"version"`
+	ExportedAt time.Time         `json:"exported_at"`
+	Settings   map[string]string `json:"settings"`
+}
+
+// settingsPreviewRow is one row in the import preview table.
+type settingsPreviewRow struct {
+	Key      string `json:"key"`
+	Current  string `json:"current"`
+	Incoming string `json:"incoming"`
+}
+
+// settingsPreviewResponse is the response from the import preview endpoint.
+type settingsPreviewResponse struct {
+	Rows    []settingsPreviewRow `json:"rows"`
+	Unknown []string             `json:"unknown"`
+}
+
+// HandleExportSettings godoc
+// @Summary Export settings
+// @Description Export all settings as a JSON file (smtp_password excluded).
+// @Tags admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} settingsExport
+// @Router /admin/api/settings/export [get]
+func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
+	all, err := GetAllSettings()
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read settings")
+		return
+	}
+	delete(all, "onboarded")
+	export := settingsExport{
+		Version:    1,
+		ExportedAt: time.Now().UTC(),
+		Settings:   all,
+	}
+	utils.SuccessResponse(w, export, http.StatusOK)
+}
+
+// HandleImportPreview godoc
+// @Summary Preview settings import
+// @Description Returns a diff of current vs incoming values for all known keys, plus unknown keys.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} settingsPreviewResponse
+// @Router /admin/api/settings/import/preview [post]
+func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
+	var payload settingsExport
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		return
+	}
+
+	current, err := GetAllSettings()
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read current settings")
+		return
+	}
+
+	rows := []settingsPreviewRow{}
+	unknown := []string{}
+
+	for k, incoming := range payload.Settings {
+		if _, known := defaults[k]; !known {
+			unknown = append(unknown, k)
+			continue
+		}
+		rows = append(rows, settingsPreviewRow{
+			Key:      k,
+			Current:  current[k],
+			Incoming: incoming,
+		})
+	}
+
+	utils.SuccessResponse(w, settingsPreviewResponse{Rows: rows, Unknown: unknown}, http.StatusOK)
+}
+
+// HandleImportApply godoc
+// @Summary Apply settings import
+// @Description Applies imported settings, skipping unknown keys and protected fields.
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 204
+// @Router /admin/api/settings/import/apply [post]
+func HandleImportApply(w http.ResponseWriter, r *http.Request) {
+	var payload settingsExport
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		return
+	}
+
+	protected := map[string]bool{"onboarded": true, "private_key": true}
+
+	for k, v := range payload.Settings {
+		if protected[k] {
+			continue
+		}
+		if _, known := defaults[k]; !known {
+			continue
+		}
+		if err := SetSetting(k, v); err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to apply settings")
+			return
+		}
+	}
+
+	_ = LoadIntoConfig()
 	w.WriteHeader(http.StatusNoContent)
 }
 
