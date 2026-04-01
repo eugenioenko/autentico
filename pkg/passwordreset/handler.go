@@ -121,6 +121,9 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Add random delay to prevent timing-based user enumeration.
+	utils.RandomDelay()
+
 	// Always show success to prevent user enumeration.
 	// Silently skip if we can't find the user or they have no email.
 	cfg := config.Get()
@@ -136,7 +139,6 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil || usr == nil || usr.Email == "" || !usr.IsEmailVerified {
-		// Don't leak whether the user exists
 		renderForgotPassword(w, r, "sent", params, "")
 		return
 	}
@@ -159,9 +161,11 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resetURL := buildResetURL(rawToken, params)
-	if err := mfa.SendPasswordResetEmail(usr.Email, resetURL); err != nil {
-		slog.Error("forgot-password: failed to send email", "request_id", reqID, "error", err)
-	}
+	go func() {
+		if err := mfa.SendPasswordResetEmail(usr.Email, resetURL); err != nil {
+			slog.Error("forgot-password: failed to send email", "request_id", reqID, "error", err)
+		}
+	}()
 
 	renderForgotPassword(w, r, "sent", params, "")
 }
