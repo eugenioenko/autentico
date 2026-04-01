@@ -100,6 +100,7 @@ export default function SettingsPage() {
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
+  const [activeTab, setActiveTab] = useState("1");
   const [exportLoading, setExportLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
@@ -235,7 +236,8 @@ export default function SettingsPage() {
         style={{ maxWidth: 800 }}
       >
         <Tabs
-          defaultActiveKey="1"
+          activeKey={activeTab}
+          onChange={setActiveTab}
           items={[
             {
               key: "1",
@@ -902,17 +904,19 @@ export default function SettingsPage() {
           ]}
         />
 
-        <div style={{ marginTop: 24, textAlign: "right" }}>
-          <Button
-            type="primary"
-            htmlType="submit"
-            icon={<SaveOutlined />}
-            loading={updateSettings.isPending}
-            size="large"
-          >
-            Save All Settings
-          </Button>
-        </div>
+        {activeTab !== "6" && (
+          <div style={{ marginTop: 24, textAlign: "right" }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SaveOutlined />}
+              loading={updateSettings.isPending}
+              size="large"
+            >
+              Save All Settings
+            </Button>
+          </div>
+        )}
       </Form>
     </Space>
   );
