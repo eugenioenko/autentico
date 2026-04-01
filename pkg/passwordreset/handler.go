@@ -129,13 +129,13 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var usr *user.User
 	var err error
 
-	// Try username first, then email
+	// Try username first, then email (verified only)
 	usr, err = user.UserByUsername(identifier)
 	if err != nil {
 		usr, err = user.UserByEmail(identifier)
 	}
 
-	if err != nil || usr == nil || usr.Email == "" {
+	if err != nil || usr == nil || usr.Email == "" || !usr.IsEmailVerified {
 		// Don't leak whether the user exists
 		renderForgotPassword(w, r, "sent", params, "")
 		return

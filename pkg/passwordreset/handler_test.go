@@ -149,6 +149,65 @@ func TestHandleForgotPassword_POST_UserNoEmail_ShowsSuccess(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "sent")
 }
 
+func TestHandleForgotPassword_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u, err := user.CreateUser("unverified", "password123", "unverified@test.com")
+	require.NoError(t, err)
+	// Email is not verified — reset should silently do nothing
+
+	form := url.Values{}
+	form.Set("identifier", "unverified")
+	form.Set("client_id", "test")
+	form.Set("redirect_uri", "http://localhost/cb")
+	form.Set("state", "s1")
+	form.Set("scope", "openid")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/forgot-password", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleForgotPassword(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "sent")
+
+	// No token should have been created
+	var count int
+	err = db.GetDB().QueryRow(`SELECT COUNT(*) FROM password_reset_tokens WHERE user_id = ?`, u.ID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "no reset token should be created for unverified email")
+}
+
+func TestHandleForgotPassword_POST_UnverifiedEmail_LookupByEmail_NoTokenCreated(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u, err := user.CreateUser("someuser", "password123", "unverified2@test.com")
+	require.NoError(t, err)
+	// Email is not verified — looking up by email should also fail
+
+	form := url.Values{}
+	form.Set("identifier", "unverified2@test.com")
+	form.Set("client_id", "test")
+	form.Set("redirect_uri", "http://localhost/cb")
+	form.Set("state", "s1")
+	form.Set("scope", "openid")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/forgot-password", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleForgotPassword(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "sent")
+
+	var count int
+	err = db.GetDB().QueryRow(`SELECT COUNT(*) FROM password_reset_tokens WHERE user_id = ?`, u.ID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "no reset token should be created when looking up unverified email")
+}
+
 func TestHandleForgotPassword_POST_EmptyIdentifier(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -175,6 +234,7 @@ func TestHandleForgotPassword_POST_ValidUser_CreatesToken(t *testing.T) {
 
 	u, err := user.CreateUser("resetme", "password123", "resetme@test.com")
 	require.NoError(t, err)
+	require.NoError(t, user.MarkEmailVerified(u.ID))
 
 	form := url.Values{}
 	form.Set("identifier", "resetme")

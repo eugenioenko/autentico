@@ -31,9 +31,6 @@
   <div class="auth-error" role="alert" id="login-error" style="display:none"></div>
   {{end}}
   {{if ne .AuthMode "passkey_only"}}
-  {{if .SmtpConfigured}}
-  <div class="auth-link" style="text-align:right;margin-bottom:8px;margin-top:-4px;"><a href="{{authURL "/forgot-password"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Forgot password?</a></div>
-  {{end}}
   <button class="auth-btn" type="submit">Log In</button>
   {{end}}
   {{if ne .AuthMode "password"}}
@@ -47,8 +44,15 @@
     Sign in with passkey
   </button>
   {{end}}
-  {{if .AllowSelfSignup}}
-  <div class="auth-link">Don't have an account? <a href="{{authURL "/signup"}}?state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create one</a></div>
+  {{if or .AllowSelfSignup (and .SmtpConfigured (ne .AuthMode "passkey_only"))}}
+  <div class="auth-links">
+    {{if and .SmtpConfigured (ne .AuthMode "passkey_only")}}
+    <div class="auth-link"><a href="{{authURL "/forgot-password"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Forgot password?</a></div>
+    {{end}}
+    {{if .AllowSelfSignup}}
+    <div class="auth-link" style="margin-left:auto;"><a href="{{authURL "/signup"}}?state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create account</a></div>
+    {{end}}
+  </div>
   {{end}}
   {{if .FederatedProviders}}
   <div class="auth-divider">or</div>
