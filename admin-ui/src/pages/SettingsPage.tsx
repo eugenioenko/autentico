@@ -24,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "../api/client";
 import { makeTip } from "../lib/tips";
 
@@ -92,6 +93,7 @@ const tip = makeTip({
 export default function SettingsPage() {
   const { data: settings, isLoading, error } = useSettings();
   const updateSettings = useUpdateSettings();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const pkceEnforced = Form.useWatch("pkce_enforce_s256", form);
   const mfaMethod = Form.useWatch("mfa_method", form);
@@ -171,6 +173,7 @@ export default function SettingsPage() {
       message.success("Settings imported successfully");
       setPreviewData(null);
       setBackupText("");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
       message.error(axiosErr.response?.data?.error_description ?? "Import failed");
