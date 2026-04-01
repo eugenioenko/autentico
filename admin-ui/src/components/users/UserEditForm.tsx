@@ -49,6 +49,16 @@ export default function UserEditForm({
         birthdate: user.birthdate,
         website: user.website,
         profile: user.profile,
+        phone_number: user.phone_number,
+        phone_number_verified: user.phone_number_verified,
+        picture: user.picture,
+        locale: user.locale,
+        zoneinfo: user.zoneinfo,
+        address_street: user.address_street,
+        address_locality: user.address_locality,
+        address_region: user.address_region,
+        address_postal_code: user.address_postal_code,
+        address_country: user.address_country,
       });
     }
   }, [user, open, form]);
@@ -109,7 +119,7 @@ export default function UserEditForm({
           label="New Password"
           extra="Leave empty to keep current password"
         >
-          <Input.Password placeholder="Enter new password" />
+          <Input.Password placeholder="Enter new password" autoComplete="new-password" />
         </Form.Item>
 
         <Divider />
@@ -145,8 +155,57 @@ export default function UserEditForm({
           <Input placeholder="https://..." />
         </Form.Item>
 
+        <Form.Item name="phone_number" label="Phone Number">
+          <Input />
+        </Form.Item>
+
+        <Form.Item
+          name="phone_number_verified"
+          label="Phone Verified"
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
+
+        <Form.Item name="picture" label="Profile Picture URL">
+          <Input placeholder="https://..." />
+        </Form.Item>
+
         <Form.Item name="profile" label="Profile Page URL">
           <Input placeholder="https://..." />
+        </Form.Item>
+
+        <Form.Item name="locale" label="Locale">
+          <Input placeholder="en-US" />
+        </Form.Item>
+
+        <Form.Item name="zoneinfo" label="Timezone">
+          <Input placeholder="America/New_York" />
+        </Form.Item>
+
+        <Divider />
+        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+          Address
+        </Typography.Text>
+
+        <Form.Item name="address_street" label="Street">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="address_locality" label="City">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="address_region" label="State / Region">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="address_postal_code" label="Postal Code">
+          <Input />
+        </Form.Item>
+
+        <Form.Item name="address_country" label="Country">
+          <Input />
         </Form.Item>
 
         <Divider />

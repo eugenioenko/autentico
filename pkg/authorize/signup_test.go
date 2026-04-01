@@ -23,5 +23,5 @@ func TestHandleAuthorize_NoSelfSignup(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.NotContains(t, rr.Body.String(), "Create one")
+	assert.NotContains(t, rr.Body.String(), "Create account")
 }

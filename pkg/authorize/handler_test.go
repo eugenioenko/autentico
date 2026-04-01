@@ -623,7 +623,7 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Create one")
+	assert.Contains(t, rr.Body.String(), "Create account")
 }
 
 func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
