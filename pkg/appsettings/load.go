@@ -33,6 +33,7 @@ var defaults = map[string]string{
 	"mfa_method":                     "totp",
 	"require_email_verification":     "false",
 	"email_verification_expiration":  "24h",
+	"password_reset_expiration":      "1h",
 	"smtp_host":                       "",
 	"smtp_port":                       "587",
 	"smtp_username":                   "",
@@ -189,6 +190,10 @@ func LoadIntoConfig() error {
 	if v, ok := all["email_verification_expiration"]; ok {
 		cfg.EmailVerificationExpirationStr = v
 		cfg.EmailVerificationExpiration = config.ParseDuration(v, cfg.EmailVerificationExpiration)
+	}
+	if v, ok := all["password_reset_expiration"]; ok {
+		cfg.PasswordResetExpirationStr = v
+		cfg.PasswordResetExpiration = config.ParseDuration(v, cfg.PasswordResetExpiration)
 	}
 	if v, ok := all["smtp_host"]; ok {
 		cfg.SmtpHost = v

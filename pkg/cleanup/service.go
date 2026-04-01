@@ -24,6 +24,7 @@ func Run(retention time.Duration) {
 		{"tokens", `DELETE FROM tokens WHERE refresh_token_expires_at < ?`},
 		{"sessions", `DELETE FROM sessions WHERE expires_at < ?`},
 		{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
+		{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
 	}
 
 	for _, q := range queries {
