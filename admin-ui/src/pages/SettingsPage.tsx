@@ -810,24 +810,26 @@ export default function SettingsPage() {
                         rows={8}
                         style={{ fontFamily: "monospace", fontSize: 12 }}
                       />
-                      <Space style={{ marginTop: 12 }}>
-                        <Button
-                          onClick={handlePreview}
-                          loading={previewLoading}
-                          disabled={!backupText.trim()}
-                        >
-                          Preview Import
-                        </Button>
-                        {previewData && (
+                      <div style={{ marginTop: 12, textAlign: "right" }}>
+                        <Space>
                           <Button
-                            type="primary"
-                            onClick={handleApply}
-                            loading={applyLoading}
+                            onClick={handlePreview}
+                            loading={previewLoading}
+                            disabled={!backupText.trim()}
                           >
-                            Apply Import
+                            Preview Import
                           </Button>
-                        )}
-                      </Space>
+                          {previewData && (
+                            <Button
+                              type="primary"
+                              onClick={handleApply}
+                              loading={applyLoading}
+                            >
+                              Apply Import
+                            </Button>
+                          )}
+                        </Space>
+                      </div>
                     </div>
 
                     {previewData && (
