@@ -15,6 +15,11 @@ import (
 // ErrAccountLocked is returned when the account is temporarily locked due to too many failed login attempts.
 var ErrAccountLocked = errors.New("account is temporarily locked due to too many failed login attempts")
 
+// dummyHash is a pre-computed bcrypt hash used to burn CPU time when a
+// username is not found, so the response time is indistinguishable from
+// a valid-user-wrong-password attempt.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("anti-timing-dummy"), bcrypt.DefaultCost)
+
 // AuthenticateUser checks if the provided username and password match a user in the database.
 // It enforces account lockout after repeated failed attempts when configured.
 func AuthenticateUser(username, password string) (*User, error) {
@@ -43,6 +48,8 @@ func AuthenticateUser(username, password string) (*User, error) {
 	user.Email = nullStringToString(email)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// Burn CPU time so response is indistinguishable from wrong-password
+			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 			return nil, fmt.Errorf("invalid username or password")
 		}
 		return nil, fmt.Errorf("failed to retrieve user: %w", err)
