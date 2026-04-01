@@ -75,10 +75,34 @@ Default: `false`
 
 Allow users to change their own email address from the self-service account portal.
 
+### `allow_self_service_deletion`
+Default: `false`
+
+Allow users to delete their own account immediately without admin approval.
+
 ### `access_token_audience`
 Default: `[]`
 
 JSON array of audience values (`aud` claim) added to access tokens. Example: `["https://api.example.com"]`.
+
+---
+
+## Email verification
+
+### `require_email_verification`
+Default: `false`
+
+Require users to verify their email address before they can log in. Admins are exempt. Requires SMTP to be configured.
+
+### `email_verification_expiration`
+Default: `24h`
+
+How long an email verification link remains valid.
+
+### `password_reset_expiration`
+Default: `1h`
+
+How long a password reset link remains valid. Only sent to users with a verified email address.
 
 ---
 
@@ -303,6 +327,15 @@ How often the cleanup job runs.
 Default: `24h`
 
 Minimum age of an expired record before it is eligible for deletion. Protects very recently expired records from being purged before any in-flight operations complete.
+
+---
+
+## Audit log
+
+### `audit_log_retention`
+Default: `0`
+
+Controls whether audit logging is enabled and how long events are kept. `0` disables audit logging entirely (no events recorded). `-1` enables logging and keeps events forever. Any Go duration value (e.g. `720h` for 30 days) enables logging and automatically purges events older than that duration during cleanup.
 
 ---
 

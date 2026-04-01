@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -170,6 +171,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
+	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "federation", "provider", providerID), utils.GetClientIP(r))
 
 	if err := completeAuthFlow(w, r, usr, state); err != nil {
 		slog.Error("federation: failed to complete auth flow", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)

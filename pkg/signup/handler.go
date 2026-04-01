@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
@@ -152,6 +153,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		renderSignup(w, r, params, "Could not create account. Username may already be taken.")
 		return
 	}
+	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
 
 	// Save optional/required profile fields
 	profileUpdate := user.UserUpdateRequest{

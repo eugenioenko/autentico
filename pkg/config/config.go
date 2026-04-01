@@ -87,6 +87,8 @@ type Config struct {
 	EmailVerificationExpirationStr     string
 	PasswordResetExpiration            time.Duration
 	PasswordResetExpirationStr         string
+	AuditLogRetention                  time.Duration
+	AuditLogRetentionStr               string
 	SmtpHost                           string
 	SmtpPort                           string
 	SmtpUsername                       string

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -68,6 +69,8 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("User creation error. %v", err))
 		return
 	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserCreated, admin, audit.TargetUser, response.ID, audit.Detail("source", "admin"), utils.GetClientIP(r))
 	utils.SuccessResponse(w, response, http.StatusCreated)
 }
 
@@ -131,6 +134,8 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserUpdated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
@@ -160,6 +165,8 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserDeactivated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"result": "deleted"}, http.StatusOK)
 }
 
@@ -210,6 +217,8 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserUnlocked, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())

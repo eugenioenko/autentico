@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/passkey"
@@ -66,6 +67,7 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventPasskeyRemoved, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "Passkey deleted"}, http.StatusOK)
 }
 
@@ -236,5 +238,6 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = passkey.MarkPasskeyChallengeUsed(challenge.ID)
+	audit.Log(audit.EventPasskeyAdded, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "Passkey added successfully"}, http.StatusOK)
 }

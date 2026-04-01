@@ -15,6 +15,67 @@ definitions:
       total_users:
         type: integer
     type: object
+  appsettings.settingsExport:
+    properties:
+      exported_at:
+        type: string
+      settings:
+        additionalProperties:
+          type: string
+        type: object
+      version:
+        type: integer
+    type: object
+  appsettings.settingsPreviewResponse:
+    properties:
+      rows:
+        items:
+          $ref: '#/definitions/appsettings.settingsPreviewRow'
+        type: array
+      unknown:
+        items:
+          type: string
+        type: array
+    type: object
+  appsettings.settingsPreviewRow:
+    properties:
+      current:
+        type: string
+      incoming:
+        type: string
+      key:
+        type: string
+    type: object
+  audit.AuditLogListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/audit.AuditLogResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  audit.AuditLogResponse:
+    properties:
+      actor_id:
+        type: string
+      actor_username:
+        type: string
+      created_at:
+        type: string
+      detail:
+        type: string
+      event:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      target_id:
+        type: string
+      target_type:
+        type: string
+    type: object
   client.ClientCreateRequest:
     properties:
       access_token_expiration:
@@ -31,6 +92,8 @@ definitions:
       client_id:
         type: string
       client_name:
+        type: string
+      client_secret:
         type: string
       client_type:
         type: string
@@ -259,41 +322,44 @@ definitions:
   introspect.IntrospectResponse:
     properties:
       active:
-        description: Whether the token is valid (true or false).
+        description: 'RFC 7662 §2.2: REQUIRED. Whether the token is currently active.'
         type: boolean
       aud:
-        description: Intended audience for the token (e.g., the API).
+        description: 'RFC 7662 §2.2: OPTIONAL. Intended audience.'
         type: string
       client_id:
-        description: Client ID for which the token was issued.
+        description: 'RFC 7662 §2.2: OPTIONAL. Client that requested this token.'
         type: string
       error:
         type: string
       error_description:
         type: string
       exp:
-        description: Expiration time (Unix timestamp).
+        description: 'RFC 7662 §2.2: OPTIONAL. Expiration time (Unix timestamp).'
         type: integer
       iat:
-        description: Issued-at time (Unix timestamp).
+        description: 'RFC 7662 §2.2: OPTIONAL. Issued-at time (Unix timestamp).'
         type: integer
+      iss:
+        description: 'RFC 7662 §2.2: OPTIONAL. Issuer of this token.'
+        type: string
       jti:
-        description: Unique identifier for the token.
+        description: 'RFC 7662 §2.2: OPTIONAL. Unique identifier for the token.'
         type: string
       nbf:
-        description: Not-before time (Unix timestamp).
+        description: 'RFC 7662 §2.2: OPTIONAL. Not-before time (Unix timestamp).'
         type: integer
       scope:
-        description: Space-delimited list of scopes associated with the token.
+        description: 'RFC 7662 §2.2: OPTIONAL. Space-delimited list of scopes.'
         type: string
       sub:
-        description: The subject of the token (typically the user ID).
+        description: 'RFC 7662 §2.2: OPTIONAL. Subject of the token.'
         type: string
       token_type:
-        description: The type of the token (usually "bearer").
+        description: 'RFC 7662 §2.2: OPTIONAL. Type of the token (e.g., "bearer").'
         type: string
       username:
-        description: The username of the authenticated user.
+        description: 'RFC 7662 §2.2: OPTIONAL. Human-readable resource owner identifier.'
         type: string
     type: object
   model.ApiError:
@@ -650,6 +716,38 @@ paths:
       summary: Request account deletion
       tags:
       - account
+  /admin/api/audit-logs:
+    get:
+      description: Returns a paginated list of audit events with optional filters.
+      parameters:
+      - description: Filter by event type
+        in: query
+        name: event
+        type: string
+      - description: Filter by actor user ID
+        in: query
+        name: actor_id
+        type: string
+      - description: Page size (default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/audit.AuditLogListResponse'
+      security:
+      - BearerAuth: []
+      summary: List audit log events
+      tags:
+      - admin
   /admin/api/clients:
     get:
       description: Lists all registered clients (admin only)
@@ -1050,6 +1148,55 @@ paths:
       security:
       - BearerAuth: []
       summary: Update system settings
+      tags:
+      - admin
+  /admin/api/settings/export:
+    get:
+      description: Export all settings as a JSON file (smtp_password excluded).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/appsettings.settingsExport'
+      security:
+      - BearerAuth: []
+      summary: Export settings
+      tags:
+      - admin
+  /admin/api/settings/import/apply:
+    post:
+      consumes:
+      - application/json
+      description: Applies imported settings, skipping unknown keys and protected
+        fields.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Apply settings import
+      tags:
+      - admin
+  /admin/api/settings/import/preview:
+    post:
+      consumes:
+      - application/json
+      description: Returns a diff of current vs incoming values for all known keys,
+        plus unknown keys.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/appsettings.settingsPreviewResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview settings import
       tags:
       - admin
   /admin/api/settings/test-smtp:

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -314,6 +315,7 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 	credential, err := wauthn.FinishLogin(wUser, session, r)
 	if err != nil {
 		slog.Warn("passkey: authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
+		audit.Log(audit.EventPasskeyLoginFailed, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 		writeJSONError(w, http.StatusUnauthorized, "authentication_failed")
 		return
 	}
@@ -321,6 +323,7 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
 	_ = UpdatePasskeyCredential(credentialID, *credential)
 	_ = MarkPasskeyChallengeUsed(challenge.ID)
+	audit.Log(audit.EventPasskeyLoginSuccess, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 
 	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
 	if err != nil {
@@ -431,7 +434,12 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isNewUser := usr.RegisteredAt == nil
 	_ = MarkPasskeyChallengeUsed(challenge.ID)
+	audit.Log(audit.EventPasskeyAdded, usr, audit.TargetUser, usr.ID, audit.Detail("source", "registration"), utils.GetClientIP(r))
+	if isNewUser {
+		audit.Log(audit.EventUserCreated, usr, audit.TargetUser, usr.ID, audit.Detail("source", "passkey"), utils.GetClientIP(r))
+	}
 
 	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
 	if err != nil {

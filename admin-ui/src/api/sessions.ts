@@ -14,5 +14,5 @@ export async function listSessions(
 }
 
 export async function deactivateSession(id: string): Promise<void> {
-  await apiClient.delete(BASE, { params: { id } });
+  await apiClient.delete(`${BASE}/${id}`);
 }

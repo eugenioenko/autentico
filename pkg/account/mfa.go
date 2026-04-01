@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -77,6 +78,7 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "source", "account"), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "TOTP enabled successfully"}, http.StatusOK)
 }
 
@@ -106,5 +108,6 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventMfaDisabled, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "MFA disabled"}, http.StatusOK)
 }

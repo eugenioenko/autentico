@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
@@ -160,6 +161,8 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventPasswordResetRequested, nil, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
+
 	resetURL := buildResetURL(rawToken, params)
 	go func() {
 		if err := mfa.SendPasswordResetEmail(usr.Email, resetURL); err != nil {
@@ -266,6 +269,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	deactivateUserSessions(userID)
 	_ = idpsession.DeactivateAllForUser(userID)
 
+	audit.Log(audit.EventPasswordResetCompleted, nil, audit.TargetUser, userID, nil, utils.GetClientIP(r))
 	renderResetPassword(w, r, "success", "", params, "")
 }
 

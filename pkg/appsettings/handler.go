@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -62,6 +63,8 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = LoadIntoConfig()
+
+	audit.Log(audit.EventSettingsUpdated, audit.ActorFromRequest(r), audit.TargetSettings, "", nil, utils.GetClientIP(r))
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -181,6 +184,7 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = LoadIntoConfig()
+	audit.Log(audit.EventSettingsImported, audit.ActorFromRequest(r), audit.TargetSettings, "", nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -130,6 +131,6 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-
+	audit.Log(audit.EventPasswordChanged, usr, audit.TargetUser, usr.ID, audit.Detail("source", "self"), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "Password updated successfully"}, http.StatusOK)
 }

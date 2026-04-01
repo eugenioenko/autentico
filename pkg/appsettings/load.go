@@ -34,6 +34,7 @@ var defaults = map[string]string{
 	"require_email_verification":     "false",
 	"email_verification_expiration":  "24h",
 	"password_reset_expiration":      "1h",
+	"audit_log_retention":            "0",
 	"smtp_host":                       "",
 	"smtp_port":                       "587",
 	"smtp_username":                   "",
@@ -194,6 +195,12 @@ func LoadIntoConfig() error {
 	if v, ok := all["password_reset_expiration"]; ok {
 		cfg.PasswordResetExpirationStr = v
 		cfg.PasswordResetExpiration = config.ParseDuration(v, cfg.PasswordResetExpiration)
+	}
+	if v, ok := all["audit_log_retention"]; ok {
+		cfg.AuditLogRetentionStr = v
+		if v != "0" && v != "" && v != "-1" {
+			cfg.AuditLogRetention = config.ParseDuration(v, 0)
+		}
 	}
 	if v, ok := all["smtp_host"]; ok {
 		cfg.SmtpHost = v

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -65,6 +66,7 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	_ = idpsession.DeactivateAllForUser(claims.UserID)
 	idpsession.ClearCookie(w)
 
+	audit.Log(audit.EventLogout, audit.SimpleActor{ID: claims.UserID}, audit.TargetUser, claims.UserID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, "ok", http.StatusOK)
 }
 
