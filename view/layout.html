@@ -5,6 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="same-origin" />
   {{if .ThemeLogoUrl}}<link rel="icon" href="{{.ThemeLogoUrl}}" />{{else}}<link rel="icon" type="image/svg+xml" href="/admin/favicon.svg" />{{end}}
   <title>{{block "title" .}}{{.ThemeTitle}}{{end}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />

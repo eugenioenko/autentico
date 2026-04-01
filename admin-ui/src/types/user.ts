@@ -21,6 +21,16 @@ export interface UserUpdateRequest {
   birthdate?: string;
   website?: string;
   profile?: string;
+  phone_number?: string;
+  phone_number_verified?: boolean;
+  picture?: string;
+  locale?: string;
+  zoneinfo?: string;
+  address_street?: string;
+  address_locality?: string;
+  address_region?: string;
+  address_postal_code?: string;
+  address_country?: string;
 }
 
 // Extended response fields not in swagger spec
@@ -42,4 +52,14 @@ export interface UserResponseExt {
   birthdate?: string;
   website?: string;
   profile?: string;
+  phone_number?: string;
+  phone_number_verified?: boolean;
+  picture?: string;
+  locale?: string;
+  zoneinfo?: string;
+  address_street?: string;
+  address_locality?: string;
+  address_region?: string;
+  address_postal_code?: string;
+  address_country?: string;
 }

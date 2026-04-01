@@ -175,7 +175,8 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.UserByUsername(username)
 	if err != nil {
-		// Return generic error to avoid user enumeration
+		// Prevent timing-based user enumeration
+		utils.RandomDelay()
 		writeJSONError(w, http.StatusBadRequest, "invalid username or passkey")
 		return
 	}

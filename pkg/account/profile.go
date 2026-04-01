@@ -38,7 +38,20 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "not_allowed", "Username changes are not permitted")
 		return
 	}
-	if req.Email != "" && !cfg.AllowEmailChange {
+
+	// In is_username mode, email is derived from username — block standalone email changes
+	// and sync email when username changes.
+	if cfg.ProfileFieldEmail == "is_username" {
+		if req.Email != "" {
+			utils.WriteErrorResponse(w, http.StatusForbidden, "not_allowed", "Email cannot be changed separately when username is email")
+			return
+		}
+		if req.Username != "" {
+			req.Email = req.Username
+		}
+	}
+
+	if req.Email != "" && !cfg.AllowEmailChange && cfg.ProfileFieldEmail != "is_username" {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "not_allowed", "Email changes are not permitted")
 		return
 	}

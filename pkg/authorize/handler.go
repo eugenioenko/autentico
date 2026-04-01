@@ -222,6 +222,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+		"SmtpConfigured":     cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
 	}
 

@@ -118,6 +118,10 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
+	// In is_username mode, keep username and email in sync
+	if config.Get().ProfileFieldEmail == "is_username" && req.Username != "" {
+		req.Email = req.Username
+	}
 	if err := ValidateUserUpdateRequest(req); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return

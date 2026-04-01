@@ -36,6 +36,22 @@ func SendVerificationEmail(to, verifyURL string) error {
 	return sendEmail(to, "Verify your email address", "Verify your email to complete your registration.", body)
 }
 
+func SendPasswordResetEmail(to, resetURL string) error {
+	body := template.HTML(fmt.Sprintf(`
+<p style="margin:0 0 32px 0;color:#52525b;">We received a request to reset your password. Click the button below to choose a new password.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px 0;">
+  <tr>
+    <td style="background-color:#18181b;border-radius:8px;padding:0;">
+      <a href="%s" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:-0.1px;">Reset my password</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:0;font-size:13px;color:#a1a1aa;">This link expires in 1 hour. If you did not request a password reset, no action is required — your account is safe.</p>`,
+		resetURL,
+	))
+	return sendEmail(to, "Reset your password", "Reset your password — this link expires in 1 hour.", body)
+}
+
 func SendEmailOTP(to, code string) error {
 	body := template.HTML(fmt.Sprintf(`
 <p style="margin:0 0 32px 0;color:#52525b;">Use the code below to complete your sign-in. It expires in <strong>5 minutes</strong>.</p>

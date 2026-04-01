@@ -190,7 +190,9 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.UserByUsername(username)
 	if err != nil {
-		// Don't leak whether the user exists — show success anyway
+		// Don't leak whether the user exists — show success anyway.
+		// Prevent timing-based user enumeration.
+		utils.RandomDelay()
 		RenderVerifyEmail(w, r, "sent", username, params, "")
 		return
 	}

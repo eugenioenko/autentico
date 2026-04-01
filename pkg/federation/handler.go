@@ -203,7 +203,12 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 
 	// (3) Create new user if not matched
 	if localUser == nil {
-		username := deriveUsername(email, sub)
+		var username string
+		if config.Get().ProfileFieldEmail == "is_username" && email != "" {
+			username = email
+		} else {
+			username = deriveUsername(email, sub)
+		}
 		_, createErr := user.CreateUser(username, randomPassword(), email)
 		if createErr != nil {
 			return nil, fmt.Errorf("failed to create federated user: %w", createErr)

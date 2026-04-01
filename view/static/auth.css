@@ -290,6 +290,13 @@ button {
   }
 }
 
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 15px;
+}
+
 /* ── Logo ───────────────────────────────────────────────── */
 
 .logo {
@@ -310,14 +317,14 @@ button {
 
 .auth-text {
   margin: 0;
-  text-align: center;
+  text-align: left;
   line-height: 1.5;
   color: var(--color-fg);
 }
 
 .auth-text-muted {
   margin: 0;
-  text-align: center;
+  text-align: left;
   line-height: 1.5;
   color: var(--color-muted);
 }

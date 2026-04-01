@@ -85,6 +85,8 @@ type Config struct {
 	RequireEmailVerification           bool
 	EmailVerificationExpiration        time.Duration
 	EmailVerificationExpirationStr     string
+	PasswordResetExpiration            time.Duration
+	PasswordResetExpirationStr         string
 	SmtpHost                           string
 	SmtpPort                           string
 	SmtpUsername                       string
@@ -151,6 +153,8 @@ var defaultConfig = Config{
 	RequireEmailVerification:           false,
 	EmailVerificationExpiration:        24 * time.Hour,
 	EmailVerificationExpirationStr:     "24h",
+	PasswordResetExpiration:            1 * time.Hour,
+	PasswordResetExpirationStr:         "1h",
 	SmtpPort:                           "587",
 	ValidationMinUsernameLength:        4,
 	ValidationMaxUsernameLength:        64,
