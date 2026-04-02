@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+var silentPrefixes = []string{
+	"/admin/assets/",
+	"/account/assets/",
+	"/oauth2/static/",
+	"/admin/favicon.svg",
+	"/account/favicon.svg",
+	"/.well-known/appspecific/",
+}
+
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -19,13 +28,16 @@ func (rw *responseWriter) WriteHeader(statusCode int) {
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := r.URL.Path
-		// skip logging for static assets
-		if strings.HasPrefix(p, "/admin/assets/") ||
-			strings.HasPrefix(p, "/account/assets/") ||
-			strings.HasPrefix(p, "/assets/") {
-			next.ServeHTTP(w, r)
-			return
+		// Skip logging for static asset GET requests served by embedded file servers.
+		// These are fixed mount points — no API or auth paths share these prefixes.
+		if r.Method == http.MethodGet {
+			p := r.URL.Path
+			for _, prefix := range silentPrefixes {
+				if strings.HasPrefix(p, prefix) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 		}
 
 		start := time.Now()
