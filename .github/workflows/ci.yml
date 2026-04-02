@@ -91,6 +91,31 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.23.0
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install browser test dependencies
+        working-directory: tests/browser
+        run: npm install
+      - name: Install Playwright browsers
+        working-directory: tests/browser
+        run: npx playwright install chromium --with-deps
+      - name: Run smoke tests
+        working-directory: tests/browser
+        run: npx playwright test
+
   tidy-check:
     runs-on: ubuntu-latest
     steps:

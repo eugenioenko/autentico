@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
+      <Typography.Title level={4} style={{ margin: 0 }} data-testid="admin-dashboard">
         Dashboard
       </Typography.Title>
 
