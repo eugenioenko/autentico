@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -108,6 +109,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			loginError = "Account is temporarily locked due to too many failed login attempts"
 			slog.Warn("login: account locked", "request_id", middleware.GetRequestID(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
 		}
+		detail := audit.Detail("username", request.Username, "reason", loginError)
+		audit.Log(audit.EventLoginFailed, nil, audit.TargetUser, "", detail, utils.GetClientIP(r))
 		redirectToLogin(w, r, request, loginError)
 		return
 	}
@@ -239,6 +242,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
+
+	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "password"), utils.GetClientIP(r))
 
 	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
 	params := url.Values{}

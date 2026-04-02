@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -77,6 +78,7 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventFederationCreated, audit.ActorFromRequest(r), audit.TargetFederation, req.ID, audit.Detail("name", req.Name), utils.GetClientIP(r))
 	utils.WriteApiResponse(w, map[string]string{"status": "created"}, http.StatusCreated)
 }
 
@@ -138,6 +140,7 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventFederationUpdated, audit.ActorFromRequest(r), audit.TargetFederation, id, nil, utils.GetClientIP(r))
 	utils.WriteApiResponse(w, map[string]string{"status": "updated"}, http.StatusOK)
 }
 
@@ -160,7 +163,7 @@ func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-
+	audit.Log(audit.EventFederationDeleted, audit.ActorFromRequest(r), audit.TargetFederation, id, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
 

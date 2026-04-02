@@ -6,6 +6,7 @@ import {
   AppstoreOutlined,
   UserOutlined,
   DesktopOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   GlobalOutlined,
   SettingOutlined,
@@ -27,6 +28,7 @@ const menuItems: any[] = [
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
   { key: "/deletion-requests", icon: <DeleteOutlined />, label: "Deletion Requests" },
+  { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
   { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
   { type: "divider" },
   {

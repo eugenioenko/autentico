@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
@@ -36,6 +37,21 @@ func Run(retention time.Duration) {
 		n, _ := res.RowsAffected()
 		if n > 0 {
 			fmt.Printf("[cleanup] deleted %d expired rows from %s\n", n, q.table)
+		}
+	}
+
+	// Audit log cleanup uses its own retention setting.
+	// "0"/empty = disabled, "-1" = keep forever, otherwise parse as duration.
+	auditRetention := config.Get().AuditLogRetentionStr
+	if auditRetention != "" && auditRetention != "0" && auditRetention != "-1" {
+		if d, err := time.ParseDuration(auditRetention); err == nil {
+			auditThreshold := time.Now().Add(-d)
+			res, err := db.GetDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, auditThreshold)
+			if err != nil {
+				fmt.Printf("[cleanup] error cleaning audit_logs: %v\n", err)
+			} else if n, _ := res.RowsAffected(); n > 0 {
+				fmt.Printf("[cleanup] deleted %d expired rows from audit_logs\n", n)
+			}
 		}
 	}
 }

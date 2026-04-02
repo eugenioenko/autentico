@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -179,6 +180,7 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+	audit.Log(audit.EventDeletionApproved, audit.ActorFromRequest(r), audit.TargetUser, req.UserID, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
 

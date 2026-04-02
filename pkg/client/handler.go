@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -50,6 +51,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventClientCreated, audit.ActorFromRequest(r), audit.TargetClient, response.ClientID, nil, utils.GetClientIP(r))
 	utils.WriteApiResponse(w, response, http.StatusCreated)
 }
 
@@ -129,6 +131,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
 	updated, _ := ClientByClientID(clientID)
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
@@ -159,7 +162,7 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-
+	audit.Log(audit.EventClientDeleted, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
 

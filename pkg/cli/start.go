@@ -18,6 +18,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/cleanup"
 	"github.com/eugenioenko/autentico/pkg/client"
@@ -177,6 +178,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("GET /admin/api/settings/export", adminAPI(appsettings.HandleExportSettings))
 	mux.Handle("POST /admin/api/settings/import/preview", adminAPI(appsettings.HandleImportPreview))
 	mux.Handle("POST /admin/api/settings/import/apply", adminAPI(appsettings.HandleImportApply))
+	mux.Handle("GET /admin/api/audit-logs", adminAPI(audit.HandleListAuditLogs))
 	mux.Handle("GET /admin/api/deletion-requests", adminAPI(deletion.HandleListDeletionRequests))
 	mux.Handle("POST /admin/api/deletion-requests/{id}/approve", adminAPI(deletion.HandleApproveDeletionRequest))
 	mux.Handle("DELETE /admin/api/deletion-requests/{id}", adminAPI(deletion.HandleAdminCancelDeletionRequest))

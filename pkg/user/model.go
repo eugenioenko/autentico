@@ -78,6 +78,12 @@ type UserResponse struct {
 	AddressCountry    string `json:"address_country,omitempty"`
 }
 
+// GetID satisfies the audit.Actor interface.
+func (u *User) GetID() string { return u.ID }
+
+// GetUsername satisfies the audit.Actor interface.
+func (u *User) GetUsername() string { return u.Username }
+
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
 		ID:                  u.ID,

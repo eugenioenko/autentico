@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -159,6 +160,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			}
 			if !ValidateTotpCode(totpSecret, code) {
 				slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
 				renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code")
 				return
 			}
@@ -167,10 +169,12 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again.")
 				return
 			}
+			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 		} else {
 			// Verification flow: validate against stored secret
 			if !ValidateTotpCode(usr.TotpSecret, code) {
 				slog.Warn("mfa: invalid TOTP verification code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
 				return
 			}
@@ -180,6 +184,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		if hashedCode != challenge.Code {
 			_ = IncrementFailedAttempts(challenge.ID)
 			slog.Warn("mfa: invalid email OTP code", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r), "attempts", challenge.FailedAttempts+1)
+			audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "email"), utils.GetClientIP(r))
 			if challenge.FailedAttempts+1 >= 5 {
 				_ = MarkChallengeUsed(challenge.ID)
 				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
@@ -194,6 +199,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = MarkChallengeUsed(challenge.ID)
+	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
 
 	// Save trusted device if requested
 	if cfg.TrustDeviceEnabled && r.FormValue("trust_device") == "on" {

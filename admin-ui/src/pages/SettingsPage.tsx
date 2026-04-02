@@ -63,6 +63,7 @@ const tip = makeTip({
   validation_max_password_length: "Maximum length for passwords.",
   account_lockout_max_attempts: "Maximum number of failed login attempts before account lockout. 0 to disable.",
   account_lockout_duration: "Duration of account lockout (e.g. 15m).",
+  audit_log_retention: "How long audit events are kept. 0 = disabled, -1 = keep forever, or a duration (e.g. 720h for 30 days).",
   pkce_enforce_s256: "Enforce PKCE with S256 code challenge method for all clients.",
   access_token_expiration: "Access token validity period (e.g. 15m).",
   refresh_token_expiration: "Refresh token validity period (e.g. 720h).",
@@ -485,6 +486,17 @@ export default function SettingsPage() {
                       style={{ marginBottom: 16 }}
                     />
                   )}
+
+                  <Divider />
+
+                  <Title level={5}>Audit Log</Title>
+                  <Form.Item
+                    label="Audit Log Retention"
+                    name="audit_log_retention"
+                    tooltip={{ title: tip("audit_log_retention"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="0 = disabled, -1 = forever, 720h = 30 days" />
+                  </Form.Item>
                 </Card>
               ),
             },

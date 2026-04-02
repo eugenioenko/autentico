@@ -141,6 +141,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/api/audit-logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of audit events with optional filters.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List audit log events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by event type",
+                        "name": "event",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by actor user ID",
+                        "name": "actor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/audit.AuditLogListResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/clients": {
             "get": {
                 "security": [
@@ -784,6 +835,84 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/settings/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Export all settings as a JSON file (smtp_password excluded).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Export settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/appsettings.settingsExport"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/settings/import/apply": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Applies imported settings, skipping unknown keys and protected fields.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Apply settings import",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/admin/api/settings/import/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a diff of current vs incoming values for all known keys, plus unknown keys.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Preview settings import",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/appsettings.settingsPreviewResponse"
                         }
                     }
                 }
@@ -2401,6 +2530,100 @@ const docTemplate = `{
                 }
             }
         },
+        "appsettings.settingsExport": {
+            "type": "object",
+            "properties": {
+                "exported_at": {
+                    "type": "string"
+                },
+                "settings": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "appsettings.settingsPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/appsettings.settingsPreviewRow"
+                    }
+                },
+                "unknown": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "appsettings.settingsPreviewRow": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "type": "string"
+                },
+                "incoming": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "audit.AuditLogListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/audit.AuditLogResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "audit.AuditLogResponse": {
+            "type": "object",
+            "properties": {
+                "actor_id": {
+                    "type": "string"
+                },
+                "actor_username": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                }
+            }
+        },
         "client.ClientCreateRequest": {
             "type": "object",
             "properties": {
@@ -2424,6 +2647,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "client_name": {
+                    "type": "string"
+                },
+                "client_secret": {
                     "type": "string"
                 },
                 "client_type": {
@@ -2770,15 +2996,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "active": {
-                    "description": "Whether the token is valid (true or false).",
+                    "description": "RFC 7662 §2.2: REQUIRED. Whether the token is currently active.",
                     "type": "boolean"
                 },
                 "aud": {
-                    "description": "Intended audience for the token (e.g., the API).",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Intended audience.",
                     "type": "string"
                 },
                 "client_id": {
-                    "description": "Client ID for which the token was issued.",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Client that requested this token.",
                     "type": "string"
                 },
                 "error": {
@@ -2788,35 +3014,39 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "exp": {
-                    "description": "Expiration time (Unix timestamp).",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Expiration time (Unix timestamp).",
                     "type": "integer"
                 },
                 "iat": {
-                    "description": "Issued-at time (Unix timestamp).",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Issued-at time (Unix timestamp).",
                     "type": "integer"
                 },
+                "iss": {
+                    "description": "RFC 7662 §2.2: OPTIONAL. Issuer of this token.",
+                    "type": "string"
+                },
                 "jti": {
-                    "description": "Unique identifier for the token.",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Unique identifier for the token.",
                     "type": "string"
                 },
                 "nbf": {
-                    "description": "Not-before time (Unix timestamp).",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Not-before time (Unix timestamp).",
                     "type": "integer"
                 },
                 "scope": {
-                    "description": "Space-delimited list of scopes associated with the token.",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Space-delimited list of scopes.",
                     "type": "string"
                 },
                 "sub": {
-                    "description": "The subject of the token (typically the user ID).",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Subject of the token.",
                     "type": "string"
                 },
                 "token_type": {
-                    "description": "The type of the token (usually \"bearer\").",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Type of the token (e.g., \"bearer\").",
                     "type": "string"
                 },
                 "username": {
-                    "description": "The username of the authenticated user.",
+                    "description": "RFC 7662 §2.2: OPTIONAL. Human-readable resource owner identifier.",
                     "type": "string"
                 }
             }

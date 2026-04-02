@@ -3,6 +3,7 @@ package session
 import (
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -61,6 +62,6 @@ func HandleDeactivateSession(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-
+	audit.Log(audit.EventSessionRevoked, audit.ActorFromRequest(r), audit.TargetSession, id, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"result": "deactivated"}, http.StatusOK)
 }
