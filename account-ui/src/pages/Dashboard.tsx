@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="account-dashboard">
       <Card
         title="Account Security"
         action={

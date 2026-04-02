@@ -144,7 +144,7 @@ export default function AdminLayout() {
           />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <div data-testid="user-menu" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <Avatar
                   src={user?.profile?.picture}
                   icon={!user?.profile?.picture && <UserOutlined />}
