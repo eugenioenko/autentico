@@ -40,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
       <div className="flex items-center justify-between px-5 h-16">
         <div className="flex items-center gap-2">
           <img
-            src={settings.theme_logo_url || '/favicon.svg'}
+            src={settings.theme_logo_url || '/account/favicon.svg'}
             alt="Logo"
             className="h-6 w-6 object-contain"
           />
