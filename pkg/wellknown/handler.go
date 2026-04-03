@@ -20,16 +20,17 @@ import (
 // @Router /.well-known/openid-configuration [get]
 func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 	bs := config.GetBootstrap()
+	// RFC 8414 §2: issuer is REQUIRED — must match the iss claim in issued tokens.
 	// OIDC Discovery §3: issuer MUST exactly match the iss claim in issued tokens.
 	issuer := bs.AppAuthIssuer
 	response := model.WellKnownConfigResponse{
-		// OIDC Discovery §3: REQUIRED fields
+		// RFC 8414 §2: REQUIRED fields
 		Issuer:                issuer,
 		AuthorizationEndpoint: fmt.Sprintf("%s/authorize", issuer),
 		TokenEndpoint:         fmt.Sprintf("%s/token", issuer),
 		JwksURI:               fmt.Sprintf("%s/.well-known/jwks.json", bs.AppAuthIssuer),
-		// OIDC Discovery §3: REQUIRED — only "code" is implemented; implicit flow
-		// variants are not supported, so only advertise what the OP actually supports.
+		// RFC 8414 §2: response_types_supported is REQUIRED. Only "code" is
+		// implemented; implicit flow variants are not supported.
 		ResponseTypesSupported: []string{
 			"code",
 		},
@@ -41,14 +42,14 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		IDTokenSigningAlgValuesSupported: []string{
 			"RS256",
 		},
-		// OIDC Discovery §3: RECOMMENDED / SHOULD fields
+		// RFC 8414 §2: RECOMMENDED / OPTIONAL fields
 		UserInfoEndpoint:     fmt.Sprintf("%s/userinfo", issuer),
-		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer),
-		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),
-		ScopesSupported: []string{
+		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer),   // RFC 8414 §2 / RFC 7591
+		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),     // RP-Initiated Logout 1.0 §2.1
+		ScopesSupported: []string{                                  // RFC 8414 §2: RECOMMENDED
 			"openid", "profile", "email", "address", "phone", "offline_access",
 		},
-		TokenEndpointAuthMethodsSupported: []string{
+		TokenEndpointAuthMethodsSupported: []string{                // RFC 8414 §2: OPTIONAL
 			"client_secret_basic", "client_secret_post",
 		},
 		ClaimsSupported: []string{
@@ -60,13 +61,15 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 			"phone_number",
 			"address",
 		},
+		// RFC 8414 §2: OPTIONAL (default: ["authorization_code", "implicit"]).
+		// We explicitly list supported types to override the default.
 		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password"},
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
-		// RFC 8414 §2 / OIDC Discovery §3: additional endpoint metadata
-		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),
-		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),
-		CodeChallengeMethodsSupported: []string{"S256"}, // RFC 7636 §6.2
+		// RFC 8414 §2: OPTIONAL endpoint metadata
+		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),  // RFC 7662
+		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),      // RFC 7009
+		CodeChallengeMethodsSupported: []string{"S256"},                      // RFC 7636 §6.2
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

@@ -154,6 +154,68 @@ func TestHandleWellKnownConfig_IssuerMatchesTokenIss(t *testing.T) {
 		"OIDC Discovery §3: issuer must exactly match the iss claim source")
 }
 
+// RFC 8414 §2: verify all REQUIRED metadata fields and that OPTIONAL fields
+// with values are present as expected.
+func TestHandleWellKnownConfig_RFC8414_RequiredFields(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	// Parse as raw map to check field presence and types
+	var raw map[string]interface{}
+	err := json.Unmarshal(rr.Body.Bytes(), &raw)
+	assert.NoError(t, err)
+
+	// RFC 8414 §2: REQUIRED fields
+	assert.Contains(t, raw, "issuer", "RFC 8414 §2: issuer is REQUIRED")
+	assert.Contains(t, raw, "authorization_endpoint", "RFC 8414 §2: authorization_endpoint is REQUIRED")
+	assert.Contains(t, raw, "token_endpoint", "RFC 8414 §2: token_endpoint is REQUIRED")
+	assert.Contains(t, raw, "response_types_supported", "RFC 8414 §2: response_types_supported is REQUIRED")
+
+	// RFC 8414 §2: RECOMMENDED
+	assert.Contains(t, raw, "scopes_supported", "RFC 8414 §2: scopes_supported is RECOMMENDED")
+
+	// RFC 8414 §2: OPTIONAL but expected for this server
+	assert.Contains(t, raw, "jwks_uri")
+	assert.Contains(t, raw, "registration_endpoint")
+	assert.Contains(t, raw, "grant_types_supported")
+	assert.Contains(t, raw, "token_endpoint_auth_methods_supported")
+	assert.Contains(t, raw, "introspection_endpoint")
+	assert.Contains(t, raw, "revocation_endpoint")
+	assert.Contains(t, raw, "code_challenge_methods_supported")
+
+	// RFC 8414 §3: "Claims with zero elements MUST be omitted from the response."
+	// Verify all array fields have at least one element.
+	for _, arrayField := range []string{
+		"response_types_supported", "scopes_supported",
+		"token_endpoint_auth_methods_supported", "grant_types_supported",
+		"code_challenge_methods_supported",
+	} {
+		arr, ok := raw[arrayField].([]interface{})
+		if ok {
+			assert.NotEmpty(t, arr, "RFC 8414 §3: %s must not be empty if present", arrayField)
+		}
+	}
+}
+
+// RFC 8414 §3: The "issuer" value returned MUST be identical to the authorization
+// server's issuer identifier (simple string comparison).
+func TestHandleWellKnownConfig_RFC8414_IssuerIdentity(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	// RFC 8414 §3: issuer must be identical via simple string comparison
+	assert.Equal(t, config.GetBootstrap().AppAuthIssuer, response.Issuer,
+		"RFC 8414 §3: issuer must be identical to the authorization server's issuer identifier")
+}
+
 func TestHandleJWKS(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
