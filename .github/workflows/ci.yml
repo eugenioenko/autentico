@@ -55,7 +55,19 @@ jobs:
           mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
           mkdir -p pkg/account/dist && echo '<!doctype html>' > pkg/account/dist/index.html
       - name: Build project
-        run: go build main.go
+        run: go build -o autentico main.go
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install functional test dependencies
+        working-directory: tests/functional
+        run: pnpm install
+      - name: Run functional tests
+        working-directory: tests/functional
+        run: pnpm test
 
   test:
     runs-on: ubuntu-latest
