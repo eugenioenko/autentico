@@ -50,45 +50,7 @@ func generateTestAccessTokenWithAzp(userID, azp string) (string, string, error) 
 	return signedToken, sessionID, err
 }
 
-func TestHandleLogout(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	// Create a test user directly in the database
-	userID := xid.New().String()
-	_, err := db.GetDB().Exec(`
-		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
-	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
-	assert.NoError(t, err)
-
-	// Generate a real JWT token
-	accessToken, sessionID, err := generateTestAccessToken(userID)
-	assert.NoError(t, err)
-
-	// Insert a session with the real access token
-	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
-	assert.NoError(t, err)
-
-	// Perform logout with the real JWT token
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	rr := httptest.NewRecorder()
-
-	HandleLogout(rr, req)
-
-	// Verify the response
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// Verify the session is deactivated
-	var deactivatedAt sql.NullTime
-	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
-	assert.NoError(t, err)
-	assert.True(t, deactivatedAt.Valid, "deactivated_at should be set")
-}
-
-func TestHandleLogout_NoAuthNoParams_ShowsLogoutPage(t *testing.T) {
+func TestHandleLogout_NoParams_ShowsLogoutPage(t *testing.T) {
 	// RP-Initiated Logout 1.0 §2: POST with no params is a valid logout request.
 	// The OP renders a signed-out page (no error).
 	testutils.WithTestDB(t)
@@ -102,72 +64,36 @@ func TestHandleLogout_NoAuthNoParams_ShowsLogoutPage(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "signed out")
 }
 
-func TestHandleLogoutInvalidToken(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Bearer invalid-token")
-	rr := httptest.NewRecorder()
-
-	HandleLogout(rr, req)
-
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid or expired token")
-}
-
-func TestHandleLogout_BasicAuth_FallsThrough(t *testing.T) {
-	// RP-Initiated Logout 1.0 §2: Basic Auth is not part of the spec.
-	// When a non-Bearer Authorization header is present, the handler falls
-	// through to RP-Initiated Logout form-param processing.
-	testutils.WithTestDB(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
-	rr := httptest.NewRecorder()
-
-	HandleLogout(rr, req)
-
-	// Falls through to spec path, renders logout page (no error).
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
-}
-
-func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
+func TestHandleLogout_POST_ClearsIdpSessionCookieWithHint(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with id_token_hint clears IdP session.
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 	})
 
-	// Create user
 	userID := xid.New().String()
 	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
 	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Generate token and create session
 	accessToken, sessionID, err := generateTestAccessToken(userID)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
 		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Create an IdP session
 	idpSessionID := xid.New().String()
 	err = idpsession.CreateIdpSession(idpsession.IdpSession{
-		ID:        idpSessionID,
-		UserID:    userID,
-		UserAgent: "test-agent",
-		IPAddress: "127.0.0.1",
+		ID: idpSessionID, UserID: userID, UserAgent: "test-agent", IPAddress: "127.0.0.1",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Build request with IdP session cookie and auth header
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	form := url.Values{"id_token_hint": {accessToken}}
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{
 		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
 		Value: idpSessionID,
@@ -178,10 +104,8 @@ func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Verify IdP session cookie is cleared
-	cookies := rr.Result().Cookies()
 	var clearedCookie *http.Cookie
-	for _, c := range cookies {
+	for _, c := range rr.Result().Cookies() {
 		if c.Name == config.GetBootstrap().AuthIdpSessionCookieName {
 			clearedCookie = c
 			break
@@ -190,92 +114,79 @@ func TestHandleLogout_ClearsIdpSessionCookie(t *testing.T) {
 	assert.NotNil(t, clearedCookie, "should set a clear-cookie header for IdP session")
 	assert.True(t, clearedCookie.MaxAge < 0, "cookie MaxAge should be negative to clear it")
 
-	// Verify IdP session is deactivated in DB
 	_, err = idpsession.IdpSessionByID(idpSessionID)
 	assert.Error(t, err, "deactivated IdP session should not be found")
 }
 
-// TestHandleLogout_RevokesIdpSessionWithoutCookie covers the bug where a server-side
-// logout (Bearer token only, no browser cookie) left the IdP session active, allowing
-// the user to be silently re-authenticated on the next authorize request.
-func TestHandleLogout_RevokesIdpSessionWithoutCookie(t *testing.T) {
+func TestHandleLogout_POST_IdTokenHint_RevokesIdpSessionWithoutCookie(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates IdP sessions
+	// even when no browser cookie is present (e.g. server-side POST).
 	testutils.WithTestDB(t)
 
-	// Create user
 	userID := xid.New().String()
 	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
 	`, userID, "logoutuser2", "logout2@example.com", "hashedpassword")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Generate token and create session
 	accessToken, sessionID, err := generateTestAccessToken(userID)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
 		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Create an active IdP session in the DB
 	idpSessionID := xid.New().String()
 	err = idpsession.CreateIdpSession(idpsession.IdpSession{
-		ID:        idpSessionID,
-		UserID:    userID,
-		UserAgent: "test-agent",
-		IPAddress: "127.0.0.1",
+		ID: idpSessionID, UserID: userID, UserAgent: "test-agent", IPAddress: "127.0.0.1",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Logout without sending the IdP session cookie (simulates server-side logout)
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	form := url.Values{"id_token_hint": {accessToken}}
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// IdP session must be deactivated even though no cookie was present
 	_, err = idpsession.IdpSessionByID(idpSessionID)
 	assert.Error(t, err, "IdP session should be deactivated even when no cookie is sent")
 }
 
-func TestHandleLogout_NoIdpSession(t *testing.T) {
+func TestHandleLogout_POST_IdTokenHint_DeactivatesSession(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates OAuth sessions.
 	testutils.WithTestDB(t)
 
-	// Create user
 	userID := xid.New().String()
 	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
 	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Generate token and create session
 	accessToken, sessionID, err := generateTestAccessToken(userID)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
 		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	// Logout without IdP session cookie
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	form := url.Values{"id_token_hint": {accessToken}}
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Verify session is deactivated
 	var deactivatedAt sql.NullTime
 	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
-	assert.NoError(t, err)
-	assert.True(t, deactivatedAt.Valid, "session should be deactivated")
+	require.NoError(t, err)
+	assert.True(t, deactivatedAt.Valid, "session should be deactivated via POST id_token_hint")
 }
 
 // --- POST RP-Initiated Logout spec compliance tests ---

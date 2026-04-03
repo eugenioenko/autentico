@@ -16,15 +16,17 @@ import (
 )
 
 func TestLogout_DeactivatesSession(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates sessions.
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
 
-	// Logout
-	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", nil)
+	// Logout via POST with id_token_hint (spec-compliant)
+	form := url.Values{"id_token_hint": {tokens.AccessToken}}
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	logoutResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
@@ -71,10 +73,11 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	// Extract access token
 	accessToken := extractJSONField(t, body, "access_token")
 
-	// Logout — should deactivate IdP session and clear cookie
-	logoutReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", nil)
+	// Logout via POST with id_token_hint — should deactivate IdP session and clear cookie
+	logoutForm := url.Values{"id_token_hint": {accessToken}}
+	logoutReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(logoutForm.Encode()))
 	require.NoError(t, err)
-	logoutReq.Header.Set("Authorization", "Bearer "+accessToken)
+	logoutReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	logoutResp, err := ts.Client.Do(logoutReq)
 	require.NoError(t, err)
@@ -124,18 +127,20 @@ func TestLogout_NoAuthNoParams_ShowsLogoutPage(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestLogout_InvalidToken(t *testing.T) {
+func TestLogout_InvalidIdTokenHint_ShowsLogoutPage(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: invalid id_token_hint is gracefully handled.
 	ts := startTestServer(t)
 
-	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", nil)
+	form := url.Values{"id_token_hint": {"garbage-token-value"}}
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer garbage-token-value")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestAutoLogin_ValidIdpSession(t *testing.T) {
