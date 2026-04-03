@@ -63,6 +63,34 @@ func main() {
 				Action: appCli.RunMigrate,
 			},
 			{
+				Name:  "onboard",
+				Usage: "Create the first admin account (headless alternative to /onboard)",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "username",
+						Usage:    "Admin username",
+						EnvVars:  []string{"AUTENTICO_ADMIN_USERNAME"},
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "password",
+						Usage:    "Admin password",
+						EnvVars:  []string{"AUTENTICO_ADMIN_PASSWORD"},
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "email",
+						Usage:   "Admin email address",
+						EnvVars: []string{"AUTENTICO_ADMIN_EMAIL"},
+					},
+					&cli.BoolFlag{
+						Name:  "auto-migrate",
+						Usage: "Automatically apply pending database migrations",
+					},
+				},
+				Action: appCli.RunOnboard,
+			},
+			{
 				Name:   "version",
 				Usage:  "Print the version and exit",
 				Action: appCli.RunVersion,

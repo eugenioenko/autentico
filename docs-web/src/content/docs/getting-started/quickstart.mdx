@@ -94,7 +94,21 @@ This guide takes you from zero to a running Autentico instance with a registered
 
 4. **Complete onboarding**
 
-   Open `http://localhost:9999/onboard` in your browser. Fill in your administrator credentials to create the first account. Once complete, you are redirected to the Admin UI.
+   <Tabs>
+     <TabItem label="Browser">
+     Open `http://localhost:9999/onboard` in your browser. Fill in your administrator credentials to create the first account. Once complete, you are redirected to the Admin UI.
+     </TabItem>
+     <TabItem label="CLI (CI/CD)">
+     For automated deployments, create the admin account headlessly before starting the server:
+     ```bash
+     ./autentico onboard --username admin --password yourpassword --email admin@example.com --auto-migrate
+     ./autentico start
+     ```
+     Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`) to avoid exposing them in process listings.
+
+     The `onboard` command mirrors the browser wizard — same guards, same outcome. It only works once on a fresh database.
+     </TabItem>
+   </Tabs>
 
 5. **Done**
 
