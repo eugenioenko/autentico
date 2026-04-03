@@ -22,7 +22,7 @@ import { Card, CardGrid, LinkButton } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
-Autentico is a self-hosted OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration, all in a single binary backed by SQLite.
+Autentico is a self-hosted OAuth 2.0 / OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration, all in a single binary backed by SQLite.
 
 A typical self-hosted Identity Provider involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack: just one binary and one database file. The simplicity is operational, not protocol-level.
 
@@ -52,9 +52,10 @@ No Docker, no database to provision, no config files to edit.
 ## Features
 
 <CardGrid>
-  <Card title="OIDC & OAuth2" icon="open-book">
+  <Card title="OAuth 2.0 & OIDC" icon="open-book">
     Authorization Code Flow with PKCE, Refresh Tokens, ROPC, Token Introspection
-    (RFC 7662), Token Revocation (RFC 7009), and a full OIDC Discovery document.
+    (RFC 7662), Token Revocation (RFC 7009), Dynamic Client Registration (RFC 7591),
+    and a full OIDC Discovery document.
   </Card>
   <Card title="Passkeys & MFA" icon="approve-check-circle">
     WebAuthn/FIDO2 passkey authentication, TOTP with in-browser QR enrollment,

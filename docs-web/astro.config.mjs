@@ -28,7 +28,7 @@ export default defineConfig({
 				},
 			],
 			title: 'Autentico',
-			description: 'Documentation for the Autentico OpenID Connect Identity Provider',
+			description: 'Documentation for the Autentico OAuth 2.0 / OpenID Connect Identity Provider',
 			favicon: '/favicon.svg',
 			logo: {
 				src: './src/assets/logo.svg',

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Autentico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go and SQLite. It implements the full authentication lifecycle: Authorization Code + PKCE, ROPC, Refresh Token grants, MFA (TOTP + email OTP), WebAuthn/passkeys, SSO sessions, trusted devices, token introspection/revocation, and an embedded React admin UI.
+Autentico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite. It implements the full authentication lifecycle: Authorization Code + PKCE, ROPC, Refresh Token grants, MFA (TOTP + email OTP), WebAuthn/passkeys, SSO sessions, trusted devices, token introspection/revocation, dynamic client registration, and an embedded React admin UI.
 
 ## Common Commands
 
