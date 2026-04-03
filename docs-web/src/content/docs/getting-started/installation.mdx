@@ -109,7 +109,13 @@ Requires Go 1.22 or later.
 | `autentico init` | Generate a `.env` file with all required secrets. Errors if `.env` already exists. |
 | `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
 | `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies. Use this for local HTTP development only — never in production. |
+| `autentico onboard` | Create the first admin account (headless alternative to the `/onboard` browser wizard). Only works once on a fresh database. |
+| `autentico onboard --username <user> --password <pass>` | Required flags. Can also be set via `AUTENTICO_ADMIN_USERNAME` and `AUTENTICO_ADMIN_PASSWORD` environment variables. |
+| `autentico onboard --email <email>` | Optional admin email. Can also be set via `AUTENTICO_ADMIN_EMAIL`. |
+| `autentico onboard --auto-migrate` | Apply pending database migrations before creating the admin account. |
 | `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
+| `autentico start --auto-migrate` | Start the server and automatically apply pending database migrations. |
+| `autentico migrate` | Interactively apply pending database schema migrations. |
 | `autentico version` | Print the current version and exit. |
 
 ## Next steps
