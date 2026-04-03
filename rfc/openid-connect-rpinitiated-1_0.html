@@ -1,0 +1,921 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en"><head><title>Final: OpenID Connect
+    RP-Initiated Logout 1.0</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="OpenID Connect
+    RP-Initiated Logout 1.0">
+<meta name="generator" content="xml2rfc v1.37pre1 (http://xml.resource.org/)">
+<style type='text/css'><!--
+        body {
+                font-family: verdana, charcoal, helvetica, arial, sans-serif;
+                font-size: small; color: #000; background-color: #FFF;
+                margin: 2em;
+        }
+        h1, h2, h3, h4, h5, h6 {
+                font-family: helvetica, monaco, "MS Sans Serif", arial, sans-serif;
+                font-weight: bold; font-style: normal;
+        }
+        h1 { color: #900; background-color: transparent; text-align: right; }
+        h3 { color: #333; background-color: transparent; }
+
+        td.RFCbug {
+                font-size: x-small; text-decoration: none;
+                width: 30px; height: 30px; padding-top: 2px;
+                text-align: justify; vertical-align: middle;
+                background-color: #000;
+        }
+        td.RFCbug span.RFC {
+                font-family: monaco, charcoal, geneva, "MS Sans Serif", helvetica, verdana, sans-serif;
+                font-weight: bold; color: #666;
+        }
+        td.RFCbug span.hotText {
+                font-family: charcoal, monaco, geneva, "MS Sans Serif", helvetica, verdana, sans-serif;
+                font-weight: normal; text-align: center; color: #FFF;
+        }
+
+        table.TOCbug { width: 30px; height: 15px; }
+        td.TOCbug {
+                text-align: center; width: 30px; height: 15px;
+                color: #FFF; background-color: #900;
+        }
+        td.TOCbug a {
+                font-family: monaco, charcoal, geneva, "MS Sans Serif", helvetica, sans-serif;
+                font-weight: bold; font-size: x-small; text-decoration: none;
+                color: #FFF; background-color: transparent;
+        }
+
+        td.header {
+                font-family: arial, helvetica, sans-serif; font-size: x-small;
+                vertical-align: top; width: 33%;
+                color: #FFF; background-color: #666;
+        }
+        td.author { font-weight: bold; font-size: x-small; margin-left: 4em; }
+        td.author-text { font-size: x-small; }
+
+        /* info code from SantaKlauss at http://www.madaboutstyle.com/tooltip2.html */
+        a.info {
+                /* This is the key. */
+                position: relative;
+                z-index: 24;
+                text-decoration: none;
+        }
+        a.info:hover {
+                z-index: 25;
+                color: #FFF; background-color: #900;
+        }
+        a.info span { display: none; }
+        a.info:hover span.info {
+                /* The span will display just on :hover state. */
+                display: block;
+                position: absolute;
+                font-size: smaller;
+                top: 2em; left: -5em; width: 15em;
+                padding: 2px; border: 1px solid #333;
+                color: #900; background-color: #EEE;
+                text-align: left;
+        }
+
+        a { font-weight: bold; }
+        a:link    { color: #900; background-color: transparent; }
+        a:visited { color: #633; background-color: transparent; }
+        a:active  { color: #633; background-color: transparent; }
+
+        p { margin-left: 2em; margin-right: 2em; }
+        p.copyright { font-size: x-small; }
+        p.toc { font-size: small; font-weight: bold; margin-left: 3em; }
+        table.toc { margin: 0 0 0 3em; padding: 0; border: 0; vertical-align: text-top; }
+        td.toc { font-size: small; font-weight: bold; vertical-align: text-top; }
+
+        ol.text { margin-left: 2em; margin-right: 2em; }
+        ul.text { margin-left: 2em; margin-right: 2em; }
+        li      { margin-left: 3em; }
+
+        /* RFC-2629 <spanx>s and <artwork>s. */
+        em     { font-style: italic; }
+        strong { font-weight: bold; }
+        dfn    { font-weight: bold; font-style: normal; }
+        cite   { font-weight: normal; font-style: normal; }
+        tt     { color: #036; }
+        tt, pre, pre dfn, pre em, pre cite, pre span {
+                font-family: "Courier New", Courier, monospace; font-size: small;
+        }
+        pre {
+                text-align: left; padding: 4px;
+                color: #000; background-color: #CCC;
+        }
+        pre dfn  { color: #900; }
+        pre em   { color: #66F; background-color: #FFC; font-weight: normal; }
+        pre .key { color: #33C; font-weight: bold; }
+        pre .id  { color: #900; }
+        pre .str { color: #000; background-color: #CFF; }
+        pre .val { color: #066; }
+        pre .rep { color: #909; }
+        pre .oth { color: #000; background-color: #FCF; }
+        pre .err { background-color: #FCC; }
+
+        /* RFC-2629 <texttable>s. */
+        table.all, table.full, table.headers, table.none {
+                font-size: small; text-align: center; border-width: 2px;
+                vertical-align: top; border-collapse: collapse;
+        }
+        table.all, table.full { border-style: solid; border-color: black; }
+        table.headers, table.none { border-style: none; }
+        th {
+                font-weight: bold; border-color: black;
+                border-width: 2px 2px 3px 2px;
+        }
+        table.all th, table.full th { border-style: solid; }
+        table.headers th { border-style: none none solid none; }
+        table.none th { border-style: none; }
+        table.all td {
+                border-style: solid; border-color: #333;
+                border-width: 1px 2px;
+        }
+        table.full td, table.headers td, table.none td { border-style: none; }
+
+        hr { height: 1px; }
+        hr.insert {
+                width: 80%; border-style: none; border-width: 0;
+                color: #CCC; background-color: #CCC;
+        }
+--></style>
+</head>
+<body>
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<table summary="layout" width="66%" border="0" cellpadding="0" cellspacing="0"><tr><td><table summary="layout" width="100%" border="0" cellpadding="2" cellspacing="1">
+<tr><td class="header">Final</td><td class="header">M. Jones</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">Microsoft</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">B. de Medeiros</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">Google</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">N. Agarwal</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">Microsoft</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">N. Sakimura</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">NAT.Consulting</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">J. Bradley</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">Yubico</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">September 12, 2022</td></tr>
+</table></td></tr></table>
+<h1><br />OpenID Connect
+    RP-Initiated Logout 1.0</h1>
+
+<h3>Abstract</h3>
+
+<p>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.
+</p>
+<p>
+	This specification defines a mechanism for a Relying Party
+	to request that an OpenID Provider log out the End-User.
+      
+</p><a name="toc"></a><br /><hr />
+<h3>Table of Contents</h3>
+<p class="toc">
+<a href="#Introduction">1.</a>&nbsp;
+Introduction<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rnc">1.1.</a>&nbsp;
+Requirements Notation and Conventions<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Terminology">1.2.</a>&nbsp;
+Terminology<br />
+<a href="#RPLogout">2.</a>&nbsp;
+RP-Initiated Logout<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#OPMetadata">2.1.</a>&nbsp;
+OpenID Provider Discovery Metadata<br />
+<a href="#RedirectionAfterLogout">3.</a>&nbsp;
+Redirection to RP After Logout<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#ClientMetadata">3.1.</a>&nbsp;
+Client Registration Metadata<br />
+<a href="#ValidationAndErrorHandling">4.</a>&nbsp;
+Validation and Error Handling<br />
+<a href="#ImplementationConsiderations">5.</a>&nbsp;
+Implementation Considerations<br />
+<a href="#Security">6.</a>&nbsp;
+Security Considerations<br />
+<a href="#IANA">7.</a>&nbsp;
+IANA Considerations<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#ASMetadataRegistry">7.1.</a>&nbsp;
+OAuth Authorization Server Metadata Registry<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#MetadataContents">7.1.1.</a>&nbsp;
+Registry Contents<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DynRegRegistrations">7.2.</a>&nbsp;
+OAuth Dynamic Client Registration Metadata Registration<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#DynRegContents">7.2.1.</a>&nbsp;
+Registry Contents<br />
+<a href="#rfc.references1">8.</a>&nbsp;
+References<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rfc.references1">8.1.</a>&nbsp;
+Normative References<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rfc.references2">8.2.</a>&nbsp;
+Informative References<br />
+<a href="#Acknowledgements">Appendix&nbsp;A.</a>&nbsp;
+Acknowledgements<br />
+<a href="#Notices">Appendix&nbsp;B.</a>&nbsp;
+Notices<br />
+<a href="#rfc.authors">&#167;</a>&nbsp;
+Authors' Addresses<br />
+</p>
+<br clear="all" />
+
+<a name="Introduction"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.1"></a><h3>1.&nbsp;
+Introduction</h3>
+
+<p>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<a class='info' href='#RFC6749'>[RFC6749]<span> (</span><span class='info'>Hardt, D., Ed., &ldquo;The OAuth 2.0 Authorization Framework,&rdquo; October&nbsp;2012.</span><span>)</span></a>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and
+	REST-like manner.
+      
+</p>
+<p>
+	This specification complements the
+	<a class='info' href='#OpenID.Core'>OpenID Connect Core 1.0<span> (</span><span class='info'>Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, &ldquo;OpenID Connect Core 1.0,&rdquo; November&nbsp;2014.</span><span>)</span></a> [OpenID.Core] specification
+	by enabling the Relying Party to request that
+	an End-User be logged out by the OpenID Provider.
+      
+</p>
+<p>
+	This specification can be used separately from or in combination with
+	<a class='info' href='#OpenID.Session'>OpenID Connect Session Management 1.0<span> (</span><span class='info'>de Medeiros, B., Agarwal, N., Sakimura, N., Bradley, J., and M. Jones, &ldquo;OpenID Connect Session Management 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.Session],
+	<a class='info' href='#OpenID.FrontChannel'>OpenID Connect Front-Channel Logout 1.0<span> (</span><span class='info'>Jones, M., &ldquo;OpenID Connect Front-Channel Logout 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.FrontChannel],
+	and/or
+	<a class='info' href='#OpenID.BackChannel'>OpenID Connect Back-Channel Logout 1.0<span> (</span><span class='info'>Jones, M. and J. Bradley, &ldquo;OpenID Connect Back-Channel Logout 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.BackChannel].
+      
+</p>
+<a name="rnc"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.1.1"></a><h3>1.1.&nbsp;
+Requirements Notation and Conventions</h3>
+
+<p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <a class='info' href='#RFC2119'>RFC 2119<span> (</span><span class='info'>Bradner, S., &ldquo;Key words for use in RFCs to Indicate Requirement Levels,&rdquo; March&nbsp;1997.</span><span>)</span></a> [RFC2119].
+</p>
+<p>
+	  In the .txt version of this document,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this document,
+	  values to be taken literally are indicated by
+	  the use of <tt>this fixed-width font</tt>.
+	
+</p>
+<a name="Terminology"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.1.2"></a><h3>1.2.&nbsp;
+Terminology</h3>
+
+<p>
+	  This specification uses the terms
+	  "Authorization Endpoint", "Authorization Server",
+	  "Client", and "Client Identifier"
+	  defined by <a class='info' href='#RFC6749'>OAuth 2.0<span> (</span><span class='info'>Hardt, D., Ed., &ldquo;The OAuth 2.0 Authorization Framework,&rdquo; October&nbsp;2012.</span><span>)</span></a> [RFC6749],
+	  the term "User Agent" defined by <a class='info' href='#RFC7230'>RFC 7230<span> (</span><span class='info'>Fielding, R., Ed. and J. Reschke, Ed., &ldquo;Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing,&rdquo; June&nbsp;2014.</span><span>)</span></a> [RFC7230],
+	  and the terms defined by
+	  <a class='info' href='#OpenID.Core'>OpenID Connect Core 1.0<span> (</span><span class='info'>Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, &ldquo;OpenID Connect Core 1.0,&rdquo; November&nbsp;2014.</span><span>)</span></a> [OpenID.Core].
+	
+</p>
+<p>
+	  IMPORTANT NOTE TO READERS: The terminology definitions in
+	  this section are a normative portion of this specification,
+	  imposing requirements upon implementations.  All the
+	  capitalized words in the text of this specification, such as
+	  "Relying Party", reference these defined terms.
+	  Whenever the reader encounters them, their definitions
+	  found in this section must be followed.
+	
+</p>
+<p>
+	  This specification also defines the following term:
+	  </p>
+<blockquote class="text"><dl>
+<dt>Logout Endpoint</dt>
+<dd>
+	      
+              The endpoint at the OpenID Provider that is the target of
+	      RP-Initiated Logout requests.
+            
+</dd>
+</dl></blockquote><p>
+	
+</p>
+<a name="RPLogout"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2"></a><h3>2.&nbsp;
+RP-Initiated Logout</h3>
+
+<p>
+	An RP requests that the OP log out the End-User
+	by redirecting the End-User's User Agent to the OP's Logout Endpoint.
+	This URL is normally obtained via the
+	<tt>end_session_endpoint</tt> element of the OP's
+	Discovery response or may be learned via other mechanisms.
+      
+</p>
+<p>
+	This specification defines the following parameters
+	that are used in the logout request at the Logout Endpoint:
+      
+</p>
+<p>
+	</p>
+<blockquote class="text"><dl>
+<dt>id_token_hint</dt>
+<dd>
+	    
+	    RECOMMENDED.
+	    ID Token previously issued by the OP to the RP passed to the Logout Endpoint
+	    as a hint about the End-User's current authenticated
+	    session with the Client.
+	    This is used as an indication of the identity of the
+	    End-User that the RP is requesting be logged out by the OP.
+	  
+</dd>
+<dt>logout_hint</dt>
+<dd>
+	    
+	    OPTIONAL.
+	    Hint to the Authorization Server about the End-User that is logging out.
+	    The value and meaning of this parameter is left up to the OP's discretion.
+	    For instance, the value might contain an email address, phone number, username,
+	    or session identifier pertaining to the RP's session with the OP for the End-User.
+	    (This parameter is intended to be analogous to the <tt>login_hint</tt>
+	    parameter defined in Section 3.1.2.1 of <a class='info' href='#OpenID.Core'>OpenID Connect Core 1.0<span> (</span><span class='info'>Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, &ldquo;OpenID Connect Core 1.0,&rdquo; November&nbsp;2014.</span><span>)</span></a> [OpenID.Core]
+	    that is used in Authentication Requests;
+	    whereas, <tt>logout_hint</tt> is used in RP-Initiated Logout Requests.)
+	  
+</dd>
+<dt>client_id</dt>
+<dd>
+	    
+	    OPTIONAL.
+	    OAuth 2.0 Client Identifier valid at the Authorization Server. When both
+	    <tt>client_id</tt> and <tt>id_token_hint</tt>
+	    are present,
+	    the OP MUST verify that the Client Identifier matches the one used when issuing the
+	    ID Token. The most common use case for this parameter is to specify the Client Identifier
+	    when <tt>post_logout_redirect_uri</tt> is used but
+	    <tt>id_token_hint</tt> is not. Another use is for
+	    symmetrically encrypted ID Tokens used as <tt>id_token_hint</tt> values
+	    that require the Client Identifier
+	    to be specified by other means, so that the ID Tokens can be decrypted by the OP.
+	  
+</dd>
+<dt>post_logout_redirect_uri</dt>
+<dd>
+	    
+	    OPTIONAL.
+	    URI to which the RP is requesting that
+	    the End-User's User Agent be redirected
+	    after a logout has been performed.
+	    This URI SHOULD use the <tt>https</tt> scheme
+	    and MAY contain port, path, and query parameter components;
+	    however, it MAY use the <tt>http</tt> scheme,
+	    provided that the Client Type is <tt>confidential</tt>,
+	    as defined in Section 2.1 of <a class='info' href='#RFC6749'>OAuth 2.0<span> (</span><span class='info'>Hardt, D., Ed., &ldquo;The OAuth 2.0 Authorization Framework,&rdquo; October&nbsp;2012.</span><span>)</span></a> [RFC6749], and
+	    provided the OP allows the use of <tt>http</tt> RP URIs.
+	    The URI MAY use an alternate scheme,
+	    such as one that is intended to identify a callback into a native application.
+	    The value MUST have been previously registered with the OP,
+	    either using the <tt>post_logout_redirect_uris</tt>
+	    Registration parameter or via another mechanism.
+	    An <tt>id_token_hint</tt> is also RECOMMENDED when this parameter is included.
+	  
+</dd>
+<dt>state</dt>
+<dd>
+	    
+	    OPTIONAL.
+	    Opaque value used by the RP to maintain state between
+	    the logout request and the callback to the endpoint specified by
+	    the <tt>post_logout_redirect_uri</tt> parameter.
+	    If included in the logout request, the OP passes this value back to the RP
+	    using the <tt>state</tt> parameter
+	    when redirecting the User Agent back to the RP.
+	  
+</dd>
+<dt>ui_locales</dt>
+<dd>
+	    
+	    OPTIONAL.
+	    End-User's preferred languages and scripts for the user interface,
+	    represented as a space-separated list of
+	    <a class='info' href='#RFC5646'>BCP47<span> (</span><span class='info'>Phillips, A., Ed. and M. Davis, Ed., &ldquo;Tags for Identifying Languages,&rdquo; September&nbsp;2009.</span><span>)</span></a> [RFC5646] language tag values,
+	    ordered by preference.
+	    For instance, the value "fr-CA fr en" represents a preference
+	    for French as spoken in Canada,
+	    then French (without a region designation),
+	    followed by English (without a region designation).
+	    An error SHOULD NOT result if some or all of the requested locales
+	    are not supported by the OpenID Provider.
+	  
+</dd>
+</dl></blockquote><p>
+      
+</p>
+<p>
+	OpenID Providers MUST support the use of the HTTP <tt>GET</tt> and
+	<tt>POST</tt> methods defined in <a class='info' href='#RFC7231'>RFC 7231<span> (</span><span class='info'>Fielding, R., Ed. and J. Reschke, Ed., &ldquo;Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content,&rdquo; June&nbsp;2014.</span><span>)</span></a> [RFC7231] at the
+	Logout Endpoint.
+	RPs MAY use the HTTP <tt>GET</tt> or
+	<tt>POST</tt> methods to send the
+	logout request to the OP. If using the HTTP
+	<tt>GET</tt> method, the request parameters are serialized using
+	URI Query String Serialization.
+	If using the HTTP <tt>POST</tt>
+	method, the request parameters are serialized using
+	Form Serialization.
+      
+</p>
+<p>
+	When an <tt>id_token_hint</tt> parameter is present,
+	the OP MUST validate that it was the issuer of the ID Token.
+	The OP SHOULD accept ID Tokens when the RP identified by the ID Token's
+	<tt>aud</tt> claim and/or <tt>sid</tt> claim
+	has a current session or had a recent session at the OP,
+	even when the <tt>exp</tt> time has passed.
+	If the ID Token's <tt>sid</tt> claim does not correspond
+	to the RP's current session or a recent session at the OP,
+	the OP SHOULD treat the logout request as suspect,
+	and MAY decline to act upon it.
+      
+</p>
+<p>
+	At the Logout Endpoint, the OP SHOULD ask the End-User whether
+	to log out of the OP as well.
+	Furthermore, the OP MUST ask the End-User this question
+	if an <tt>id_token_hint</tt> was not provided
+	or if the supplied ID Token does not belong to the current OP session with the RP
+	and/or currently logged in End-User.
+	If the End-User says "yes", then the OP MUST log out the End-User.
+      
+</p>
+<p>
+	As part of the OP logging out the End-User,
+	the OP uses the logout mechanism(s) registered by the RPs
+	to notify any RPs logged in as that End-User
+	that they are to likewise log out the End-User.
+	RPs can use any of
+	<a class='info' href='#OpenID.Session'>OpenID Connect Session Management 1.0<span> (</span><span class='info'>de Medeiros, B., Agarwal, N., Sakimura, N., Bradley, J., and M. Jones, &ldquo;OpenID Connect Session Management 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.Session],
+	<a class='info' href='#OpenID.FrontChannel'>OpenID Connect Front-Channel Logout 1.0<span> (</span><span class='info'>Jones, M., &ldquo;OpenID Connect Front-Channel Logout 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.FrontChannel],
+	and/or
+	<a class='info' href='#OpenID.BackChannel'>OpenID Connect Back-Channel Logout 1.0<span> (</span><span class='info'>Jones, M. and J. Bradley, &ldquo;OpenID Connect Back-Channel Logout 1.0,&rdquo; September&nbsp;2022.</span><span>)</span></a> [OpenID.BackChannel]
+	to receive logout notifications from the OP,
+	depending upon which of these mechanisms the OP and RPs mutually support.
+	The RP initiating the logout is to be included in these notifications
+	before the post-logout redirection defined in
+	<a class='info' href='#RedirectionAfterLogout'>Section&nbsp;3<span> (</span><span class='info'>Redirection to RP After Logout</span><span>)</span></a> is performed.
+      
+</p>
+<p>
+	It is up to the RP whether to locally log out the End-User
+	before redirecting the User Agent to the OP's Logout Endpoint.
+	On one hand, if the End-User approves the logout at the OP,
+	the RP initiating the logout should receive a logout message from the OP
+	and can perform a local logout at that time.
+	On the other hand, some logout notification methods from the OP to the RP
+	are unreliable and therefore the notification might not be received.
+	Also, the End-User might not approve the OP logging out,
+	in which case the RP would not receive a logout notification.
+      
+</p>
+<a name="OPMetadata"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1"></a><h3>2.1.&nbsp;
+OpenID Provider Discovery Metadata</h3>
+
+<p>
+	  To support OpenID Connect RP-Initiated Logout, the RP needs to obtain
+	  the RP-Initiated Logout related OP metadata.
+	  This OP metadata is normally obtained via the OP's Discovery response,
+	  as described in <a class='info' href='#OpenID.Discovery'>OpenID Connect Discovery 1.0<span> (</span><span class='info'>Sakimura, N., Bradley, J., Jones, M., and E. Jay, &ldquo;OpenID Connect Discovery 1.0,&rdquo; November&nbsp;2014.</span><span>)</span></a> [OpenID.Discovery],
+	  or MAY be learned via other mechanisms.
+	
+</p>
+<p>
+	  This OpenID Provider Metadata parameter MUST be included in
+	  the Server's discovery responses
+	  when RP-Initiated Logout and Discovery are supported:
+	
+</p>
+<p>
+	  </p>
+<blockquote class="text"><dl>
+<dt>end_session_endpoint</dt>
+<dd>
+	      
+	      REQUIRED.
+	      URL at the OP to which an RP can perform a redirect to request that the
+	      End-User be logged out at the OP.
+	      This URL MUST use the <tt>https</tt> scheme
+	      and MAY contain port, path, and query parameter components.
+	    
+</dd>
+</dl></blockquote><p>
+	
+</p>
+<a name="RedirectionAfterLogout"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.3"></a><h3>3.&nbsp;
+Redirection to RP After Logout</h3>
+
+<p>
+	In some cases, the RP will request that the End-User's User Agent
+	to be redirected back to the RP
+	after a logout has been performed.
+	Post-logout redirection is only done when the logout is RP-initiated,
+	in which case the redirection target is
+	the <tt>post_logout_redirect_uri</tt> parameter
+	value sent by the initiating RP.
+	An <tt>id_token_hint</tt> carring an ID Token for the RP
+	is also RECOMMENDED when requesting post-logout redirection;
+	if it is not supplied with <tt>post_logout_redirect_uri</tt>,
+	the OP MUST NOT perform post-logout redirection
+	unless the OP has other means of confirming the legitimacy of the post-logout redirection target.
+	The OP also MUST NOT perform post-logout redirection if the
+	<tt>post_logout_redirect_uri</tt> value supplied does not exactly match
+	one of the previously registered <tt>post_logout_redirect_uris</tt> values.
+	The post-logout redirection is performed after the OP has finished notifying the RPs
+	that logged in with the OP for that End-User that they are to log out the End-User.
+      
+</p>
+<p>
+	This specification defines this Dynamic Registration parameter
+	for this purpose, per Section 2.1 of
+	<a class='info' href='#OpenID.Registration'>OpenID Connect Dynamic Client Registration 1.0<span> (</span><span class='info'>Sakimura, N., Bradley, J., and M. Jones, &ldquo;OpenID Connect Dynamic Client Registration 1.0,&rdquo; November&nbsp;2014.</span><span>)</span></a> [OpenID.Registration].
+      
+</p>
+<a name="ClientMetadata"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.3.1"></a><h3>3.1.&nbsp;
+Client Registration Metadata</h3>
+
+<p>
+	  This Client Metadata parameter MAY be included in
+	  the Client's Registration information
+	  when RP-Initiated Logout and Dynamic Registration are supported:
+	
+</p>
+<p>
+	  </p>
+<blockquote class="text"><dl>
+<dt>post_logout_redirect_uris</dt>
+<dd>
+	      
+	      OPTIONAL.
+	      Array of URLs supplied by the RP to which it MAY request that
+	      the End-User's User Agent be redirected using the
+	      <tt>post_logout_redirect_uri</tt> parameter
+	      after a logout has been performed.
+	      These URLs SHOULD use the <tt>https</tt> scheme
+	      and MAY contain port, path, and query parameter components;
+	      however, they MAY use the <tt>http</tt> scheme,
+	      provided that the Client Type is <tt>confidential</tt>,
+	      as defined in Section 2.1 of <a class='info' href='#RFC6749'>OAuth 2.0<span> (</span><span class='info'>Hardt, D., Ed., &ldquo;The OAuth 2.0 Authorization Framework,&rdquo; October&nbsp;2012.</span><span>)</span></a> [RFC6749], and
+	      provided the OP allows the use of <tt>http</tt> RP URIs.
+	    
+</dd>
+</dl></blockquote><p>
+	
+</p>
+<a name="ValidationAndErrorHandling"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.4"></a><h3>4.&nbsp;
+Validation and Error Handling</h3>
+
+<p>
+	If any of the validation procedures defined in this specification fail, any operations requiring
+	the information that failed to correctly validate MUST be aborted and
+	the information that failed to validate MUST NOT be used.
+	Note that because RP-Initiated Logout Requests are intended to be idempotent,
+	it is explicitly not an error for an RP to request that a logout be performed
+	when the OP does not consider that the End-User is logged in with the OP at the requesting RP.
+      
+</p>
+<p>
+	As described in <a class='info' href='#RedirectionAfterLogout'>Section&nbsp;3<span> (</span><span class='info'>Redirection to RP After Logout</span><span>)</span></a>,
+	when the OP detects errors in the RP-Initiated Logout request,
+	the OP MUST not perform post-logout redirection to an RP.
+	Beyond that, the OP has discretion on what information to display to the End-User
+	in the resulting page at the OP
+	and what actions to enable the End-User to perform next.
+	It MAY display an error message.
+	It MAY ask the End-User whether to log out of the OP.
+      
+</p>
+<p>
+	Note that giving the End-User the opportunity to log out may have security benefits,
+	especially in kiosk scenarios.
+	The End-User initiating a logout action at the RP may expect to be completely logged out,
+	including from the OP.
+	Not giving the End-User the opportunity to log out at the OP
+	and leaving the End-User logged in would likely violate the End-User's security expectations
+	about being completely logged out.
+      
+</p>
+<a name="ImplementationConsiderations"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.5"></a><h3>5.&nbsp;
+Implementation Considerations</h3>
+
+<p>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers that choose to implement RP-Initiated Logout.
+	All of these Relying Parties and OpenID Providers
+	MUST implement the features that are listed
+	in this specification as being "REQUIRED" or are described with a "MUST".
+	No other implementation considerations for implementations of
+	RP-Initiated Logout are defined by this specification.
+      
+</p>
+<a name="Security"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.6"></a><h3>6.&nbsp;
+Security Considerations</h3>
+
+<p>
+	Logout requests without a valid <tt>id_token_hint</tt> value
+	are a potential means of denial of service; therefore,
+	OPs should obtain explicit confirmation from the End-User before acting upon them.
+      
+</p>
+<a name="IANA"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7"></a><h3>7.&nbsp;
+IANA Considerations</h3>
+
+<a name="ASMetadataRegistry"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.1"></a><h3>7.1.&nbsp;
+OAuth Authorization Server Metadata Registry</h3>
+
+<p>
+	  This specification registers the following metadata name in the
+	  IANA "OAuth Authorization Server Metadata" registry <a class='info' href='#IANA.OAuth.Parameters'>[IANA.OAuth.Parameters]<span> (</span><span class='info'>IANA, &ldquo;OAuth Parameters,&rdquo; .</span><span>)</span></a>
+	  established by <a class='info' href='#RFC8414'>[RFC8414]<span> (</span><span class='info'>Jones, M., Sakimura, N., and J. Bradley, &ldquo;OAuth 2.0 Authorization Server Metadata,&rdquo; June&nbsp;2018.</span><span>)</span></a>.
+	
+</p>
+<a name="MetadataContents"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.1.1"></a><h3>7.1.1.&nbsp;
+Registry Contents</h3>
+
+<p>
+	    
+            </p>
+<ul class="text">
+<li>
+                Metadata Name: <tt>end_session_endpoint</tt>
+              
+</li>
+<li>
+                Metadata Description:
+		URL at the OP to which an RP can perform a redirect to request that the
+	      End-User be logged out at the OP
+              
+</li>
+<li>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              
+</li>
+<li>
+                Specification Document(s): <a class='info' href='#OPMetadata'>Section&nbsp;2.1<span> (</span><span class='info'>OpenID Provider Discovery Metadata</span><span>)</span></a> of this document
+              
+</li>
+</ul><p>
+	  
+</p>
+<a name="DynRegRegistrations"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.2"></a><h3>7.2.&nbsp;
+OAuth Dynamic Client Registration Metadata Registration</h3>
+
+<p>
+	  This specification registers the following client metadata definition
+	  in the IANA "OAuth Dynamic Client Registration Metadata" registry
+	  <a class='info' href='#IANA.OAuth.Parameters'>[IANA.OAuth.Parameters]<span> (</span><span class='info'>IANA, &ldquo;OAuth Parameters,&rdquo; .</span><span>)</span></a>
+	  established by <a class='info' href='#RFC7591'>[RFC7591]<span> (</span><span class='info'>Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and P. Hunt, &ldquo;OAuth 2.0 Dynamic Client Registration Protocol,&rdquo; July&nbsp;2015.</span><span>)</span></a>:
+	
+</p>
+<a name="DynRegContents"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.2.1"></a><h3>7.2.1.&nbsp;
+Registry Contents</h3>
+
+<p> 
+	    </p>
+<ul class="text">
+<li>
+		Client Metadata Name: <tt>post_logout_redirect_uris</tt>
+	      
+</li>
+<li>
+		Client Metadata Description:
+		Array of URLs supplied by the RP to which it MAY request that
+		the End-User's User Agent be redirected using the
+		<tt>post_logout_redirect_uri</tt> parameter
+		after a logout has been performed
+	      
+</li>
+<li>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      
+</li>
+<li>
+		Specification Document(s): <a class='info' href='#ClientMetadata'>Section&nbsp;3.1<span> (</span><span class='info'>Client Registration Metadata</span><span>)</span></a> of this document
+	      
+</li>
+</ul><p>
+	  
+</p>
+<a name="rfc.references"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.8"></a><h3>8.&nbsp;
+References</h3>
+
+<a name="rfc.references1"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>8.1.&nbsp;Normative References</h3>
+<table width="99%" border="0">
+<tr><td class="author-text" valign="top"><a name="IANA.OAuth.Parameters">[IANA.OAuth.Parameters]</a></td>
+<td class="author-text">IANA, &ldquo;<a href="https://www.iana.org/assignments/oauth-parameters">OAuth Parameters</a>.&rdquo;</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.BackChannel">[OpenID.BackChannel]</a></td>
+<td class="author-text">Jones, M. and J. Bradley, &ldquo;<a href="https://openid.net/specs/openid-connect-backchannel-1_0.html">OpenID Connect Back-Channel Logout 1.0</a>,&rdquo; September&nbsp;2022.</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.Core">[OpenID.Core]</a></td>
+<td class="author-text">Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, &ldquo;<a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a>,&rdquo; November&nbsp;2014.</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.Discovery">[OpenID.Discovery]</a></td>
+<td class="author-text">Sakimura, N., Bradley, J., Jones, M., and E. Jay, &ldquo;<a href="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID Connect Discovery 1.0</a>,&rdquo; November&nbsp;2014.</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.FrontChannel">[OpenID.FrontChannel]</a></td>
+<td class="author-text">Jones, M., &ldquo;<a href="https://openid.net/specs/openid-connect-frontchannel-1_0.html">OpenID Connect Front-Channel Logout 1.0</a>,&rdquo; September&nbsp;2022.</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.Registration">[OpenID.Registration]</a></td>
+<td class="author-text">Sakimura, N., Bradley, J., and M. Jones, &ldquo;<a href="https://openid.net/specs/openid-connect-registration-1_0.html">OpenID Connect Dynamic Client Registration 1.0</a>,&rdquo; November&nbsp;2014.</td></tr>
+<tr><td class="author-text" valign="top"><a name="OpenID.Session">[OpenID.Session]</a></td>
+<td class="author-text">de Medeiros, B., Agarwal, N., Sakimura, N., Bradley, J., and M. Jones, &ldquo;<a href="https://openid.net/specs/openid-connect-session-1_0.html">OpenID Connect Session Management 1.0</a>,&rdquo; September&nbsp;2022.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC2119">[RFC2119]</a></td>
+<td class="author-text">Bradner, S., &ldquo;<a href="https://www.rfc-editor.org/info/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a>,&rdquo; BCP&nbsp;14, RFC&nbsp;2119, DOI&nbsp;10.17487/RFC2119, March&nbsp;1997.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC5646">[RFC5646]</a></td>
+<td class="author-text">Phillips, A., Ed. and M. Davis, Ed., &ldquo;<a href="https://www.rfc-editor.org/info/rfc5646">Tags for Identifying Languages</a>,&rdquo; BCP&nbsp;47, RFC&nbsp;5646, DOI&nbsp;10.17487/RFC5646, September&nbsp;2009.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC6749">[RFC6749]</a></td>
+<td class="author-text">Hardt, D., Ed., &ldquo;<a href="https://www.rfc-editor.org/info/rfc6749">The OAuth 2.0 Authorization Framework</a>,&rdquo; RFC&nbsp;6749, DOI&nbsp;10.17487/RFC6749, October&nbsp;2012.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC7230">[RFC7230]</a></td>
+<td class="author-text">Fielding, R., Ed. and J. Reschke, Ed., &ldquo;<a href="https://www.rfc-editor.org/info/rfc7230">Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</a>,&rdquo; RFC&nbsp;7230, DOI&nbsp;10.17487/RFC7230, June&nbsp;2014.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC7231">[RFC7231]</a></td>
+<td class="author-text">Fielding, R., Ed. and J. Reschke, Ed., &ldquo;<a href="https://www.rfc-editor.org/info/rfc7231">Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</a>,&rdquo; RFC&nbsp;7231, DOI&nbsp;10.17487/RFC7231, June&nbsp;2014.</td></tr>
+</table>
+
+<a name="rfc.references2"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>8.2.&nbsp;Informative References</h3>
+<table width="99%" border="0">
+<tr><td class="author-text" valign="top"><a name="RFC7591">[RFC7591]</a></td>
+<td class="author-text">Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and P. Hunt, &ldquo;<a href="https://www.rfc-editor.org/info/rfc7591">OAuth 2.0 Dynamic Client Registration Protocol</a>,&rdquo; RFC&nbsp;7591, DOI&nbsp;10.17487/RFC7591, July&nbsp;2015.</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC8414">[RFC8414]</a></td>
+<td class="author-text">Jones, M., Sakimura, N., and J. Bradley, &ldquo;<a href="https://www.rfc-editor.org/info/rfc8414">OAuth 2.0 Authorization Server Metadata</a>,&rdquo; RFC&nbsp;8414, DOI&nbsp;10.17487/RFC8414, June&nbsp;2018.</td></tr>
+</table>
+
+<a name="Acknowledgements"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.A"></a><h3>Appendix A.&nbsp;
+Acknowledgements</h3>
+
+<p>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      
+</p>
+<p>
+        </p>
+<blockquote class="text">
+<p>Naveen Agarwal (Naveen.Agarwal@microsoft.com), Microsoft
+</p>
+<p>Amanda Anganes (aanganes@mitre.org), MITRE
+</p>
+<p>John Bradley (ve7jtb@ve7jtb.com), Yubico
+</p>
+<p>Breno de Medeiros (breno@google.com), Google
+</p>
+<p>Vladimir Dzhuvinov (vladimir@connect2id.com), Connect2id
+</p>
+<p>George Fletcher (gffletch@aol.com), Capital One
+</p>
+<p>Roland Hedberg (roland@catalogix.se), Independent
+</p>
+<p>Edmund Jay (ejay@mgi1.com), Illumila
+</p>
+<p>Michael B. Jones (mbj@microsoft.com), Microsoft
+</p>
+<p>Todd Lainhart (lainhart@us.ibm.com), IBM
+</p>
+<p>Torsten Lodderstedt (torsten@lodderstedt.net), yes.com
+</p>
+<p>Anthony Nadalin (nadalin@prodigy.net), Independent
+</p>
+<p>Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom
+</p>
+<p>Justin Richer (justin@bspk.io), Bespoke Engineering
+</p>
+<p>Nat Sakimura (nat@nat.consulting), NAT.Consulting
+</p>
+<p>Filip Skokan (panva.ip@gmail.com), Auth0
+</p>
+<p>Hans Zandbelt (hans.zandbelt@zmartzone.eu), ZmartZone
+</p>
+</blockquote><p>
+      
+</p>
+<a name="Notices"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.B"></a><h3>Appendix B.&nbsp;
+Notices</h3>
+
+<p>Copyright (c) 2022 The OpenID Foundation.
+</p>
+<p>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.
+</p>
+<p>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.
+</p>
+<a name="rfc.authors"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>Authors' Addresses</h3>
+<table width="99%" border="0" cellpadding="0" cellspacing="0">
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Michael B. Jones</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Microsoft</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:mbj@microsoft.com">mbj@microsoft.com</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="https://self-issued.info/">https://self-issued.info/</a></td></tr>
+<tr cellpadding="3"><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Breno de Medeiros</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Google</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:breno@google.com">breno@google.com</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="https://stackoverflow.com/users/311376/breno">https://stackoverflow.com/users/311376/breno</a></td></tr>
+<tr cellpadding="3"><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Naveen Agarwal</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Microsoft</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:Naveen.Agarwal@microsoft.com">Naveen.Agarwal@microsoft.com</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="https://www.linkedin.com/in/nvnagr">https://www.linkedin.com/in/nvnagr</a></td></tr>
+<tr cellpadding="3"><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Nat Sakimura</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">NAT.Consulting</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:nat@nat.consulting">nat@nat.consulting</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="https://nat.sakimura.org/">https://nat.sakimura.org/</a></td></tr>
+<tr cellpadding="3"><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">John Bradley</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Yubico</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:ve7jtb@ve7jtb.com">ve7jtb@ve7jtb.com</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="http://www.thread-safe.com/">http://www.thread-safe.com/</a></td></tr>
+</table>
+</body></html>

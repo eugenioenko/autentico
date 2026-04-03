@@ -2,7 +2,7 @@
 
 ## Overview
 
-Seven phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
+Eight phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
@@ -13,8 +13,9 @@ Seven phases tackling one spec at a time, in dependency order. Each phase: read 
 | 5 | RFC 7662 — Token Introspection | 1.5h | ✅ Done (2026-03-30) |
 | 6 | OIDC Core 1.0 | 3h | ✅ Done (2026-03-30) |
 | 7 | OIDC Discovery 1.0 | 1h | ✅ Done (2026-03-30) |
+| 8 | OIDC RP-Initiated Logout 1.0 | 1.5h | ✅ Done (2026-04-03) |
 
-**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7
+**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8
 
 ---
 
@@ -438,3 +439,87 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 - Unit: `TestHandleWellKnownConfig_IssuerMatchesTokenIss` — issuer equals `AppAuthIssuer` ✅ Added
 - Unit: `TestHandleJWKS` — basic JWKS response ✅ Pre-existing
 - Unit: `TestHandleJWKSResponse` — key fields: `kty`, `alg`, `use`, `kid`, `n`, `e` ✅ Pre-existing
+
+---
+
+## Phase 8 — OIDC RP-Initiated Logout 1.0
+
+**Spec:** https://openid.net/specs/openid-connect-rpinitiated-1_0.html (Final, September 2022)
+
+**Context:** GitHub issue #131 — `POST /oauth2/logout` only accepted Bearer tokens, rejecting `client_secret_basic` and form-encoded params. The root cause was a spec gap: the POST handler was a custom Bearer-only endpoint and did not implement RP-Initiated Logout 1.0 §2, which requires POST to accept the same form-encoded params as GET.
+
+| Section | What to check | Code path |
+|---|---|---|
+| §2 | OP MUST support GET and POST at the Logout Endpoint | `pkg/session/logout.go` `HandleLogout` (POST) + `HandleRpInitiatedLogout` (GET) |
+| §2 | POST uses Form Serialization (same params as GET) | `pkg/session/logout.go` `HandleLogout` → `rpInitiatedLogout` |
+| §2 | `id_token_hint` RECOMMENDED; expired tokens accepted | `pkg/session/logout.go` `parseIDTokenHint` — `Valid()` always returns nil |
+| §2 | OP MUST validate it was the issuer of the ID Token | `pkg/session/logout.go` `parseIDTokenHint` — verifies JWT signature against our key |
+| §2 | When both `client_id` and `id_token_hint` present, MUST verify they match | `pkg/session/logout.go` `rpInitiatedLogout` lines 192–207 |
+| §3 | `post_logout_redirect_uri` MUST have been previously registered | `pkg/session/logout.go` `rpInitiatedLogout` — exact match against `GetPostLogoutRedirectURIs()` |
+| §3 | MUST NOT redirect if URI doesn't exactly match | `pkg/session/logout.go` `rpInitiatedLogout` — falls through to `renderLogoutSuccess` |
+| §4 | On validation failure, MUST NOT perform post-logout redirection | `pkg/session/logout.go` `rpInitiatedLogout` — `client_id` mismatch returns logout page |
+| §2.1 | `end_session_endpoint` in discovery | `pkg/wellknown/handler.go` line 47 |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2 | Support HTTP GET and POST at Logout Endpoint | ✅ Fixed (2026-04-03) — POST now delegates to shared `rpInitiatedLogout` |
+| MUST | §2 | POST uses Form Serialization for same params as GET | ✅ Fixed (2026-04-03) — `HandleLogout` parses form params |
+| MUST | §2 | Validate OP was issuer of `id_token_hint` | ✅ Verified + annotated (2026-04-03) — JWT signature verification |
+| MUST | §2 | When both `client_id` and `id_token_hint` present, verify `client_id` matches | ✅ Fixed (2026-04-03) — mismatch aborts redirect |
+| MUST | §2 | If End-User says "yes" to logout, OP MUST log out | ✅ Verified (2026-04-03) — sessions deactivated unconditionally when hint has subject |
+| MUST | §2.1 | `end_session_endpoint` in discovery when RP-Initiated Logout is supported | ✅ Pre-existing |
+| MUST | §3 | `post_logout_redirect_uri` must be pre-registered | ✅ Verified + annotated (2026-04-03) — exact match against registered URIs |
+| MUST NOT | §3 | Must NOT redirect if URI doesn't match a registered value | ✅ Verified + annotated (2026-04-03) — falls through to logout page |
+| MUST NOT | §4 | Must NOT redirect when validation fails | ✅ Fixed (2026-04-03) — `client_id` mismatch renders logout page |
+| RECOMMENDED | §2 | `id_token_hint` parameter | ✅ Supported but not required |
+| RECOMMENDED | §3 | `id_token_hint` when `post_logout_redirect_uri` is included | ✅ Verified — redirect works with `client_id` alone as "other means" per §3 |
+| SHOULD | §2 | Accept expired ID tokens when session is current/recent | ✅ Verified + annotated (2026-04-03) — `Valid()` always returns nil |
+| SHOULD | §2 | Ask End-User whether to log out | ⏭ Skipped — logout is immediate per design (API-first IdP, not interactive confirmation flow) |
+| SHOULD | §2 | Treat suspect `id_token_hint` (sid mismatch) as suspect | ⏭ Skipped — no `sid`-based session correlation in id_token_hint parsing |
+| OPTIONAL | §2 | `client_id` parameter | ✅ Supported |
+| OPTIONAL | §2 | `post_logout_redirect_uri` parameter | ✅ Supported |
+| OPTIONAL | §2 | `state` parameter | ✅ Supported — passed through to redirect URI |
+| OPTIONAL | §2 | `logout_hint` parameter | ⏭ Not implemented — spec leaves meaning up to OP |
+| OPTIONAL | §2 | `ui_locales` parameter | ⏭ Not implemented — single-locale UI |
+
+**Bug Inventory:**
+
+| Severity | Location | Issue | Spec Reference | Status |
+|---|---|---|---|---|
+| High | `pkg/session/logout.go:32` | `POST /oauth2/logout` only accepts Bearer token; rejects form-encoded RP-Initiated Logout params | RP-Initiated Logout 1.0 §2 | ✅ Fixed (2026-04-03) |
+| Medium | `pkg/session/logout.go` | No `client_id` vs `id_token_hint` mismatch validation | RP-Initiated Logout 1.0 §2 | ✅ Fixed (2026-04-03) |
+
+**Security Considerations (§6):**
+- [x] §6: Logout requests without a valid `id_token_hint` are a potential DoS vector — OPs should obtain explicit confirmation. Skipped: Autentico is API-first; logout without hint simply clears the IdP cookie and renders a logout page (no destructive side effects without a valid subject claim).
+- [x] §6: End-User may expect complete logout including at the OP — both IdP sessions and OAuth sessions are deactivated when `id_token_hint` provides a subject.
+
+**Discovery cross-check:**
+- [x] `end_session_endpoint` present in `/.well-known/openid-configuration` — pre-existing, verified by `TestHandleWellKnownConfig_RequiredFields`
+
+**Tests:**
+- Unit: `TestHandleLogout` — Bearer logout (positive, backward compat) ✅ Pre-existing
+- Unit: `TestHandleLogout_NoAuthNoParams_ShowsLogoutPage` — POST with no auth or params renders logout page ✅ Updated (was `TestHandleLogoutMissingAuth`)
+- Unit: `TestHandleLogoutInvalidToken` — Bearer with invalid JWT → 401 ✅ Pre-existing
+- Unit: `TestHandleLogout_BasicAuth_FallsThrough` — Basic Auth falls through to spec path ✅ Updated (was `TestHandleLogoutInvalidAuthFormat`)
+- Unit: `TestHandleLogout_ClearsIdpSessionCookie` — Bearer logout clears IdP cookie ✅ Pre-existing
+- Unit: `TestHandleLogout_RevokesIdpSessionWithoutCookie` — server-side Bearer logout revokes IdP sessions ✅ Pre-existing
+- Unit: `TestHandleLogout_NoIdpSession` — Bearer logout without IdP session ✅ Pre-existing
+- Unit: `TestHandleLogout_POST_WithIdTokenHint_DeactivatesSessions` — POST form id_token_hint deactivates sessions (positive) ✅ Added
+- Unit: `TestHandleLogout_POST_WithPostLogoutRedirectURI` — POST form redirect with registered URI (positive) ✅ Added
+- Unit: `TestHandleLogout_POST_WithPostLogoutRedirectURIAndState` — POST form redirect with state passthrough (positive) ✅ Added
+- Unit: `TestHandleLogout_POST_UnregisteredRedirectURI_ShowsLogoutPage` — POST unregistered URI rejected (negative) ✅ Added
+- Unit: `TestHandleLogout_POST_BasicAuthWithIdTokenHint` — Basic Auth + id_token_hint works (positive, GitHub #131) ✅ Added
+- Unit: `TestHandleLogout_POST_ClearsIdpSessionCookie` — POST clears IdP cookie (positive) ✅ Added
+- Unit: `TestRpInitiatedLogout_ClientIdMismatch_NoRedirect` — GET client_id/id_token_hint mismatch (negative) ✅ Added
+- Unit: `TestRpInitiatedLogout_ClientIdMismatch_POST_NoRedirect` — POST client_id/id_token_hint mismatch (negative) ✅ Added
+- Unit: `TestHandleRpInitiatedLogout_NoParams_ShowsLogoutPage` — GET no params (positive) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_ClearsIdpSessionCookie` — GET clears IdP cookie ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_WithIdTokenHint_DeactivatesSessions` — GET id_token_hint (positive) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_ValidPostLogoutRedirectURI` — GET registered redirect (positive) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_ValidPostLogoutRedirectURIWithState` — GET redirect with state (positive) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_UnregisteredPostLogoutRedirectURI_ShowsLogoutPage` — GET unregistered URI (negative) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_UnknownClientID_ShowsLogoutPage` — GET unknown client (negative) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_ClientIdFromIdTokenHint` — GET client_id resolved from token (positive) ✅ Pre-existing
+- Unit: `TestHandleRpInitiatedLogout_InvalidIdTokenHint_StillLoggedOut` — GET invalid hint, graceful (positive) ✅ Pre-existing
