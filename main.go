@@ -69,16 +69,19 @@ func main() {
 					&cli.StringFlag{
 						Name:     "username",
 						Usage:    "Admin username",
+						EnvVars:  []string{"AUTENTICO_ADMIN_USERNAME"},
 						Required: true,
 					},
 					&cli.StringFlag{
 						Name:     "password",
 						Usage:    "Admin password",
+						EnvVars:  []string{"AUTENTICO_ADMIN_PASSWORD"},
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:  "email",
-						Usage: "Admin email address",
+						Name:    "email",
+						Usage:   "Admin email address",
+						EnvVars: []string{"AUTENTICO_ADMIN_EMAIL"},
 					},
 					&cli.BoolFlag{
 						Name:  "auto-migrate",

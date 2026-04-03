@@ -250,7 +250,7 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 ./autentico start
 ```
 
-The `onboard` command creates the admin account headlessly — useful for CI/CD, Docker, and automated deployments. Alternatively, start the server first and visit `http://localhost:9999/onboard/` to complete setup in the browser.
+The `onboard` command creates the admin account headlessly — useful for CI/CD, Docker, and automated deployments. Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`). Alternatively, start the server first and visit `http://localhost:9999/onboard/` to complete setup in the browser.
 
 ### Building from Source
 
