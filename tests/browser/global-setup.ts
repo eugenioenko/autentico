@@ -21,9 +21,13 @@ async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
 }
 
 export default async function globalSetup() {
-  // Build the binary (includes admin + account UI)
-  console.log("[setup] Building Autentico...");
-  execSync("make build", { cwd: ROOT, stdio: "inherit" });
+  // Build the binary if not already present (CI downloads it as an artifact)
+  if (!existsSync(BINARY)) {
+    console.log("[setup] Building Autentico...");
+    execSync("make build", { cwd: ROOT, stdio: "inherit" });
+  } else {
+    console.log("[setup] Binary already exists, skipping build.");
+  }
 
   // Clean previous state
   if (existsSync(DB_FILE)) unlinkSync(DB_FILE);

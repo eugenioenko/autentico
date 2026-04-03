@@ -11,10 +11,9 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -33,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
       - name: Check formatting
@@ -45,37 +44,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
       - name: Create UI placeholders
         run: |
           mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
           mkdir -p pkg/account/dist && echo '<!doctype html>' > pkg/account/dist/index.html
-      - name: Build project
+      - name: Build binary
         run: go build -o autentico main.go
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 20
-      - name: Install pnpm
-        run: npm install -g pnpm
-      - name: Install functional test dependencies
-        working-directory: tests/functional
-        run: pnpm install
-      - name: Run functional tests
-        working-directory: tests/functional
-        run: pnpm test
+          name: autentico-binary
+          path: autentico
+          retention-days: 1
 
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
       - name: Create UI placeholders
@@ -91,9 +84,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
       - name: Create UI placeholders
@@ -103,15 +96,43 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-  smoke:
+  functional:
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/checkout@v4
+      - name: Download binary
+        uses: actions/download-artifact@v4
         with:
-          go-version: 1.23.0
+          name: autentico-binary
+      - name: Make binary executable
+        run: chmod +x autentico
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        working-directory: tests/functional
+        run: pnpm install
+      - name: Run functional tests
+        working-directory: tests/functional
+        run: pnpm test
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: autentico-binary
+      - name: Make binary executable
+        run: chmod +x autentico
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -132,9 +153,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
       - name: Check for uncommitted changes after go mod tidy
