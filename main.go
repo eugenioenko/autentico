@@ -23,7 +23,7 @@ import (
 func main() {
 	app := &cli.App{
 		Name:  "autentico",
-		Usage: "OpenID Connect Identity Provider",
+		Usage: "OAuth 2.0 / OIDC Identity Provider",
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
