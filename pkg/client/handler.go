@@ -23,6 +23,10 @@ import (
 // @Router /oauth2/register [post]
 // @Router /admin/api/clients [post]
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
+	// RFC 7591 §3: The client registration endpoint MUST accept HTTP POST messages
+	// with request parameters encoded in the entity body using the 'application/json' format.
+	// RFC 7591 §2: The server MUST ignore any client metadata it does not understand.
+	// (Go's json.Decoder silently ignores unknown fields by default.)
 	var request ClientCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
@@ -30,12 +34,14 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := ValidateClientCreateRequest(request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		// RFC 7591 §3.2.2: invalid_client_metadata when a metadata field value is invalid.
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 		return
 	}
 
 	if err := ValidateRedirectURIs(request.RedirectURIs); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect URI: "+err.Error())
+		// RFC 7591 §3.2.2: invalid_redirect_uri when redirect URI values are invalid.
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_redirect_uri", "Invalid redirect URI: "+err.Error())
 		return
 	}
 
@@ -51,6 +57,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7591 §3.2.1: The server MUST return all registered metadata about this client.
 	audit.Log(audit.EventClientCreated, audit.ActorFromRequest(r), audit.TargetClient, response.ClientID, nil, utils.GetClientIP(r))
 	utils.WriteApiResponse(w, response, http.StatusCreated)
 }
@@ -110,13 +117,15 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := ValidateClientUpdateRequest(request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		// RFC 7591 §3.2.2: invalid_client_metadata when a metadata field value is invalid.
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 		return
 	}
 
 	if len(request.RedirectURIs) > 0 {
 		if err := ValidateRedirectURIs(request.RedirectURIs); err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect URI: "+err.Error())
+			// RFC 7591 §3.2.2: invalid_redirect_uri when redirect URI values are invalid.
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_redirect_uri", "Invalid redirect URI: "+err.Error())
 			return
 		}
 	}

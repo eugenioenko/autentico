@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -22,6 +23,9 @@ func CreateClientWithID(clientID string, req ClientCreateRequest) (*ClientRespon
 }
 
 func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	issuedAt := time.Now().Unix()
+
+	// RFC 7591 §3.2.1: client_secret OPTIONAL — issued for confidential clients.
 	clientSecret := ""
 	hashedSecret := ""
 	if req.ClientType != "public" {
@@ -50,12 +54,14 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 	}
 	postLogoutURIs, _ := json.Marshal(postLogoutURIsSlice)
 
+	// RFC 7591 §2: default grant_types is ["authorization_code"] when omitted.
 	finalGrantTypes := req.GrantTypes
 	if finalGrantTypes == nil {
 		finalGrantTypes = []string{"authorization_code"}
 	}
 	grantTypes, _ := json.Marshal(finalGrantTypes)
 
+	// RFC 7591 §2: default response_types is ["code"] when omitted.
 	finalResponseTypes := req.ResponseTypes
 	if finalResponseTypes == nil {
 		finalResponseTypes = []string{"code"}
@@ -66,10 +72,12 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 	if req.ClientType != "" {
 		clientType = req.ClientType
 	}
+	// RFC 7591 §2: scope — if omitted, server MAY register with a default set of scopes.
 	scopes := "openid profile email"
 	if req.Scopes != "" {
 		scopes = req.Scopes
 	}
+	// RFC 7591 §2: default token_endpoint_auth_method is "client_secret_basic".
 	authMethod := "client_secret_basic"
 	if req.TokenEndpointAuthMethod != "" {
 		authMethod = req.TokenEndpointAuthMethod
@@ -106,10 +114,12 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	// RFC 7591 §3.2.1: The server MUST return all registered metadata about this client.
 	return &ClientResponse{
 		ClientID:                clientID,
 		ClientSecret:            clientSecret,
 		ClientSecretExpiresAt:   0,
+		ClientIDIssuedAt:        issuedAt,
 		ClientName:              req.ClientName,
 		ClientType:              clientType,
 		RedirectURIs:            req.RedirectURIs,

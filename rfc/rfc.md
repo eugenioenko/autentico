@@ -2,7 +2,7 @@
 
 ## Overview
 
-Eight phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
+Nine phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
@@ -14,8 +14,9 @@ Eight phases tackling one spec at a time, in dependency order. Each phase: read 
 | 6 | OIDC Core 1.0 | 3h | ✅ Done (2026-03-30) |
 | 7 | OIDC Discovery 1.0 | 1h | ✅ Done (2026-03-30) |
 | 8 | OIDC RP-Initiated Logout 1.0 | 1.5h | ✅ Done (2026-04-03) |
+| 9 | RFC 7591 — Dynamic Client Registration | 1.5h | ✅ Done (2026-04-03) |
 
-**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8
+**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8 → 9
 
 ---
 
@@ -523,3 +524,85 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 - Unit: `TestHandleRpInitiatedLogout_UnknownClientID_ShowsLogoutPage` — GET unknown client (negative) ✅ Pre-existing
 - Unit: `TestHandleRpInitiatedLogout_ClientIdFromIdTokenHint` — GET client_id resolved from token (positive) ✅ Pre-existing
 - Unit: `TestHandleRpInitiatedLogout_InvalidIdTokenHint_StillLoggedOut` — GET invalid hint, graceful (positive) ✅ Pre-existing
+
+---
+
+## Phase 9 — RFC 7591: OAuth 2.0 Dynamic Client Registration
+
+**File:** `rfc/rfc7591.txt`
+
+**Context:** GitHub issue #132 — `POST /oauth2/register` implements dynamic client registration but had never been audited against RFC 7591. Error codes were generic (`invalid_request`) instead of spec-defined, and the `client_id_issued_at` field was missing from responses.
+
+| Section | What to check | Code path |
+|---|---|---|
+| §2 | Client metadata fields, defaults, unknown field handling | `pkg/client/model.go`, `pkg/client/create.go` |
+| §2 | redirect_uris MUST be registered for redirect-based flows | `pkg/client/handler.go` `HandleRegister` |
+| §2 | Default grant_types, response_types, token_endpoint_auth_method | `pkg/client/create.go` `createClientInternal` |
+| §3 | Registration endpoint MUST accept application/json POST | `pkg/client/handler.go` `HandleRegister` |
+| §3.2.1 | Response MUST include client_id, all registered metadata | `pkg/client/create.go`, `pkg/client/model.go` `ClientResponse` |
+| §3.2.1 | client_secret_expires_at REQUIRED when secret issued | `pkg/client/model.go` `ClientResponse` (hardcoded 0) |
+| §3.2.2 | Error codes: invalid_client_metadata, invalid_redirect_uri | `pkg/client/handler.go` error paths |
+| §3.2.2 | Error response: HTTP 400, application/json | `pkg/utils/responses.go` `WriteErrorResponse` |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2 | Ignore unrecognized client metadata fields | ✅ Pre-existing — Go json.Decoder silently ignores unknown fields |
+| MUST | §2 | Clients using redirect-based flows MUST register redirect_uris | ✅ Pre-existing — redirect_uris required in validation |
+| MUST | §3 | Accept HTTP POST with application/json | ✅ Pre-existing |
+| MUST | §3.2.1 | Return client_id in registration response | ✅ Pre-existing |
+| MUST | §3.2.1 | Return all registered metadata in response | ✅ Verified + annotated (2026-04-03) |
+| MUST | §3.2.1 | client_secret_expires_at REQUIRED when secret issued | ✅ Pre-existing (hardcoded 0 — no expiration) |
+| MUST | §3.2.2 | Return `invalid_client_metadata` for metadata validation errors | ✅ Fixed (2026-04-03) — was `invalid_request` |
+| MUST | §3.2.2 | Return `invalid_redirect_uri` for redirect URI errors | ✅ Fixed (2026-04-03) — was `invalid_request` |
+| MUST | §3.2.2 | Error response is HTTP 400 with application/json | ✅ Pre-existing |
+| SHOULD | §2 | Default grant_types to ["authorization_code"] when omitted | ✅ Pre-existing + annotated (2026-04-03) |
+| SHOULD | §2 | Default response_types to ["code"] when omitted | ✅ Pre-existing + annotated (2026-04-03) |
+| SHOULD | §2.1 | Ensure grant_types and response_types are consistent | ✅ Pre-existing — both validated against known values |
+| MAY | §2 | Default scope when omitted | ✅ Pre-existing — defaults to "openid profile email" |
+| MAY | §3.1 | Provision default values for omitted metadata | ✅ Pre-existing — defaults for all major fields |
+| OPTIONAL | §3.2.1 | client_id_issued_at in response | ✅ Added (2026-04-03) |
+| OPTIONAL | §3.2.1 | client_secret in response (for confidential clients) | ✅ Pre-existing |
+
+**RFC 7592 — Dynamic Client Registration Management (architectural decision):**
+
+Autentico deliberately uses admin bearer tokens (via `AdminAuthMiddleware`) for client management (GET/PUT/DELETE) instead of RFC 7592's per-client `registration_access_token` model. This is a design choice: the client lifecycle is admin-controlled, not self-service.
+
+Consequences:
+- No `registration_access_token` in registration response (RFC 7592 §3 REQUIRED — not applicable)
+- No `registration_client_uri` in registration response (RFC 7592 §3 REQUIRED — not applicable)
+- PUT preserves omitted fields (RFC 7592 §2.2 says omitted = delete — not applicable; admin UI expects partial updates)
+- DELETE soft-deletes (sets `is_active=false`) and returns 204 — matches RFC 7592 §2.3
+
+This is analogous to the existing "public endpoints by design" decision for introspect/revoke (Phase 4/5).
+
+**Bug Inventory:**
+
+| Severity | Location | Issue | Spec Reference | Status |
+|---|---|---|---|---|
+| Medium | `pkg/client/handler.go:33` | Registration validation errors use `invalid_request` instead of `invalid_client_metadata` | RFC 7591 §3.2.2 | ✅ Fixed (2026-04-03) |
+| Medium | `pkg/client/handler.go:38` | Redirect URI errors use `invalid_request` instead of `invalid_redirect_uri` | RFC 7591 §3.2.2 | ✅ Fixed (2026-04-03) |
+| Low | `pkg/client/model.go` | Missing `client_id_issued_at` in registration response | RFC 7591 §3.2.1 | ✅ Fixed (2026-04-03) |
+
+**Security Considerations (§5):**
+- [x] §5: Registration endpoint is behind admin auth (`AdminAuthMiddleware`) — open registration is not supported, eliminating the open-registration attack surface
+- [x] §5: Client secrets are bcrypt-hashed before storage; plaintext returned only once in registration response
+- [x] §5: redirect_uris validated as proper URLs — prevents injection of malicious URIs
+- [x] §5: All client metadata treated as admin-asserted (admin creates clients, not self-service)
+
+**Discovery cross-check:**
+- [x] `registration_endpoint` present in `/.well-known/openid-configuration` — pre-existing
+
+**Tests:**
+- Unit: `TestHandleRegister` — happy path registration ✅ Pre-existing
+- Unit: `TestHandleRegisterInvalidJSON` — malformed JSON ✅ Pre-existing
+- Unit: `TestHandleRegisterMissingFields` — missing required fields ✅ Pre-existing
+- Unit: `TestHandleRegisterInvalidRedirectURI` — invalid redirect URI ✅ Pre-existing
+- Unit: `TestHandleRegister_RFC7591_UnknownFieldsIgnored` — unknown metadata silently ignored (positive) ✅ Added
+- Unit: `TestHandleRegister_RFC7591_InvalidMetadata_ErrorCode` — `invalid_client_metadata` error code (negative) ✅ Added
+- Unit: `TestHandleRegister_RFC7591_InvalidRedirectURI_ErrorCode` — `invalid_redirect_uri` error code (negative) ✅ Added
+- Unit: `TestHandleRegister_RFC7591_ResponseContainsAllFields` — all required response fields present (positive) ✅ Added
+- Unit: `TestHandleRegister_RFC7591_PublicClient_NoSecret` — public client has no secret (positive) ✅ Added
+- Unit: `TestHandleUpdateClient_RFC7591_InvalidMetadata_ErrorCode` — update `invalid_client_metadata` (negative) ✅ Added
+- Unit: `TestHandleUpdateClient_RFC7591_InvalidRedirectURI_ErrorCode` — update `invalid_redirect_uri` (negative) ✅ Added
