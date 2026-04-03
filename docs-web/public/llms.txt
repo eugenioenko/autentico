@@ -55,14 +55,16 @@ make build
 # For local development (disables Secure cookie flags):
 ./autentico init --url http://localhost:9999 --dev
 
-# 2. Start the server
-./autentico start
+# 2. Create admin account (or use browser at /onboard after starting)
+./autentico onboard --username admin --password yourpassword --auto-migrate
 
-# 3. Open the ONBOARDING URL shown in output to create the admin account
+# 3. Start the server
+./autentico start
 ```
 
 CLI commands:
 - `autentico init` — generate .env configuration
+- `autentico onboard` — create first admin account (headless alternative to /onboard)
 - `autentico start` — start the server
 - `autentico start --auto-migrate` — start and auto-apply pending migrations
 - `autentico migrate` — interactively apply database migrations
@@ -524,10 +526,11 @@ Keycloak-compatible aliases are available:
 
 ```bash
 ./autentico init --url https://auth.example.com
+./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
 ./autentico start
 ```
 
-Place behind a reverse proxy (nginx, Caddy) for TLS.
+Place behind a reverse proxy (nginx, Caddy) for TLS. The `onboard` step is optional if you prefer the browser wizard at `/onboard`.
 
 ### systemd Service
 

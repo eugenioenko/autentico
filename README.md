@@ -243,11 +243,14 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 # Generate .env with RSA key, CSRF secret, and token secrets
 ./autentico init
 
+# Create the first admin account (or use the browser at /onboard after starting)
+./autentico onboard --username admin --password yourpassword --email admin@example.com --auto-migrate
+
 # Start the server
 ./autentico start
 ```
 
-Open `http://localhost:9999/onboard/` and complete the setup form to create the first administrator account. The server is ready.
+The `onboard` command creates the admin account headlessly — useful for CI/CD, Docker, and automated deployments. Alternatively, start the server first and visit `http://localhost:9999/onboard/` to complete setup in the browser.
 
 ### Building from Source
 
@@ -779,10 +782,11 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 
 ```bash
 ./autentico init --url https://auth.example.com
+./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
 ./autentico start
 ```
 
-Place an nginx or Caddy instance in front for TLS.
+Place an nginx or Caddy instance in front for TLS. The `onboard` step is optional if you prefer to use the browser wizard at `/onboard` after starting.
 
 ### Docker
 

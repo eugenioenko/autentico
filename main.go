@@ -63,6 +63,31 @@ func main() {
 				Action: appCli.RunMigrate,
 			},
 			{
+				Name:  "onboard",
+				Usage: "Create the first admin account (headless alternative to /onboard)",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "username",
+						Usage:    "Admin username",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "password",
+						Usage:    "Admin password",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:  "email",
+						Usage: "Admin email address",
+					},
+					&cli.BoolFlag{
+						Name:  "auto-migrate",
+						Usage: "Automatically apply pending database migrations",
+					},
+				},
+				Action: appCli.RunOnboard,
+			},
+			{
 				Name:   "version",
 				Usage:  "Print the version and exit",
 				Action: appCli.RunVersion,
