@@ -162,6 +162,7 @@ func TestTokenEndpointRefresh(t *testing.T) {
 }
 
 func TestLogoutEndpoint(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates sessions.
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 	authUser, _ := user.AuthenticateUser(testEmail, testPassword)
@@ -173,6 +174,9 @@ func TestLogoutEndpoint(t *testing.T) {
 		RefreshToken: authToken.RefreshToken,
 	})
 
-	res := testutils.MockApiRequestWithAuth(t, "", http.MethodPost, "/oauth2/logout", session.HandleLogout, authToken.AccessToken)
-	assert.Equal(t, "{\"data\":\"ok\"}\n", res.Body.String())
+	res := testutils.MockFormRequest(t, map[string]string{
+		"id_token_hint": authToken.AccessToken,
+	}, http.MethodPost, "/oauth2/logout", session.HandleLogout)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Contains(t, res.Body.String(), "signed out")
 }

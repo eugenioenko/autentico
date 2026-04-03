@@ -7,50 +7,31 @@ import (
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
-	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 )
 
 // HandleLogout godoc
-// @Summary Log out a user (POST)
+// @Summary RP-Initiated Logout (POST)
 // @Description RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.
-// @Description Also accepts Bearer access token for backward-compatible programmatic logout.
 // @Tags session
 // @Accept application/x-www-form-urlencoded
-// @Produce json
 // @Produce html
-// @Param Authorization header string false "Bearer access token (backward-compat extension)"
 // @Param id_token_hint formData string false "Previously issued ID token"
 // @Param client_id formData string false "Client identifier"
 // @Param post_logout_redirect_uri formData string false "URI to redirect to after logout"
 // @Param state formData string false "Opaque value passed back to post_logout_redirect_uri"
-// @Success 200 {string} string "Session terminated successfully"
+// @Success 200 {string} string "Signed-out confirmation page"
 // @Success 302 {string} string "Redirect to post_logout_redirect_uri"
-// @Failure 401 {object} model.ApiError
-// @Failure 500 {object} model.ApiError
 // @Router /oauth2/logout [post]
 func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	// RP-Initiated Logout 1.0 §2: OPs MUST support the use of the HTTP GET and
 	// POST methods at the Logout Endpoint. If using POST, the request parameters
 	// are serialized using Form Serialization.
-
-	// Backward compatibility: if a Bearer token is present, use it for
-	// programmatic logout (non-spec extension).
-	authHeader := r.Header.Get("Authorization")
-	if bearerToken := utils.ExtractBearerToken(authHeader); bearerToken != "" {
-		handleBearerLogout(w, r, bearerToken)
-		return
-	}
-
-	// RP-Initiated Logout 1.0 §2: POST uses Form Serialization for the same
-	// parameters as GET (id_token_hint, client_id, post_logout_redirect_uri, state).
 	_ = r.ParseForm()
 	rpInitiatedLogout(w, r,
 		r.FormValue("id_token_hint"),
@@ -58,39 +39,6 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("state"),
 		r.FormValue("client_id"),
 	)
-}
-
-// handleBearerLogout performs programmatic logout using a Bearer access token.
-// This is a backward-compatible extension (not part of RP-Initiated Logout 1.0).
-func handleBearerLogout(w http.ResponseWriter, r *http.Request, accessToken string) {
-	realm := config.GetBootstrap().AppAuthIssuer
-
-	claims, err := jwtutil.ValidateAccessToken(accessToken)
-	if err != nil {
-		// RFC 6750 §3.1: invalid_token when the token is expired, revoked, or malformed.
-		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
-		return
-	}
-
-	query := `
-		UPDATE sessions
-		SET deactivated_at = CURRENT_TIMESTAMP
-		WHERE access_token = ?;
-	`
-	_, err = db.GetDB().Exec(query, accessToken)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to terminate session")
-		return
-	}
-
-	// Deactivate all IdP sessions for this user so SSO auto-login is revoked.
-	// This covers both browser-initiated logout (cookie present) and
-	// server-side logout (no cookie, but user ID is in the token claims).
-	_ = idpsession.DeactivateAllForUser(claims.UserID)
-	idpsession.ClearCookie(w)
-
-	audit.Log(audit.EventLogout, audit.SimpleActor{ID: claims.UserID}, audit.TargetUser, claims.UserID, nil, utils.GetClientIP(r))
-	utils.SuccessResponse(w, "ok", http.StatusOK)
 }
 
 // idTokenHintClaims holds the claims we care about from an id_token_hint.

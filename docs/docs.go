@@ -1534,25 +1534,18 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.\nAlso accepts Bearer access token for backward-compatible programmatic logout.",
+                "description": "RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
                 "produces": [
-                    "application/json",
                     "text/html"
                 ],
                 "tags": [
                     "session"
                 ],
-                "summary": "Log out a user (POST)",
+                "summary": "RP-Initiated Logout (POST)",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer access token (backward-compat extension)",
-                        "name": "Authorization",
-                        "in": "header"
-                    },
                     {
                         "type": "string",
                         "description": "Previously issued ID token",
@@ -1580,7 +1573,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session terminated successfully",
+                        "description": "Signed-out confirmation page",
                         "schema": {
                             "type": "string"
                         }
@@ -1589,18 +1582,6 @@ const docTemplate = `{
                         "description": "Redirect to post_logout_redirect_uri",
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }

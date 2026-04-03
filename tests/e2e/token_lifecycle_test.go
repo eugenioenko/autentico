@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,10 +227,11 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
 
-	// Logout to deactivate the session
-	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", nil)
+	// Logout via POST with id_token_hint to deactivate the session
+	logoutForm := url.Values{"id_token_hint": {tokens.AccessToken}}
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(logoutForm.Encode()))
 	require.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	logoutResp, err := ts.Client.Do(req)
 	require.NoError(t, err)

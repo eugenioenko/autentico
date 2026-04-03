@@ -1604,14 +1604,9 @@ paths:
     post:
       consumes:
       - application/x-www-form-urlencoded
-      description: |-
-        RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.
-        Also accepts Bearer access token for backward-compatible programmatic logout.
+      description: RP-Initiated Logout via POST (form-encoded) per OpenID Connect
+        RP-Initiated Logout 1.0 §2.
       parameters:
-      - description: Bearer access token (backward-compat extension)
-        in: header
-        name: Authorization
-        type: string
       - description: Previously issued ID token
         in: formData
         name: id_token_hint
@@ -1629,26 +1624,17 @@ paths:
         name: state
         type: string
       produces:
-      - application/json
       - text/html
       responses:
         "200":
-          description: Session terminated successfully
+          description: Signed-out confirmation page
           schema:
             type: string
         "302":
           description: Redirect to post_logout_redirect_uri
           schema:
             type: string
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/model.ApiError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.ApiError'
-      summary: Log out a user (POST)
+      summary: RP-Initiated Logout (POST)
       tags:
       - session
   /oauth2/mfa:
