@@ -81,10 +81,18 @@ type ClientUpdateRequest struct {
 }
 
 // ClientResponse represents the response for client operations
+// ClientResponse is the registration response per RFC 7591 §3.2.1.
+// The server MUST return all registered metadata about this client.
 type ClientResponse struct {
-	ClientID                string   `json:"client_id"`
-	ClientSecret            string   `json:"client_secret,omitempty"`
-	ClientSecretExpiresAt   int      `json:"client_secret_expires_at"`
+	// RFC 7591 §3.2.1: client_id is REQUIRED.
+	ClientID string `json:"client_id"`
+	// RFC 7591 §3.2.1: client_secret is OPTIONAL (issued for confidential clients).
+	ClientSecret string `json:"client_secret,omitempty"`
+	// RFC 7591 §3.2.1: REQUIRED if client_secret is issued. 0 means no expiration.
+	ClientSecretExpiresAt int `json:"client_secret_expires_at"`
+	// RFC 7591 §3.2.1: OPTIONAL. Time at which the client_id was issued (Unix timestamp).
+	ClientIDIssuedAt int64 `json:"client_id_issued_at"`
+
 	ClientName              string   `json:"client_name"`
 	ClientType              string   `json:"client_type"`
 	RedirectURIs            []string `json:"redirect_uris"`
