@@ -2,7 +2,7 @@
 
 ## Overview
 
-Nine phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
+Ten phases tackling one spec at a time, in dependency order. Each phase: read spec sections, review code paths, fix bugs, add unit + e2e tests (both positive and negative), annotate response/validation code with RFC comments, fill in the MUST/SHOULD/MAY table, review Security Considerations, and verify discovery document reflects the phase's features.
 
 | Phase | Spec | Est. Time | Status |
 |---|---|---|---|
@@ -15,8 +15,9 @@ Nine phases tackling one spec at a time, in dependency order. Each phase: read s
 | 7 | OIDC Discovery 1.0 | 1h | ✅ Done (2026-03-30) |
 | 8 | OIDC RP-Initiated Logout 1.0 | 1.5h | ✅ Done (2026-04-03) |
 | 9 | RFC 7591 — Dynamic Client Registration | 1.5h | ✅ Done (2026-04-03) |
+| 10 | RFC 8414 — OAuth 2.0 Authorization Server Metadata | 0.5h | ✅ Done (2026-04-03) |
 
-**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8 → 9
+**Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8 → 9 → 10
 
 ---
 
@@ -606,3 +607,55 @@ This is analogous to the existing "public endpoints by design" decision for intr
 - Unit: `TestHandleRegister_RFC7591_PublicClient_NoSecret` — public client has no secret (positive) ✅ Added
 - Unit: `TestHandleUpdateClient_RFC7591_InvalidMetadata_ErrorCode` — update `invalid_client_metadata` (negative) ✅ Added
 - Unit: `TestHandleUpdateClient_RFC7591_InvalidRedirectURI_ErrorCode` — update `invalid_redirect_uri` (negative) ✅ Added
+
+---
+
+## Phase 10 — RFC 8414: OAuth 2.0 Authorization Server Metadata
+
+**File:** `rfc/rfc8414.txt` (pre-existing)
+
+**Context:** RFC 8414 defines the OAuth 2.0 authorization server metadata format. It heavily overlaps with OIDC Discovery 1.0 (Phase 7) since both specify the `.well-known` metadata document. This phase verifies that the existing implementation satisfies RFC 8414's requirements and adds RFC 8414 section annotations alongside the existing OIDC Discovery ones.
+
+**Note:** No bugs found. The implementation was fully compliant — this phase is annotations and verification only.
+
+| Section | What to check | Code path |
+|---|---|---|
+| §2 | REQUIRED: `issuer`, `authorization_endpoint`, `token_endpoint`, `response_types_supported` | `pkg/wellknown/handler.go`, `pkg/model/well_known_config.go` |
+| §2 | RECOMMENDED: `scopes_supported` | `pkg/wellknown/handler.go` |
+| §2 | OPTIONAL: `jwks_uri`, `registration_endpoint`, `grant_types_supported`, `token_endpoint_auth_methods_supported`, `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` | `pkg/wellknown/handler.go` |
+| §3 | Metadata available at well-known path; `issuer` must match; zero-element arrays omitted | `pkg/wellknown/handler.go`, `pkg/cli/start.go` route |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §2 | `issuer` REQUIRED (HTTPS, no query/fragment) | ✅ Pre-existing + annotated (2026-04-03) |
+| MUST | §2 | `authorization_endpoint` REQUIRED | ✅ Pre-existing + annotated (2026-04-03) |
+| MUST | §2 | `token_endpoint` REQUIRED | ✅ Pre-existing + annotated (2026-04-03) |
+| MUST | §2 | `response_types_supported` REQUIRED | ✅ Pre-existing + annotated (2026-04-03) |
+| MUST | §3 | Metadata served at well-known path | ✅ Pre-existing — `/.well-known/openid-configuration` (§5 permits this suffix) |
+| MUST | §3 | `issuer` in response identical to server's issuer identifier | ✅ Pre-existing — verified by `TestHandleWellKnownConfig_RFC8414_IssuerIdentity` |
+| MUST | §3 | Zero-element arrays omitted from response | ✅ Pre-existing — all arrays are populated; `omitempty` on optional fields |
+| RECOMMENDED | §2 | `scopes_supported` | ✅ Pre-existing + annotated (2026-04-03) |
+| OPTIONAL | §2 | `jwks_uri` | ✅ Pre-existing |
+| OPTIONAL | §2 | `registration_endpoint` | ✅ Pre-existing |
+| OPTIONAL | §2 | `grant_types_supported` (default: authorization_code + implicit) | ✅ Pre-existing — explicitly listed to override default |
+| OPTIONAL | §2 | `token_endpoint_auth_methods_supported` (default: client_secret_basic) | ✅ Pre-existing |
+| OPTIONAL | §2 | `revocation_endpoint` | ✅ Pre-existing (Phase 4) |
+| OPTIONAL | §2 | `introspection_endpoint` | ✅ Pre-existing (Phase 5) |
+| OPTIONAL | §2 | `code_challenge_methods_supported` | ✅ Pre-existing (Phase 3) |
+| OPTIONAL | §2 | `service_documentation` | ⏭ Not implemented — no documentation URL configured |
+| OPTIONAL | §2 | `revocation_endpoint_auth_methods_supported` | ⏭ Not implemented — revocation is public by design |
+| OPTIONAL | §2 | `introspection_endpoint_auth_methods_supported` | ⏭ Not implemented — introspection is public by design |
+
+**Security Considerations (§6):**
+- [x] §6: TLS required for metadata endpoint — enforced at infrastructure level in production
+- [x] §6: Issuer identifier in response must match requested — both use `AppAuthIssuer`; verified by tests
+- [x] §6: Client MUST verify issuer identity — client-side responsibility per spec
+
+**Tests:**
+- Unit: `TestHandleWellKnownConfig_RFC8414_RequiredFields` — all REQUIRED/RECOMMENDED/OPTIONAL fields present, zero-element check ✅ Added
+- Unit: `TestHandleWellKnownConfig_RFC8414_IssuerIdentity` — issuer matches server identifier (positive) ✅ Added
+- Unit: `TestHandleWellKnownConfig_RFC8414_Endpoints` — introspection, revocation, PKCE endpoints ✅ Pre-existing
+- Unit: `TestHandleWellKnownConfig_RequiredFields` — OIDC Discovery required fields ✅ Pre-existing (Phase 7)
+- Unit: `TestHandleWellKnownConfig_IssuerMatchesTokenIss` — issuer matches token iss ✅ Pre-existing (Phase 7)
