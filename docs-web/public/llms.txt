@@ -1,6 +1,6 @@
 # Autentico
 
-> Autentico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go and SQLite. Single binary, no external dependencies. Handles login, MFA, passkeys, sessions, token issuance, and admin — backed by a single SQLite file.
+> Autentico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite. Single binary, no external dependencies. Handles login, MFA, passkeys, sessions, token issuance, and admin — backed by a single SQLite file.
 
 ---
 

@@ -1,4 +1,4 @@
-# Autentico — OIDC Identity Provider
+# Autentico — OAuth 2.0 / OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
 [![Test Coverage](https://img.shields.io/badge/coverage-73.4%25-green.svg)](https://github.com/eugenioenko/autentico)
@@ -7,7 +7,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
-**Auténtico is a self-contained OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
+**Auténtico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
 Identity infrastructure is typically complex to operate: a separate database to provision and back up, a cache tier, a worker queue, multiple services to keep running, and credentials to rotate. Auténtico takes a different approach. The entire IdP — authentication, token issuance, session management, and the admin UI — runs as one Go binary backed by a single SQLite file. You deploy one thing and it works.
 
@@ -44,7 +44,7 @@ Auténtico removes that stack:
 - **Embedded SQLite** — no separate database server; the entire state lives in one file
 - **No external infrastructure** — no Redis, no Postgres, no message queues
 - **Built-in admin UI** — a React dashboard compiled into the binary; nothing to deploy separately
-- **Standards-compliant OIDC** — relying parties configure themselves automatically via OIDC Discovery; tokens are RS256-signed JWTs verifiable without calling home
+- **Standards-compliant OAuth 2.0 / OIDC** — relying parties configure themselves automatically via OIDC Discovery; tokens are RS256-signed JWTs verifiable without calling home
 
 The operational surface area is a binary and a `.env` file. That is a meaningful reduction in the things that can break.
 
@@ -931,7 +931,7 @@ Each RFC is treated as a source of truth:
 - **SHOULD/MAY** clauses are evaluated and explicitly accepted or rejected
 - All decisions are documented and tested
 
-The review is structured as a 7-phase audit. Each phase reads the spec, verifies every MUST/SHOULD/MAY requirement against the implementation, annotates the code with inline RFC section references, adds both positive and negative tests, and checks the Security Considerations section.
+The review is structured as a 10-phase audit. Each phase reads the spec, verifies every MUST/SHOULD/MAY requirement against the implementation, annotates the code with inline RFC section references, adds both positive and negative tests, and checks the Security Considerations section.
 
 | Phase | Spec | Status |
 |---|---|---|
@@ -942,6 +942,9 @@ The review is structured as a 7-phase audit. Each phase reads the spec, verifies
 | 5 | RFC 7662 — Token Introspection | ✅ Done |
 | 6 | OIDC Core 1.0 | ✅ Done |
 | 7 | OIDC Discovery 1.0 | ✅ Done |
+| 8 | OIDC RP-Initiated Logout 1.0 | ✅ Done |
+| 9 | RFC 7591 — Dynamic Client Registration | ✅ Done |
+| 10 | RFC 8414 — Authorization Server Metadata | ✅ Done |
 
 This process effectively turns the RFCs into an executable specification enforced by tests.
 
