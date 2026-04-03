@@ -109,7 +109,9 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page, not auto-redirect")
 }
 
-func TestLogout_MissingToken(t *testing.T) {
+func TestLogout_NoAuthNoParams_ShowsLogoutPage(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: POST with no auth and no params is a valid
+	// logout request. The OP renders a signed-out confirmation page.
 	ts := startTestServer(t)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", nil)
@@ -119,7 +121,7 @@ func TestLogout_MissingToken(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestLogout_InvalidToken(t *testing.T) {

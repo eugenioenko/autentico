@@ -1484,7 +1484,7 @@
         },
         "/oauth2/logout": {
             "get": {
-                "description": "OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0.\nClears the IdP session and optionally redirects to post_logout_redirect_uri.",
+                "description": "OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0 §2.\nClears the IdP session and optionally redirects to post_logout_redirect_uri.",
                 "produces": [
                     "text/html"
                 ],
@@ -1528,29 +1528,59 @@
                 }
             },
             "post": {
-                "description": "Terminates the user's session",
+                "description": "RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.\nAlso accepts Bearer access token for backward-compatible programmatic logout.",
                 "consumes": [
-                    "application/json"
+                    "application/x-www-form-urlencoded"
                 ],
                 "produces": [
-                    "application/json"
+                    "application/json",
+                    "text/html"
                 ],
                 "tags": [
                     "session"
                 ],
-                "summary": "Log out a user",
+                "summary": "Log out a user (POST)",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Bearer access token",
+                        "description": "Bearer access token (backward-compat extension)",
                         "name": "Authorization",
-                        "in": "header",
-                        "required": true
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Previously issued ID token",
+                        "name": "id_token_hint",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client identifier",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "URI to redirect to after logout",
+                        "name": "post_logout_redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque value passed back to post_logout_redirect_uri",
+                        "name": "state",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Session terminated successfully",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to post_logout_redirect_uri",
                         "schema": {
                             "type": "string"
                         }

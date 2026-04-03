@@ -1571,7 +1571,7 @@ paths:
   /oauth2/logout:
     get:
       description: |-
-        OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0.
+        OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0 §2.
         Clears the IdP session and optionally redirects to post_logout_redirect_uri.
       parameters:
       - description: Previously issued ID token
@@ -1603,19 +1603,41 @@ paths:
       - session
     post:
       consumes:
-      - application/json
-      description: Terminates the user's session
+      - application/x-www-form-urlencoded
+      description: |-
+        RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.
+        Also accepts Bearer access token for backward-compatible programmatic logout.
       parameters:
-      - description: Bearer access token
+      - description: Bearer access token (backward-compat extension)
         in: header
         name: Authorization
-        required: true
+        type: string
+      - description: Previously issued ID token
+        in: formData
+        name: id_token_hint
+        type: string
+      - description: Client identifier
+        in: formData
+        name: client_id
+        type: string
+      - description: URI to redirect to after logout
+        in: formData
+        name: post_logout_redirect_uri
+        type: string
+      - description: Opaque value passed back to post_logout_redirect_uri
+        in: formData
+        name: state
         type: string
       produces:
       - application/json
+      - text/html
       responses:
         "200":
           description: Session terminated successfully
+          schema:
+            type: string
+        "302":
+          description: Redirect to post_logout_redirect_uri
           schema:
             type: string
         "401":
@@ -1626,7 +1648,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.ApiError'
-      summary: Log out a user
+      summary: Log out a user (POST)
       tags:
       - session
   /oauth2/mfa:
