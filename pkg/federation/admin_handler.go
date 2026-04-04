@@ -3,6 +3,7 @@ package federation
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -74,7 +75,11 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := CreateFederationProvider(p); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A federation provider with that ID already exists")
+			return
+		}
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create federation provider")
 		return
 	}
 

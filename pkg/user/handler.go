@@ -227,6 +227,10 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := UnlockUser(id)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
