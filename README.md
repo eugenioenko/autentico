@@ -1,8 +1,8 @@
 # Autentico — OAuth 2.0 / OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-73.4%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-821-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-72.6%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-888-blue.svg)](https://github.com/eugenioenko/autentico)
 [![OIDC Certified](https://img.shields.io/badge/OIDC-certified-brightgreen.svg)](https://openid.net/certification/)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ Identity infrastructure is typically complex to operate: a separate database to 
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
-**Correctness is verified through 800+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
+**Correctness is verified through 880+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
 
 ---
 
@@ -909,11 +909,11 @@ The goal is not just high coverage, but **high confidence that every externally 
 
 ### Automated Tests
 
-**821+ test functions** across unit, integration, and end-to-end tests at **73.4% coverage**.
+**888 test functions** across unit, integration, end-to-end, and browser tests at **72.6% coverage**.
 
-- **Unit tests** (500+) — validate deterministic logic (token generation, validation rules, claim construction)
-- **Integration tests** (150+) — verify cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
-- **End-to-end tests** (75+) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, and token exchange
+- **Unit and integration tests** (800) — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
+- **End-to-end tests** (88) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
+- **Browser tests** (5) — Playwright tests that drive a real browser through authentication flows, verifying the full user-facing experience
 
 Critical invariants (e.g., "authorization code can only be used once", "refresh token rotation invalidates previous token") are tested explicitly across layers.
 
