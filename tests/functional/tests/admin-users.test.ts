@@ -110,9 +110,9 @@ describe('Admin Users — error cases', () => {
     const token = await getAdminToken();
     // Create first
     await postJSON(API, { username: 'dupuser', password: 'TestPass123!' }, token);
-    // Try duplicate — server returns 500 (DB constraint error not mapped to 400)
+    // Try duplicate
     const resp = await postJSON(API, { username: 'dupuser', password: 'TestPass123!' }, token);
-    expect(resp.ok).toBe(false);
+    expect(resp.status).toBe(400);
   });
 
   it('returns 404 for nonexistent user GET', async () => {
@@ -121,16 +121,16 @@ describe('Admin Users — error cases', () => {
     expect(resp.status).toBe(404);
   });
 
-  it('returns error for nonexistent user PUT', async () => {
+  it('returns 404 for nonexistent user PUT', async () => {
     const token = await getAdminToken();
     const resp = await putJSON(`${API}/nonexistent-id-12345`, { email: 'x@y.com' }, token);
-    expect(resp.ok).toBe(false);
+    expect(resp.status).toBe(404);
   });
 
-  it('returns error for nonexistent user DELETE', async () => {
+  it('returns 404 for nonexistent user DELETE', async () => {
     const token = await getAdminToken();
     const resp = await deleteRequest(`${API}/nonexistent-id-12345`, token);
-    expect(resp.ok).toBe(false);
+    expect(resp.status).toBe(404);
   });
 
   it('GET list rejects without token', async () => {

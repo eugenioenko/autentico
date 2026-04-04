@@ -71,16 +71,6 @@ These are covered by Playwright browser tests (`tests/browser/`) or Go e2e tests
 
 ## Discoveries
 
-### API issues found
-
-| Severity | Endpoint | Issue |
-|----------|----------|-------|
-| Low | `POST /admin/api/users` (duplicate) | Returns 500 instead of 400 — DB unique constraint error not mapped to a user-facing error response |
-| Low | `PUT /admin/api/users/{id}` (nonexistent) | Returns 500 instead of 404 |
-| Low | `DELETE /admin/api/users/{id}` (nonexistent) | Returns 500 instead of 404 |
-
-These are unhandled database error paths, not security issues. The server catches the error but returns a generic 500 instead of mapping the constraint violation or "not found" condition to the appropriate HTTP status code.
-
 ### API strengths confirmed
 
 - **OAuth 2.0 / OIDC compliance:** Discovery, JWKS, authorization code flow, token exchange, refresh, revocation, introspection — all work correctly end-to-end against a real running instance
