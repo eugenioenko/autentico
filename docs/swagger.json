@@ -2783,15 +2783,22 @@
             "type": "object",
             "properties": {
                 "client_id": {
+                    "description": "RFC 7591 §3.2.1: client_id is REQUIRED.",
                     "type": "string"
+                },
+                "client_id_issued_at": {
+                    "description": "RFC 7591 §3.2.1: OPTIONAL. Time at which the client_id was issued (Unix timestamp).",
+                    "type": "integer"
                 },
                 "client_name": {
                     "type": "string"
                 },
                 "client_secret": {
+                    "description": "RFC 7591 §3.2.1: client_secret is OPTIONAL (issued for confidential clients).",
                     "type": "string"
                 },
                 "client_secret_expires_at": {
+                    "description": "RFC 7591 §3.2.1: REQUIRED if client_secret is issued. 0 means no expiration.",
                     "type": "integer"
                 },
                 "client_type": {
@@ -3122,88 +3129,106 @@
             "type": "object",
             "properties": {
                 "acr_values_supported": {
+                    "description": "OIDC Core §3: OPTIONAL.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "authorization_endpoint": {
+                    "description": "RFC 8414 §2: REQUIRED (unless no grant types use the authorization endpoint).",
                     "type": "string"
                 },
                 "claims_supported": {
+                    "description": "OIDC Discovery §3: RECOMMENDED.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "code_challenge_methods_supported": {
+                    "description": "RFC 8414 §2: OPTIONAL. PKCE code challenge methods.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "end_session_endpoint": {
+                    "description": "OIDC RP-Initiated Logout 1.0 §2.1: end_session_endpoint.",
                     "type": "string"
                 },
                 "grant_types_supported": {
+                    "description": "RFC 8414 §2: OPTIONAL (default: [\"authorization_code\", \"implicit\"]).",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "id_token_signing_alg_values_supported": {
+                    "description": "OIDC Discovery §3: REQUIRED.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "introspection_endpoint": {
-                    "description": "RFC 8414 §2",
+                    "description": "RFC 8414 §2: OPTIONAL. Token introspection endpoint.",
                     "type": "string"
                 },
                 "issuer": {
+                    "description": "RFC 8414 §2: REQUIRED. Issuer identifier (no query or fragment).",
                     "type": "string"
                 },
                 "jwks_uri": {
+                    "description": "RFC 8414 §2: OPTIONAL. JWK Set document URL.",
                     "type": "string"
                 },
                 "registration_endpoint": {
+                    "description": "RFC 8414 §2 / RFC 7591: OPTIONAL. Dynamic client registration endpoint.",
                     "type": "string"
                 },
                 "request_parameter_supported": {
+                    "description": "OIDC Core §3: OPTIONAL.",
                     "type": "boolean"
                 },
                 "response_types_supported": {
+                    "description": "RFC 8414 §2: REQUIRED. OAuth 2.0 response_type values supported.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "revocation_endpoint": {
+                    "description": "RFC 8414 §2: OPTIONAL. Token revocation endpoint.",
                     "type": "string"
                 },
                 "scopes_supported": {
+                    "description": "RFC 8414 §2: RECOMMENDED.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "subject_types_supported": {
+                    "description": "OIDC Discovery §3: REQUIRED.",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "token_endpoint": {
+                    "description": "RFC 8414 §2: REQUIRED (unless only implicit grant type is supported).",
                     "type": "string"
                 },
                 "token_endpoint_auth_methods_supported": {
+                    "description": "RFC 8414 §2: OPTIONAL (default: client_secret_basic).",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "userinfo_endpoint": {
+                    "description": "OIDC Discovery §3: RECOMMENDED.",
                     "type": "string"
                 }
             }
