@@ -228,8 +228,8 @@ func TestHandleCreateUser_DuplicateUser(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/admin/api/users", bytes.NewBuffer(body))
 	rr = httptest.NewRecorder()
 	HandleCreateUser(rr, req)
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	assert.Contains(t, rr.Body.String(), "User creation error")
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "already exists")
 }
 
 // --- HandleGetUser tests ---

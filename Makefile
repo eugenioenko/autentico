@@ -36,6 +36,16 @@ fmt:
 test:
 	go test -p 1 -v ./...
 
+# Run functional black-box tests (builds binary if needed, starts real server)
+.PHONY: test-functional
+test-functional: build-go
+	cd tests/functional && pnpm install && pnpm test
+
+# Run e2e Go tests
+.PHONY: test-e2e
+test-e2e:
+	go test -p 1 -v ./tests/e2e/...
+
 # Run a linter (requires `golangci-lint`)
 lint:
 	golangci-lint run ./...

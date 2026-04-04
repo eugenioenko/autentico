@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -66,6 +67,10 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	response, err := CreateUser(request.Username, request.Password, request.Email)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A user with that username or email already exists")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("User creation error. %v", err))
 		return
 	}
@@ -131,6 +136,10 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := UpdateUser(id, req)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
@@ -162,6 +171,10 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := DeleteUser(id)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
