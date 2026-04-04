@@ -3,6 +3,7 @@ package deletion
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -202,6 +203,10 @@ func HandleAdminCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := CancelDeletionRequest(id); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Deletion request not found")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

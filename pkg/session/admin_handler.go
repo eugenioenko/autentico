@@ -2,6 +2,7 @@ package session
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -59,6 +60,10 @@ func HandleDeactivateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := DeactivateSessionByID(id); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Session not found")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

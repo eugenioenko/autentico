@@ -287,5 +287,5 @@ func TestHandleAdminCancelDeletionRequest_NotFound(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
