@@ -31,6 +31,28 @@ export async function postJSON(url: string, body: unknown, bearer?: string): Pro
   });
 }
 
+export async function putJSON(url: string, body: unknown, bearer?: string): Promise<Response> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
+  return fetch(url, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteRequest(url: string, bearer?: string): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
+  return fetch(url, { method: 'DELETE', headers });
+}
+
+export async function getResponse(url: string, bearer?: string): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
+  return fetch(url, { headers, redirect: 'manual' });
+}
+
 export async function getJSON<T = unknown>(url: string, bearer?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
