@@ -88,8 +88,10 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Passwords do not match")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "error=Passwords+do+not+match")
 }
 
 func TestHandleSignup_Post_ValidationError(t *testing.T) {
@@ -112,8 +114,10 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "username is invalid")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "error=")
 }
 
 func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
@@ -139,8 +143,10 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Could not create account")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "error=Could+not+create+account")
 }
 
 func TestHandleSignup_Post_Success(t *testing.T) {
@@ -244,8 +250,10 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Please fill in all required fields")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "error=Please+fill+in+all+required+fields")
 }
 
 func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
