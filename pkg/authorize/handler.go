@@ -176,7 +176,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
 	if request.Prompt == "create" {
 		if !config.Get().AuthAllowSelfSignup {
-			redirectWithError(w, r, request.RedirectURI, request.State, "registration_not_supported", "self-registration is not enabled")
+			renderLogin(w, r, request, "Self-registration is not enabled")
 			return
 		}
 		signup.RenderSignup(w, r, signup.SignupParams{

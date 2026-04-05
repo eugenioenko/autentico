@@ -244,34 +244,26 @@ func TestSelfSignup_PromptCreate(t *testing.T) {
 }
 
 // TestSelfSignup_PromptCreate_Disabled verifies that prompt=create with signup disabled
-// redirects back with registration_not_supported error
+// shows the login page with an error message
 func TestSelfSignup_PromptCreate_Disabled(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = false
-	redirectURI := "http://localhost:3000/callback"
 
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type": {"code"},
 		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
+		"redirect_uri":  {"http://localhost:3000/callback"},
 		"state":         {"s1"},
 		"prompt":        {"create"},
 	}.Encode()
 
-	noFollowClient := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	resp, err := noFollowClient.Get(authorizeURL)
+	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	require.Equal(t, http.StatusFound, resp.StatusCode)
-	loc, err := url.Parse(resp.Header.Get("Location"))
-	require.NoError(t, err)
-	assert.Equal(t, "registration_not_supported", loc.Query().Get("error"))
-	assert.Equal(t, "s1", loc.Query().Get("state"))
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(body), "Self-registration is not enabled")
 }
 
 func TestSelfSignup_PasswordMismatch(t *testing.T) {

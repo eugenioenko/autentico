@@ -646,7 +646,7 @@ func TestHandleAuthorize_PromptCreate_RendersSignup(t *testing.T) {
 	assert.Contains(t, body, `name="confirm_password"`)
 }
 
-// prompt=create with self-signup disabled must redirect with registration_not_supported
+// prompt=create with self-signup disabled must show login page with error
 func TestHandleAuthorize_PromptCreate_SignupDisabled(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
@@ -659,10 +659,8 @@ func TestHandleAuthorize_PromptCreate_SignupDisabled(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "error=registration_not_supported")
-	assert.Contains(t, loc, "state=xyz")
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Self-registration is not enabled")
 }
 
 func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
