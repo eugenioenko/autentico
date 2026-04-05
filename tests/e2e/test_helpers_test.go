@@ -260,19 +260,21 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	return code
 }
 
-// performSignupFlow drives the GET signup page → POST signup → extract code chain.
+// performSignupFlow drives the authorize?prompt=create → POST signup → extract code chain.
 func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirectURI, state string) string {
 	t.Helper()
 
-	// Step 1: GET /oauth2/signup to obtain a CSRF token
-	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
+	// Step 1: GET /oauth2/authorize?prompt=create to obtain a CSRF token
+	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"prompt":        {"create"},
 		"redirect_uri":  {redirectURI},
-		"state":     {state},
-		"client_id": {"test-client"},
+		"state":         {state},
+		"client_id":     {"test-client"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
-	require.NoError(t, err, "failed to GET /oauth2/signup")
+	require.NoError(t, err, "failed to GET /oauth2/authorize?prompt=create")
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)

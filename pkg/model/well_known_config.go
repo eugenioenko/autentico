@@ -41,4 +41,6 @@ type WellKnownConfigResponse struct {
 	RevocationEndpoint string `json:"revocation_endpoint,omitempty"`
 	// RFC 8414 §2: OPTIONAL. PKCE code challenge methods.
 	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
+	// OIDC Discovery §3: OPTIONAL. Prompt values supported.
+	PromptValuesSupported []string `json:"prompt_values_supported,omitempty"`
 }

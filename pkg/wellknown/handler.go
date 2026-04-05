@@ -70,6 +70,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),  // RFC 7662
 		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),      // RFC 7009
 		CodeChallengeMethodsSupported: []string{"S256"},                      // RFC 7636 §6.2
+		PromptValuesSupported:         []string{"none", "login", "create"},
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)
