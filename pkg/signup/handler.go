@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -53,7 +54,7 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 
 func handleSignupGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	renderSignup(w, r, signupParams{
+	RenderSignup(w, r, SignupParams{
 		State:               q.Get("state"),
 		RedirectURI:         q.Get("redirect_uri"),
 		ClientID:            q.Get("client_id"),
@@ -77,7 +78,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := signupParams{
+	params := SignupParams{
 		State:               r.FormValue("state"),
 		RedirectURI:         r.FormValue("redirect_uri"),
 		ClientID:            r.FormValue("client_id"),
@@ -101,7 +102,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if password != confirmPassword {
-		renderSignup(w, r, params, "Passwords do not match")
+		redirectSignupError(w, r, params, "Passwords do not match")
 		return
 	}
 
@@ -111,7 +112,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Email:    email,
 	}
 	if err := user.ValidateUserCreateRequest(req); err != nil {
-		renderSignup(w, r, params, err.Error())
+		redirectSignupError(w, r, params, err.Error())
 		return
 	}
 
@@ -143,14 +144,14 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 	for field, visibility := range fieldVisibility {
 		if visibility == "required" && profileFields[field] == "" {
-			renderSignup(w, r, params, "Please fill in all required fields")
+			redirectSignupError(w, r, params, "Please fill in all required fields")
 			return
 		}
 	}
 
 	usr, err := user.CreateUser(username, password, email)
 	if err != nil {
-		renderSignup(w, r, params, "Could not create account. Username may already be taken.")
+		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
 		return
 	}
 	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
@@ -217,7 +218,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("signup: failed to generate auth code", "error", err)
-		renderSignup(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -236,7 +237,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	if err = authcode.CreateAuthCode(code); err != nil {
 		slog.Error("signup: failed to create auth code", "error", err)
-		renderSignup(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
 
@@ -244,7 +245,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-type signupParams struct {
+type SignupParams struct {
 	State               string
 	RedirectURI         string
 	ClientID            string
@@ -254,7 +255,7 @@ type signupParams struct {
 	CodeChallengeMethod string
 }
 
-func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, errMsg string) {
+func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("signup")
 	if err != nil {
@@ -290,4 +291,21 @@ func renderSignup(w http.ResponseWriter, r *http.Request, params signupParams, e
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
+}
+
+// redirectSignupError redirects back to /oauth2/authorize?prompt=create with the error
+// and all OAuth params preserved, so the user stays in the authorize flow.
+func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
+	q := url.Values{}
+	q.Set("response_type", "code")
+	q.Set("prompt", "create")
+	q.Set("error", errMsg)
+	q.Set("client_id", params.ClientID)
+	q.Set("redirect_uri", params.RedirectURI)
+	q.Set("scope", params.Scope)
+	q.Set("state", params.State)
+	q.Set("nonce", params.Nonce)
+	q.Set("code_challenge", params.CodeChallenge)
+	q.Set("code_challenge_method", params.CodeChallengeMethod)
+	http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
 }

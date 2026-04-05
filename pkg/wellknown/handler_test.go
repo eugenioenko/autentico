@@ -53,6 +53,7 @@ func TestHandleWellKnownConfigResponse(t *testing.T) {
 	assert.Contains(t, response.ResponseTypesSupported, "code")
 	assert.Contains(t, response.ScopesSupported, "openid")
 	assert.Contains(t, response.TokenEndpointAuthMethodsSupported, "client_secret_basic")
+	assert.Equal(t, []string{"none", "login", "create"}, response.PromptValuesSupported)
 }
 
 // TestHandleWellKnownConfig_GrantTypesSupported verifies that the discovery document

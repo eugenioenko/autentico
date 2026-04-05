@@ -14,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 
@@ -169,6 +170,24 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	if request.Prompt == "none" {
 		redirectWithError(w, r, request.RedirectURI, request.State, "login_required", "")
+		return
+	}
+
+	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
+	if request.Prompt == "create" {
+		if !config.Get().AuthAllowSelfSignup {
+			redirectWithError(w, r, request.RedirectURI, request.State, "registration_not_supported", "self-registration is not enabled")
+			return
+		}
+		signup.RenderSignup(w, r, signup.SignupParams{
+			State:               request.State,
+			RedirectURI:         request.RedirectURI,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+		}, get("error"))
 		return
 	}
 

@@ -626,6 +626,45 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Create account")
 }
 
+// OIDC Core §3.1.2.1: prompt=create renders the signup form directly
+func TestHandleAuthorize_PromptCreate_RendersSignup(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, `name="username"`)
+	assert.Contains(t, body, `name="password"`)
+	assert.Contains(t, body, `name="confirm_password"`)
+}
+
+// prompt=create with self-signup disabled must redirect with registration_not_supported
+func TestHandleAuthorize_PromptCreate_SignupDisabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = false
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "error=registration_not_supported")
+	assert.Contains(t, loc, "state=xyz")
+}
+
 func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})

@@ -3189,6 +3189,13 @@ const docTemplate = `{
                     "description": "RFC 8414 §2: OPTIONAL. JWK Set document URL.",
                     "type": "string"
                 },
+                "prompt_values_supported": {
+                    "description": "OIDC Discovery §3: OPTIONAL. Prompt values supported.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "registration_endpoint": {
                     "description": "RFC 8414 §2 / RFC 7591: OPTIONAL. Dynamic client registration endpoint.",
                     "type": "string"

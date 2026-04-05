@@ -456,6 +456,11 @@ definitions:
       jwks_uri:
         description: 'RFC 8414 §2: OPTIONAL. JWK Set document URL.'
         type: string
+      prompt_values_supported:
+        description: 'OIDC Discovery §3: OPTIONAL. Prompt values supported.'
+        items:
+          type: string
+        type: array
       registration_endpoint:
         description: 'RFC 8414 §2 / RFC 7591: OPTIONAL. Dynamic client registration
           endpoint.'
