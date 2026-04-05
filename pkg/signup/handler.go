@@ -43,8 +43,6 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
-	case http.MethodGet:
-		handleSignupGet(w, r)
 	case http.MethodPost:
 		handleSignupPost(w, r)
 	default:
@@ -52,24 +50,11 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleSignupGet(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	RenderSignup(w, r, SignupParams{
-		State:               q.Get("state"),
-		RedirectURI:         q.Get("redirect_uri"),
-		ClientID:            q.Get("client_id"),
-		Scope:               q.Get("scope"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
-	}, "")
-}
-
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	// In passkey_only mode the form is never POSTed — JS handles everything via
 	// /passkey/register/begin and /passkey/register/finish. Re-render the form.
 	if config.Get().AuthMode == "passkey_only" {
-		handleSignupGet(w, r)
+		RenderSignup(w, r, SignupParams{}, "")
 		return
 	}
 

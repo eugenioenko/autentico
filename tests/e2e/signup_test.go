@@ -29,10 +29,12 @@ func TestSelfSignup_RendersForm(t *testing.T) {
 	ts := startTestServer(t)
 	config.Values.AuthAllowSelfSignup = true
 
-	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect_uri": {"http://localhost:3000/callback"},
-		"state":        {"abc123"},
-		"client_id":    {"test-client"},
+	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"prompt":        {"create"},
+		"redirect_uri":  {"http://localhost:3000/callback"},
+		"state":         {"abc123"},
+		"client_id":     {"test-client"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -109,11 +111,13 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 	redirectURI := "http://localhost:3000/callback"
 	expectedState := "opaque-state-value-99"
 
-	// GET signup page
-	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect_uri": {redirectURI},
-		"state":        {expectedState},
-		"client_id":    {"test-client"},
+	// GET authorize?prompt=create
+	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"prompt":        {"create"},
+		"redirect_uri":  {redirectURI},
+		"state":         {expectedState},
+		"client_id":     {"test-client"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -276,8 +280,11 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	config.Values.ProfileFieldEmail = "hidden"
 	redirectURI := "http://localhost:3000/callback"
 
-	// GET signup page for CSRF token
-	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
+	// GET authorize?prompt=create for CSRF token
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"}, "prompt": {"create"},
+		"redirect_uri": {redirectURI}, "state": {"s1"}, "client_id": {"test-client"},
+	}.Encode())
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
@@ -330,8 +337,11 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	// Use a fresh client with a new cookie jar to avoid SSO auto-login
 	freshClient := newClientWithJar()
 
-	// GET signup page for a new CSRF token
-	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s2&client_id=test-client")
+	// GET authorize?prompt=create for a new CSRF token
+	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"}, "prompt": {"create"},
+		"redirect_uri": {redirectURI}, "state": {"s2"}, "client_id": {"test-client"},
+	}.Encode())
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
@@ -387,10 +397,12 @@ func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 
 	// Use a fresh client so the IdP session cookie doesn't cause auto-login
 	freshClient := newClientWithJar()
-	signupURL := ts.BaseURL + "/oauth2/signup?" + url.Values{
-		"redirect_uri": {redirectURI},
-		"state":        {"s2"},
-		"client_id":    {"test-client"},
+	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"},
+		"prompt":        {"create"},
+		"redirect_uri":  {redirectURI},
+		"state":         {"s2"},
+		"client_id":     {"test-client"},
 	}.Encode()
 	resp, err := freshClient.Get(signupURL)
 	require.NoError(t, err)
@@ -429,8 +441,11 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	config.Values.AuthAllowSelfSignup = true
 	redirectURI := "http://localhost:3000/callback"
 
-	// Seed the CSRF cookie by visiting the signup page first
-	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/signup?redirect_uri=" + url.QueryEscape(redirectURI) + "&state=s1&client_id=test-client")
+	// Seed the CSRF cookie by visiting the authorize page with prompt=create
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type": {"code"}, "prompt": {"create"},
+		"redirect_uri": {redirectURI}, "state": {"s1"}, "client_id": {"test-client"},
+	}.Encode())
 	require.NoError(t, err)
 	_ = resp.Body.Close()
 
