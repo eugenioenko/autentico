@@ -259,7 +259,7 @@ func RunStart(c *cli.Context) error {
 	}
 
 	fmt.Printf("  Server:     %s\n", baseURL)
-	fmt.Printf("  Admin UI:   %s/admin\n", baseURL)
+	fmt.Printf("  Admin UI:   %s/admin/\n", baseURL)
 	fmt.Printf("  Account UI: %s/account/\n", baseURL)
 	fmt.Println()
 	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
