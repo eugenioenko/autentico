@@ -2425,7 +2425,7 @@ paths:
       - application/x-www-form-urlencoded
       description: Exchanges authorization code or credentials for tokens
       parameters:
-      - description: Grant type
+      - description: Grant type (authorization_code, password, refresh_token, client_credentials)
         in: formData
         name: grant_type
         required: true
@@ -2449,6 +2449,10 @@ paths:
       - description: Password
         in: formData
         name: password
+        type: string
+      - description: Requested scope
+        in: formData
+        name: scope
         type: string
       produces:
       - application/json

@@ -11,7 +11,7 @@ import (
 // Token represents a token record in the database
 type Token struct {
 	ID                     string     `db:"id"`                         // Unique token ID
-	UserID                 string     `db:"user_id"`                    // The user to whom the token belongs
+	UserID                 *string    `db:"user_id"`                    // The user to whom the token belongs (NULL for client_credentials)
 	AccessToken            string     `db:"access_token"`               // The actual access token (JWT or opaque token)
 	RefreshToken           string     `db:"refresh_token"`              // The refresh token used for refreshing access tokens
 	AccessTokenType        string     `db:"access_token_type"`          // Type of access token (e.g., 'Bearer', 'JWT')
@@ -54,7 +54,7 @@ func (r *RefreshTokenClaims) Valid() error {
 
 func ValidateTokenRequest(input TokenRequest) error {
 	return validation.ValidateStruct(&input,
-		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password")),
+		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password", "client_credentials")),
 	)
 }
 

@@ -154,6 +154,57 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	return signedIDToken, nil
 }
 
+// GenerateClientCredentialsToken creates a signed access token for a client_credentials grant.
+// RFC 6749 §4.4: the client is the resource owner — sub is set to the client_id.
+// No refresh token is generated (RFC 6749 §4.4.3).
+func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
+	bs := config.GetBootstrap()
+	sessionID := xid.New().String()
+	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
+
+	accessClaims := jwt.MapClaims{
+		"exp":       accessTokenExpiresAt.Unix(),
+		"iat":       time.Now().Unix(),
+		"auth_time": time.Now().Unix(),
+		"jti":       xid.New().String(),
+		"iss":       bs.AppAuthIssuer,
+		"aud":       cfg.AuthAccessTokenAudience,
+		"sub":       clientID,
+		"typ":       "Bearer",
+		"azp":       clientID,
+		"sid":       sessionID,
+		"acr":       "1",
+		"scope":     scope,
+	}
+
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = bs.AuthJwkCertKeyID
+	signedAccessToken, err := accessToken.SignedString(key.GetPrivateKey())
+	if err != nil {
+		return nil, fmt.Errorf("could not sign access token: %v", err)
+	}
+
+	return &AuthToken{
+		UserID:          "",
+		AccessToken:     signedAccessToken,
+		RefreshToken:    "",
+		SessionID:       sessionID,
+		AccessExpiresAt: accessTokenExpiresAt,
+	}, nil
+}
+
+// removeScope removes a specific scope from a space-separated scope string.
+func removeScope(scopeStr string, target string) string {
+	scopes := strings.Fields(scopeStr)
+	var result []string
+	for _, s := range scopes {
+		if s != target {
+			result = append(result, s)
+		}
+	}
+	return strings.Join(result, " ")
+}
+
 // containsScope checks if a space-separated scope string contains a specific scope value.
 func containsScope(scopeStr string, target string) bool {
 	scopes := strings.Split(scopeStr, " ")

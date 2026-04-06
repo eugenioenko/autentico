@@ -253,7 +253,7 @@ func TestIntrospectToken(t *testing.T) {
 	token, err := IntrospectToken(accessToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, token)
-	assert.Equal(t, userID, token.UserID)
+	assert.Equal(t, userID, *token.UserID)
 	assert.Equal(t, accessToken, token.AccessToken)
 }
 

@@ -79,25 +79,32 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RFC 7662 §4: check session liveness — deactivated sessions mean the token
-	// should no longer be considered active.
-	sess, err := session.SessionByAccessToken(tkn.AccessToken)
-	if err != nil || sess == nil || sess.DeactivatedAt != nil {
-		slog.Info("introspect: session not active", "request_id", middleware.GetRequestID(r.Context()))
-		inactive(w)
-		return
+	// RFC 6749 §4.4: client_credentials tokens have no session — skip session liveness check
+	if tkn.GrantType != "client_credentials" {
+		// RFC 7662 §4: check session liveness — deactivated sessions mean the token
+		// should no longer be considered active.
+		sess, err := session.SessionByAccessToken(tkn.AccessToken)
+		if err != nil || sess == nil || sess.DeactivatedAt != nil {
+			slog.Info("introspect: session not active", "request_id", middleware.GetRequestID(r.Context()))
+			inactive(w)
+			return
+		}
 	}
 
 	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
 	// Note: client_id and username are not stored in the tokens table — omitted per spec allowance.
 	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")
+	sub := ""
+	if tkn.UserID != nil {
+		sub = *tkn.UserID
+	}
 	introspect := IntrospectResponse{
 		Active:    true,
 		Scope:     tkn.Scope,
 		TokenType: tkn.AccessTokenType,
 		Exp:       tkn.AccessTokenExpiresAt.Unix(),
 		Iat:       tkn.IssuedAt.Unix(),
-		Sub:       tkn.UserID,
+		Sub:       sub,
 		Iss:       config.GetBootstrap().AppAuthIssuer,
 		Aud:       aud,
 		Jti:       tkn.ID,
