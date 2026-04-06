@@ -25,7 +25,7 @@ func TestHandleCreateGroup_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
 	var resp model.ApiResponse[GroupResponse]
-	json.Unmarshal(rr.Body.Bytes(), &resp)
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Equal(t, "admins", resp.Data.Name)
 }
 
@@ -74,7 +74,7 @@ func TestHandleListGroups(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp model.ApiResponse[[]GroupResponse]
-	json.Unmarshal(rr.Body.Bytes(), &resp)
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Len(t, resp.Data, 2)
 }
 
@@ -92,7 +92,7 @@ func TestHandleGetGroup_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp model.ApiResponse[GroupResponse]
-	json.Unmarshal(rr.Body.Bytes(), &resp)
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Equal(t, "admins", resp.Data.Name)
 }
 
@@ -121,7 +121,7 @@ func TestHandleUpdateGroup_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp model.ApiResponse[GroupResponse]
-	json.Unmarshal(rr.Body.Bytes(), &resp)
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Equal(t, "superadmins", resp.Data.Name)
 }
 
@@ -176,7 +176,7 @@ func TestHandleListMembers_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp model.ApiResponse[[]GroupMemberResponse]
-	json.Unmarshal(rr.Body.Bytes(), &resp)
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Len(t, resp.Data, 1)
 }
 

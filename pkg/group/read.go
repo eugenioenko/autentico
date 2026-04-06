@@ -13,7 +13,7 @@ func ListGroups() ([]GroupResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groups: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var groups []GroupResponse
 	for rows.Next() {
@@ -65,7 +65,7 @@ func GroupsByUserID(userID string) ([]GroupResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get groups for user: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var groups []GroupResponse
 	for rows.Next() {
@@ -91,7 +91,7 @@ func MembersByGroupID(groupID string) ([]GroupMemberResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get members: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var members []GroupMemberResponse
 	for rows.Next() {
@@ -122,7 +122,7 @@ func GroupNamesByUserID(userID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group names: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var names []string
 	for rows.Next() {

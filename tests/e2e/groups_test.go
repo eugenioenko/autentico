@@ -25,7 +25,7 @@ func adminCreateGroup(t *testing.T, ts *TestServer, adminToken, name, descriptio
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "create group failed: %s", string(respBody))
 	var result model.ApiResponse[group.GroupResponse]
@@ -41,7 +41,7 @@ func adminAddMember(t *testing.T, ts *TestServer, adminToken, groupID, userID st
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusCreated, resp.StatusCode, "add member failed: %s", string(respBody))
 }
@@ -63,11 +63,11 @@ func TestGroupCRUD(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	var getResp model.ApiResponse[group.GroupResponse]
 	body, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(body, &getResp)
+	require.NoError(t, json.Unmarshal(body, &getResp))
 	assert.Equal(t, "test-group", getResp.Data.Name)
 
 	// Update
@@ -77,7 +77,7 @@ func TestGroupCRUD(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp2, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp2.StatusCode)
 
 	// List
@@ -85,10 +85,10 @@ func TestGroupCRUD(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp3, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp3.Body.Close()
+	defer func() { _ = resp3.Body.Close() }()
 	body3, _ := io.ReadAll(resp3.Body)
 	var listResp model.ApiResponse[[]group.GroupResponse]
-	json.Unmarshal(body3, &listResp)
+	require.NoError(t, json.Unmarshal(body3, &listResp))
 	assert.Len(t, listResp.Data, 1)
 	assert.Equal(t, "renamed-group", listResp.Data[0].Name)
 
@@ -97,7 +97,7 @@ func TestGroupCRUD(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp4, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp4.Body.Close()
+	defer func() { _ = resp4.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp4.StatusCode)
 
 	// Verify deleted
@@ -105,7 +105,7 @@ func TestGroupCRUD(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp5, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp5.Body.Close()
+	defer func() { _ = resp5.Body.Close() }()
 	assert.Equal(t, http.StatusNotFound, resp5.StatusCode)
 }
 
@@ -124,10 +124,10 @@ func TestGroupMembership(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	var membersResp model.ApiResponse[[]group.GroupMemberResponse]
-	json.Unmarshal(body, &membersResp)
+	require.NoError(t, json.Unmarshal(body, &membersResp))
 	assert.Len(t, membersResp.Data, 1)
 	assert.Equal(t, usr.ID, membersResp.Data[0].UserID)
 
@@ -136,10 +136,10 @@ func TestGroupMembership(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp2, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	body2, _ := io.ReadAll(resp2.Body)
 	var userGroupsResp model.ApiResponse[[]group.GroupResponse]
-	json.Unmarshal(body2, &userGroupsResp)
+	require.NoError(t, json.Unmarshal(body2, &userGroupsResp))
 	assert.Len(t, userGroupsResp.Data, 1)
 	assert.Equal(t, "devs", userGroupsResp.Data[0].Name)
 
@@ -148,7 +148,7 @@ func TestGroupMembership(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp3, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp3.Body.Close()
+	defer func() { _ = resp3.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp3.StatusCode)
 
 	// Verify removed
@@ -156,10 +156,10 @@ func TestGroupMembership(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	resp4, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer resp4.Body.Close()
+	defer func() { _ = resp4.Body.Close() }()
 	body4, _ := io.ReadAll(resp4.Body)
 	var emptyMembers model.ApiResponse[[]group.GroupMemberResponse]
-	json.Unmarshal(body4, &emptyMembers)
+	require.NoError(t, json.Unmarshal(body4, &emptyMembers))
 	assert.Empty(t, emptyMembers.Data)
 
 	_ = admin // suppress unused
@@ -184,7 +184,7 @@ func TestGroupsClaimInToken(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "token request failed: %s", string(body))
 
@@ -222,7 +222,7 @@ func TestGroupsClaimInUserinfo(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -234,7 +234,7 @@ func TestGroupsClaimInUserinfo(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
 	uiResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer uiResp.Body.Close()
+	defer func() { _ = uiResp.Body.Close() }()
 	uiBody, _ := io.ReadAll(uiResp.Body)
 	require.Equal(t, http.StatusOK, uiResp.StatusCode)
 
@@ -264,7 +264,7 @@ func TestGroupsClaimWithoutScope(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -284,10 +284,10 @@ func TestGroupsClaimWithoutScope(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
 	uiResp, err := ts.Client.Do(req)
 	require.NoError(t, err)
-	defer uiResp.Body.Close()
+	defer func() { _ = uiResp.Body.Close() }()
 	uiBody, _ := io.ReadAll(uiResp.Body)
 	var userinfo map[string]interface{}
-	json.Unmarshal(uiBody, &userinfo)
+	require.NoError(t, json.Unmarshal(uiBody, &userinfo))
 	assert.Nil(t, userinfo["groups"], "groups must not be in userinfo without groups scope")
 }
 
@@ -306,7 +306,7 @@ func TestGroupsClaimUserNoGroups(t *testing.T) {
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
