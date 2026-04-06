@@ -16,9 +16,9 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  UserAddOutlined,
   UserDeleteOutlined,
   TeamOutlined,
+  ArrowLeftOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -33,26 +33,157 @@ import {
 import { useUsers } from "../hooks/useUsers";
 import type { Group, GroupMember } from "../types/group";
 
+function GroupMembersView({
+  group,
+  onBack,
+}: {
+  group: Group;
+  onBack: () => void;
+}) {
+  const { data: members, isLoading } = useGroupMembers(group.id);
+  const { data: users } = useUsers();
+  const addMember = useAddMember();
+  const removeMember = useRemoveMember();
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
+
+  const handleAddSelected = async () => {
+    if (selectedUserIds.length === 0) return;
+    setAdding(true);
+    try {
+      await Promise.all(
+        selectedUserIds.map((userId) =>
+          addMember.mutateAsync({ groupId: group.id, userId })
+        )
+      );
+      message.success(
+        `Added ${selectedUserIds.length} member${selectedUserIds.length > 1 ? "s" : ""}`
+      );
+      setSelectedUserIds([]);
+    } catch {
+      message.error("Failed to add members");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemove = async (userId: string) => {
+    try {
+      await removeMember.mutateAsync({ groupId: group.id, userId });
+      message.success("Member removed");
+    } catch {
+      message.error("Failed to remove member");
+    }
+  };
+
+  const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
+  const availableUsers = (users ?? []).filter((u) => !memberUserIds.has(u.id));
+
+  const columns: ColumnsType<GroupMember> = [
+    { title: "Username", dataIndex: "username", key: "username" },
+    { title: "Email", dataIndex: "email", key: "email" },
+    {
+      title: "Added",
+      dataIndex: "created_at",
+      key: "created_at",
+      render: (val: string) => new Date(val).toLocaleDateString(),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 50,
+      render: (_, record) => (
+        <Popconfirm
+          title="Remove this member?"
+          onConfirm={() => handleRemove(record.user_id)}
+          okText="Remove"
+          okButtonProps={{ danger: true }}
+        >
+          <Button
+            type="text"
+            size="small"
+            danger
+            icon={<UserDeleteOutlined />}
+          />
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  return (
+    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+      <Space>
+        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
+          Back to Groups
+        </Button>
+      </Space>
+
+      <Typography.Title level={4} style={{ margin: 0 }}>
+        Members of {group.name}
+      </Typography.Title>
+
+      {group.description && (
+        <Typography.Text type="secondary">{group.description}</Typography.Text>
+      )}
+
+      <div>
+        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+          Add members
+        </Typography.Text>
+        <Space.Compact style={{ width: "100%" }}>
+          <Select
+            mode="multiple"
+            style={{ width: "100%" }}
+            placeholder="Select users to add"
+            showSearch
+            optionFilterProp="label"
+            value={selectedUserIds}
+            onChange={setSelectedUserIds}
+            options={availableUsers.map((u) => ({
+              value: u.id,
+              label: `${u.username} (${u.email})`,
+            }))}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAddSelected}
+            loading={adding}
+            disabled={selectedUserIds.length === 0}
+          >
+            Add
+          </Button>
+        </Space.Compact>
+      </div>
+
+      <Typography.Text type="secondary">
+        {(members ?? []).length} member{(members ?? []).length !== 1 ? "s" : ""}
+      </Typography.Text>
+
+      <Table<GroupMember>
+        columns={columns}
+        dataSource={members ?? []}
+        rowKey="user_id"
+        loading={isLoading}
+        pagination={false}
+        size="small"
+      />
+    </Space>
+  );
+}
+
 export default function GroupsPage() {
   const { data: groups, isLoading, error } = useGroups();
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
   const deleteGroupMutation = useDeleteGroup();
-  const addMember = useAddMember();
-  const removeMember = useRemoveMember();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [membersGroup, setMembersGroup] = useState<Group | null>(null);
-  const [addMemberOpen, setAddMemberOpen] = useState(false);
 
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-
-  const { data: members, isLoading: membersLoading } = useGroupMembers(
-    membersGroup?.id ?? null
-  );
-  const { data: users } = useUsers();
 
   const handleCreate = async (values: { name: string; description?: string }) => {
     try {
@@ -86,30 +217,23 @@ export default function GroupsPage() {
     }
   };
 
-  const handleAddMember = async (userId: string) => {
-    if (!membersGroup) return;
-    try {
-      await addMember.mutateAsync({ groupId: membersGroup.id, userId });
-      message.success("Member added");
-      setAddMemberOpen(false);
-    } catch {
-      message.error("Failed to add member");
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!membersGroup) return;
-    try {
-      await removeMember.mutateAsync({ groupId: membersGroup.id, userId });
-      message.success("Member removed");
-    } catch {
-      message.error("Failed to remove member");
-    }
-  };
+  if (membersGroup) {
+    return (
+      <GroupMembersView
+        group={membersGroup}
+        onBack={() => setMembersGroup(null)}
+      />
+    );
+  }
 
   const columns: ColumnsType<Group> = [
     { title: "Name", dataIndex: "name", key: "name" },
-    { title: "Description", dataIndex: "description", key: "description", ellipsis: true },
+    {
+      title: "Description",
+      dataIndex: "description",
+      key: "description",
+      ellipsis: true,
+    },
     {
       title: "Created",
       dataIndex: "created_at",
@@ -126,9 +250,7 @@ export default function GroupsPage() {
             type="text"
             size="small"
             icon={<TeamOutlined />}
-            onClick={() => {
-              setMembersGroup(record);
-            }}
+            onClick={() => setMembersGroup(record)}
           />
           <Button
             type="text"
@@ -136,7 +258,10 @@ export default function GroupsPage() {
             icon={<EditOutlined />}
             onClick={() => {
               setEditGroup(record);
-              editForm.setFieldsValue({ name: record.name, description: record.description });
+              editForm.setFieldsValue({
+                name: record.name,
+                description: record.description,
+              });
             }}
           />
           <Popconfirm
@@ -146,43 +271,17 @@ export default function GroupsPage() {
             okText="Delete"
             okButtonProps={{ danger: true }}
           >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            />
           </Popconfirm>
         </Space>
       ),
     },
   ];
-
-  const memberColumns: ColumnsType<GroupMember> = [
-    { title: "Username", dataIndex: "username", key: "username" },
-    { title: "Email", dataIndex: "email", key: "email" },
-    {
-      title: "Added",
-      dataIndex: "created_at",
-      key: "created_at",
-      render: (val: string) => new Date(val).toLocaleDateString(),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 80,
-      render: (_, record) => (
-        <Popconfirm
-          title="Remove this member?"
-          onConfirm={() => handleRemoveMember(record.user_id)}
-          okText="Remove"
-          okButtonProps={{ danger: true }}
-        >
-          <Button type="text" size="small" danger icon={<UserDeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
-
-  // Users not already in the group
-  const availableUsers = (users ?? []).filter(
-    (u) => !(members ?? []).some((m) => m.user_id === u.id)
-  );
 
   if (error) {
     return <Alert type="error" message="Failed to load groups" />;
@@ -217,7 +316,10 @@ export default function GroupsPage() {
       <Modal
         title="Create Group"
         open={createOpen}
-        onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
+        onCancel={() => {
+          setCreateOpen(false);
+          createForm.resetFields();
+        }}
         onOk={() => createForm.submit()}
         confirmLoading={createGroup.isPending}
       >
@@ -227,7 +329,10 @@ export default function GroupsPage() {
             label="Name"
             rules={[
               { required: true, message: "Name is required" },
-              { pattern: /^[a-zA-Z0-9_-]+$/, message: "Only letters, numbers, hyphens, and underscores" },
+              {
+                pattern: /^[a-zA-Z0-9_-]+$/,
+                message: "Only letters, numbers, hyphens, and underscores",
+              },
               { max: 100, message: "Max 100 characters" },
             ]}
           >
@@ -243,7 +348,10 @@ export default function GroupsPage() {
       <Modal
         title="Edit Group"
         open={!!editGroup}
-        onCancel={() => { setEditGroup(null); editForm.resetFields(); }}
+        onCancel={() => {
+          setEditGroup(null);
+          editForm.resetFields();
+        }}
         onOk={() => editForm.submit()}
         confirmLoading={updateGroup.isPending}
       >
@@ -252,7 +360,10 @@ export default function GroupsPage() {
             name="name"
             label="Name"
             rules={[
-              { pattern: /^[a-zA-Z0-9_-]+$/, message: "Only letters, numbers, hyphens, and underscores" },
+              {
+                pattern: /^[a-zA-Z0-9_-]+$/,
+                message: "Only letters, numbers, hyphens, and underscores",
+              },
               { max: 100, message: "Max 100 characters" },
             ]}
           >
@@ -262,59 +373,6 @@ export default function GroupsPage() {
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
-      </Modal>
-
-      {/* Members Modal */}
-      <Modal
-        title={`Members of ${membersGroup?.name ?? ""}`}
-        open={!!membersGroup}
-        onCancel={() => { setMembersGroup(null); setAddMemberOpen(false); }}
-        footer={null}
-        width={600}
-      >
-        <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-          <Space style={{ justifyContent: "space-between", width: "100%" }}>
-            <Typography.Text type="secondary">
-              {(members ?? []).length} member{(members ?? []).length !== 1 ? "s" : ""}
-            </Typography.Text>
-            <Button
-              size="small"
-              icon={<UserAddOutlined />}
-              onClick={() => setAddMemberOpen(true)}
-            >
-              Add Member
-            </Button>
-          </Space>
-
-          <Table<GroupMember>
-            columns={memberColumns}
-            dataSource={members ?? []}
-            rowKey="user_id"
-            loading={membersLoading}
-            pagination={false}
-            size="small"
-          />
-        </Space>
-
-        {/* Add Member Sub-Modal */}
-        <Modal
-          title="Add Member"
-          open={addMemberOpen}
-          onCancel={() => setAddMemberOpen(false)}
-          footer={null}
-        >
-          <Select
-            style={{ width: "100%" }}
-            placeholder="Select a user"
-            showSearch
-            optionFilterProp="label"
-            options={availableUsers.map((u) => ({
-              value: u.id,
-              label: `${u.username} (${u.email})`,
-            }))}
-            onSelect={(userId: string) => handleAddMember(userId)}
-          />
-        </Modal>
       </Modal>
     </>
   );
