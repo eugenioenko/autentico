@@ -10,12 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func ptrStr(s string) *string { return &s }
+
 func TestCreateToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	token := Token{
-		UserID:                "user-1",
+		UserID:                ptrStr("user-1"),
 		AccessToken:           "access-token",
 		RefreshToken:          "refresh-token",
 		AccessTokenType:       "Bearer",

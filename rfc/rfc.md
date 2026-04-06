@@ -659,3 +659,53 @@ This is analogous to the existing "public endpoints by design" decision for intr
 - Unit: `TestHandleWellKnownConfig_RFC8414_Endpoints` — introspection, revocation, PKCE endpoints ✅ Pre-existing
 - Unit: `TestHandleWellKnownConfig_RequiredFields` — OIDC Discovery required fields ✅ Pre-existing (Phase 7)
 - Unit: `TestHandleWellKnownConfig_IssuerMatchesTokenIss` — issuer matches token iss ✅ Pre-existing (Phase 7)
+
+---
+
+## Phase 11 — RFC 6749 §4.4: Client Credentials Grant
+
+**File:** `rfc/rfc6749.txt`
+
+| Section | What to check | Code path |
+|---|---|---|
+| §4.4 | Client credentials grant overview — M2M flow, no user context | `pkg/token/handler.go` client_credentials case |
+| §4.4.2 | Token request: client MUST authenticate; only confidential clients | `pkg/token/handler.go` client auth + type check |
+| §4.4.3 | Token response: access_token, token_type required; refresh token SHOULD NOT be included | `pkg/token/handler.go` response construction |
+| §5.1 | Token response: Cache-Control no-store, Pragma no-cache | `pkg/token/handler.go` response headers |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §4.4.2 | Client MUST authenticate with the authorization server | ✅ Implemented (2026-04-06) |
+| MUST | §4.4.2 | Only confidential clients may use client_credentials | ✅ Implemented (2026-04-06) |
+| MUST | §5.1 | Token response includes `access_token`, `token_type` | ✅ Implemented (2026-04-06) |
+| MUST | §5.1 | `Cache-Control: no-store` and `Pragma: no-cache` in token response | ✅ Implemented (2026-04-06) |
+| SHOULD NOT | §4.4.3 | Refresh token SHOULD NOT be included in response | ✅ Implemented — no refresh token issued (2026-04-06) |
+
+**Security Considerations:**
+- [x] §10.1: Only confidential clients can use client_credentials — public clients are rejected
+- [x] §10.3: No authorization codes involved — not applicable
+- [x] Token has no associated user — `sub` claim set to `client_id`; no session created
+- [x] Introspection skips session liveness check for client_credentials tokens
+
+**Discovery cross-check:**
+- [x] `grant_types_supported` includes `"client_credentials"` in `/.well-known/openid-configuration`
+
+**Tests:**
+- Unit: `TestHandleToken_ClientCredentials_Success` — confidential client → 200, access_token present, no refresh_token, no id_token, sub == client_id ✅ Added
+- Unit: `TestHandleToken_ClientCredentials_NoClientAuth` — missing credentials → 401 invalid_client ✅ Added
+- Unit: `TestHandleToken_ClientCredentials_PublicClient` — public client → unauthorized_client ✅ Added
+- Unit: `TestHandleToken_ClientCredentials_GrantNotAllowed` — grant not in client's grant_types → unauthorized_client ✅ Added
+- Unit: `TestHandleToken_ClientCredentials_InvalidScope` — scope not allowed → invalid_scope ✅ Added
+- Unit: `TestHandleToken_ClientCredentials_OpenIDScopeStripped` — openid stripped from response scope ✅ Added
+- Unit: `TestGenerateClientCredentialsToken` — generation function unit test ✅ Added
+- Unit: `TestRemoveScope` — helper function unit test ✅ Added
+- Unit: `TestHandleWellKnownConfig_ClientCredentialsGrantType` — discovery includes client_credentials ✅ Added
+- E2e: `TestClientCredentials_FullFlow` — register client, get token, introspect → active ✅ Added
+- E2e: `TestClientCredentials_TokenRevocation` — get token, revoke, introspect → inactive ✅ Added
+- E2e: `TestClientCredentials_BasicAuth` — client_secret_basic authentication ✅ Added
+- E2e: `TestClientCredentials_SecretPost` — client_secret_post authentication ✅ Added
+- E2e: `TestClientCredentials_ScopeValidation` — invalid scope rejected ✅ Added
+- E2e: `TestClientCredentials_NoRefreshToken` — response has no refresh_token ✅ Added
+- E2e: `TestClientCredentials_PublicClientRejected` — public client cannot use this grant ✅ Added

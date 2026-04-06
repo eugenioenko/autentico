@@ -71,6 +71,7 @@ func TestHandleWellKnownConfig_GrantTypesSupported(t *testing.T) {
 	assert.Contains(t, response.GrantTypesSupported, "authorization_code")
 	assert.Contains(t, response.GrantTypesSupported, "refresh_token")
 	assert.Contains(t, response.GrantTypesSupported, "password")
+	assert.Contains(t, response.GrantTypesSupported, "client_credentials")
 }
 
 // TestHandleWellKnownConfig_RequestParameterNotSupported verifies that the discovery

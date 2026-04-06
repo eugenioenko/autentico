@@ -89,7 +89,12 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := user.UserByID(tok.UserID)
+	if tok.UserID == nil {
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has no associated user")
+		return
+	}
+
+	user, err := user.UserByID(*tok.UserID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Unable to fetch user information")
 		return
@@ -98,7 +103,7 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §5.3: the sub claim MUST always be returned; it MUST match the sub in the ID token.
 	scope := tok.Scope
 	response := map[string]interface{}{
-		"sub":   tok.UserID,
+		"sub":   *tok.UserID,
 		"scope": scope,
 	}
 
@@ -148,7 +153,7 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if containsScope(scope, "groups") {
-		groupNames, err := group.GroupNamesByUserID(tok.UserID)
+		groupNames, err := group.GroupNamesByUserID(*tok.UserID)
 		if err == nil && len(groupNames) > 0 {
 			response["groups"] = groupNames
 		}

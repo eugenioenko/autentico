@@ -24,12 +24,13 @@ import (
 // @Tags token
 // @Accept application/x-www-form-urlencoded
 // @Produce json
-// @Param grant_type formData string true "Grant type"
+// @Param grant_type formData string true "Grant type (authorization_code, password, refresh_token, client_credentials)"
 // @Param code formData string false "Authorization code"
 // @Param redirect_uri formData string false "Redirect URI"
 // @Param client_id formData string false "Client ID"
 // @Param username formData string false "Username"
 // @Param password formData string false "Password"
+// @Param scope formData string false "Requested scope"
 // @Success 200 {object} TokenResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
@@ -147,6 +148,81 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		codeScope = requestedScope
 
+	case "client_credentials":
+		// RFC 6749 §4.4.2: the client MUST authenticate with the authorization server
+		if authenticatedClient == nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication is required for client_credentials grant")
+			return
+		}
+		// RFC 6749 §4.4.2: only confidential clients may use client_credentials
+		if authenticatedClient.ClientType != "confidential" {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Public clients cannot use client_credentials grant")
+			return
+		}
+
+		// Resolve effective scope
+		ccScope := request.Scope
+		if ccScope == "" && authenticatedClient.Scopes != "" {
+			ccScope = authenticatedClient.Scopes
+		}
+		// Strip "openid" — no user identity to assert in client_credentials
+		ccScope = removeScope(ccScope, "openid")
+		if ccScope == "" {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "No valid scopes requested")
+			return
+		}
+		if !client.ValidateScopes(authenticatedClient, ccScope) {
+			slog.Warn("token: invalid scope for client (client_credentials)", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", ccScope)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
+			return
+		}
+
+		// Resolve per-client config overrides
+		ccCfg := config.Get()
+		if authenticatedClient != nil {
+			resolved := config.GetForClient(authenticatedClient.ToOverrides())
+			ccCfg = &resolved
+		}
+
+		ccToken, ccErr := GenerateClientCredentialsToken(request.ClientID, ccScope, ccCfg)
+		if ccErr != nil {
+			slog.Error("token: failed to generate client_credentials token", "request_id", middleware.GetRequestID(r.Context()), "error", ccErr)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", ccErr))
+			return
+		}
+
+		// Store token with NULL user_id
+		ccErr = CreateToken(Token{
+			UserID:                nil,
+			AccessToken:           ccToken.AccessToken,
+			RefreshToken:          "",
+			AccessTokenType:       "Bearer",
+			RefreshTokenExpiresAt: ccToken.AccessExpiresAt,
+			AccessTokenExpiresAt:  ccToken.AccessExpiresAt,
+			IssuedAt:              time.Now().UTC(),
+			Scope:                 ccScope,
+			GrantType:             "client_credentials",
+		})
+		if ccErr != nil {
+			slog.Error("token: failed to store client_credentials token", "request_id", middleware.GetRequestID(r.Context()), "error", ccErr)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", ccErr))
+			return
+		}
+
+		// RFC 6749 §4.4.3: response MUST include access_token, token_type; refresh token SHOULD NOT be included
+		ccResponse := TokenResponse{
+			AccessToken: ccToken.AccessToken,
+			TokenType:   "Bearer",
+			ExpiresIn:   int(ccCfg.AuthAccessTokenExpiration / time.Second),
+			Scope:       ccScope,
+		}
+
+		// RFC 6749 §5.1: token responses must not be cached
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
+		utils.WriteApiResponse(w, ccResponse, http.StatusOK)
+		return
+
 	case "refresh_token":
 		usr, err = UserByRefreshToken(w, request)
 		if err != nil {
@@ -199,7 +275,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = CreateToken(Token{
-		UserID:                authToken.UserID,
+		UserID:                &authToken.UserID,
 		AccessToken:           authToken.AccessToken,
 		RefreshToken:          authToken.RefreshToken,
 		AccessTokenType:       "Bearer",

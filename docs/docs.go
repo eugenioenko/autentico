@@ -2687,7 +2687,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Grant type",
+                        "description": "Grant type (authorization_code, password, refresh_token, client_credentials)",
                         "name": "grant_type",
                         "in": "formData",
                         "required": true
@@ -2720,6 +2720,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Password",
                         "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Requested scope",
+                        "name": "scope",
                         "in": "formData"
                     }
                 ],

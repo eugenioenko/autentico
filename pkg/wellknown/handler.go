@@ -64,7 +64,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		},
 		// RFC 8414 §2: OPTIONAL (default: ["authorization_code", "implicit"]).
 		// We explicitly list supported types to override the default.
-		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password"},
+		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password", "client_credentials"},
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
 		// RFC 8414 §2: OPTIONAL endpoint metadata
