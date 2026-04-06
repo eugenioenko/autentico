@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -146,5 +147,12 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 			response["address"] = addr
 		}
 	}
+	if containsScope(scope, "groups") {
+		groupNames, err := group.GroupNamesByUserID(tok.UserID)
+		if err == nil && len(groupNames) > 0 {
+			response["groups"] = groupNames
+		}
+	}
+
 	utils.WriteApiResponse(w, response, http.StatusOK)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
@@ -49,8 +50,8 @@ func startTestServer(t *testing.T) *TestServer {
 
 	// Seed the shared "test-client" used across E2E tests
 	_, err = db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, is_active)
-		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', TRUE)
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups', TRUE)
 	`)
 	if err != nil {
 		t.Fatalf("Failed to seed test-client: %v", err)
@@ -153,6 +154,15 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("GET /admin/api/deletion-requests", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleListDeletionRequests)))
 	mux.Handle("POST /admin/api/deletion-requests/{id}/approve", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleApproveDeletionRequest)))
 	mux.Handle("DELETE /admin/api/deletion-requests/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleAdminCancelDeletionRequest)))
+	mux.Handle("GET /admin/api/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleListGroups)))
+	mux.Handle("POST /admin/api/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleCreateGroup)))
+	mux.Handle("GET /admin/api/groups/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleGetGroup)))
+	mux.Handle("PUT /admin/api/groups/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleUpdateGroup)))
+	mux.Handle("DELETE /admin/api/groups/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleDeleteGroup)))
+	mux.Handle("GET /admin/api/groups/{id}/members", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleListMembers)))
+	mux.Handle("POST /admin/api/groups/{id}/members", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleAddMember)))
+	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleRemoveMember)))
+	mux.Handle("GET /admin/api/users/{id}/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleGetUserGroups)))
 
 	// Apply logging middleware and start server
 	server.Config.Handler = middleware.LoggingMiddleware(mux)

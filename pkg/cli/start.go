@@ -28,6 +28,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
@@ -171,6 +172,15 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("GET /admin/api/federation/{id}", adminAPI(federation.HandleGetProvider))
 	mux.Handle("PUT /admin/api/federation/{id}", adminAPI(federation.HandleUpdateProvider))
 	mux.Handle("DELETE /admin/api/federation/{id}", adminAPI(federation.HandleDeleteProvider))
+	mux.Handle("GET /admin/api/groups", adminAPI(group.HandleListGroups))
+	mux.Handle("POST /admin/api/groups", adminAPI(group.HandleCreateGroup))
+	mux.Handle("GET /admin/api/groups/{id}", adminAPI(group.HandleGetGroup))
+	mux.Handle("PUT /admin/api/groups/{id}", adminAPI(group.HandleUpdateGroup))
+	mux.Handle("DELETE /admin/api/groups/{id}", adminAPI(group.HandleDeleteGroup))
+	mux.Handle("GET /admin/api/groups/{id}/members", adminAPI(group.HandleListMembers))
+	mux.Handle("POST /admin/api/groups/{id}/members", adminAPI(group.HandleAddMember))
+	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", adminAPI(group.HandleRemoveMember))
+	mux.Handle("GET /admin/api/users/{id}/groups", adminAPI(group.HandleGetUserGroups))
 	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))
 	mux.Handle("GET /admin/api/settings", adminAPI(appsettings.HandleGetSettings))
 	mux.Handle("PUT /admin/api/settings", adminAPI(appsettings.HandlePutSettings))
