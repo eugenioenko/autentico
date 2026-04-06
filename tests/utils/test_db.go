@@ -44,3 +44,21 @@ func InsertTestUser(t *testing.T, userID string) {
 	)
 	require.NoError(t, err)
 }
+
+// InsertTestGroup inserts a minimal group row for tests.
+func InsertTestGroup(t *testing.T, groupID, name string) {
+	t.Helper()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO groups (id, name) VALUES (?, ?)`, groupID, name,
+	)
+	require.NoError(t, err)
+}
+
+// InsertTestGroupMembership inserts a user_groups row for tests.
+func InsertTestGroupMembership(t *testing.T, userID, groupID string) {
+	t.Helper()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO user_groups (user_id, group_id) VALUES (?, ?)`, userID, groupID,
+	)
+	require.NoError(t, err)
+}

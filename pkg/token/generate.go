@@ -10,6 +10,7 @@ import (
 	"github.com/rs/xid"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/user"
 )
@@ -51,6 +52,14 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	if containsScope(scope, "email") {
 		accessClaims["email"] = user.Email
 		accessClaims["email_verified"] = user.IsEmailVerified
+	}
+
+	// Embed groups claim when "groups" scope was requested
+	if containsScope(scope, "groups") {
+		groupNames, err := group.GroupNamesByUserID(user.ID)
+		if err == nil && len(groupNames) > 0 {
+			accessClaims["groups"] = groupNames
+		}
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = bs.AuthJwkCertKeyID
@@ -120,6 +129,14 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
+	}
+
+	// Embed groups claim when "groups" scope was requested
+	if containsScope(scope, "groups") {
+		groupNames, err := group.GroupNamesByUserID(user.ID)
+		if err == nil && len(groupNames) > 0 {
+			claims["groups"] = groupNames
+		}
 	}
 
 	// Email claims are intentionally excluded from the id_token.

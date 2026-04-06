@@ -217,6 +217,32 @@ func TestHandleWellKnownConfig_RFC8414_IssuerIdentity(t *testing.T) {
 		"RFC 8414 §3: issuer must be identical to the authorization server's issuer identifier")
 }
 
+func TestHandleWellKnownConfig_GroupsScope(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.Contains(t, response.ScopesSupported, "groups", "groups must be in scopes_supported")
+}
+
+func TestHandleWellKnownConfig_GroupsClaim(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.Contains(t, response.ClaimsSupported, "groups", "groups must be in claims_supported")
+}
+
 func TestHandleJWKS(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/.well-known/jwks.json", nil)
 	rr := httptest.NewRecorder()
