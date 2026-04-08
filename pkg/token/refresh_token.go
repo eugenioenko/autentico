@@ -54,11 +54,18 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, fmt.Errorf("refresh token client mismatch")
 	}
 
-	// Check if the token has been revoked
+	// Check if the token has been revoked.
+	// RFC 6819 §5.2.2.3: a revoked refresh token being presented indicates that
+	// token rotation occurred and someone (attacker or legitimate user) is replaying
+	// a stale token. Revoke all tokens for this user as a protective measure.
 	var revokedAt *time.Time
 	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
 	if err == nil && revokedAt != nil {
-		slog.Warn("token: refresh token has been revoked")
+		slog.Warn("token: rotated refresh token replayed — revoking all user tokens",
+			"user_id", authToken.UserID)
+		_, _ = db.GetDB().Exec(
+			`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`,
+			time.Now().UTC(), authToken.UserID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
 		return nil, fmt.Errorf("token has been revoked")
 	}

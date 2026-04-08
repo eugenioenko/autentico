@@ -714,3 +714,36 @@ This is analogous to the existing "public endpoints by design" decision for intr
 - E2e: `TestClientCredentials_ScopeValidation` — invalid scope rejected ✅ Added
 - E2e: `TestClientCredentials_NoRefreshToken` — response has no refresh_token ✅ Added
 - E2e: `TestClientCredentials_PublicClientRejected` — public client cannot use this grant ✅ Added
+
+---
+
+## Phase 12 — RFC 6819 §5.2.2.3 / RFC 9700 §4.14.2: Refresh Token Rotation
+
+**Files:** `rfc/rfc6819.txt` (OAuth 2.0 Threat Model), RFC 9700 (OAuth 2.0 Security BCP)
+
+| Section | What to check | Code path |
+|---|---|---|
+| RFC 6819 §5.2.2.3 | Issue new refresh token on each use and invalidate old one | `pkg/token/handler.go` refresh_token case — revokes old token before generating new one |
+| RFC 6819 §5.2.2.3 | Detect replay of rotated tokens and revoke token family | `pkg/token/refresh_token.go` `UserByRefreshToken()` — revokes all user tokens on replay |
+| RFC 9700 §4.14.2 | Use refresh token rotation for public and confidential clients | `pkg/token/handler.go` — rotation applies to all grant types |
+| RFC 9700 §4.14.2 | Detect replay and revoke all tokens in the grant | `pkg/token/refresh_token.go` — revocation check triggers full user token wipe |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| SHOULD | RFC 6819 §5.2.2.3 | Issue new refresh token on each use and invalidate old one | ✅ Implemented (2026-04-07) |
+| SHOULD | RFC 6819 §5.2.2.3 | Detect replay of rotated tokens and revoke token family | ✅ Implemented — revokes all user tokens (2026-04-07) |
+| SHOULD | RFC 9700 §4.14.2 | Use refresh token rotation | ✅ Implemented (2026-04-07) |
+| SHOULD | RFC 9700 §4.14.2 | Detect replay and revoke all tokens in the grant | ✅ Implemented (2026-04-07) |
+
+**Security Considerations:**
+- [x] Refresh token is revoked immediately after successful validation but before new token generation
+- [x] Replay of a rotated token (already revoked) triggers revocation of ALL non-revoked tokens for that user — forces full re-authentication
+- [x] Cookie-only mode (`AuthRefreshTokenCookieOnly`) works with rotation — new cookie is set automatically in the response
+
+**Tests:**
+- E2e: `TestRefreshToken_RotationBehavior` — refresh returns new token, old is rejected, replay revokes new token too ✅ Updated
+- E2e: `TestRefreshToken_ReplayDetection` — replayed rotated token revokes all user tokens, legitimate user must re-authenticate ✅ Added
+- Functional: `token.test.ts` "rotates refresh token" — old token rejected after rotation ✅ Added
+- Functional: `token.test.ts` "replay detection revokes all user tokens" — theft mitigation verified ✅ Added
