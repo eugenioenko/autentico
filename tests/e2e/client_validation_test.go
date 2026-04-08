@@ -15,10 +15,12 @@ import (
 // authorizeURL builds a /oauth2/authorize URL with the given parameters.
 func authorizeURL(ts *TestServer, clientID, redirectURI, state string) string {
 	return ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {clientID},
-		"redirect_uri":  {redirectURI},
-		"state":         {state},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"state":                 {state},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 }
 
@@ -172,11 +174,13 @@ func TestAuthorize_InvalidScope(t *testing.T) {
 
 	// scoped-e2e-client only allows "openid profile"; requesting "offline_access" must fail
 	authURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"scoped-e2e-client"},
-		"redirect_uri":  {"http://localhost:3000/callback"},
-		"state":         {"s1"},
-		"scope":         {"offline_access"},
+		"response_type":         {"code"},
+		"client_id":             {"scoped-e2e-client"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"state":                 {"s1"},
+		"scope":                 {"offline_access"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authURL)

@@ -3636,6 +3636,13 @@ const docTemplate = `{
                     "description": "RFC 8414 §2: OPTIONAL. Token introspection endpoint.",
                     "type": "string"
                 },
+                "introspection_endpoint_auth_methods_supported": {
+                    "description": "RFC 8414 §2: OPTIONAL. Auth methods for the introspection endpoint.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "issuer": {
                     "description": "RFC 8414 §2: REQUIRED. Issuer identifier (no query or fragment).",
                     "type": "string"
@@ -3669,6 +3676,13 @@ const docTemplate = `{
                 "revocation_endpoint": {
                     "description": "RFC 8414 §2: OPTIONAL. Token revocation endpoint.",
                     "type": "string"
+                },
+                "revocation_endpoint_auth_methods_supported": {
+                    "description": "RFC 8414 §2: OPTIONAL. Auth methods for the revocation endpoint.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "scopes_supported": {
                     "description": "RFC 8414 §2: RECOMMENDED.",

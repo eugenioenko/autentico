@@ -20,7 +20,7 @@ func TestHandleAuthorize(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -36,7 +36,7 @@ func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	body := "response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&nonce=abc"
+	body := "response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&nonce=abc&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256"
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -71,7 +71,7 @@ func TestHandleAuthorize_PostInvalidClient_ShowsError(t *testing.T) {
 func TestHandleAuthorize_UnknownClientID(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=nonexistent-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=nonexistent-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -84,7 +84,7 @@ func TestHandleAuthorize_MissingResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -99,7 +99,7 @@ func TestHandleAuthorize_InvalidResponseType(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -145,7 +145,7 @@ func TestHandleAuthorize_InactiveClient(t *testing.T) {
 	`)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=inactive-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=inactive-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -183,7 +183,7 @@ func TestHandleAuthorize_ResponseTypeNotAllowed(t *testing.T) {
 	`)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=token-only-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=token-only-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -214,7 +214,7 @@ func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
 	err = idpsession.CreateIdpSession(session)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-auto-1"})
 	rr := httptest.NewRecorder()
 
@@ -248,7 +248,7 @@ func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 	err = idpsession.CreateIdpSession(session)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-disabled-1"})
 	rr := httptest.NewRecorder()
 
@@ -284,7 +284,7 @@ func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 	_, err = db.GetDB().Exec(`UPDATE idp_sessions SET last_activity_at = datetime('now', '-1 hour') WHERE id = 'idp-expired-1'`)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-expired-1"})
 	rr := httptest.NewRecorder()
 
@@ -319,7 +319,7 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 	err = idpsession.DeactivateIdpSession("idp-deact-1")
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-deact-1"})
 	rr := httptest.NewRecorder()
 
@@ -374,6 +374,41 @@ func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "form")
 }
 
+func TestHandleAuthorize_PKCE_RequiredForPublicClient(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+
+	// Public client without code_challenge must be rejected
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=invalid_request")
+	assert.Contains(t, rr.Header().Get("Location"), "code_challenge")
+}
+
+func TestHandleAuthorize_PKCE_NotRequiredForConfidentialClient(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Insert a confidential client with redirect URIs
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, is_active)
+		VALUES ('id-conf', 'conf-client', 'Confidential Client', 'hashed-secret', 'confidential', '["http://localhost/callback"]', '[]', TRUE)
+	`)
+	assert.NoError(t, err)
+
+	// Confidential client without code_challenge should be allowed
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=conf-client&redirect_uri=http://localhost/callback&state=xyz", nil)
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "form")
+}
+
 func TestHandleAuthorize_InvalidScope(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -383,7 +418,7 @@ func TestHandleAuthorize_InvalidScope(t *testing.T) {
 	`)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client&redirect_uri=http://localhost/callback&state=xyz&scope=offline_access", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client&redirect_uri=http://localhost/callback&state=xyz&scope=offline_access&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -402,7 +437,7 @@ func TestHandleAuthorize_AllowedScope(t *testing.T) {
 	`)
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client3&redirect_uri=http://localhost/callback&state=xyz&scope=openid+profile", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=scoped-client3&redirect_uri=http://localhost/callback&state=xyz&scope=openid+profile&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -419,7 +454,7 @@ func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -433,7 +468,7 @@ func TestHandleAuthorize_PromptNone_NoSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&prompt=none", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&prompt=none&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -455,7 +490,7 @@ func TestHandleAuthorize_PromptNone_ValidSession(t *testing.T) {
 	session := idpsession.IdpSession{ID: "idp-none-1", UserID: "user-1"}
 	_ = idpsession.CreateIdpSession(session)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&prompt=none", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&prompt=none&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-none-1"})
 	rr := httptest.NewRecorder()
 
@@ -476,7 +511,7 @@ func TestHandleAuthorize_WithFederation(t *testing.T) {
 		VALUES ('google', 'Google', 'https://accounts.google.com', 'c1', 's1', TRUE, 1)
 	`)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -489,7 +524,7 @@ func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&prompt=login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&prompt=login&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -516,7 +551,7 @@ func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
 	_, _ = db.GetDB().Exec(`UPDATE idp_sessions SET created_at = datetime('now', '-10 seconds') WHERE id = ?`, "idp-maxage-1")
 
 	// max_age=1 — session is 10s old, exceeds max_age; must force re-authentication
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=1&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-1"})
 	rr := httptest.NewRecorder()
 
@@ -544,7 +579,7 @@ func TestHandleAuthorize_MaxAge_WithinSession_AutoLogins(t *testing.T) {
 	_ = idpsession.CreateIdpSession(session)
 
 	// max_age=30 — session is 1s old, within max_age; SSO auto-login should proceed
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=30", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&max_age=30&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-maxage-2"})
 	rr := httptest.NewRecorder()
 
@@ -571,7 +606,7 @@ func TestHandleAuthorize_PromptLogin_BypassesSSO(t *testing.T) {
 	_ = idpsession.CreateIdpSession(session)
 
 	// prompt=login must force re-authentication even with an active SSO session
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=login&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-login-1"})
 	rr := httptest.NewRecorder()
 
@@ -600,7 +635,7 @@ func TestHandleAuthorize_PromptConsent_BypassesSSO(t *testing.T) {
 	_ = idpsession.CreateIdpSession(session)
 
 	// prompt=consent must force re-authentication even with an active SSO session
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=consent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=consent&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-consent-1"})
 	rr := httptest.NewRecorder()
 
@@ -617,7 +652,7 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = true
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -634,7 +669,7 @@ func TestHandleAuthorize_PromptCreate_RendersSignup(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = true
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -654,7 +689,7 @@ func TestHandleAuthorize_PromptCreate_SignupDisabled(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = false
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&prompt=create&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -667,7 +702,7 @@ func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&prompt=invalid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&prompt=invalid&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -706,7 +741,7 @@ func TestHandleAuthorize_UnsupportedResponseType_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=c1&redirect_uri=http://localhost/cb", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=token&client_id=c1&redirect_uri=http://localhost/cb&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -720,7 +755,7 @@ func TestHandleAuthorize_WithGenericError(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=c1&redirect_uri=http://localhost/cb&error=server_error", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=c1&redirect_uri=http://localhost/cb&error=server_error&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
@@ -760,7 +795,7 @@ func TestRedirectWithError_ErrorDescriptionEncoded(t *testing.T) {
 	// Trigger an unsupported_response_type error — description contains spaces
 	// ("response_type not allowed for this client") which MUST be percent-encoded.
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=my+state",
+		"/oauth2/authorize?response_type=token&client_id=test-client&redirect_uri=http://localhost/callback&state=my+state&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256",
 		nil)
 	rr := httptest.NewRecorder()
 

@@ -102,6 +102,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 9700 §2.1.1: public clients MUST use PKCE — reject if code_challenge is missing
+	if registeredClient.ClientType == "public" && request.CodeChallenge == "" {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge is required for public clients")
+		return
+	}
+
 	// RFC 7636 §7.2: "plain" SHOULD NOT be used; §4.2: S256 is MTI on the server
 	if request.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "code_challenge_method 'plain' is not allowed; use S256")

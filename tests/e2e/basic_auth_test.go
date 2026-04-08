@@ -129,10 +129,12 @@ func TestAuthorize_RendersLoginPage(t *testing.T) {
 	ts := startTestServer(t)
 
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {"http://localhost:3000/callback"},
-		"scope":         {"openid"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"scope":                 {"openid"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)

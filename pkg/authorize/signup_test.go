@@ -17,7 +17,7 @@ func TestHandleAuthorize_NoSelfSignup(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = false
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=c1&redirect_uri=http://localhost/cb", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=c1&redirect_uri=http://localhost/cb&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)

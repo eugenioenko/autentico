@@ -30,11 +30,13 @@ func TestSelfSignup_RendersForm(t *testing.T) {
 	config.Values.AuthAllowSelfSignup = true
 
 	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"prompt":        {"create"},
-		"redirect_uri":  {"http://localhost:3000/callback"},
-		"state":         {"abc123"},
-		"client_id":     {"test-client"},
+		"response_type":         {"code"},
+		"prompt":                {"create"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"state":                 {"abc123"},
+		"client_id":             {"test-client"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -68,6 +70,7 @@ func TestSelfSignup_Complete(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
+	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -113,11 +116,13 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 
 	// GET authorize?prompt=create
 	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"prompt":        {"create"},
-		"redirect_uri":  {redirectURI},
-		"state":         {expectedState},
-		"client_id":     {"test-client"},
+		"response_type":         {"code"},
+		"prompt":                {"create"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {expectedState},
+		"client_id":             {"test-client"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
@@ -169,11 +174,13 @@ func TestSelfSignup_PromptCreate(t *testing.T) {
 
 	// Step 1: GET /oauth2/authorize?prompt=create should render the signup form
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"create-state"},
-		"prompt":        {"create"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"create-state"},
+		"prompt":                {"create"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -228,6 +235,7 @@ func TestSelfSignup_PromptCreate(t *testing.T) {
 	tokenForm.Set("code", code)
 	tokenForm.Set("redirect_uri", redirectURI)
 	tokenForm.Set("client_id", "test-client")
+	tokenForm.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", tokenForm)
 	require.NoError(t, err)
@@ -250,11 +258,13 @@ func TestSelfSignup_PromptCreate_Disabled(t *testing.T) {
 	config.Values.AuthAllowSelfSignup = false
 
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {"http://localhost:3000/callback"},
-		"state":         {"s1"},
-		"prompt":        {"create"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"state":                 {"s1"},
+		"prompt":                {"create"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -276,6 +286,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type": {"code"}, "prompt": {"create"},
 		"redirect_uri": {redirectURI}, "state": {"s1"}, "client_id": {"test-client"},
+		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"},
 	}.Encode())
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
@@ -290,6 +301,8 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s1")
 	form.Set("client_id", "test-client")
+	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
@@ -333,6 +346,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	resp, err := freshClient.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type": {"code"}, "prompt": {"create"},
 		"redirect_uri": {redirectURI}, "state": {"s2"}, "client_id": {"test-client"},
+		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"},
 	}.Encode())
 	require.NoError(t, err)
 	body, _ := io.ReadAll(resp.Body)
@@ -347,6 +361,8 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", "s2")
 	form.Set("client_id", "test-client")
+	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
@@ -390,11 +406,13 @@ func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 	// Use a fresh client so the IdP session cookie doesn't cause auto-login
 	freshClient := newClientWithJar()
 	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"prompt":        {"create"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"s2"},
-		"client_id":     {"test-client"},
+		"response_type":         {"code"},
+		"prompt":                {"create"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"s2"},
+		"client_id":             {"test-client"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 	resp, err := freshClient.Get(signupURL)
 	require.NoError(t, err)
@@ -437,6 +455,7 @@ func TestSelfSignup_InvalidCSRF(t *testing.T) {
 	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type": {"code"}, "prompt": {"create"},
 		"redirect_uri": {redirectURI}, "state": {"s1"}, "client_id": {"test-client"},
+		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"},
 	}.Encode())
 	require.NoError(t, err)
 	_ = resp.Body.Close()
