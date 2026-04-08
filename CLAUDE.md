@@ -38,6 +38,24 @@ make docs                     # Serves Swagger UI at localhost:8888
 make generate-docs            # Regenerate swagger files from handler annotations
 ```
 
+## Feature Development Workflow
+
+When implementing new features, follow the checklist in `WORKFLOW.md`. Key points:
+
+1. **Spec first** — read the relevant RFC/spec sections before writing code
+2. **RFC annotations** — every return path and validation check must have an inline comment referencing the spec section
+3. **Tests** — always add both positive and negative tests. Four layers exist:
+   - **Unit** (`pkg/*/…_test.go`) — always required
+   - **E2E** (`tests/e2e/`) — when the feature spans multiple endpoints
+   - **Functional** (`tests/functional/`) — black-box HTTP tests against a running server
+   - **Browser** (`tests/browser/`) — when the feature has a UI component (Playwright)
+4. **Config** — new bootstrap env vars go in `BootstrapConfig` + `InitBootstrap()` + `pkg/cli/init.go`; runtime settings go in `Config` + `appsettings`
+5. **RFC compliance** — update MUST/SHOULD/MAY tables in `rfc/rfc.md`, verify discovery document
+6. **UI** — new settings need admin-ui updates; user-facing features need account-ui updates
+7. **Docs** — update README.md, docs-web, CLAUDE.md, and run `make generate-docs` for Swagger changes
+
+See `WORKFLOW.md` for the full checklist.
+
 ## OIDC Conformance Testing
 
 The OpenID Foundation conformance suite runs locally via Docker. Specs and review plan are in `rfc/`.
