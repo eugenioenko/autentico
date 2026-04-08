@@ -9,13 +9,13 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| HIGH | 1 |
-| MEDIUM | 2 |
-| LOW | 2 |
-| **Total** | **5** |
-| Passed Tests | 23 |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| HIGH | 1 | 1 |
+| MEDIUM | 2 | 0 |
+| LOW | 2 | 0 |
+| **Total** | **5** | **1** |
+| Passed Tests | 23 | |
 
 ---
 
@@ -29,15 +29,14 @@
 **Status:** Partially confirmed — authorize allows non-PKCE flows. Token endpoint enforcement not yet tested (requires browser-based login to generate a non-PKCE auth code).
 **Recommendation:** Enforce PKCE for all clients, or at minimum for public clients. Reject authorize requests without `code_challenge` for public clients per RFC 7636 / OAuth 2.1 draft.
 
-### FINDING-02: Token Introspection Endpoint Accepts Unauthenticated Requests (HIGH)
+### FINDING-02: Token Introspection Endpoint Accepts Unauthenticated Requests (HIGH) — FIXED
 **Endpoint:** `POST /oauth2/introspect`
-**Description:** The introspection endpoint returns full token details for active tokens without requiring client authentication. No `Authorization` header or `client_id`/`client_secret` in the body is needed.
+**Description:** The introspection endpoint returned full token details for active tokens without requiring client authentication. No `Authorization` header or `client_id`/`client_secret` in the body was needed.
 **Impact:** Per RFC 7662 Section 2.1, the introspection endpoint SHOULD require client authentication. Without it, any party can determine whether arbitrary tokens are active and extract token metadata (subject, scope, issuer, expiry). This aids token reconnaissance and abuse.
 **Evidence:**
 - Flow `YowO0B` — expired token, no client auth → 200 `{"active":false}`
 - Flow `LkcL1P` — valid token, no client auth → 200 `{"active":true,"scope":"openid profile email","token_type":"Bearer","exp":...,"sub":"d7a25htioaqe2mcpo490","iss":"http://localhost:9999/oauth2",...}`
-**Status:** Confirmed — both expired and active tokens introspectable without authentication.
-**Recommendation:** Require client authentication (Basic auth or `client_id`/`client_secret` in body) for introspection requests.
+**Fix:** Commit `3edaf38` — `pkg/introspect/handler.go` now requires client authentication (Basic/POST) or admin bearer token per RFC 7662 §2.1. Additionally, commit `b04b1e7` applies the same fix to the revocation endpoint (RFC 7009 §2.1), and commit `e0bdc6f` disables CORS by default (only enabled with `--dev` flag).
 
 ### FINDING-03: CSRF Error Message Leaks Configuration Details (LOW)
 **Endpoint:** All CSRF-protected endpoints
