@@ -256,7 +256,7 @@ func InitBootstrap() {
 		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./db/autentico.db"),
 		AppURL:                         appURL,
 		AppOAuthPath:                   oauthPath,
-		AppEnableCORS:                  getEnvBool("AUTENTICO_APP_ENABLE_CORS", true),
+		AppEnableCORS:                  getEnvBool("AUTENTICO_APP_ENABLE_CORS", false),
 		AppDomain:                      domain,
 		AppHost:                        host,
 		AppPort:                        port,
