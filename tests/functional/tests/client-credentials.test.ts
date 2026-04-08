@@ -132,8 +132,14 @@ describe('Client Credentials Grant', () => {
     });
     const tokens = await tokenResp.json();
 
-    const introspectResp = await postForm(`${OAUTH_URL}/introspect`, {
-      token: tokens.access_token,
+    const introspectCredentials = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+    const introspectResp = await fetch(`${OAUTH_URL}/introspect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${introspectCredentials}`,
+      },
+      body: new URLSearchParams({ token: tokens.access_token }),
     });
     expect(introspectResp.status).toBe(200);
     const introspection = await introspectResp.json();

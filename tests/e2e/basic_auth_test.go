@@ -75,7 +75,7 @@ func TestRevokeToken_E2E(t *testing.T) {
 	form := url.Values{}
 	form.Set("token", tokenResp.AccessToken)
 
-	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
+	resp, err := revokeToken(t, ts, form)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
@@ -242,7 +242,7 @@ func TestRefreshToken_AfterRevoke(t *testing.T) {
 	revokeForm := url.Values{}
 	revokeForm.Set("token", tokenResp.AccessToken)
 
-	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", revokeForm)
+	revokeResp, err := revokeToken(t, ts, revokeForm)
 	require.NoError(t, err)
 	_ = revokeResp.Body.Close()
 	require.Equal(t, http.StatusOK, revokeResp.StatusCode)
@@ -298,6 +298,7 @@ func TestIntrospect_ActiveToken(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)

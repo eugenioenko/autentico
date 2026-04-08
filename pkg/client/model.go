@@ -4,10 +4,16 @@ import (
 	"encoding/json"
 	"time"
 
+	"regexp"
+
 	"github.com/eugenioenko/autentico/pkg/config"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 )
+
+// noHTMLPattern rejects strings containing HTML tag characters as defense-in-depth
+// against stored XSS in fields that may be rendered in UI contexts.
+var noHTMLPattern = regexp.MustCompile(`^[^<>]*$`)
 
 // Client represents an OAuth2/OIDC client in the database
 type Client struct {
@@ -211,7 +217,7 @@ func (c *Client) ToOverrides() config.ClientOverrides {
 // ValidateClientCreateRequest validates a client registration request
 func ValidateClientCreateRequest(input ClientCreateRequest) error {
 	return validation.ValidateStruct(&input,
-		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255)),
+		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Required, validation.Length(1, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
@@ -233,7 +239,7 @@ func ValidateRedirectURIs(uris []string) error {
 // ValidateClientUpdateRequest validates a client update request
 func ValidateClientUpdateRequest(input ClientUpdateRequest) error {
 	return validation.ValidateStruct(&input,
-		validation.Field(&input.ClientName, validation.Length(0, 255)),
+		validation.Field(&input.ClientName, validation.Length(0, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Length(0, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),

@@ -19,6 +19,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testClientID = "introspect-test-client"
+const testClientSecret = "introspect-test-secret"
+
+// setupTestClient creates a confidential client for introspect tests.
+func setupTestClient(t *testing.T) {
+	t.Helper()
+	testutils.InsertTestConfidentialClient(t, testClientID, testClientSecret)
+}
+
+// withBasicAuth adds client_secret_basic credentials to a request.
+func withBasicAuth(req *http.Request) *http.Request {
+	req.SetBasicAuth(testClientID, testClientSecret)
+	return req
+}
+
 // generateTestTokenAndStore creates a valid JWT access token and stores it in the database for testing
 func generateTestTokenAndStore(userID string) (string, string, error) {
 	sessionID := xid.New().String()
@@ -63,21 +78,84 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 	return signedToken, sessionID, err
 }
 
+// ---------------------------------------------------------------------------
+// RFC 7662 §2.1 — Client authentication (negative tests)
+// ---------------------------------------------------------------------------
+
+// TestHandleIntrospect_NoAuth_Returns401 verifies RFC 7662 §2.1:
+// "the endpoint MUST also require some form of authorization to access this endpoint"
+func TestHandleIntrospect_NoAuth_Returns401(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code, "RFC 7662 §2.1: unauthenticated request MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "invalid_client")
+}
+
+// TestHandleIntrospect_InvalidClientCredentials_Returns401 verifies that wrong
+// client credentials are rejected with 401.
+func TestHandleIntrospect_InvalidClientCredentials_Returns401(t *testing.T) {
+	testutils.WithTestDB(t)
+	setupTestClient(t)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(testClientID, "wrong-secret")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code, "wrong client secret MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "invalid_client")
+}
+
+// TestHandleIntrospect_UnknownClient_Returns401 verifies that an unknown
+// client_id is rejected with 401.
+func TestHandleIntrospect_UnknownClient_Returns401(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("nonexistent-client", "some-secret")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code, "unknown client MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "invalid_client")
+}
+
+// ---------------------------------------------------------------------------
+// RFC 7662 §2.1 — Form-encoded requests (with client auth)
+// ---------------------------------------------------------------------------
+
 // TestHandleIntrospect_FormEncoded verifies RFC 7662 §2.1:
 // "The protected resource calls the introspection endpoint using an HTTP POST
 // request with parameters sent as application/x-www-form-urlencoded data."
 func TestHandleIntrospect_FormEncoded_InvalidToken_ActiveFalse(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	form := url.Values{}
 	form.Set("token", "some-unknown-token")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -89,14 +167,11 @@ func TestHandleIntrospect_FormEncoded_InvalidToken_ActiveFalse(t *testing.T) {
 }
 
 func TestHandleIntrospect_FormEncoded_ValidToken_Active(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	userID := xid.New().String()
-	_, err = db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
 		userID, "formuser", "form@example.com", "hash")
 	assert.NoError(t, err)
 
@@ -108,6 +183,7 @@ func TestHandleIntrospect_FormEncoded_ValidToken_Active(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -119,30 +195,30 @@ func TestHandleIntrospect_FormEncoded_ValidToken_Active(t *testing.T) {
 	assert.Equal(t, userID, resp.Sub)
 }
 
+// ---------------------------------------------------------------------------
+// JSON-encoded requests (with client auth)
+// ---------------------------------------------------------------------------
+
 func TestHandleIntrospectEmptyBody(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", nil)
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid request payload")
+	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
 func TestHandleIntrospectInvalidJSON(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader([]byte("invalid json")))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -152,16 +228,14 @@ func TestHandleIntrospectInvalidJSON(t *testing.T) {
 }
 
 func TestHandleIntrospectMissingToken(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	reqBody := IntrospectRequest{Token: ""}
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -175,16 +249,14 @@ func TestHandleIntrospectMissingToken(t *testing.T) {
 // a JSON object with the 'active' field set to 'false'."
 // The response MUST be 200, not 401.
 func TestHandleIntrospectInvalidToken(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	reqBody := IntrospectRequest{Token: "invalid-token"}
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -196,15 +268,12 @@ func TestHandleIntrospectInvalidToken(t *testing.T) {
 }
 
 func TestHandleIntrospectValidToken(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	// Create a test user
 	userID := xid.New().String()
-	_, err = db.GetDB().Exec(`
+	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
 	`, userID, "introspectuser", "introspect@example.com", "hashedpassword")
 	assert.NoError(t, err)
@@ -217,6 +286,7 @@ func TestHandleIntrospectValidToken(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -269,14 +339,12 @@ func TestIntrospectTokenNotFound(t *testing.T) {
 }
 
 func TestHandleIntrospectNilBody(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", nil)
 	req.Body = nil // explicitly nil body
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -285,11 +353,8 @@ func TestHandleIntrospectNilBody(t *testing.T) {
 }
 
 func TestHandleIntrospectTokenNotInDB(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	// Create a valid JWT but don't store it in tokens table
 	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
@@ -312,6 +377,7 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -324,14 +390,11 @@ func TestHandleIntrospectTokenNotInDB(t *testing.T) {
 }
 
 func TestHandleIntrospectTokenNoSession(t *testing.T) {
-	_, err := db.InitTestDB()
-	if err != nil {
-		t.Fatalf("Failed to initialize test database: %v", err)
-	}
-	defer db.CloseDB()
+	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	userID := xid.New().String()
-	_, err = db.GetDB().Exec(`
+	_, err := db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)
 	`, userID, "nosessuser", "nosess@example.com", "hashedpassword")
 	assert.NoError(t, err)
@@ -369,6 +432,7 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -419,6 +483,7 @@ func TestValidateTokenIntrospectRequest_Empty(t *testing.T) {
 // RFC 7662 §2.2: verify that active token response includes all populated OPTIONAL fields
 func TestHandleIntrospect_ActiveToken_AllFields(t *testing.T) {
 	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	userID := xid.New().String()
 	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
@@ -432,6 +497,7 @@ func TestHandleIntrospect_ActiveToken_AllFields(t *testing.T) {
 	form.Set("token", accessToken)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -455,11 +521,13 @@ func TestHandleIntrospect_ActiveToken_AllFields(t *testing.T) {
 // RFC 7662 §2.2: inactive token SHOULD NOT include additional information
 func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
 	testutils.WithTestDB(t)
+	setupTestClient(t)
 
 	form := url.Values{}
 	form.Set("token", "nonexistent-token")
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	withBasicAuth(req)
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
@@ -476,32 +544,159 @@ func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
 	assert.False(t, hasScope, "inactive token should not include scope")
 }
 
-func TestHandleIntrospect_DbError(t *testing.T) {
-	testutils.WithTestDB(t)
-	
-	// Create a valid JWT
+// ---------------------------------------------------------------------------
+// RFC 7662 §2.1 — Bearer token authentication (RFC 6750 alternative)
+// ---------------------------------------------------------------------------
+
+// generateBearerJWT creates a signed JWT for the given userID.
+func generateBearerJWT(t *testing.T, userID string) string {
+	t.Helper()
 	claims := jwt.MapClaims{
-		"exp": time.Now().Add(time.Hour).Unix(),
-		"sub": "user-1",
-		"iss": config.GetBootstrap().AppAuthIssuer,
-		"aud": config.Get().AuthAccessTokenAudience,
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   config.Get().AuthAccessTokenAudience,
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid",
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
-	signedToken, _ := token.SignedString(key.GetPrivateKey())
+	signed, err := token.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+	return signed
+}
 
-	reqBody := IntrospectRequest{Token: signedToken}
-	body, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", bytes.NewReader(body))
+// TestHandleIntrospect_BearerAuth_Admin verifies RFC 7662 §2.1 + §4:
+// a valid Bearer token from an admin user is accepted for introspection.
+func TestHandleIntrospect_BearerAuth_Admin(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	adminID := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, 'admin')`,
+		adminID, "introadmin", "introadmin@example.com", "hash")
+	assert.NoError(t, err)
+
+	bearerJWT := generateBearerJWT(t, adminID)
+
+	form := url.Values{}
+	form.Set("token", "some-unknown-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+bearerJWT)
 	rr := httptest.NewRecorder()
-
-	// Close DB to trigger error in IntrospectToken
-	db.CloseDB()
 
 	HandleIntrospect(rr, req)
 
-	// RFC 7662 §2.2: DB error → treat as inactive, return 200 {"active":false}
-	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: lookup error MUST return 200 with active=false")
+	// Auth succeeds, unknown token returns inactive
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active)
+}
+
+// TestHandleIntrospect_BearerAuth_NonAdmin verifies RFC 7662 §4:
+// a non-admin user's Bearer token is rejected with 403.
+func TestHandleIntrospect_BearerAuth_NonAdmin(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, 'user')`,
+		userID, "introuser", "introuser@example.com", "hash")
+	assert.NoError(t, err)
+
+	bearerJWT := generateBearerJWT(t, userID)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+bearerJWT)
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code, "RFC 7662 §4: non-admin bearer MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "insufficient_scope")
+}
+
+// TestHandleIntrospect_BearerAuth_Expired verifies that an expired Bearer
+// token is rejected with 401.
+func TestHandleIntrospect_BearerAuth_Expired(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	claims := jwt.MapClaims{
+		"exp":   time.Now().Add(-time.Hour).Unix(), // expired
+		"iat":   time.Now().Add(-2 * time.Hour).Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   config.Get().AuthAccessTokenAudience,
+		"sub":   "bearer-auth-user",
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid",
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	expiredJWT, err := token.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+expiredJWT)
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_token")
+}
+
+// TestHandleIntrospect_BearerAuth_Invalid verifies that a malformed Bearer
+// token is rejected with 401.
+func TestHandleIntrospect_BearerAuth_Invalid(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer not-a-valid-jwt")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "invalid_token")
+}
+
+// TestHandleIntrospect_ClientSecretPost verifies that client_secret_post
+// authentication works for the introspect endpoint (RFC 7662 §2.1).
+func TestHandleIntrospect_ClientSecretPost(t *testing.T) {
+	testutils.WithTestDB(t)
+	setupTestClient(t)
+
+	form := url.Values{}
+	form.Set("token", "some-unknown-token")
+	form.Set("client_id", testClientID)
+	form.Set("client_secret", testClientSecret)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	// Should authenticate successfully and return inactive for unknown token
+	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp IntrospectResponse
 	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.False(t, resp.Active)

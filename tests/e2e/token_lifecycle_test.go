@@ -51,6 +51,7 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", bytes.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	// Revoke the token
 	form := url.Values{}
 	form.Set("token", tokens.AccessToken)
-	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
+	revokeResp, err := revokeToken(t, ts, form)
 	require.NoError(t, err)
 	defer func() { _ = revokeResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, revokeResp.StatusCode)
@@ -100,7 +101,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	// Revoke the token
 	form := url.Values{}
 	form.Set("token", tokens.AccessToken)
-	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
+	revokeResp, err := revokeToken(t, ts, form)
 	require.NoError(t, err)
 	defer func() { _ = revokeResp.Body.Close() }()
 
@@ -109,6 +110,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", bytes.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
@@ -131,7 +133,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	// Revoke the token
 	form := url.Values{}
 	form.Set("token", tokens.AccessToken)
-	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
+	revokeResp, err := revokeToken(t, ts, form)
 	require.NoError(t, err)
 	defer func() { _ = revokeResp.Body.Close() }()
 
@@ -249,4 +251,14 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "refresh after logout should be rejected: %s", string(body))
+}
+
+// revokeToken sends an authenticated revoke request using the shared e2e-confidential client.
+func revokeToken(t *testing.T, ts *TestServer, form url.Values) (*http.Response, error) {
+	t.Helper()
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/revoke", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
+	return ts.Client.Do(req)
 }

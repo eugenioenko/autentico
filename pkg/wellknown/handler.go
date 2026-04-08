@@ -68,9 +68,11 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
 		// RFC 8414 §2: OPTIONAL endpoint metadata
-		IntrospectionEndpoint:         fmt.Sprintf("%s/introspect", issuer),  // RFC 7662
-		RevocationEndpoint:            fmt.Sprintf("%s/revoke", issuer),      // RFC 7009
-		CodeChallengeMethodsSupported: []string{"S256"},                      // RFC 7636 §6.2
+		IntrospectionEndpoint:                    fmt.Sprintf("%s/introspect", issuer), // RFC 7662
+		RevocationEndpoint:                       fmt.Sprintf("%s/revoke", issuer),     // RFC 7009
+		IntrospectionEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
+		RevocationEndpointAuthMethodsSupported:    []string{"client_secret_basic", "client_secret_post"},
+		CodeChallengeMethodsSupported:             []string{"S256"}, // RFC 7636 §6.2
 		PromptValuesSupported:         []string{"none", "login", "create"},
 	}
 

@@ -39,6 +39,10 @@ type WellKnownConfigResponse struct {
 	IntrospectionEndpoint string `json:"introspection_endpoint,omitempty"`
 	// RFC 8414 §2: OPTIONAL. Token revocation endpoint.
 	RevocationEndpoint string `json:"revocation_endpoint,omitempty"`
+	// RFC 8414 §2: OPTIONAL. Auth methods for the introspection endpoint.
+	IntrospectionEndpointAuthMethodsSupported []string `json:"introspection_endpoint_auth_methods_supported,omitempty"`
+	// RFC 8414 §2: OPTIONAL. Auth methods for the revocation endpoint.
+	RevocationEndpointAuthMethodsSupported []string `json:"revocation_endpoint_auth_methods_supported,omitempty"`
 	// RFC 8414 §2: OPTIONAL. PKCE code challenge methods.
 	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
 	// OIDC Discovery §3: OPTIONAL. Prompt values supported.

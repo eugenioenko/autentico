@@ -108,7 +108,7 @@ Requires Go 1.22 or later.
 |---|---|
 | `autentico init` | Generate a `.env` file with all required secrets. Errors if `.env` already exists. |
 | `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
-| `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies. Use this for local HTTP development only — never in production. |
+| `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies, and enable CORS. Use this for local HTTP development only — never in production. |
 | `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
 | `autentico version` | Print the current version and exit. |
 

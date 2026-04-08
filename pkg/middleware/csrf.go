@@ -27,7 +27,9 @@ func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
 		"url", r.URL.String(),
 	)
 
-	http.Error(w, fmt.Sprintf("Forbidden - CSRF token invalid: %v%s", reason, hint), http.StatusForbidden)
+	// Log the detailed reason (with hint) but return a generic message to avoid
+	// leaking configuration details (e.g. AUTENTICO_CSRF_SECURE_COOKIE value).
+	http.Error(w, "Forbidden - CSRF token invalid", http.StatusForbidden)
 }
 
 func CSRFMiddleware(next http.Handler) http.Handler {

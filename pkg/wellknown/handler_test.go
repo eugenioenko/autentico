@@ -185,6 +185,8 @@ func TestHandleWellKnownConfig_RFC8414_RequiredFields(t *testing.T) {
 	assert.Contains(t, raw, "token_endpoint_auth_methods_supported")
 	assert.Contains(t, raw, "introspection_endpoint")
 	assert.Contains(t, raw, "revocation_endpoint")
+	assert.Contains(t, raw, "introspection_endpoint_auth_methods_supported")
+	assert.Contains(t, raw, "revocation_endpoint_auth_methods_supported")
 	assert.Contains(t, raw, "code_challenge_methods_supported")
 
 	// RFC 8414 §3: "Claims with zero elements MUST be omitted from the response."

@@ -5,6 +5,7 @@ import {
   ADMIN_PASSWORD,
   obtainTokenViaROPC,
   postForm,
+  getAdminToken,
 } from '../helpers';
 
 describe('Token endpoint — ROPC', () => {
@@ -38,11 +39,12 @@ describe('Token endpoint — Refresh', () => {
 describe('Token revocation', () => {
   it('revoked token is rejected by userinfo', async () => {
     const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
+    const adminToken = await getAdminToken();
 
-    // Revoke
+    // Revoke (with bearer auth — admin token)
     const revokeResp = await postForm(`${OAUTH_URL}/revoke`, {
       token: tokens.access_token,
-    });
+    }, adminToken);
     expect(revokeResp.status).toBe(200);
 
     // Verify rejected

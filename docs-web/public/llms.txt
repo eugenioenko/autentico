@@ -52,7 +52,7 @@ make build
 # 1. Generate .env with RSA key, CSRF secret, token signing secrets
 ./autentico init --url https://auth.example.com
 
-# For local development (disables Secure cookie flags):
+# For local development (disables Secure cookie flags, enables CORS):
 ./autentico init --url http://localhost:9999 --dev
 
 # 2. Create admin account (or use browser at /onboard after starting)
