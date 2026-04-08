@@ -7,6 +7,10 @@ export const ADMIN_EMAIL = 'admin@test.com';
 export const ADMIN_CLIENT_ID = 'autentico-admin';
 export const ADMIN_REDIRECT_URI = `http://localhost:${PORT}/admin/callback`;
 
+// RFC 7636 Appendix B test vectors for PKCE
+const TEST_CODE_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+const TEST_CODE_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+
 let cachedAdminToken: string | null = null;
 // Client with ROPC enabled, created on first use
 let ropcClientID: string | null = null;
@@ -92,6 +96,8 @@ export async function obtainTokenViaAuthCode(
   authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
   authorizeURL.searchParams.set('scope', scope);
   authorizeURL.searchParams.set('state', 'helper-state');
+  authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
+  authorizeURL.searchParams.set('code_challenge_method', 'S256');
 
   const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
   if (authorizeResp.status !== 200) {
@@ -124,6 +130,8 @@ export async function obtainTokenViaAuthCode(
       scope,
       state: 'helper-state',
       response_type: 'code',
+      code_challenge: TEST_CODE_CHALLENGE,
+      code_challenge_method: 'S256',
     }),
     redirect: 'manual',
   });
@@ -144,6 +152,7 @@ export async function obtainTokenViaAuthCode(
     code,
     redirect_uri: ADMIN_REDIRECT_URI,
     client_id: ADMIN_CLIENT_ID,
+    code_verifier: TEST_CODE_VERIFIER,
   });
 
   if (!tokenResp.ok) {

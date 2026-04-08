@@ -9,6 +9,9 @@ import {
   postForm,
 } from '../helpers';
 
+const TEST_CODE_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+const TEST_CODE_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+
 describe('Authorization Code Flow', () => {
   it('completes full flow: authorize → login → token exchange → userinfo', async () => {
     const state = 'test-state-abc';
@@ -20,6 +23,8 @@ describe('Authorization Code Flow', () => {
     authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
     authorizeURL.searchParams.set('scope', 'openid profile email');
     authorizeURL.searchParams.set('state', state);
+    authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
+    authorizeURL.searchParams.set('code_challenge_method', 'S256');
 
     const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
     expect(authorizeResp.status).toBe(200);
@@ -53,6 +58,8 @@ describe('Authorization Code Flow', () => {
         scope: 'openid profile email',
         state,
         response_type: 'code',
+        code_challenge: TEST_CODE_CHALLENGE,
+        code_challenge_method: 'S256',
       }),
       redirect: 'manual',
     });
@@ -74,6 +81,7 @@ describe('Authorization Code Flow', () => {
       code: code!,
       redirect_uri: ADMIN_REDIRECT_URI,
       client_id: ADMIN_CLIENT_ID,
+      code_verifier: TEST_CODE_VERIFIER,
     });
     expect(tokenResp.ok).toBe(true);
 
@@ -92,5 +100,23 @@ describe('Authorization Code Flow', () => {
     const claims = await userinfoResp.json();
     expect(claims.sub).toBeTruthy();
     expect(claims.preferred_username).toBe(ADMIN_USERNAME);
+  });
+
+  it('rejects public client authorize request without code_challenge', async () => {
+    const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
+    authorizeURL.searchParams.set('response_type', 'code');
+    authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
+    authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
+    authorizeURL.searchParams.set('scope', 'openid');
+    authorizeURL.searchParams.set('state', 'no-pkce-state');
+    // No code_challenge — should be rejected for public clients
+
+    const resp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
+    expect(resp.status).toBe(302);
+
+    const location = resp.headers.get('Location');
+    expect(location).toBeTruthy();
+    expect(location).toContain('error=invalid_request');
+    expect(location).toContain('code_challenge');
   });
 });
