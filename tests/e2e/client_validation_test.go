@@ -19,7 +19,7 @@ func authorizeURL(ts *TestServer, clientID, redirectURI, state string) string {
 		"client_id":             {clientID},
 		"redirect_uri":          {redirectURI},
 		"state":                 {state},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 }
@@ -179,7 +179,7 @@ func TestAuthorize_InvalidScope(t *testing.T) {
 		"redirect_uri":          {"http://localhost:3000/callback"},
 		"state":                 {"s1"},
 		"scope":                 {"offline_access"},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 

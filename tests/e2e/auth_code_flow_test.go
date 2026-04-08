@@ -35,7 +35,7 @@ func TestAuthorizationCodeFlow_Complete(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestAuthorizationCodeFlow_WithRegisteredClient(t *testing.T) {
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/token", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestAuthorizationCodeFlow_PublicClient(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", clientID)
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -190,7 +190,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 		"client_id":             {"test-client"},
 		"redirect_uri":          {redirectURI},
 		"state":                 {expectedState},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -212,7 +212,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", expectedState)
 	form.Set("client_id", "test-client")
-	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
@@ -251,7 +251,7 @@ func TestAuthorizationCodeFlow_CodeReuse(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	resp1, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -299,7 +299,7 @@ func TestAuthorizationCodeFlow_CodeExpiry(t *testing.T) {
 	form.Set("code", expiredCode)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -329,7 +329,7 @@ func TestAuthorizationCodeFlow_RedirectMismatch(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", differentRedirectURI) // Different!
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -358,7 +358,7 @@ func TestAuthorizationCodeFlow_IDTokenWithNonce(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -407,7 +407,7 @@ func TestAuthorizationCodeFlow_NoIDTokenWithoutOpenidScope(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -432,7 +432,7 @@ func TestAuthorizationCodeFlow_PKCE_S256(t *testing.T) {
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
 	// Generate PKCE values
-	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeVerifier := testCodeVerifier
 	h := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
 
@@ -469,7 +469,7 @@ func TestAuthorizationCodeFlow_PKCE_WrongVerifier(t *testing.T) {
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeVerifier := testCodeVerifier
 	h := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
 
@@ -502,7 +502,7 @@ func TestAuthorizationCodeFlow_PKCE_MissingVerifier(t *testing.T) {
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeVerifier := testCodeVerifier
 	h := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
 
@@ -538,7 +538,7 @@ func TestAuthorizationCodeFlow_PKCE_Plain(t *testing.T) {
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
 	// For plain method, code_challenge == code_verifier
-	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	codeVerifier := testCodeVerifier
 	codeChallenge := codeVerifier // plain: no transformation
 
 	code := performAuthorizationCodeFlowWithPKCE(t, ts, "test-client", redirectURI, "user@test.com", "password123", "test-state", "openid", "", codeChallenge, "plain")
@@ -587,7 +587,7 @@ func TestAuthorizationCodeFlow_PKCE_PlainRejected(t *testing.T) {
 		"redirect_uri":          {redirectURI},
 		"state":                 {"test-state"},
 		"scope":                 {"openid"},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"plain"},
 	}.Encode()
 
@@ -613,7 +613,7 @@ func TestAuthorizationCodeFlow_InvalidCSRF(t *testing.T) {
 		"client_id":             {"test-client"},
 		"redirect_uri":          {redirectURI},
 		"state":                 {"state1"},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -673,7 +673,7 @@ func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
 		"client_id":             {"test-client"},
 		"redirect_uri":          {redirectURI},
 		"state":                 {specialState},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -694,7 +694,7 @@ func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", specialState)
 	form.Set("client_id", "test-client")
-	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
@@ -733,7 +733,7 @@ func TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -783,7 +783,7 @@ func TestAuthorizationCodeFlow_ScopeDownscope(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
-	form.Set("code_verifier", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)

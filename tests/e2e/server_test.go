@@ -72,7 +72,7 @@ func TestServerAuthorizeRendersLoginPage(t *testing.T) {
 		"client_id":             {"test-client"},
 		"redirect_uri":          {"http://localhost:3000/callback"},
 		"state":                 {"abc123"},
-		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 

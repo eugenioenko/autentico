@@ -14,6 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// RFC 7636 Appendix B test vectors — used across all e2e tests for PKCE.
+const (
+	testCodeVerifier  = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	testCodeChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+)
+
 // createTestUser creates a user directly in the database.
 func createTestUser(t *testing.T, username, password, email string) *user.UserResponse {
 	t.Helper()
@@ -74,7 +80,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 		"client_id":            {clientID},
 		"redirect_uri":         {redirectURI},
 		"state":                {state},
-		"code_challenge":       {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":       {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -97,7 +103,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", clientID)
-	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
@@ -138,7 +144,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 		"client_id":            {clientID},
 		"redirect_uri":         {redirectURI},
 		"state":                {state},
-		"code_challenge":       {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":       {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}
 	if scope != "" {
@@ -169,7 +175,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	form.Set("client_id", clientID)
 	form.Set("scope", scope)
 	form.Set("nonce", nonce)
-	form.Set("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 
@@ -279,7 +285,7 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 		"redirect_uri":         {redirectURI},
 		"state":                {state},
 		"client_id":            {"test-client"},
-		"code_challenge":       {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":       {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
