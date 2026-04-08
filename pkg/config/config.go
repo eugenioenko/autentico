@@ -43,6 +43,10 @@ type BootstrapConfig struct {
 	RateLimitBurst     int
 	RateLimitRPM       float64
 	RateLimitRPMBurst  int
+	// Anti-timing delay (ms) added to auth responses to prevent user enumeration.
+	// Both set to 0 disables the delay.
+	AntiTimingMinMs int
+	AntiTimingMaxMs int
 }
 
 // ThemeConfig holds theme-related display settings.
@@ -276,6 +280,8 @@ func InitBootstrap() {
 		RateLimitBurst:                 getEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
 		RateLimitRPM:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPM", 20),
 		RateLimitRPMBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
+		AntiTimingMinMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
+		AntiTimingMaxMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
 	}
 }
 

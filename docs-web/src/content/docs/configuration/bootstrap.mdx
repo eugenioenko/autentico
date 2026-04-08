@@ -65,6 +65,17 @@ Two-tier limiting: a request must pass both the per-second and per-minute bucket
 | `AUTENTICO_RATE_LIMIT_RPM` | `20` | Sustained request rate per IP (requests/minute). Caps long-term enumeration even when requests are spaced to avoid the per-second limit. |
 | `AUTENTICO_RATE_LIMIT_RPM_BURST` | `20` | Burst capacity for the per-minute limiter. |
 
+## Anti-timing delay
+
+Random delay added to authentication responses (`/oauth2/login`, `/oauth2/passkey/login`, `/oauth2/forgot-password`, `/oauth2/resend-verification`) to prevent timing-based user enumeration. The server sleeps for a random duration between the min and max values before responding.
+
+Set both to `0` to disable — useful for profiling or when your infrastructure already mitigates timing attacks.
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTENTICO_ANTI_TIMING_MIN_MS` | `50` | Minimum delay in milliseconds. |
+| `AUTENTICO_ANTI_TIMING_MAX_MS` | `150` | Maximum delay in milliseconds. Must be greater than min, otherwise the delay is disabled. |
+
 ## Token signing
 
 | Variable | Default | Description |
@@ -103,4 +114,8 @@ AUTENTICO_RATE_LIMIT_RPS=5
 AUTENTICO_RATE_LIMIT_BURST=10
 AUTENTICO_RATE_LIMIT_RPM=20
 AUTENTICO_RATE_LIMIT_RPM_BURST=20
+
+# Anti-timing delay (set both to 0 to disable for profiling)
+AUTENTICO_ANTI_TIMING_MIN_MS=50
+AUTENTICO_ANTI_TIMING_MAX_MS=150
 ```

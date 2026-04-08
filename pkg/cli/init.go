@@ -100,6 +100,12 @@ func buildEnvContent(p envParams) string {
 		"AUTENTICO_RATE_LIMIT_RPM=20",
 		"# RPM_BURST: maximum burst size above the RPM limit.",
 		"AUTENTICO_RATE_LIMIT_RPM_BURST=20",
+		"",
+		"# ── Anti-timing delay ────────────────────────────────────────────────────────",
+		"# Random delay (milliseconds) added to authentication responses to prevent",
+		"# timing-based user enumeration. Set both to 0 to disable (e.g. for profiling).",
+		"AUTENTICO_ANTI_TIMING_MIN_MS=50",
+		"AUTENTICO_ANTI_TIMING_MAX_MS=150",
 	}
 
 	return strings.Join(lines, "\n") + "\n"
