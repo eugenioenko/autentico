@@ -6,6 +6,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func WithTestDB(t *testing.T) {
@@ -29,6 +30,21 @@ func InsertTestClient(t *testing.T, clientID string, redirectURIs []string) {
 		`INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, is_active)
 		 VALUES (?, ?, 'Test Client', 'public', ?, '[]', TRUE)`,
 		"id-"+clientID, clientID, string(urisJSON),
+	)
+	require.NoError(t, err)
+}
+
+// InsertTestConfidentialClient inserts a confidential OAuth2 client with a
+// known plaintext secret for testing endpoints that require client auth.
+// The secret is bcrypt-hashed before storage, matching production behavior.
+func InsertTestConfidentialClient(t *testing.T, clientID, clientSecret string) {
+	t.Helper()
+	hashed, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.MinCost)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, is_active, scopes, grant_types)
+		 VALUES (?, ?, 'Test Confidential Client', ?, 'confidential', '[]', '[]', TRUE, 'openid profile email', '["authorization_code","refresh_token"]')`,
+		"id-"+clientID, clientID, string(hashed),
 	)
 	require.NoError(t, err)
 }

@@ -51,6 +51,7 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", bytes.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
@@ -109,6 +110,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", bytes.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)

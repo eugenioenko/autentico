@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -33,6 +36,44 @@ func inactive(w http.ResponseWriter) {
 // @Router /oauth2/introspect [post]
 func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
+	// RFC 7662 §2.1: "To prevent token scanning attacks, the endpoint MUST also
+	// require some form of authorization to access this endpoint, such as client
+	// authentication as described in OAuth 2.0 [RFC6749] or a separate OAuth 2.0
+	// access token such as the bearer token described in OAuth 2.0 Bearer Token
+	// Usage [RFC6750]."
+	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
+	if err != nil {
+		slog.Warn("introspect: client authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		return
+	}
+	if authenticatedClient == nil {
+		// RFC 7662 §2.1: alternatively accept "a separate OAuth 2.0 access token
+		// such as the bearer token described in OAuth 2.0 Bearer Token Usage [RFC6750]"
+		//
+		// RFC 7662 §4 (Security Considerations): "The authorization server MUST
+		// determine whether or not the token can be introspected by the specific
+		// resource server making the request." We restrict bearer auth to admin
+		// users only to prevent arbitrary users from inspecting other users' tokens.
+		bearerToken := utils.ExtractBearerToken(r.Header.Get("Authorization"))
+		if bearerToken == "" {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
+			return
+		}
+		claims, err := jwtutil.ValidateAccessToken(bearerToken)
+		if err != nil {
+			slog.Warn("introspect: bearer token invalid", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid or expired")
+			return
+		}
+		usr, err := user.UserByID(claims.UserID)
+		if err != nil || usr.Role != "admin" {
+			slog.Warn("introspect: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", claims.UserID)
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token introspection")
+			return
+		}
+	}
+
 	var req IntrospectRequest
 
 	if r.Body == nil {
@@ -42,17 +83,16 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
 	// RFC 7662 §2.1: request MUST be application/x-www-form-urlencoded.
 	// Also accept application/json for backwards compatibility with existing callers.
-	var err error
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
-		if err = r.ParseForm(); err != nil {
+		if err := r.ParseForm(); err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
 			return
 		}
 		// RFC 7662 §2.1: "token" parameter is REQUIRED
 		req.Token = r.FormValue("token")
 	} else {
-		if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 			return
 		}

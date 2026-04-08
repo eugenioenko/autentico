@@ -212,7 +212,12 @@ func introspectToken(t *testing.T, ts *TestServer, accessToken string) introspec
 	form := url.Values{}
 	form.Set("token", accessToken)
 
-	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/introspect", form)
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
+
+	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)

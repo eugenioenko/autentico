@@ -298,6 +298,7 @@ func TestIntrospect_ActiveToken(t *testing.T) {
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
