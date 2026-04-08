@@ -53,7 +53,6 @@ func TestInitBootstrap_EnvOverride(t *testing.T) {
 	t.Setenv("AUTENTICO_APP_URL", "https://example.com")
 	t.Setenv("AUTENTICO_APP_OAUTH_PATH", "/auth")
 	t.Setenv("AUTENTICO_LISTEN_PORT", "8080")
-	t.Setenv("AUTENTICO_APP_ENABLE_CORS", "false")
 	t.Setenv("AUTENTICO_RATE_LIMIT_RPS", "10.5")
 	t.Setenv("AUTENTICO_RATE_LIMIT_BURST", "20")
 
@@ -65,7 +64,6 @@ func TestInitBootstrap_EnvOverride(t *testing.T) {
 	assert.Equal(t, "https://example.com/auth", Bootstrap.AppAuthIssuer)
 	assert.Equal(t, "443", Bootstrap.AppPort)
 	assert.Equal(t, "8080", Bootstrap.AppListenPort)
-	assert.Equal(t, false, Bootstrap.AppEnableCORS)
 	assert.Equal(t, 10.5, Bootstrap.RateLimitRPS)
 	assert.Equal(t, 20, Bootstrap.RateLimitBurst)
 }

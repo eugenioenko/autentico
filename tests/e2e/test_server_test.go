@@ -175,8 +175,8 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleRemoveMember)))
 	mux.Handle("GET /admin/api/users/{id}/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleGetUserGroups)))
 
-	// Apply logging middleware and start server
-	server.Config.Handler = middleware.LoggingMiddleware(mux)
+	// Apply CORS + logging middleware and start server
+	server.Config.Handler = middleware.CORSMiddleware(middleware.LoggingMiddleware(mux))
 	server.Start()
 
 	// Create HTTP client with cookie jar and no-redirect policy

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 )
@@ -62,6 +63,7 @@ var defaults = map[string]string{
 	"profile_field_profile":          "hidden",
 	"profile_field_locale":           "hidden",
 	"profile_field_address":          "optional",
+	"cors_allowed_origins":           "",
 }
 
 // EnsureDefaults writes any missing well-known keys with their default values.
@@ -269,6 +271,24 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["profile_field_address"]; ok {
 		cfg.ProfileFieldAddress = v
+	}
+
+	if v, ok := all["cors_allowed_origins"]; ok {
+		cfg.CORSAllowedOrigins = nil
+		cfg.CORSAllowAll = false
+		if v != "" {
+			origins := strings.Split(v, ",")
+			for _, o := range origins {
+				o = strings.TrimSpace(o)
+				if o == "" {
+					continue
+				}
+				if o == "*" {
+					cfg.CORSAllowAll = true
+				}
+				cfg.CORSAllowedOrigins = append(cfg.CORSAllowedOrigins, o)
+			}
+		}
 	}
 
 	config.Values = cfg
