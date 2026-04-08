@@ -34,6 +34,56 @@ describe('Token endpoint — Refresh', () => {
     expect(refreshed.refresh_token).toBeTruthy();
     expect(refreshed.access_token).not.toBe(original.access_token);
   });
+
+  it('rotates refresh token — old token is revoked after use', async () => {
+    const original = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
+
+    // Use refresh token — should rotate
+    const resp = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token',
+      refresh_token: original.refresh_token,
+    });
+    expect(resp.ok).toBe(true);
+
+    const rotated = await resp.json();
+    expect(rotated.refresh_token).not.toBe(original.refresh_token);
+
+    // Old refresh token must be rejected
+    const replayResp = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token',
+      refresh_token: original.refresh_token,
+    });
+    expect(replayResp.status).toBe(400);
+
+    const error = await replayResp.json();
+    expect(error.error).toBe('invalid_grant');
+  });
+
+  it('replay detection revokes all user tokens', async () => {
+    const original = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
+
+    // Rotate
+    const resp = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token',
+      refresh_token: original.refresh_token,
+    });
+    expect(resp.ok).toBe(true);
+    const rotated = await resp.json();
+
+    // Replay old token — triggers theft detection
+    const replayResp = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token',
+      refresh_token: original.refresh_token,
+    });
+    expect(replayResp.status).toBe(400);
+
+    // New token should also be revoked (all user tokens invalidated)
+    const newResp = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token',
+      refresh_token: rotated.refresh_token,
+    });
+    expect(newResp.status).toBe(400);
+  });
 });
 
 describe('Token revocation', () => {
