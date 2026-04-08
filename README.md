@@ -325,6 +325,8 @@ These are infrastructure-level settings read once at startup. Changing them requ
 | `AUTENTICO_RATE_LIMIT_BURST`     | Burst size for the per-second limiter                          | `10`                    |
 | `AUTENTICO_RATE_LIMIT_RPM`       | Sustained requests/min per IP (long-term cap)                  | `20`                    |
 | `AUTENTICO_RATE_LIMIT_RPM_BURST` | Burst size for the per-minute limiter                          | `20`                    |
+| `AUTENTICO_ANTI_TIMING_MIN_MS`  | Minimum random delay (ms) on auth responses to prevent timing-based user enumeration (0 + 0 = disabled) | `50` |
+| `AUTENTICO_ANTI_TIMING_MAX_MS`  | Maximum random delay (ms); must be > min, otherwise disabled   | `150`                   |
 
 > In production, set all `*_SECURE` flags to `true` once you have TLS.
 
@@ -770,6 +772,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **Password hashing** — user passwords are bcrypt-hashed.
 - **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit single-account brute-force exposure.
 - **Rate limiting** — built-in two-tier per-IP rate limiter on `/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, and `/oauth2/passkey/login/finish`. A per-second limit (default 5 rps / burst 10) stops rapid bursts; a per-minute limit (default 20 rpm / burst 20) caps sustained enumeration. Set `AUTENTICO_RATE_LIMIT_RPS=0` to disable both.
+- **Anti-timing delay** — auth endpoints add a random delay (default 50–150 ms) to prevent user enumeration via response timing. A bcrypt dummy hash is also computed on unknown usernames so the CPU cost is indistinguishable from a wrong-password attempt. Configurable via `AUTENTICO_ANTI_TIMING_MIN_MS` / `AUTENTICO_ANTI_TIMING_MAX_MS`; set both to `0` to disable (e.g. for profiling).
 - **RS256 signing** — the RSA private key never leaves the server. Relying parties verify tokens using the public JWKS.
 - **ROPC scope** — restrict the password grant to only clients that genuinely need it by omitting `"password"` from other clients' `grant_types`.
 
