@@ -61,6 +61,7 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -99,10 +100,12 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 
 	// Visit /authorize again — should show login page (not auto-redirect)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state2"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state2"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -155,10 +158,12 @@ func TestAutoLogin_ValidIdpSession(t *testing.T) {
 
 	// Second visit to /authorize — should auto-login (302 with new code)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state2"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state2"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -193,10 +198,12 @@ func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 
 	// Visit /authorize — should show login page (session idle timeout expired)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state2"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state2"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -225,10 +232,12 @@ func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 
 	// Visit /authorize — should show login page (session deactivated)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state2"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state2"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)

@@ -34,6 +34,7 @@ func TestRpInitiatedLogout_DeactivatesIdpSession(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", "test-client")
+	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -50,10 +51,12 @@ func TestRpInitiatedLogout_DeactivatesIdpSession(t *testing.T) {
 
 	// Step 3: Verify SSO is active — /authorize should auto-redirect (not show login page).
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {"test-client"},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state2"},
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state2"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	preResp, err := ts.Client.Get(authorizeURL)

@@ -39,6 +39,7 @@ func TestConfidentialClient_BasicAuth(t *testing.T) {
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
+	form.Set("code_verifier", testCodeVerifier)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/token", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -86,6 +87,7 @@ func TestConfidentialClient_FormPost(t *testing.T) {
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", clientID)
 	form.Set("client_secret", clientSecret)
+	form.Set("code_verifier", testCodeVerifier)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -162,6 +164,7 @@ func TestConfidentialClient_WrongSecret(t *testing.T) {
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
+	form.Set("code_verifier", testCodeVerifier)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/token", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -204,6 +207,7 @@ func TestPublicClient_NoSecretRequired(t *testing.T) {
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
 	form.Set("client_id", clientID)
+	form.Set("code_verifier", testCodeVerifier)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
@@ -240,10 +244,12 @@ func TestInactiveClient_Rejected(t *testing.T) {
 
 	// Attempt /authorize with the inactive client
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {clientID},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state1"},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state1"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -313,10 +319,12 @@ func TestClient_RedirectURIEnforcement(t *testing.T) {
 
 	// Attempt /authorize with a disallowed redirect_uri
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {clientID},
-		"redirect_uri":  {disallowedURI},
-		"state":         {"state1"},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {disallowedURI},
+		"state":                 {"state1"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)
@@ -346,10 +354,12 @@ func TestClient_ResponseTypeRestriction(t *testing.T) {
 
 	// Attempt /authorize with response_type=code — should be rejected
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type": {"code"},
-		"client_id":     {clientID},
-		"redirect_uri":  {redirectURI},
-		"state":         {"state1"},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"state":                 {"state1"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(authorizeURL)

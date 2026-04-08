@@ -120,7 +120,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 **Security Considerations (§10):**
 - [x] §10.3: Auth codes MUST be single-use and short-lived — `auth_codes.used` flag enforced, expiry validated in `authorization_code.go`
-- [x] §10.6: Auth code interception — PKCE mitigates; `RevokeTokensByUserAndClient` called on replay; note PKCE is not yet enforced for all public clients (covered in Phase 3)
+- [x] §10.6: Auth code interception — PKCE mitigates; `RevokeTokensByUserAndClient` called on replay; PKCE is now enforced for all public clients (RFC 9700 §2.1.1)
 - [x] §10.12: CSRF on redirect — `state` is now URL-encoded and echoed unchanged via `url.Values` in both `login/handler.go` and `authorize/handler.go` SSO path
 
 **Discovery cross-check:** RFC 6749 does not define a discovery document — no action needed.
@@ -203,7 +203,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Verified + annotated (2026-03-30) |
 | SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | ✅ Verified + annotated (2026-03-30) — defaults to S256 (MTI) |
 | SHOULD NOT | §7.2 | `plain` method SHOULD NOT be used | ✅ Rejected by default (`AuthPKCEEnforceSHA256=true`); configurable for backwards-compat |
-| MAY | §5 | Accept clients that do not use PKCE (backwards compatibility) | ✅ Non-PKCE flows work — PKCE is optional |
+| MUST | — | Enforce PKCE for public clients (RFC 9700 §2.1.1 / OAuth 2.1) | ✅ Fixed — authorize endpoint rejects public clients without `code_challenge` |
+| MAY | §5 | Accept confidential clients without PKCE (backwards compatibility) | ✅ Confidential clients can omit PKCE |
 
 **Security Considerations (§7):**
 - [x] §7.1: Entropy of `code_verifier` — client-side concern; `validateCodeVerifier` enforces 43–128 chars (≥256 bits of entropy when base64url-encoded from 32 octets)
@@ -234,6 +235,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 - E2e: `TestAuthorizationCodeFlow_PKCE_MissingVerifier` — missing verifier when challenge present → error ✅ Pre-existing
 - E2e: `TestAuthorizationCodeFlow_PKCE_Plain` — full plain flow end-to-end (enforcement off) ✅ Added
 - E2e: `TestAuthorizationCodeFlow_PKCE_PlainRejected` — plain rejected when enforcement on (default) ✅ Added
+- Unit: `TestHandleAuthorize_PKCE_RequiredForPublicClient` — public client without code_challenge → rejected ✅ Added
+- Unit: `TestHandleAuthorize_PKCE_NotRequiredForConfidentialClient` — confidential client without code_challenge → allowed ✅ Added
 
 ---
 
