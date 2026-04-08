@@ -155,6 +155,20 @@ export default function ClientCreateForm({
             <Select options={CLIENT_TYPE_OPTIONS} />
           </Form.Item>
 
+          <Form.Item noStyle dependencies={["client_type"]}>
+            {() =>
+              form.getFieldValue("client_type") === "confidential" ? (
+                <Form.Item
+                  name="client_secret"
+                  label="Client Secret"
+                  tooltip={{ title: tip("client_secret"), icon: <ExclamationCircleOutlined /> }}
+                >
+                  <Input.Password placeholder="Auto-generated if left empty" />
+                </Form.Item>
+              ) : null
+            }
+          </Form.Item>
+
           <Form.List
             name="redirect_uris"
             rules={[

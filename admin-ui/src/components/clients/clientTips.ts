@@ -5,6 +5,7 @@ export const tip = makeTip({
   client_name: "Human-readable name for the client, shown in the Admin UI and logs.",
   client_id: "Custom client ID. Auto-generated if omitted. Must be unique across all clients.",
   client_type: "Confidential: server-side apps that can keep a secret. Public: browser or mobile apps that cannot — no secret is issued, use PKCE instead.",
+  client_secret: "Optional. If left empty, a secret is auto-generated. Only shown once after creation.",
   redirect_uris: "Allowed callback URLs. The redirect_uri in each authorization request must exactly match one of these. No wildcards, max 10.",
   grant_types: "OAuth2 flows this client is permitted to use.",
   response_types: "What the authorization endpoint returns. Use [code] for the standard Authorization Code flow.",
