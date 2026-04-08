@@ -11,11 +11,27 @@ let cachedAdminToken: string | null = null;
 // Client with ROPC enabled, created on first use
 let ropcClientID: string | null = null;
 
-export async function postForm(url: string, data: Record<string, string>): Promise<Response> {
+export async function postForm(url: string, data: Record<string, string>, bearer?: string): Promise<Response> {
   const body = new URLSearchParams(data);
+  const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   return fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers,
+    body,
+    redirect: 'manual',
+  });
+}
+
+export async function postFormBasic(url: string, data: Record<string, string>, clientId: string, clientSecret: string): Promise<Response> {
+  const body = new URLSearchParams(data);
+  const credentials = btoa(`${clientId}:${clientSecret}`);
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${credentials}`,
+    },
     body,
     redirect: 'manual',
   });
