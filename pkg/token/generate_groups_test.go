@@ -26,7 +26,7 @@ func TestGenerateIDToken_GroupsClaim(t *testing.T) {
 
 	testUser := user.User{ID: "user-groups-1", Username: "testuser"}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid groups", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid groups", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -48,7 +48,7 @@ func TestGenerateIDToken_NoGroupsScope(t *testing.T) {
 
 	testUser := user.User{ID: "user-nogrpscope", Username: "testuser"}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -64,7 +64,7 @@ func TestGenerateIDToken_GroupsScopeButNoGroups(t *testing.T) {
 
 	testUser := user.User{ID: "user-nogroups", Username: "testuser"}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid groups", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid groups", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)

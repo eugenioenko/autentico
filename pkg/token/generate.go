@@ -1,6 +1,8 @@
 package token
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -97,8 +99,9 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
 // OIDC Core §3.1.3.3: the ID token MUST contain iss, sub, aud, exp, iat.
 // OIDC Core §3.1.3.3: nonce MUST be present if sent in the authorization request.
+// OIDC Core §3.1.3.6: at_hash SHOULD be included when the ID token is issued from the token endpoint.
 // The scope parameter controls which optional claims are included.
-func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time) (string, error) {
+func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time, accessToken string) (string, error) {
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
@@ -118,6 +121,13 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	// OIDC Core §3.1.3.3: nonce MUST be present in ID token if sent in the authorization request
 	if nonce != "" {
 		claims["nonce"] = nonce
+	}
+
+	// OIDC Core §3.1.3.6: at_hash is the base64url encoding of the left-most half of the
+	// hash of the access token value. SHA-256 is used for RS256 signed tokens.
+	if accessToken != "" {
+		hash := sha256.Sum256([]byte(accessToken))
+		claims["at_hash"] = base64.RawURLEncoding.EncodeToString(hash[:sha256.Size/2])
 	}
 
 	// OIDC Core §3.1.3.7: azp SHOULD be present when the ID token has a single audience
