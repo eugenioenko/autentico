@@ -359,6 +359,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §3.1.2.1 | `scope` MUST include `openid` for OIDC requests; no ID token without it | `pkg/token/handler.go` line 237 |
 | §3.1.3.3 | ID token required claims: `iss`, `sub`, `aud`, `exp`, `iat` | `pkg/token/generate.go` `GenerateIDToken` lines 96-104 |
 | §3.1.3.3 | `nonce` MUST be present in ID token if sent in auth request | `pkg/token/generate.go` lines 110-112 |
+| §3.1.3.6 | `at_hash` SHOULD be included in ID token from token endpoint | `pkg/token/generate.go` `GenerateIDToken` — computes base64url(left_half(SHA-256(access_token))) |
 | §3.1.3.7 | `azp` SHOULD be present when ID token has a single audience | `pkg/token/generate.go` lines 115-117 |
 | §5.1 | UserInfo standard claims scope-filtered | `pkg/userinfo/handler.go` lines 102-145 |
 | §5.3 | UserInfo `sub` MUST match ID token `sub` | `pkg/userinfo/handler.go` — both use `user.ID` / `tok.UserID` |
@@ -376,6 +377,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §3.1.3.3 | `aud` contains the client_id | ✅ Verified + annotated (2026-03-30) |
 | MUST | §5.3 | UserInfo `sub` matches ID token `sub` | ✅ Verified + annotated (2026-03-30) — both use same user ID |
 | MUST | §5.4 | Access token claims respect requested scope | ✅ Fixed (PR #108) |
+| SHOULD | §3.1.3.6 | `at_hash` in ID token from token endpoint | ✅ Implemented (2026-04-08) — PR #165 |
 | SHOULD | §3.1.3.7 | `azp` present in ID token | ✅ Verified + annotated (2026-03-30) |
 | SHOULD | §11 | `offline_access` only with `prompt=consent` | ⏭ Skipped — refresh tokens always issued by design |
 
@@ -395,6 +397,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 - Unit: `TestGenerateIDToken_ScopeBasedClaims` — profile/email claim filtering ✅ Pre-existing
 - Unit: `TestGenerateIDToken_AcrClaimPresent` — acr = "1" ✅ Pre-existing
 - Unit: `TestGenerateIDToken_AuthTimeReflectsOriginalLogin` — auth_time correctness ✅ Pre-existing
+- Unit: `TestGenerateIDToken_AtHashPresent` — at_hash correctly computed ✅ New (2026-04-08)
+- Unit: `TestGenerateIDToken_AtHashAbsentWhenNoAccessToken` — at_hash omitted without access token ✅ New (2026-04-08)
 - Unit: `TestGenerateTokens_ScopeFiltering` — access token scope-based claims ✅ Pre-existing
 - Unit: `TestGenerateTokens_AcrValue` — access token acr = "1" ✅ Pre-existing
 - Unit: `TestHandleUserInfo_ScopeClaims_OpenIDOnly` — openid only, no profile/email claims ✅ Pre-existing

@@ -1,6 +1,8 @@
 package token
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -44,7 +46,7 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	assert.NotEmpty(t, idToken)
 
@@ -75,7 +77,7 @@ func TestGenerateIDToken_WithoutNonce(t *testing.T) {
 		Email:    "testuser@example.com",
 	}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -95,7 +97,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	}
 
 	// Only "openid" scope — profile and email claims must NOT be included
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims := parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
@@ -104,7 +106,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid profile" — profile claims included, email claims not
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now())
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
@@ -113,7 +115,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid email" — email is served via userinfo only, never in id_token
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client", time.Now())
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
@@ -121,7 +123,7 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email_verified"])
 
 	// "openid profile email" — profile claims in id_token, email only via userinfo
-	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client", time.Now())
+	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
@@ -136,7 +138,7 @@ func TestGenerateIDToken_AcrClaimPresent(t *testing.T) {
 
 	testUser := user.User{ID: "user-1", Username: "testuser"}
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now())
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -151,7 +153,7 @@ func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
 
 	originalLoginTime := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
 
-	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", originalLoginTime)
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", originalLoginTime, "fake-access-token")
 	require.NoError(t, err)
 
 	claims := parseIDTokenClaims(t, idToken)
@@ -159,6 +161,42 @@ func TestGenerateIDToken_AuthTimeReflectsOriginalLogin(t *testing.T) {
 	authTime := int64(claims["auth_time"].(float64))
 	assert.Equal(t, originalLoginTime.Unix(), authTime, "auth_time must equal the original login time, not now")
 	assert.NotEqual(t, time.Now().Unix(), authTime, "auth_time must not be the current time")
+}
+
+// TestGenerateIDToken_AtHashPresent verifies that the at_hash claim is correctly
+// computed as base64url(left_half(SHA-256(access_token))) per OIDC Core §3.1.3.6.
+func TestGenerateIDToken_AtHashPresent(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	accessToken := "test-access-token-value"
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), accessToken)
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+
+	// Manually compute expected at_hash: base64url(left_half(SHA-256(access_token)))
+	hash := sha256.Sum256([]byte(accessToken))
+	expected := base64.RawURLEncoding.EncodeToString(hash[:sha256.Size/2])
+
+	assert.Equal(t, expected, claims["at_hash"], "OIDC Core §3.1.3.6: at_hash must be base64url(left_half(SHA-256(access_token)))")
+}
+
+// TestGenerateIDToken_AtHashAbsentWhenNoAccessToken verifies that at_hash is omitted
+// when no access token is provided (e.g., edge cases where ID token is issued alone).
+func TestGenerateIDToken_AtHashAbsentWhenNoAccessToken(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{ID: "user-1", Username: "testuser"}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), "")
+	require.NoError(t, err)
+
+	claims := parseIDTokenClaims(t, idToken)
+	assert.Nil(t, claims["at_hash"], "at_hash must not be present when no access token is provided")
 }
 
 // TestGenerateTokens_ScopeFiltering verifies that the access token only embeds
