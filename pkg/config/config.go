@@ -16,7 +16,6 @@ type BootstrapConfig struct {
 	DbFilePath    string
 	AppURL        string // AUTENTICO_APP_URL
 	AppOAuthPath  string // AUTENTICO_APP_OAUTH_PATH
-	AppEnableCORS bool   // AUTENTICO_APP_ENABLE_CORS
 	// Derived from AppURL — not set by env vars
 	AppDomain     string
 	AppHost       string
@@ -106,6 +105,9 @@ type Config struct {
 	AllowUsernameChange bool
 	// When false (default), users cannot change their own email via the account portal.
 	AllowEmailChange bool
+	// CORS: parsed from the "cors_allowed_origins" runtime setting.
+	CORSAllowedOrigins []string
+	CORSAllowAll       bool
 	// When false (default), optional profile fields are hidden on the signup form
 	// to keep it minimal. Required fields are always shown regardless.
 	SignupShowOptionalFields bool
@@ -187,7 +189,6 @@ var (
 		DbFilePath:                     "./db/autentico.db",
 		AppURL:                         "http://localhost:9999",
 		AppOAuthPath:                   "/oauth2",
-		AppEnableCORS:                  true,
 		AppDomain:                      "localhost",
 		AppHost:                        "localhost:9999",
 		AppPort:                        "9999",
@@ -256,7 +257,6 @@ func InitBootstrap() {
 		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./db/autentico.db"),
 		AppURL:                         appURL,
 		AppOAuthPath:                   oauthPath,
-		AppEnableCORS:                  getEnvBool("AUTENTICO_APP_ENABLE_CORS", false),
 		AppDomain:                      domain,
 		AppHost:                        host,
 		AppPort:                        port,

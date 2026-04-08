@@ -8,6 +8,7 @@ import {
   DesktopOutlined,
   FileSearchOutlined,
   FileTextOutlined,
+  ApiOutlined,
   GlobalOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -31,6 +32,7 @@ const menuItems: any[] = [
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
   { key: "/deletion-requests", icon: <DeleteOutlined />, label: "Deletion Requests" },
   { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
+  { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
   { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
   { type: "divider" },
   {

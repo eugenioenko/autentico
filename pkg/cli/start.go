@@ -277,9 +277,7 @@ func RunStart(c *cli.Context) error {
 		middleware.RequestIDMiddleware,
 		middleware.SecurityHeadersMiddleware,
 		middleware.LoggingMiddleware,
-	}
-	if bs.AppEnableCORS {
-		middlewareList = append(middlewareList, middleware.CORSMiddleware)
+		middleware.CORSMiddleware,
 	}
 	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
 

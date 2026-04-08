@@ -79,13 +79,18 @@ labels:
 
 ## CORS
 
-If your relying party SPA needs to call the token endpoint from a browser, enable CORS:
+If your relying party SPA needs to call the token endpoint from a browser, configure allowed origins via the Admin UI (CORS page) or the `cors_allowed_origins` runtime setting:
 
-```
-AUTENTICO_APP_ENABLE_CORS=true
+```bash
+# Via API
+curl -X PUT \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"cors_allowed_origins": "https://app.example.com,https://admin.example.com"}' \
+  https://auth.example.com/admin/api/settings
 ```
 
-This adds permissive CORS headers to all responses. For tighter control, handle CORS at the reverse proxy level instead.
+Use specific origins in production. Set `*` to allow all origins (development only). Leave empty to disable CORS and handle it at the reverse proxy level instead.
 
 ## Headers
 

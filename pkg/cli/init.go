@@ -26,11 +26,9 @@ type envParams struct {
 
 func buildEnvContent(p envParams) string {
 	secureCookieValue := "true"
-	corsValue := "false"
 	cookieComment := "# Cookie security — requires HTTPS. Set to false only for local HTTP development."
 	if p.dev {
 		secureCookieValue = "false"
-		corsValue = "true"
 		cookieComment = "# Cookie security (development mode — HTTP only)\n# WARNING: do NOT use these settings in production; cookies will be sent over plaintext HTTP."
 	}
 
@@ -54,10 +52,6 @@ func buildEnvContent(p envParams) string {
 		"# URL path prefix for all OAuth2/OIDC endpoints.",
 		"# The issuer will be AUTENTICO_APP_URL + AUTENTICO_APP_OAUTH_PATH.",
 		"AUTENTICO_APP_OAUTH_PATH=/oauth2",
-		"#",
-		"# Set to true to enable CORS headers. Only needed for local development;",
-		"# in production your reverse proxy should handle CORS.",
-		fmt.Sprintf("AUTENTICO_APP_ENABLE_CORS=%s", corsValue),
 		"#",
 		"# Port the server listens on locally. Useful when a reverse proxy handles TLS",
 		"# and the public AUTENTICO_APP_URL port differs from the local bind port.",
