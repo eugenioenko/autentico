@@ -144,7 +144,7 @@ export default function ClientCreateForm({
             label="Client ID"
             tooltip={{ title: tip("client_id"), icon: <ExclamationCircleOutlined /> }}
           >
-            <Input placeholder="my-custom-client-id" />
+            <Input placeholder="my-custom-client-id" autoComplete="off" />
           </Form.Item>
 
           <Form.Item
@@ -153,6 +153,20 @@ export default function ClientCreateForm({
             tooltip={{ title: tip("client_type"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select options={CLIENT_TYPE_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item noStyle dependencies={["client_type"]}>
+            {() =>
+              form.getFieldValue("client_type") === "confidential" ? (
+                <Form.Item
+                  name="client_secret"
+                  label="Client Secret"
+                  tooltip={{ title: tip("client_secret"), icon: <ExclamationCircleOutlined /> }}
+                >
+                  <Input.Password placeholder="Auto-generated if left empty" autoComplete="new-password" />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
 
           <Form.List
