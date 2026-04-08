@@ -75,7 +75,7 @@ func TestRevokeToken_E2E(t *testing.T) {
 	form := url.Values{}
 	form.Set("token", tokenResp.AccessToken)
 
-	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", form)
+	resp, err := revokeToken(t, ts, form)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
@@ -242,7 +242,7 @@ func TestRefreshToken_AfterRevoke(t *testing.T) {
 	revokeForm := url.Values{}
 	revokeForm.Set("token", tokenResp.AccessToken)
 
-	revokeResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/revoke", revokeForm)
+	revokeResp, err := revokeToken(t, ts, revokeForm)
 	require.NoError(t, err)
 	_ = revokeResp.Body.Close()
 	require.Equal(t, http.StatusOK, revokeResp.StatusCode)

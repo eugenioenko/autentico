@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,6 +20,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const revokeTestClientID = "revoke-handler-client"
+const revokeTestClientSecret = "revoke-handler-secret"
+
+// insertRevokeTestClient creates a confidential client for revoke handler tests.
+func insertRevokeTestClient(t *testing.T) {
+	t.Helper()
+	testutils.InsertTestConfidentialClient(t, revokeTestClientID, revokeTestClientSecret)
+}
 
 // insertROPCTestClient seeds a public OAuth2 client that allows password and refresh_token grants.
 func insertROPCTestClient(t *testing.T) {
@@ -863,10 +871,12 @@ func TestHandleRevoke_NonPostMethod(t *testing.T) {
 // RFC 7009 §2.1: "token" parameter is REQUIRED
 func TestHandleRevoke_MissingToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	insertRevokeTestClient(t)
 
 	form := url.Values{}
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
 	rr := httptest.NewRecorder()
 
 	HandleRevoke(rr, req)
@@ -877,12 +887,14 @@ func TestHandleRevoke_MissingToken(t *testing.T) {
 
 func TestHandleRevoke_InvalidToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	insertRevokeTestClient(t)
 
 	form := url.Values{}
 	form.Add("token", "invalid-token")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
 	rr := httptest.NewRecorder()
 
 	HandleRevoke(rr, req)
@@ -900,6 +912,7 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 	insertROPCTestClient(t)
+	insertRevokeTestClient(t)
 
 	// Get a token
 	form := url.Values{}
@@ -916,12 +929,13 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 	var tokenResp TokenResponse
 	_ = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
 
-	// Revoke it
+	// Revoke it (with client auth)
 	form2 := url.Values{}
 	form2.Add("token", tokenResp.AccessToken)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form2.Encode()))
 	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req2.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
 	rr2 := httptest.NewRecorder()
 
 	HandleRevoke(rr2, req2)
@@ -929,10 +943,10 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr2.Code)
 
 	// Verify revoked_at is set
-	var revokedAt string
-	err = db.GetDB().QueryRow(fmt.Sprintf(`SELECT revoked_at FROM tokens WHERE access_token = '%s'`, tokenResp.AccessToken)).Scan(&revokedAt)
+	var revokedAt *string
+	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tokenResp.AccessToken).Scan(&revokedAt)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, revokedAt)
+	assert.NotNil(t, revokedAt)
 }
 
 func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {

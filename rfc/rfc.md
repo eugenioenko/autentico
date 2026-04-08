@@ -79,7 +79,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | High | `pkg/introspect/handler.go:52` | Returns `401 invalid_token` for inactive tokens instead of `200 {"active":false}` | RFC 7662 §2.2 | ✅ Fixed (PR #108) |
 | High | `pkg/introspect/handler.go:31` | Accepts only `application/json`; spec requires `application/x-www-form-urlencoded` | RFC 7662 §2.1 | ✅ Fixed (PR #108) |
 | Medium | `pkg/authorize/handler.go:229` | `error_description` not URL-encoded in redirect URL | RFC 6749 §4.1.2.1 | ✅ Fixed (PR #108) |
-| Medium | `pkg/token/handler.go` + `pkg/token/revoke.go` | No client authentication on revoke and introspect endpoints | RFC 7009 §2.1, RFC 7662 §2.1 | ✅ Introspect fixed (appsec-2026-04-07); revoke remains public by design |
+| Medium | `pkg/token/handler.go` + `pkg/token/revoke.go` | No client authentication on revoke and introspect endpoints | RFC 7009 §2.1, RFC 7662 §2.1 | ✅ Both fixed (appsec-2026-04-07) |
 | Medium | `pkg/wellknown/handler.go` | Missing `introspection_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported` | RFC 7662 §4, RFC 7009 §4, RFC 7636 §6.2 | ✅ Fixed (PR #108) |
 | Medium | `pkg/token/generate.go:26-44` | Access token always embeds profile/email claims regardless of scope | OIDC Core §5.4 | ✅ Fixed (PR #108) |
 | Medium | all protected endpoints | Missing `WWW-Authenticate` header on 401 responses | RFC 6750 §3 | ✅ Fixed (PR #108) |
@@ -246,7 +246,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §2 | MUST support revocation of refresh tokens; SHOULD support access tokens | `pkg/token/revoke.go` — both supported (same row) |
 | §2.1 | `token` REQUIRED, `token_type_hint` OPTIONAL | `pkg/token/revoke.go` lines 47-49 |
 | §2.1 | Request MUST be HTTP POST with form-encoded body | `pkg/token/revoke.go` lines 35-43 |
-| §2.1 | Client auth required for confidential clients | `pkg/token/revoke.go` — ⏭ Skipped (public endpoints by design) |
+| §2.1 | Client auth required for confidential clients | `pkg/token/revoke.go` — ✅ Fixed (appsec-2026-04-07): `client.AuthenticateClientFromRequest` enforced |
 | §2.2 | MUST return `200` for all requests incl. invalid/expired/unknown tokens | `pkg/token/revoke.go` — ✅ Fixed (PR #108) |
 | §2.2 | Refresh token revocation SHOULD also revoke associated access token | `pkg/token/revoke.go` — same row, both invalidated |
 | §2.2 | Invalid `token_type_hint` MUST be ignored | `pkg/token/revoke.go` — hint not parsed, ignored |
@@ -260,6 +260,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §2.2 | Return 200 for all revocation requests, including invalid/unknown tokens | ✅ Fixed (PR #108) |
 | MUST | §2.1 | `token` parameter required | ✅ Verified + annotated (2026-03-30) |
 | MUST | §2.1 | Request is HTTP POST with `application/x-www-form-urlencoded` | ✅ Verified + annotated (2026-03-30) |
+| MUST | §2.1 | Client authentication required | ✅ Fixed (appsec-2026-04-07) |
 | SHOULD | §2 | Support revocation of access tokens | ✅ Verified (2026-03-30) — both token types supported |
 | SHOULD | §2.2 | Revoking a refresh token SHOULD also revoke associated access token | ✅ Verified + annotated (2026-03-30) — same DB row |
 | MAY | §2.1 | Accept `token_type_hint` | ✅ Silently accepted; server ignores it per spec allowance |
@@ -646,8 +647,8 @@ This is analogous to the existing "public endpoints by design" decision for intr
 | OPTIONAL | §2 | `introspection_endpoint` | ✅ Pre-existing (Phase 5) |
 | OPTIONAL | §2 | `code_challenge_methods_supported` | ✅ Pre-existing (Phase 3) |
 | OPTIONAL | §2 | `service_documentation` | ⏭ Not implemented — no documentation URL configured |
-| OPTIONAL | §2 | `revocation_endpoint_auth_methods_supported` | ⏭ Not implemented — revocation is public by design |
-| OPTIONAL | §2 | `introspection_endpoint_auth_methods_supported` | ⏭ Not yet advertised — introspection now requires client auth (client_secret_basic, client_secret_post) |
+| OPTIONAL | §2 | `revocation_endpoint_auth_methods_supported` | ✅ Fixed (appsec-2026-04-07) — `["client_secret_basic","client_secret_post"]` |
+| OPTIONAL | §2 | `introspection_endpoint_auth_methods_supported` | ✅ Fixed (appsec-2026-04-07) — `["client_secret_basic","client_secret_post"]` |
 
 **Security Considerations (§6):**
 - [x] §6: TLS required for metadata endpoint — enforced at infrastructure level in production

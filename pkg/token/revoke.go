@@ -1,10 +1,15 @@
 package token
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -38,7 +43,38 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseForm()
+	// RFC 7009 §2.1: "The authorization server first validates the client
+	// credentials (in case of a confidential client)."
+	// We require client authentication for all callers to prevent unauthorized
+	// token revocation, consistent with RFC 7662 §2.1 introspection auth.
+	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
+	if err != nil {
+		slog.Warn("revoke: client authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		return
+	}
+	if authenticatedClient == nil {
+		// RFC 7662 §2.1 / RFC 6750: alternatively accept an admin Bearer token
+		bearerToken := utils.ExtractBearerToken(r.Header.Get("Authorization"))
+		if bearerToken == "" {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
+			return
+		}
+		claims, err := jwtutil.ValidateAccessToken(bearerToken)
+		if err != nil {
+			slog.Warn("revoke: bearer token invalid", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid or expired")
+			return
+		}
+		usr, err := user.UserByID(claims.UserID)
+		if err != nil || usr.Role != "admin" {
+			slog.Warn("revoke: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", claims.UserID)
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token revocation")
+			return
+		}
+	}
+
+	err = r.ParseForm()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
 		return

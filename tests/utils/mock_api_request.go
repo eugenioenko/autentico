@@ -39,3 +39,18 @@ func MockFormRequest(t *testing.T, formData map[string]string, method, uri strin
 	handler(rr, req)
 	return rr
 }
+
+// MockFormRequestWithBasicAuth is like MockFormRequest but adds HTTP Basic auth.
+func MockFormRequestWithBasicAuth(t *testing.T, formData map[string]string, method, uri string, handler RouteHandler, clientID, clientSecret string) *httptest.ResponseRecorder {
+	form := url.Values{}
+	for key, value := range formData {
+		form.Set(key, value)
+	}
+
+	req := httptest.NewRequest(method, uri, bytes.NewBufferString(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(clientID, clientSecret)
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	return rr
+}
