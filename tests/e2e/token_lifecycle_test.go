@@ -43,7 +43,7 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 1 * time.Second
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	time.Sleep(2 * time.Second)
 
@@ -69,7 +69,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}
@@ -96,7 +96,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}
@@ -128,7 +128,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}

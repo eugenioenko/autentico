@@ -119,6 +119,20 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7662 §2.1: a client MUST only be able to introspect tokens issued to itself.
+	// RFC 7662 §4: "The authorization server MUST determine whether or not the token
+	// can be introspected by the specific resource server making the request."
+	// Return inactive (not an error) to avoid leaking token existence per §2.2.
+	// Admin bearer auth (authenticatedClient == nil) skips this — admins can introspect any token.
+	if authenticatedClient != nil {
+		azp := jwtutil.ExtractAzp(tkn.AccessToken)
+		if azp != "" && azp != authenticatedClient.ClientID {
+			slog.Info("introspect: token belongs to different client", "request_id", middleware.GetRequestID(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
+			inactive(w)
+			return
+		}
+	}
+
 	// RFC 6749 §4.4: client_credentials tokens have no session — skip session liveness check
 	if tkn.GrantType != "client_credentials" {
 		// RFC 7662 §4: check session liveness — deactivated sessions mean the token

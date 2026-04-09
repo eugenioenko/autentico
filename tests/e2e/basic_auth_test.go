@@ -238,7 +238,7 @@ func TestRefreshToken_AfterRevoke(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	tokenResp := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokenResp := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the access token
 	revokeForm := url.Values{}
@@ -292,7 +292,7 @@ func TestIntrospect_ActiveToken(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	tokenResp := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokenResp := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	form := url.Values{}
 	form.Set("token", tokenResp.AccessToken)

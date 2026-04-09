@@ -95,8 +95,8 @@ func TestClientCredentials_FullFlow(t *testing.T) {
 	// No ID token
 	assert.Empty(t, tokenResp.IDToken)
 
-	// Introspect the token — should be active
-	introspectResp := introspectToken(t, ts, tokenResp.AccessToken)
+	// Introspect the token — should be active (using the same client)
+	introspectResp := introspectToken(t, ts, tokenResp.AccessToken, "cc-e2e-client", "cc-e2e-secret")
 	assert.True(t, introspectResp.Active)
 	assert.Equal(t, "read write", introspectResp.Scope)
 }
@@ -122,8 +122,8 @@ func TestClientCredentials_TokenRevocation(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// Introspect — should now be inactive
-	introspectResp := introspectToken(t, ts, tokenResp.AccessToken)
+	// Introspect — should now be inactive (using the same client)
+	introspectResp := introspectToken(t, ts, tokenResp.AccessToken, "cc-revoke-client", "secret")
 	assert.False(t, introspectResp.Active)
 }
 
@@ -210,7 +210,7 @@ type introspectResponse struct {
 	Sub    string `json:"sub"`
 }
 
-func introspectToken(t *testing.T, ts *TestServer, accessToken string) introspectResponse {
+func introspectToken(t *testing.T, ts *TestServer, accessToken, clientID, clientSecret string) introspectResponse {
 	t.Helper()
 
 	form := url.Values{}
@@ -219,7 +219,7 @@ func introspectToken(t *testing.T, ts *TestServer, accessToken string) introspec
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth("e2e-confidential", "e2e-secret")
+	req.SetBasicAuth(clientID, clientSecret)
 
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)

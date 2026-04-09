@@ -48,6 +48,7 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
+		"azp":   testClientID,
 		"sid":   sessionID,
 		"scope": "openid profile email",
 	}
@@ -700,4 +701,78 @@ func TestHandleIntrospect_ClientSecretPost(t *testing.T) {
 	var resp IntrospectResponse
 	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.False(t, resp.Active)
+}
+
+// ---------------------------------------------------------------------------
+// RFC 7662 §2.1 / §4 — Cross-client token isolation
+// ---------------------------------------------------------------------------
+
+const otherClientID = "other-introspect-client"
+const otherClientSecret = "other-introspect-secret"
+
+// TestHandleIntrospect_CrossClient_ReturnsInactive verifies that a client
+// cannot introspect tokens issued to a different client.
+// RFC 7662 §4: "The authorization server MUST determine whether or not the
+// token can be introspected by the specific resource server making the request."
+// Returns inactive (not an error) to avoid leaking token existence per §2.2.
+func TestHandleIntrospect_CrossClient_ReturnsInactive(t *testing.T) {
+	testutils.WithTestDB(t)
+	setupTestClient(t)
+	testutils.InsertTestConfidentialClient(t, otherClientID, otherClientSecret)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+		userID, "crossclientuser", "crossclient@example.com", "hash")
+	assert.NoError(t, err)
+
+	// Token is issued with azp=testClientID
+	accessToken, _, err := generateTestTokenAndStore(userID)
+	assert.NoError(t, err)
+
+	// Introspect using otherClientID — should return inactive
+	form := url.Values{}
+	form.Set("token", accessToken)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(otherClientID, otherClientSecret)
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "RFC 7662 §2.2: cross-client introspect must return 200")
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.False(t, resp.Active, "RFC 7662 §4: token from different client must appear inactive")
+}
+
+// TestHandleIntrospect_SameClient_ReturnsActive verifies that the issuing
+// client can introspect its own tokens.
+func TestHandleIntrospect_SameClient_ReturnsActive(t *testing.T) {
+	testutils.WithTestDB(t)
+	setupTestClient(t)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+		userID, "sameclientuser", "sameclient@example.com", "hash")
+	assert.NoError(t, err)
+
+	accessToken, _, err := generateTestTokenAndStore(userID)
+	assert.NoError(t, err)
+
+	// Introspect using the same client that issued the token
+	form := url.Values{}
+	form.Set("token", accessToken)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	withBasicAuth(req)
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp IntrospectResponse
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.True(t, resp.Active, "issuing client must be able to introspect its own tokens")
 }

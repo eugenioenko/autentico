@@ -87,6 +87,21 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7009 §2.1: "The authorization server first validates the client
+	// credentials ... and then verifies whether the token was issued to the
+	// client making the revocation request."
+	// Return 200 (no-op) for tokens belonging to other clients to avoid
+	// leaking token existence per RFC 7009 §2.1.
+	// Admin bearer auth (authenticatedClient == nil) skips this — admins can revoke any token.
+	if authenticatedClient != nil {
+		azp := jwtutil.ExtractAzp(tokenID)
+		if azp != "" && azp != authenticatedClient.ClientID {
+			slog.Info("revoke: token belongs to different client", "request_id", middleware.GetRequestID(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+
 	// RFC 7009 §2.1: "token_type_hint" is OPTIONAL; an authorization server MAY
 	// ignore this parameter — we search both columns regardless.
 	// RFC 7009 §2.2: an invalid token_type_hint value is ignored and does not
