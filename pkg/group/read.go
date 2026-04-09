@@ -85,7 +85,7 @@ func MembersByGroupID(groupID string) ([]GroupMemberResponse, error) {
 	query := `SELECT u.id, u.username, u.email, ug.created_at
 		FROM users u
 		JOIN user_groups ug ON u.id = ug.user_id
-		WHERE ug.group_id = ?
+		WHERE ug.group_id = ? AND u.deactivated_at IS NULL
 		ORDER BY u.username`
 	rows, err := db.GetDB().Query(query, groupID)
 	if err != nil {

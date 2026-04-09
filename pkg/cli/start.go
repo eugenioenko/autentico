@@ -159,6 +159,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("GET /admin/api/users/{id}", adminAPI(user.HandleGetUser))
 	mux.Handle("PUT /admin/api/users/{id}", adminAPI(user.HandleUpdateUser))
 	mux.Handle("DELETE /admin/api/users/{id}", adminAPI(user.HandleDeleteUser))
+	mux.Handle("POST /admin/api/users/{id}/deactivate", adminAPI(user.HandleDeactivateUser))
+	mux.Handle("POST /admin/api/users/{id}/reactivate", adminAPI(user.HandleReactivateUser))
 	mux.Handle("POST /admin/api/users/{id}/unlock", adminAPI(user.HandleUnlockUser))
 	mux.Handle("GET /admin/api/clients", adminAPI(client.HandleListClients))
 	mux.Handle("POST /admin/api/clients", adminAPI(client.HandleRegister))

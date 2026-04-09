@@ -343,14 +343,12 @@ func TestHandleDeleteUser_Success(t *testing.T) {
 	req.SetPathValue("id", targetUserID)
 	rr := httptest.NewRecorder()
 	HandleDeleteUser(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "deleted")
+	assert.Equal(t, http.StatusNoContent, rr.Code)
 
-	var deactivatedAt *string
-	row := db.GetDB().QueryRow(`SELECT deactivated_at FROM users WHERE id = ?`, targetUserID)
-	err = row.Scan(&deactivatedAt)
-	assert.NoError(t, err)
-	assert.NotNil(t, deactivatedAt)
+	// User should be permanently deleted
+	var count int
+	_ = db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE id = ?`, targetUserID).Scan(&count)
+	assert.Equal(t, 0, count)
 }
 
 // --- HandleListUsers tests ---
@@ -449,7 +447,7 @@ func TestHandleUserAdmin(t *testing.T) {
 	req.SetPathValue("id", u1.ID)
 	rr = httptest.NewRecorder()
 	HandleDeleteUser(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, http.StatusNoContent, rr.Code)
 }
 
 func TestHandleCreateUser_AdminFlow(t *testing.T) {

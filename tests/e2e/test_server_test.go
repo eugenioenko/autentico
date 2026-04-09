@@ -151,6 +151,8 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("GET /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleGetUser)))
 	mux.Handle("PUT /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUpdateUser)))
 	mux.Handle("DELETE /admin/api/users/{id}", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleDeleteUser)))
+	mux.Handle("POST /admin/api/users/{id}/deactivate", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleDeactivateUser)))
+	mux.Handle("POST /admin/api/users/{id}/reactivate", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleReactivateUser)))
 	mux.Handle("POST /admin/api/users/{id}/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
 	mux.Handle("GET /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleListClients)))
 	mux.Handle("POST /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))

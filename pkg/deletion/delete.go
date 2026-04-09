@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/user"
 )
 
 func CancelDeletionRequest(id string) error {
@@ -22,27 +23,7 @@ func CancelDeletionRequest(id string) error {
 }
 
 // HardDeleteUser permanently removes a user and all associated data.
-// Tables with ON DELETE CASCADE (passkey_challenges, passkey_credentials) are handled automatically.
-// All others are deleted explicitly before removing the user row.
+// Delegates to user.HardDeleteUser which handles the full cascade.
 func HardDeleteUser(userID string) error {
-	d := db.GetDB()
-	tables := []string{
-		"deletion_requests",
-		"tokens",
-		"sessions",
-		"auth_codes",
-		"idp_sessions",
-		"mfa_challenges",
-		"trusted_devices",
-		"federated_identities",
-	}
-	for _, table := range tables {
-		if _, err := d.Exec(fmt.Sprintf(`DELETE FROM %s WHERE user_id = ?`, table), userID); err != nil {
-			return fmt.Errorf("failed to delete from %s: %w", table, err)
-		}
-	}
-	if _, err := d.Exec(`DELETE FROM users WHERE id = ?`, userID); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-	return nil
+	return user.HardDeleteUser(userID)
 }
