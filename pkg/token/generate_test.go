@@ -262,7 +262,26 @@ func TestGenerateTokens_AcrValue(t *testing.T) {
 	require.NoError(t, err)
 	claims := parsed.Claims.(jwt.MapClaims)
 
-	assert.Equal(t, "1", claims["acr"], "OIDC Core §2: acr in access token must be '1', not 'password'")
+	assert.Equal(t, "1", claims["acr"], "OIDC Core §2: acr should be '1' for non-MFA user")
+}
+
+func TestGenerateTokens_AcrValueMfa(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+
+	// User with verified TOTP should get acr "2"
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com", TotpVerified: true}
+
+	tokens, err := GenerateTokens(testUser, "", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	assert.Equal(t, "2", claims["acr"], "OIDC Core §2: acr should be '2' for MFA user")
 }
 
 func TestBuildAudience(t *testing.T) {

@@ -65,23 +65,52 @@ func TestHandleDeleteMfa(t *testing.T) {
 	token, usr := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
-	_, _ = db.GetDB().Exec("UPDATE users SET totp_verified = TRUE WHERE id = ?", usr.ID)
+	secret := "JBSWY3DPEHPK3PXP"
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = ?, totp_verified = TRUE WHERE id = ?", string(hashedPassword), secret, usr.ID)
+
+	code, _ := totp.GenerateCode(secret, time.Now())
+	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: code}
+	body, _ := json.Marshal(deleteReq)
+	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleDeleteMfa_NoCode(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, usr := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(deleteReq)
 	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleDeleteMfa_InvalidCode(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, usr := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+
+	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: "000000"}
+	body, _ := json.Marshal(deleteReq)
+	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleDeleteMfa_NoPassword(t *testing.T) {
 	testutils.WithTestDB(t)
 	token, usr := setupTestUserAndSession(t)
 
-	// User has no password
-	_, _ = db.GetDB().Exec("UPDATE users SET password = '', totp_verified = TRUE WHERE id = ?", usr.ID)
+	// User has no password (passkey-only) but has TOTP
+	secret := "JBSWY3DPEHPK3PXP"
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '', totp_secret = ?, totp_verified = TRUE WHERE id = ?", secret, usr.ID)
 
-	deleteReq := DisableMfaRequest{}
+	code, _ := totp.GenerateCode(secret, time.Now())
+	deleteReq := DisableMfaRequest{Code: code}
 	body, _ := json.Marshal(deleteReq)
 	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -150,11 +179,25 @@ func TestHandleMfaFlow(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, statusResp.Data.TotpEnabled)
 
-	// 5. Delete MFA
-	deleteReq := DisableMfaRequest{CurrentPassword: "password123"}
+	// 5. Delete MFA — requires password + valid TOTP code
+	currUser, _ := user.UserByID(u.ID)
+	disableCode, _ := totp.GenerateCode(currUser.TotpSecret, time.Now())
+	deleteReq := DisableMfaRequest{CurrentPassword: "password123", Code: disableCode}
 	body, _ = json.Marshal(deleteReq)
 	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleSetupTotp_AlreadyEnrolled(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, usr := setupTestUserAndSession(t)
+
+	// Mark TOTP as verified
+	_, _ = db.GetDB().Exec("UPDATE users SET totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", usr.ID)
+
+	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, token)
+	assert.Equal(t, http.StatusConflict, rr.Code)
+	assert.Contains(t, rr.Body.String(), "already_enrolled")
 }
 
 func TestHandleVerifyTotp_InvalidCode(t *testing.T) {

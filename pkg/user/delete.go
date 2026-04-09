@@ -7,10 +7,10 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-// revokeAllUserAccess revokes all tokens and deactivates all sessions
+// RevokeAllUserAccess revokes all tokens and deactivates all sessions
 // and IdP sessions for a user. Used by both DeactivateUser and as part
 // of the user lifecycle cleanup.
-func revokeAllUserAccess(userID string) error {
+func RevokeAllUserAccess(userID string) error {
 	d := db.GetDB()
 
 	// Revoke all active tokens for the user
@@ -74,7 +74,7 @@ func DeactivateUser(id string) error {
 		return fmt.Errorf("user not found or already deactivated")
 	}
 
-	return revokeAllUserAccess(id)
+	return RevokeAllUserAccess(id)
 }
 
 // ReactivateUser clears deactivated_at, allowing the user to log in again.

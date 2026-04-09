@@ -1,9 +1,12 @@
 package token
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -12,6 +15,26 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
+
+// extractACR decodes the acr claim from a JWT access token without signature validation.
+// Used to check the authentication context of an existing (possibly expired) token.
+func extractACR(tokenString string) string {
+	parts := strings.SplitN(tokenString, ".", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		ACR string `json:"acr"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	return claims.ACR
+}
 
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
 	err := ValidateTokenRequestRefresh(request)
@@ -76,5 +99,22 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to retrieve user: %v", err))
 		return nil, err
 	}
+
+	// If MFA is required and user has TOTP enrolled, verify the original session
+	// was authenticated with MFA by checking the acr claim in the stored access token.
+	cfg := config.Get()
+	if (cfg.RequireMfa || usr.TotpVerified) && usr.TotpVerified {
+		var storedAccessToken string
+		err := db.GetDB().QueryRow(`SELECT access_token FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&storedAccessToken)
+		if err == nil {
+			acr := extractACR(storedAccessToken)
+			if acr != "2" {
+				slog.Warn("token: refresh rejected — session was not MFA-authenticated", "user_id", usr.ID, "acr", acr)
+				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "Session was not authenticated with MFA. Please re-login.")
+				return nil, fmt.Errorf("session not MFA-authenticated")
+			}
+		}
+	}
+
 	return usr, nil
 }

@@ -33,6 +33,7 @@ type TokenRequest struct {
 	CodeVerifier string `json:"code_verifier,omitempty"` // The code verifier for PKCE (optional, depending on the grant type)
 	Username     string `json:"username,omitempty"`      // The username for the resource owner (used in password grant type)
 	Password     string `json:"password,omitempty"`      // The password for the resource owner (used in password grant type)
+	TotpCode     string `json:"totp_code,omitempty"`     // The TOTP code for MFA verification (used in password grant type)
 	RefreshToken string `json:"refresh_token,omitempty"` // The refresh token (used in refresh token grant type)
 	Scope        string `json:"scope,omitempty"`         // The requested scope (used in password grant type)
 }
