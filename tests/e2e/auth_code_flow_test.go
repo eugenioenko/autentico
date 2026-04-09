@@ -202,8 +202,10 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	csrfToken := getCSRFToken(string(body))
+	htmlBody := string(body)
+	csrfToken := getCSRFToken(htmlBody)
 	require.NotEmpty(t, csrfToken)
+	authorizeSig := getAuthorizeSig(htmlBody)
 
 	// POST /oauth2/login
 	form := url.Values{}
@@ -215,6 +217,7 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -685,8 +688,10 @@ func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	csrfToken := getCSRFToken(string(body))
+	htmlBody2 := string(body)
+	csrfToken := getCSRFToken(htmlBody2)
 	require.NotEmpty(t, csrfToken)
+	authorizeSig2 := getAuthorizeSig(htmlBody2)
 
 	form := url.Values{}
 	form.Set("username", "user@test.com")
@@ -697,6 +702,7 @@ func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
 	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig2)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)

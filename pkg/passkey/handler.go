@@ -10,6 +10,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -41,6 +42,21 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 	email := q.Get("email")
 	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
 		email = username
+	}
+
+	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            q.Get("client_id"),
+		RedirectURI:         q.Get("redirect_uri"),
+		Scope:               q.Get("scope"),
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
+		State:               q.Get("state"),
+	}, q.Get("authorize_sig")) {
+		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
+		return
 	}
 
 	if err := user.ValidatePasskeyUserCreateRequest(user.PasskeyUserCreateRequest{
@@ -171,6 +187,21 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	username := q.Get("username")
 	if username == "" {
 		writeJSONError(w, http.StatusBadRequest, "missing username")
+		return
+	}
+
+	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            q.Get("client_id"),
+		RedirectURI:         q.Get("redirect_uri"),
+		Scope:               q.Get("scope"),
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
+		State:               q.Get("state"),
+	}, q.Get("authorize_sig")) {
+		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
 		return
 	}
 

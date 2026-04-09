@@ -14,7 +14,7 @@ func TestHandleLoginBegin_UserNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 	withPasskeyConfig(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username=nonexistent", nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username=nonexistent"), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -29,7 +29,7 @@ func TestHandleLoginBegin_NoPasskeys(t *testing.T) {
 	withPasskeyConfig(t)
 	_, username := setupPasskeyTestUser(t) // This user has no passkeys yet
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username, nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 

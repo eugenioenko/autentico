@@ -9,12 +9,26 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/appsettings"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// setAuthorizeSig computes and sets the authorize_sig form field from the other OAuth params.
+func setAuthorizeSig(form url.Values) {
+	form.Set("authorize_sig", authzsig.Sign(authzsig.AuthorizeParams{
+		ClientID:            form.Get("client_id"),
+		RedirectURI:         form.Get("redirect_uri"),
+		Scope:               form.Get("scope"),
+		Nonce:               form.Get("nonce"),
+		CodeChallenge:       form.Get("code_challenge"),
+		CodeChallengeMethod: form.Get("code_challenge_method"),
+		State:               form.Get("state"),
+	}))
+}
 
 func TestHandleSignup_DisabledReturns404(t *testing.T) {
 	testutils.WithTestDB(t)
@@ -59,6 +73,7 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	form.Set("redirect_uri", "not-a-valid-uri") // syntactically invalid
 	form.Set("state", "xyz123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -82,6 +97,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -108,6 +124,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -137,6 +154,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -165,6 +183,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	form.Set("state", "abc123")
 	form.Set("client_id", "test-client")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -194,6 +213,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -244,6 +264,7 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// given_name is missing
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -270,6 +291,7 @@ func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// email is NOT set explicitly
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -293,6 +315,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -319,6 +342,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	form.Set("state", "xyz")
 	form.Set("client_id", "test-client")
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -352,6 +376,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 	form.Set("client_id", "test-client")
 	// No email provided
 
+	setAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()

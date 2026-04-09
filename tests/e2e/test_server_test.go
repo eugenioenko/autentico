@@ -234,3 +234,13 @@ func getCSRFToken(body string) string {
 	}
 	return matches[1]
 }
+
+// getAuthorizeSig extracts the authorize_sig hidden field value from the rendered HTML body.
+func getAuthorizeSig(body string) string {
+	re := regexp.MustCompile(`<input type="hidden" name="authorize_sig" value="([^"]*)"`)
+	matches := re.FindStringSubmatch(body)
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}

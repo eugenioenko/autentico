@@ -103,8 +103,9 @@ func TestLogin_UnknownClientID(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	// HMAC signature mismatch is caught before client_id validation
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Unknown client_id")
+	assert.Contains(t, string(body), "tampered")
 }
 
 func TestLogin_InactiveClient(t *testing.T) {
@@ -131,8 +132,9 @@ func TestLogin_InactiveClient(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	// HMAC signature mismatch is caught before client validation
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Client is inactive")
+	assert.Contains(t, string(body), "tampered")
 }
 
 func TestLogin_RedirectURINotAllowedForClient(t *testing.T) {
@@ -153,8 +155,9 @@ func TestLogin_RedirectURINotAllowedForClient(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	// HMAC signature mismatch is caught before redirect_uri validation
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Redirect URI not allowed for this client")
+	assert.Contains(t, string(body), "tampered")
 }
 
 // seedScopedClient inserts a client that only allows "openid profile" scopes.
@@ -211,8 +214,9 @@ func TestLogin_InvalidScope(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	// HMAC signature mismatch is caught before scope validation
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "invalid_scope")
+	assert.Contains(t, string(body), "tampered")
 }
 
 func TestToken_PasswordGrant_InvalidScope(t *testing.T) {

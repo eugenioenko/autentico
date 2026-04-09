@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 )
@@ -25,6 +26,19 @@ func ValidateAuthorizeRequest(input AuthorizeRequest) error {
 		// TODO: set proper scope validation
 		//validation.Field(&input.Scope, validation.Required, validation.In("read", "write")),
 	)
+}
+
+// AuthorizeSignature computes the HMAC signature for the authorize request parameters.
+func AuthorizeSignature(request AuthorizeRequest) string {
+	return authzsig.Sign(authzsig.AuthorizeParams{
+		ClientID:            request.ClientID,
+		RedirectURI:         request.RedirectURI,
+		Scope:               request.Scope,
+		Nonce:               request.Nonce,
+		CodeChallenge:       request.CodeChallenge,
+		CodeChallengeMethod: request.CodeChallengeMethod,
+		State:               request.State,
+	})
 }
 
 type AuthorizeErrorResponse struct {

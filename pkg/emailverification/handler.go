@@ -12,6 +12,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -31,6 +32,7 @@ type OAuthParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	AuthorizeSig        string
 }
 
 // GenerateToken returns a URL-safe random token and its SHA-256 hash.
@@ -60,6 +62,9 @@ func BuildVerifyURL(rawToken string, p OAuthParams) string {
 		q.Set("code_challenge", p.CodeChallenge)
 		q.Set("code_challenge_method", p.CodeChallengeMethod)
 	}
+	if p.AuthorizeSig != "" {
+		q.Set("authorize_sig", p.AuthorizeSig)
+	}
 	return bs.AppURL + bs.AppOAuthPath + "/verify-email?" + q.Encode()
 }
 
@@ -82,6 +87,7 @@ func RenderVerifyEmail(w http.ResponseWriter, r *http.Request, mode, username st
 		"Nonce":               params.Nonce,
 		"CodeChallenge":       params.CodeChallenge,
 		"CodeChallengeMethod": params.CodeChallengeMethod,
+		"AuthorizeSig":        params.AuthorizeSig,
 		"Error":               errMsg,
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
@@ -109,6 +115,22 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		Nonce:               r.URL.Query().Get("nonce"),
 		CodeChallenge:       r.URL.Query().Get("code_challenge"),
 		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
+		AuthorizeSig:        r.URL.Query().Get("authorize_sig"),
+	}
+
+	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            params.ClientID,
+		RedirectURI:         params.RedirectURI,
+		Scope:               params.Scope,
+		Nonce:               params.Nonce,
+		CodeChallenge:       params.CodeChallenge,
+		CodeChallengeMethod: params.CodeChallengeMethod,
+		State:               params.State,
+	}, params.AuthorizeSig) {
+		slog.Warn("verify-email: authorize parameter signature mismatch")
+		RenderVerifyEmail(w, r, "expired", "", params, "Invalid verification link. Please log in again.")
+		return
 	}
 
 	tokenHash := utils.HashSHA256(rawToken)
@@ -186,6 +208,7 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 		Nonce:               r.FormValue("nonce"),
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+		AuthorizeSig:        r.FormValue("authorize_sig"),
 	}
 
 	usr, err := user.UserByUsername(username)

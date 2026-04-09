@@ -10,6 +10,7 @@
   <input type="hidden" name="nonce" value="{{.Nonce}}" />
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
     <label class="auth-label" for="username">Email</label>
@@ -86,6 +87,7 @@
       nonce: document.querySelector('[name=nonce]').value,
       code_challenge: document.querySelector('[name=code_challenge]').value,
       code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      authorize_sig: document.querySelector('[name=authorize_sig]').value,
     });
     try {
       const beginResp = await fetch('{{authURL "/passkey/login/begin"}}?' + params.toString());
