@@ -20,7 +20,7 @@ test("onboarding creates admin account", async ({ page }) => {
 
 test("admin UI dashboard loads after login", async ({ page }) => {
   await page.goto("/admin/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
 
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
@@ -32,7 +32,7 @@ test("admin UI dashboard loads after login", async ({ page }) => {
 
 test("admin UI logout requires re-authentication", async ({ page }) => {
   await page.goto("/admin/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
@@ -43,7 +43,7 @@ test("admin UI logout requires re-authentication", async ({ page }) => {
   await page.click('text=Logout');
 
   // Should redirect to login page
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
   await expect(page.locator("#username")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("#password")).toBeVisible({ timeout: TIMEOUT });
 });
@@ -51,7 +51,7 @@ test("admin UI logout requires re-authentication", async ({ page }) => {
 test("signup via prompt=create from login page", async ({ page, context }) => {
   // Step 1: Log in as admin and enable self-signup via settings API
   await page.goto("/admin/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
@@ -81,7 +81,7 @@ test("signup via prompt=create from login page", async ({ page, context }) => {
 
   // Step 3: Navigate to account UI — redirects to login
   await page.goto("/account/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
 
   // Step 4: Click "Create account" link
   await page.click('text=Create account');
@@ -104,7 +104,7 @@ test("signup via prompt=create from login page", async ({ page, context }) => {
 
 test("account UI login and dashboard", async ({ page }) => {
   await page.goto("/account/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
 
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
@@ -116,7 +116,7 @@ test("account UI login and dashboard", async ({ page }) => {
 
 test("account UI logout requires re-authentication", async ({ page }) => {
   await page.goto("/account/");
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
 
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
@@ -128,7 +128,7 @@ test("account UI logout requires re-authentication", async ({ page }) => {
   await page.getByTestId("sign-out").click();
 
   // Should redirect to login page
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+  await page.waitForURL("**/oauth2/login**", { timeout: TIMEOUT });
   await expect(page.locator("#username")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("#password")).toBeVisible({ timeout: TIMEOUT });
 });
