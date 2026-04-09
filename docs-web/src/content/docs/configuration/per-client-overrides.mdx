@@ -65,7 +65,7 @@ Authorization code TTL for this client. Overrides the global [`authorization_cod
 
 ### `allowed_audiences`
 
-String array of additional `aud` values added to access tokens for this client. Example: `["https://api.example.com"]`. When set, takes precedence over the global `access_token_audience` setting.
+String array of additional `aud` values added to access tokens for this client. Example: `["https://api.example.com"]`. When set, extends the global `access_token_audience` setting. To grant a client access to the admin API, include `"autentico-admin"` in this array.
 
 ### `allow_self_signup`
 
