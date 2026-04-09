@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { OAUTH_URL, getAdminToken, obtainTokenViaROPC, postForm, postFormBasic, postJSON } from '../helpers';
+import { OAUTH_URL, getAdminToken, postForm, postFormBasic, postJSON } from '../helpers';
 
 const INTROSPECT = `${OAUTH_URL}/introspect`;
 const CLIENT_ID = 'introspect-test-client';
@@ -27,7 +27,11 @@ describe('Token Introspection — happy path', () => {
   });
 
   it('returns active=true with claims for valid token', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    // Issue token via the same client that will introspect it
+    const tokenResp = await postFormBasic(`${OAUTH_URL}/token`, {
+      grant_type: 'password', username: 'admin', password: 'Password123!', scope: 'openid profile email',
+    }, CLIENT_ID, CLIENT_SECRET);
+    const tokens = await tokenResp.json();
 
     const resp = await postFormBasic(INTROSPECT, { token: tokens.access_token }, CLIENT_ID, CLIENT_SECRET);
     expect(resp.ok).toBe(true);
@@ -40,7 +44,10 @@ describe('Token Introspection — happy path', () => {
   });
 
   it('returns active=false for revoked token', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const tokenResp = await postFormBasic(`${OAUTH_URL}/token`, {
+      grant_type: 'password', username: 'admin', password: 'Password123!', scope: 'openid profile email',
+    }, CLIENT_ID, CLIENT_SECRET);
+    const tokens = await tokenResp.json();
 
     // Revoke (with client auth)
     await postFormBasic(`${OAUTH_URL}/revoke`, { token: tokens.access_token }, CLIENT_ID, CLIENT_SECRET);
