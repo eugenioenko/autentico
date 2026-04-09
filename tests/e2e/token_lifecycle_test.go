@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
@@ -43,7 +45,7 @@ func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 1 * time.Second
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	time.Sleep(2 * time.Second)
 
@@ -69,7 +71,7 @@ func TestRevokedToken_UserInfoRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}
@@ -96,7 +98,7 @@ func TestRevokedToken_IntrospectRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}
@@ -128,7 +130,7 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	ts := startTestServer(t)
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
 
 	// Revoke the token
 	form := url.Values{}
@@ -330,4 +332,95 @@ func revokeToken(t *testing.T, ts *TestServer, form url.Values) (*http.Response,
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth("e2e-confidential", "e2e-secret")
 	return ts.Client.Do(req)
+}
+
+// ---------------------------------------------------------------------------
+// Cross-client token isolation (RFC 7662 §4, RFC 7009 §2.1)
+// ---------------------------------------------------------------------------
+
+// TestCrossClient_IntrospectReturnsInactive verifies that a client cannot
+// introspect tokens issued to a different client.
+func TestCrossClient_IntrospectReturnsInactive(t *testing.T) {
+	ts := startTestServer(t)
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Token issued via test-client (public)
+	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+
+	// Introspect using e2e-confidential (different client) — should return inactive
+	form := url.Values{}
+	form.Set("token", tokens.AccessToken)
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("e2e-confidential", "e2e-secret")
+
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "RFC 7662 §2.2: must return 200, not an error")
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal(body, &result))
+	assert.Equal(t, false, result["active"], "RFC 7662 §4: cross-client introspect must return inactive")
+}
+
+// TestCrossClient_RevokeIsNoOp verifies that a client cannot revoke tokens
+// issued to a different client.
+func TestCrossClient_RevokeIsNoOp(t *testing.T) {
+	ts := startTestServer(t)
+	createTestUser(t, "user@test.com", "password123", "user@test.com")
+
+	// Token issued via e2e-confidential
+	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
+
+	// Attempt revoke using test-client — but test-client is public and can't authenticate.
+	// Use a second confidential client instead: create one via admin API.
+	_, adminToken := createTestAdmin(t, ts, "cross-admin@test.com", "adminpass123", "cross-admin@test.com")
+	createTestClient(t, ts, adminToken, map[string]interface{}{
+		"client_name":                "Cross Client",
+		"client_secret":              "cross-secret",
+		"redirect_uris":             []string{"http://localhost:3000/callback"},
+		"grant_types":               []string{"authorization_code", "refresh_token"},
+		"response_types":            []string{"code"},
+		"scopes":                    "openid profile email",
+		"client_type":               "confidential",
+		"token_endpoint_auth_method": "client_secret_basic",
+	})
+	// Find the client_id assigned by the server
+	// The createTestClient helper returns a map — extract client_id from it
+	// Actually, we need to know the client_id. Let's register with a known ID via direct SQL.
+
+	// Simpler: just try to revoke via a known different confidential client.
+	// We already have e2e-confidential issuing the token. Create "attacker-client" via SQL.
+	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("attacker-secret"), bcrypt.MinCost)
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('attacker-id', 'attacker-client', 'Attacker Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","refresh_token"]', '["code"]', 'openid profile email', TRUE)
+	`, string(hashedSecret))
+	require.NoError(t, err)
+
+	// Attempt revoke using attacker-client
+	form := url.Values{}
+	form.Set("token", tokens.AccessToken)
+	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/revoke", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("attacker-client", "attacker-secret")
+
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "RFC 7009 §2.1: must return 200")
+
+	// Verify the token was NOT revoked — userinfo should still work
+	userinfoReq, err := http.NewRequest("GET", ts.BaseURL+"/oauth2/userinfo", nil)
+	require.NoError(t, err)
+	userinfoReq.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+
+	userinfoResp, err := ts.Client.Do(userinfoReq)
+	require.NoError(t, err)
+	defer func() { _ = userinfoResp.Body.Close() }()
+	assert.Equal(t, http.StatusOK, userinfoResp.StatusCode, "token must still be valid after cross-client revoke attempt")
 }

@@ -39,9 +39,6 @@ async function introspect(accessToken: string): Promise<{ active: boolean; sub?:
  * Helper: attempt ROPC login, returning the response (not throwing on failure).
  */
 async function attemptROPCLogin(username: string, password: string): Promise<Response> {
-  // Use the same ROPC client that obtainTokenViaROPC creates.
-  // First call obtainTokenViaROPC to ensure the client exists, then use postForm directly.
-  // We need a simpler approach — just call the token endpoint with the test-client.
   return postForm(`${OAUTH_URL}/token`, {
     grant_type: 'password',
     username,
@@ -49,6 +46,18 @@ async function attemptROPCLogin(username: string, password: string): Promise<Res
     scope: 'openid profile email',
     client_id: 'test-ropc-lifecycle',
   });
+}
+
+/**
+ * Helper: obtain token via the introspect client so introspect() works (same-client check).
+ */
+async function obtainTokenViaIntrospectClient(username: string, password: string): Promise<Response> {
+  return postFormBasic(`${OAUTH_URL}/token`, {
+    grant_type: 'password',
+    username,
+    password,
+    scope: 'openid profile email',
+  }, INTROSPECT_CLIENT_ID, INTROSPECT_CLIENT_SECRET);
 }
 
 // Create a confidential client for introspection and a public client for ROPC
@@ -123,8 +132,8 @@ describe('User Deactivation', () => {
     const token = await getAdminToken();
     const user = await createUser(token, 'deact-func-intr', 'Password123!', 'deact-func-intr@test.com');
 
-    // Get a token for the user
-    const loginResp = await attemptROPCLogin('deact-func-intr', 'Password123!');
+    // Get a token via the introspect client so introspect() uses the same client
+    const loginResp = await obtainTokenViaIntrospectClient('deact-func-intr', 'Password123!');
     expect(loginResp.status).toBe(200);
     const tokens = await loginResp.json();
 
@@ -234,8 +243,8 @@ describe('User Hard Delete', () => {
     const token = await getAdminToken();
     await createUser(token, 'hd-func-intr', 'Password123!', 'hd-func-intr@test.com');
 
-    // Get a token for the user
-    const loginResp = await attemptROPCLogin('hd-func-intr', 'Password123!');
+    // Get a token via the introspect client so introspect() uses the same client
+    const loginResp = await obtainTokenViaIntrospectClient('hd-func-intr', 'Password123!');
     expect(loginResp.status).toBe(200);
     const tokens = await loginResp.json();
 

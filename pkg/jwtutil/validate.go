@@ -28,6 +28,25 @@ func (a *AccessTokenClaims) Valid() error {
 	return nil
 }
 
+// ExtractAzp parses a JWT without signature verification and returns the "azp"
+// (authorized party) claim. Used to determine which client a token was issued to
+// before performing ownership checks. Returns "" if the claim is absent or the
+// token is malformed — callers should treat missing azp as "skip the check".
+func ExtractAzp(tokenString string) string {
+	parser := jwt.Parser{SkipClaimsValidation: true}
+	claims := jwt.MapClaims{}
+	// Parse without key function — we only need the claims, not verification.
+	// The token has already been validated or will be looked up in the DB.
+	_, _, err := parser.ParseUnverified(tokenString, claims)
+	if err != nil {
+		return ""
+	}
+	if azp, ok := claims["azp"].(string); ok {
+		return azp
+	}
+	return ""
+}
+
 // ValidateAudience checks if the token's audience matches any of the required audiences.
 // If requiredAudiences is empty, audience validation is skipped (no restriction).
 func ValidateAudience(tokenAud []string, requiredAudiences []string) error {

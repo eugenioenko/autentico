@@ -77,6 +77,33 @@ func obtainTokensViaPasswordGrantForClient(t *testing.T, ts *TestServer, clientI
 	return &tokenResp
 }
 
+// obtainTokensViaConfidentialClient gets tokens using the ROPC grant with the e2e-confidential client.
+// Use this when the test needs to introspect or revoke the token, since those endpoints
+// enforce that the token was issued to the calling client.
+func obtainTokensViaConfidentialClient(t *testing.T, ts *TestServer, username, password string) *token.TokenResponse {
+	t.Helper()
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", "e2e-confidential")
+	form.Set("client_secret", "e2e-secret")
+	form.Set("username", username)
+	form.Set("password", password)
+
+	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err, "failed to post password grant")
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "failed to read token response body")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "password grant failed: %s", string(body))
+
+	var tokenResp token.TokenResponse
+	err = json.Unmarshal(body, &tokenResp)
+	require.NoError(t, err, "failed to unmarshal token response")
+
+	return &tokenResp
+}
+
 // performAuthorizationCodeFlow drives the full authorize -> login -> extract code chain.
 func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redirectURI, username, password, state string) string {
 	t.Helper()

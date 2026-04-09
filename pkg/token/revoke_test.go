@@ -2,7 +2,6 @@ package token_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -25,10 +26,17 @@ const (
 	revokeClientSecret = "revoke-conf-secret"
 )
 
-// setupRevokeClient creates a confidential client for revoke tests.
+// setupRevokeClient creates a confidential client with ROPC support for revoke tests.
 func setupRevokeClient(t *testing.T) {
 	t.Helper()
-	testutils.InsertTestConfidentialClient(t, revokeClientID, revokeClientSecret)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(revokeClientSecret), bcrypt.MinCost)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, is_active, scopes, grant_types)
+		 VALUES (?, ?, 'Revoke Test Confidential Client', ?, 'confidential', '[]', '[]', TRUE, 'openid profile email', '["authorization_code","password","refresh_token"]')`,
+		"id-"+revokeClientID, revokeClientID, string(hashed),
+	)
+	require.NoError(t, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -94,27 +102,22 @@ func TestHandleRevoke(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
-		VALUES ('revoke-test-id', 'revoke-test-client', 'Revoke Test Client', 'public', '[]', '["password","refresh_token"]', TRUE)
-	`)
-	if err != nil {
-		t.Fatalf("failed to insert test client: %v", err)
-	}
 	setupRevokeClient(t)
 
+	// Issue token via the same confidential client that will revoke it
 	body := map[string]string{
-		"grant_type": "password",
-		"client_id":  "revoke-test-client",
-		"username":   testEmail,
-		"password":   testPassword,
+		"grant_type":    "password",
+		"client_id":     revokeClientID,
+		"client_secret": revokeClientSecret,
+		"username":      testEmail,
+		"password":      testPassword,
 	}
 	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
 
 	var tkn token.TokenResponse
 	_ = json.Unmarshal(res.Body.Bytes(), &tkn)
 
-	// Revoke the token (with client auth)
+	// Revoke the token (with client auth — same client that issued it)
 	body = map[string]string{
 		"token": tkn.AccessToken,
 	}
@@ -125,7 +128,7 @@ func TestHandleRevoke(t *testing.T) {
 
 	// Verify the token is revoked
 	var revokedAt string
-	err = db.GetDB().QueryRow(fmt.Sprintf(`SELECT revoked_at FROM tokens WHERE access_token = '%s'`, tkn.AccessToken)).Scan(&revokedAt)
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt)
 }
@@ -163,18 +166,15 @@ func TestHandleRevoke_RefreshToken_AlsoRevokesAccess(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
 
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, grant_types, is_active)
-		VALUES ('revoke-refresh-id', 'revoke-refresh-client', 'Revoke Refresh Client', 'public', '[]', '["password","refresh_token"]', TRUE)
-	`)
-	assert.NoError(t, err)
 	setupRevokeClient(t)
 
+	// Issue token via the same confidential client that will revoke it
 	body := map[string]string{
-		"grant_type": "password",
-		"client_id":  "revoke-refresh-client",
-		"username":   testEmail,
-		"password":   testPassword,
+		"grant_type":    "password",
+		"client_id":     revokeClientID,
+		"client_secret": revokeClientSecret,
+		"username":      testEmail,
+		"password":      testPassword,
 	}
 	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
 
@@ -183,14 +183,14 @@ func TestHandleRevoke_RefreshToken_AlsoRevokesAccess(t *testing.T) {
 	assert.NotEmpty(t, tkn.RefreshToken)
 	assert.NotEmpty(t, tkn.AccessToken)
 
-	// Revoke by refresh_token (with client auth)
+	// Revoke by refresh_token (with client auth — same client)
 	body = map[string]string{"token": tkn.RefreshToken}
 	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
 	assert.Equal(t, http.StatusOK, res.Code)
 
 	// Both tokens on the same row should now be revoked
 	var revokedAt string
-	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt, "RFC 7009 §2.2: revoking refresh_token must also revoke the access_token")
 }
@@ -212,4 +212,49 @@ func TestHandleRevoke_ClientSecretPost(t *testing.T) {
 	token.HandleRevoke(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+// ---------------------------------------------------------------------------
+// RFC 7009 §2.1 — Cross-client token isolation
+// ---------------------------------------------------------------------------
+
+const otherRevokeClientID = "other-revoke-client"
+const otherRevokeClientSecret = "other-revoke-secret"
+
+// TestHandleRevoke_CrossClient_NoOp verifies RFC 7009 §2.1:
+// "The authorization server ... verifies whether the token was issued to the
+// client making the revocation request."
+// A different client's revoke request returns 200 but does NOT revoke the token.
+func TestHandleRevoke_CrossClient_NoOp(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _ = user.CreateUser(testEmail, testPassword, testEmail)
+
+	setupRevokeClient(t)
+	testutils.InsertTestConfidentialClient(t, otherRevokeClientID, otherRevokeClientSecret)
+
+	// Issue token via revokeClientID
+	body := map[string]string{
+		"grant_type":    "password",
+		"client_id":     revokeClientID,
+		"client_secret": revokeClientSecret,
+		"username":      testEmail,
+		"password":      testPassword,
+	}
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/token", token.HandleToken)
+	var tkn token.TokenResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &tkn)
+	assert.NotEmpty(t, tkn.AccessToken)
+
+	// Attempt to revoke using a different client
+	body = map[string]string{"token": tkn.AccessToken}
+	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, otherRevokeClientID, otherRevokeClientSecret)
+
+	// RFC 7009 §2.1: response is always 200 to avoid leaking token existence
+	assert.Equal(t, http.StatusOK, res.Code)
+
+	// Verify the token was NOT revoked
+	var revokedAt *string
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	assert.NoError(t, err)
+	assert.Nil(t, revokedAt, "RFC 7009 §2.1: cross-client revoke must be a no-op")
 }

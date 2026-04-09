@@ -19,15 +19,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const revokeTestClientID = "revoke-handler-client"
 const revokeTestClientSecret = "revoke-handler-secret"
 
-// insertRevokeTestClient creates a confidential client for revoke handler tests.
+// insertRevokeTestClient creates a confidential client with ROPC support for revoke handler tests.
 func insertRevokeTestClient(t *testing.T) {
 	t.Helper()
-	testutils.InsertTestConfidentialClient(t, revokeTestClientID, revokeTestClientSecret)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(revokeTestClientSecret), bcrypt.MinCost)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, is_active, scopes, grant_types)
+		 VALUES (?, ?, 'Revoke Handler Confidential Client', ?, 'confidential', '[]', '[]', TRUE, 'openid profile email', '["authorization_code","password","refresh_token"]')`,
+		"id-"+revokeTestClientID, revokeTestClientID, string(hashed),
+	)
+	require.NoError(t, err)
 }
 
 // insertROPCTestClient seeds a public OAuth2 client that allows password and refresh_token grants.
@@ -911,13 +919,13 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 
 	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
-	insertROPCTestClient(t)
 	insertRevokeTestClient(t)
 
-	// Get a token
+	// Issue token via the same confidential client that will revoke it
 	form := url.Values{}
 	form.Add("grant_type", "password")
-	form.Add("client_id", "ropc-test-client")
+	form.Add("client_id", revokeTestClientID)
+	form.Add("client_secret", revokeTestClientSecret)
 	form.Add("username", "testuser")
 	form.Add("password", "password123")
 
@@ -929,7 +937,7 @@ func TestHandleRevoke_ValidToken(t *testing.T) {
 	var tokenResp TokenResponse
 	_ = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
 
-	// Revoke it (with client auth)
+	// Revoke it (with client auth — same client)
 	form2 := url.Values{}
 	form2.Add("token", tokenResp.AccessToken)
 

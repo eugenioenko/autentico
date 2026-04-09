@@ -92,11 +92,12 @@ func TestDeactivate_TokensInvalidated(t *testing.T) {
 	ts := startTestServer(t)
 
 	usr := createTestUser(t, "deact-introspect@test.com", "password123", "deact-introspect@test.com")
-	accessToken := obtainAccessToken(t, ts, "deact-introspect@test.com", "password123")
+	// Issue token via e2e-confidential so the introspect calls use the same client
+	tokens := obtainTokensViaConfidentialClient(t, ts, "deact-introspect@test.com", "password123")
 	_, adminToken := createTestAdmin(t, ts, "deact-admin1@test.com", "adminpass123", "deact-admin1@test.com")
 
 	// Token should be active before deactivation
-	result := introspectTokenWithBasicAuth(t, ts, accessToken)
+	result := introspectTokenWithBasicAuth(t, ts, tokens.AccessToken)
 	assert.Equal(t, true, result["active"])
 
 	// Deactivate user
@@ -105,7 +106,7 @@ func TestDeactivate_TokensInvalidated(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	// Token should now be inactive
-	result = introspectTokenWithBasicAuth(t, ts, accessToken)
+	result = introspectTokenWithBasicAuth(t, ts, tokens.AccessToken)
 	assert.Equal(t, false, result["active"])
 }
 
