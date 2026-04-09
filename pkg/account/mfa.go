@@ -31,6 +31,12 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Block re-enrollment if TOTP is already verified — must disable first.
+	if usr.TotpVerified {
+		utils.WriteErrorResponse(w, http.StatusConflict, "already_enrolled", "TOTP is already enrolled. Disable it first before re-enrolling.")
+		return
+	}
+
 	secret, url, err := mfa.GenerateTotpSecret(usr.Username, config.Get().PasskeyRPName)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
@@ -103,10 +109,28 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Require a valid TOTP code to prove possession of the enrolled device.
+	if usr.TotpSecret == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "TOTP is not enrolled")
+		return
+	}
+	if req.Code == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "TOTP code is required to disable MFA")
+		return
+	}
+	if !mfa.ValidateTotpCode(usr.TotpSecret, req.Code) {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_code", "Invalid TOTP code")
+		return
+	}
+
 	if err := user.DisableMfa(usr.ID); err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+
+	// Invalidate all sessions/tokens after MFA is disabled so that
+	// any compromised session cannot persist silently.
+	_ = user.RevokeAllUserAccess(usr.ID)
 
 	audit.Log(audit.EventMfaDisabled, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "MFA disabled"}, http.StatusOK)

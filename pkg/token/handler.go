@@ -12,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -66,6 +67,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		CodeVerifier: r.FormValue("code_verifier"),
 		Username:     r.FormValue("username"),
 		Password:     r.FormValue("password"),
+		TotpCode:     r.FormValue("totp_code"),
 		RefreshToken: r.FormValue("refresh_token"),
 		Scope:        r.FormValue("scope"),
 	}
@@ -132,6 +134,28 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
 		}
+		// Enforce MFA on password grant when required or when user has TOTP enrolled.
+		cfg := config.Get()
+		if cfg.RequireMfa || usr.TotpVerified {
+			if !usr.TotpVerified {
+				// MFA is required but user has not enrolled — they must enroll via browser flow first.
+				slog.Warn("token: MFA required but not enrolled (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "MFA is required but not enrolled. Please enroll via the login page.")
+				return
+			}
+			if request.TotpCode == "" {
+				// User has TOTP enrolled but no code provided.
+				slog.Info("token: MFA code required (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "TOTP code is required")
+				return
+			}
+			if !mfa.ValidateTotpCode(usr.TotpSecret, request.TotpCode) {
+				slog.Warn("token: invalid MFA code (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_mfa_code", "Invalid TOTP code")
+				return
+			}
+		}
+
 		// Determine effective scope.
 		// If no scope was requested, fall back to the client's full allowed scopes.
 		requestedScope := request.Scope

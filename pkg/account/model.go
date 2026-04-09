@@ -40,6 +40,7 @@ type SessionResponse struct {
 
 type DisableMfaRequest struct {
 	CurrentPassword string `json:"current_password"`
+	Code            string `json:"code"`
 }
 
 type PasskeyRenameRequest struct {
