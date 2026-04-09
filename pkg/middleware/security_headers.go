@@ -24,6 +24,11 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		// Restrict window references from cross-origin navigations.
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 
+		// RFC 6749 §5.1 / RFC 6750 §5.3: prevent caching of sensitive responses.
+		// Static asset handlers override this with their own Cache-Control values.
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
+
 		next.ServeHTTP(w, r)
 	})
 }
