@@ -8,26 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// setAuthorizeSigQuery computes and sets authorize_sig on url.Values from the OAuth params.
-func setAuthorizeSigQuery(q url.Values) {
-	q.Set("authorize_sig", authzsig.Sign(authzsig.AuthorizeParams{
-		ClientID:            q.Get("client_id"),
-		RedirectURI:         q.Get("redirect_uri"),
-		Scope:               q.Get("scope"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
-		State:               q.Get("state"),
-	}))
-}
 
 func TestHandleVerifyEmail_MissingToken(t *testing.T) {
 	testutils.WithTestDB(t)
@@ -45,7 +31,7 @@ func TestHandleVerifyEmail_InvalidToken(t *testing.T) {
 
 	q := url.Values{}
 	q.Set("token", "invalid-token-xyz")
-	setAuthorizeSigQuery(q)
+	testutils.SetAuthorizeSig(q)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
@@ -68,7 +54,7 @@ func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
 
 	q := url.Values{}
 	q.Set("token", rawToken)
-	setAuthorizeSigQuery(q)
+	testutils.SetAuthorizeSig(q)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
@@ -95,7 +81,7 @@ func TestHandleVerifyEmail_ValidToken_RedirectsWithCode(t *testing.T) {
 	q.Set("state", "abc123")
 	q.Set("client_id", "test-client")
 	q.Set("scope", "openid")
-	setAuthorizeSigQuery(q)
+	testutils.SetAuthorizeSig(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -124,7 +110,7 @@ func TestHandleVerifyEmail_ValidToken_MarksUserVerified(t *testing.T) {
 	vq.Set("token", rawToken)
 	vq.Set("redirect_uri", "http://localhost/cb")
 	vq.Set("state", "s1")
-	setAuthorizeSigQuery(vq)
+	testutils.SetAuthorizeSig(vq)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+vq.Encode(), nil)
 	rr := httptest.NewRecorder()
 
