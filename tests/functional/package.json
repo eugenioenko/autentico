@@ -8,5 +8,8 @@
   "devDependencies": {
     "typescript": "^5.8.3",
     "vitest": "^3.2.1"
+  },
+  "dependencies": {
+    "otpauth": "^9.5.0"
   }
 }

@@ -17,6 +17,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
+// acrForUser returns the Authentication Context Class Reference value.
+// OIDC Core §2: "1" for single-factor (password), "2" for multi-factor (password + TOTP).
+func acrForUser(u user.User) string {
+	if u.TotpVerified {
+		return "2"
+	}
+	return "1"
+}
+
 // buildAudience constructs the access token audience list.
 // Always includes the issuer and client_id, plus any custom audiences from config.
 func buildAudience(issuer string, clientID string, customAudiences []string) []string {
@@ -56,7 +65,7 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"typ":       "Bearer",
 		"azp":       clientID,
 		"sid":       sessionID,
-		"acr":       "1",
+		"acr":       acrForUser(user),
 		"scope":     scope,
 	}
 
