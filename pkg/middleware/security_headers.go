@@ -1,11 +1,20 @@
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // SecurityHeadersMiddleware adds defense-in-depth HTTP headers recommended by
 // OWASP. These prevent clickjacking, MIME sniffing, and restrict embedding.
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Swagger/Redoc docs are static read-only HTML with inline scripts;
+		// skip CSP and caching headers so the documentation renders correctly.
+		if strings.HasPrefix(r.URL.Path, "/swagger/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		// Prevent clickjacking — disallow framing entirely.
 		w.Header().Set("X-Frame-Options", "DENY")
 
