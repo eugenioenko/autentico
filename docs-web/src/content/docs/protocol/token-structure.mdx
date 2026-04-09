@@ -43,7 +43,7 @@ The access token is a JWT used to authenticate API requests. It is passed as a `
 |---|---|
 | `iss` | Issuer — same as ID token |
 | `sub` | Subject — user ID |
-| `aud` | Audience — configured via `access_token_audience` setting or per-client `allowed_audiences` override |
+| `aud` | Audience — always includes the issuer and `client_id`; extended by `access_token_audience` setting or per-client `allowed_audiences` override. The admin API requires `autentico-admin` in this claim. |
 | `exp` | Expiration timestamp |
 | `iat` | Issued-at timestamp |
 | `sid` | Session ID — correlates the token to a specific session |

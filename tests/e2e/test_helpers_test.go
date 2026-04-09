@@ -29,6 +29,7 @@ func createTestUser(t *testing.T, username, password, email string) *user.UserRe
 }
 
 // createTestAdmin creates an admin user and returns the user response and an access token.
+// Uses the autentico-admin client so the token has the required audience for admin API access.
 func createTestAdmin(t *testing.T, ts *TestServer, username, password, email string) (*user.UserResponse, string) {
 	t.Helper()
 
@@ -41,17 +42,23 @@ func createTestAdmin(t *testing.T, ts *TestServer, username, password, email str
 	require.NoError(t, err, "failed to set admin role")
 	usr.Role = "admin"
 
-	tokenResp := obtainTokensViaPasswordGrant(t, ts, username, password)
+	tokenResp := obtainTokensViaPasswordGrantForClient(t, ts, "autentico-admin", username, password)
 	return usr, tokenResp.AccessToken
 }
 
-// obtainTokensViaPasswordGrant gets tokens using the password grant type.
+// obtainTokensViaPasswordGrant gets tokens using the password grant type with the default test-client.
 func obtainTokensViaPasswordGrant(t *testing.T, ts *TestServer, username, password string) *token.TokenResponse {
+	t.Helper()
+	return obtainTokensViaPasswordGrantForClient(t, ts, "test-client", username, password)
+}
+
+// obtainTokensViaPasswordGrantForClient gets tokens using the password grant type for a specific client.
+func obtainTokensViaPasswordGrantForClient(t *testing.T, ts *TestServer, clientID, username, password string) *token.TokenResponse {
 	t.Helper()
 
 	form := url.Values{}
 	form.Set("grant_type", "password")
-	form.Set("client_id", "test-client")
+	form.Set("client_id", clientID)
 	form.Set("username", username)
 	form.Set("password", password)
 

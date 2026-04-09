@@ -23,7 +23,7 @@ func generateTestAccessToken(userID string) (string, error) {
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
 		"iss":   config.GetBootstrap().AppAuthIssuer,
-		"aud":   config.Get().AuthAccessTokenAudience,
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, "autentico-admin"},
 		"sub":   userID,
 		"typ":   "Bearer",
 		"sid":   xid.New().String(),
@@ -175,8 +175,55 @@ func TestAdminAuthMiddlewareWrongAudience(t *testing.T) {
 
 	wrapped.ServeHTTP(rr, req)
 
-	// ValidateAccessToken already checks audience, so this returns 401
-	assert.True(t, rr.Code == http.StatusUnauthorized || rr.Code == http.StatusForbidden)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Token not issued for admin API")
+}
+
+// TestAdminAuthMiddleware_TokenFromOtherClient verifies that a valid token issued
+// by a different client is rejected, even if the user has the admin role.
+// This prevents the confused deputy attack where a malicious client obtains
+// an admin user's token and replays it against the admin API.
+func TestAdminAuthMiddleware_TokenFromOtherClient(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	// Create an admin user
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, ?)
+	`, userID, "adminuser", "admin@example.com", "hashedpassword", "admin")
+	assert.NoError(t, err)
+
+	// Generate a token as if issued by "attacker-client" — aud does NOT include "autentico-admin"
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, "attacker-client"},
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid profile email",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	token, err := accessToken.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Token not issued for admin API")
 }
 
 func TestAdminAuthMiddlewareUserNotFound(t *testing.T) {

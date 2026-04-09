@@ -58,6 +58,15 @@ func startTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to seed test-client: %v", err)
 	}
 
+	// Seed "autentico-admin" client — admin API requires "autentico-admin" in the token audience
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('autentico-admin-id', 'autentico-admin', 'Autentico Admin', 'public', '["http://localhost:3000/admin/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to seed autentico-admin client: %v", err)
+	}
+
 	// Seed a shared confidential client for introspect/revoke E2E tests
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("e2e-secret"), bcrypt.MinCost)
 	_, err = db.GetDB().Exec(`
