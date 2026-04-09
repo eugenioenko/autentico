@@ -18,6 +18,7 @@ func TestHandleAuthorize_WithLoginError(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_credentials")
+	// Error is passed through to the login redirect
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "invalid_credentials")
 }

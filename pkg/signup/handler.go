@@ -10,9 +10,11 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -36,6 +38,30 @@ import (
 // @Success 302 {string} string "Redirect back to client with code (POST)"
 // @Router /oauth2/signup [get]
 // @Router /oauth2/signup [post]
+// HandleSignupPage renders the signup form (GET). Reads auth_request_id from query.
+func HandleSignupPage(w http.ResponseWriter, r *http.Request) {
+	if !config.Get().AuthAllowSelfSignup {
+		http.NotFound(w, r)
+		return
+	}
+
+	authReqID := r.URL.Query().Get("auth_request_id")
+	if authReqID == "" {
+		renderSignupError(w, "Missing authorization request. Please return to the application and try again.")
+		return
+	}
+
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		slog.Warn("signup_page: invalid or expired auth request", "auth_request_id", authReqID, "error", err)
+		renderSignupError(w, "Authorization request expired. Please return to the application and try again.")
+		return
+	}
+
+	errMsg := r.URL.Query().Get("error")
+	RenderSignup(w, r, authReq, errMsg)
+}
+
 func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	if !config.Get().AuthAllowSelfSignup {
 		http.NotFound(w, r)
@@ -51,30 +77,30 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
-	// In passkey_only mode the form is never POSTed — JS handles everything via
-	// /passkey/register/begin and /passkey/register/finish. Re-render the form.
-	if config.Get().AuthMode == "passkey_only" {
-		RenderSignup(w, r, SignupParams{}, "")
-		return
-	}
-
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
 	}
 
-	params := SignupParams{
-		State:               r.FormValue("state"),
-		RedirectURI:         r.FormValue("redirect_uri"),
-		ClientID:            r.FormValue("client_id"),
-		Scope:               r.FormValue("scope"),
-		Nonce:               r.FormValue("nonce"),
-		CodeChallenge:       r.FormValue("code_challenge"),
-		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+	// Look up stored authorize request — all OAuth parameters come from the
+	// server-side record, not from the POST body (issues #184, #186).
+	authReqID := r.FormValue("auth_request_id")
+	if authReqID == "" {
+		renderSignupError(w, "Missing authorization request. Please return to the application and try again.")
+		return
 	}
 
-	if !utils.IsValidRedirectURI(params.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		slog.Warn("signup: invalid or expired auth request", "request_id", middleware.GetRequestID(r.Context()), "auth_request_id", authReqID, "error", err)
+		renderSignupError(w, "Authorization request expired. Please return to the application and try again.")
+		return
+	}
+
+	// In passkey_only mode the form is never POSTed — JS handles everything via
+	// /passkey/register/begin and /passkey/register/finish. Re-render the form.
+	if config.Get().AuthMode == "passkey_only" {
+		RenderSignup(w, r, authReq, "")
 		return
 	}
 
@@ -87,7 +113,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if password != confirmPassword {
-		redirectSignupError(w, r, params, "Passwords do not match")
+		redirectSignupErrorWithID(w, r, authReqID, "Passwords do not match")
 		return
 	}
 
@@ -97,7 +123,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Email:    email,
 	}
 	if err := user.ValidateUserCreateRequest(req); err != nil {
-		redirectSignupError(w, r, params, err.Error())
+		redirectSignupErrorWithID(w, r, authReqID, err.Error())
 		return
 	}
 
@@ -129,14 +155,14 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 	for field, visibility := range fieldVisibility {
 		if visibility == "required" && profileFields[field] == "" {
-			redirectSignupError(w, r, params, "Please fill in all required fields")
+			redirectSignupErrorWithID(w, r, authReqID, "Please fill in all required fields")
 			return
 		}
 	}
 
 	usr, err := user.CreateUser(username, password, email)
 	if err != nil {
-		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
+		redirectSignupErrorWithID(w, r, authReqID, "Could not create account. Username may already be taken.")
 		return
 	}
 	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
@@ -163,24 +189,24 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 			expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
 			_ = user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt)
 			verifyURL := emailverification.BuildVerifyURL(rawToken, emailverification.OAuthParams{
-				RedirectURI:         params.RedirectURI,
-				State:               params.State,
-				ClientID:            params.ClientID,
-				Scope:               params.Scope,
-				Nonce:               params.Nonce,
-				CodeChallenge:       params.CodeChallenge,
-				CodeChallengeMethod: params.CodeChallengeMethod,
+				RedirectURI:         authReq.RedirectURI,
+				State:               authReq.State,
+				ClientID:            authReq.ClientID,
+				Scope:               authReq.Scope,
+				Nonce:               authReq.Nonce,
+				CodeChallenge:       authReq.CodeChallenge,
+				CodeChallengeMethod: authReq.CodeChallengeMethod,
 			})
 			_ = mfa.SendVerificationEmail(usr.Email, verifyURL)
 		}
 		emailverification.RenderVerifyEmail(w, r, "sent", usr.Username, emailverification.OAuthParams{
-			RedirectURI:         params.RedirectURI,
-			State:               params.State,
-			ClientID:            params.ClientID,
-			Scope:               params.Scope,
-			Nonce:               params.Nonce,
-			CodeChallenge:       params.CodeChallenge,
-			CodeChallengeMethod: params.CodeChallengeMethod,
+			RedirectURI:         authReq.RedirectURI,
+			State:               authReq.State,
+			ClientID:            authReq.ClientID,
+			Scope:               authReq.Scope,
+			Nonce:               authReq.Nonce,
+			CodeChallenge:       authReq.CodeChallenge,
+			CodeChallengeMethod: authReq.CodeChallengeMethod,
 		}, "")
 		return
 	}
@@ -203,44 +229,38 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("signup: failed to generate auth code", "error", err)
-		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupErrorWithID(w, r, authReqID, "Something went wrong. Please try again.")
 		return
 	}
 
 	code := authcode.AuthCode{
 		Code:                authCode,
 		UserID:              usr.ID,
-		ClientID:            params.ClientID,
-		RedirectURI:         params.RedirectURI,
-		Scope:               params.Scope,
-		Nonce:               params.Nonce,
-		CodeChallenge:       params.CodeChallenge,
-		CodeChallengeMethod: params.CodeChallengeMethod,
+		ClientID:            authReq.ClientID,
+		RedirectURI:         authReq.RedirectURI,
+		Scope:               authReq.Scope,
+		Nonce:               authReq.Nonce,
+		CodeChallenge:       authReq.CodeChallenge,
+		CodeChallengeMethod: authReq.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
 		Used:                false,
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
 		slog.Error("signup: failed to create auth code", "error", err)
-		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupErrorWithID(w, r, authReqID, "Something went wrong. Please try again.")
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", params.RedirectURI, code.Code, params.State)
+	// Consume the authorize request to prevent reuse
+	_ = authrequest.Delete(authReqID)
+
+	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", authReq.RedirectURI, code.Code, authReq.State)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-type SignupParams struct {
-	State               string
-	RedirectURI         string
-	ClientID            string
-	Scope               string
-	Nonce               string
-	CodeChallenge       string
-	CodeChallengeMethod string
-}
-
-func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
+// RenderSignup renders the signup form using stored authorize request parameters.
+func RenderSignup(w http.ResponseWriter, r *http.Request, authReq *authrequest.AuthorizeRequest, errMsg string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("signup")
 	if err != nil {
@@ -249,13 +269,8 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 	}
 
 	data := map[string]any{
-		"State":               params.State,
-		"RedirectURI":         params.RedirectURI,
-		"ClientID":            params.ClientID,
-		"Scope":               params.Scope,
-		"Nonce":               params.Nonce,
-		"CodeChallenge":       params.CodeChallenge,
-		"CodeChallengeMethod": params.CodeChallengeMethod,
+		"AuthRequestID":       authReq.ID,
+		"ClientID":            authReq.ClientID,
 		"Error":               errMsg,
 		"AuthMode":            cfg.AuthMode,
 		"ProfileFieldEmail":        cfg.ProfileFieldEmail,
@@ -264,7 +279,6 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		// Profile field visibility
 		"ProfileFieldGivenName":  cfg.ProfileFieldGivenName,
 		"ProfileFieldFamilyName": cfg.ProfileFieldFamilyName,
 		"ProfileFieldPhone":      cfg.ProfileFieldPhone,
@@ -278,19 +292,27 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 	}
 }
 
-// redirectSignupError redirects back to /oauth2/authorize?prompt=create with the error
-// and all OAuth params preserved, so the user stays in the authorize flow.
-func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
-	q := url.Values{}
-	q.Set("response_type", "code")
-	q.Set("prompt", "create")
-	q.Set("error", errMsg)
-	q.Set("client_id", params.ClientID)
-	q.Set("redirect_uri", params.RedirectURI)
-	q.Set("scope", params.Scope)
-	q.Set("state", params.State)
-	q.Set("nonce", params.Nonce)
-	q.Set("code_challenge", params.CodeChallenge)
-	q.Set("code_challenge_method", params.CodeChallengeMethod)
-	http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
+// redirectSignupErrorWithID redirects back to the signup page with an error message,
+// preserving the auth request ID so the form is re-rendered with stored params.
+func redirectSignupErrorWithID(w http.ResponseWriter, r *http.Request, authReqID string, errMsg string) {
+	signupURL := config.GetBootstrap().AppOAuthPath + "/signup?auth_request_id=" + authReqID + "&error=" + url.QueryEscape(errMsg)
+	http.Redirect(w, r, signupURL, http.StatusFound)
+}
+
+// renderSignupError renders a branded error page for authorization request failures.
+func renderSignupError(w http.ResponseWriter, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("error")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	data := map[string]any{
+		"Error":            errorMsg,
+		"ThemeTitle":       cfg.Theme.Title,
+		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
+		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+	}
+	w.WriteHeader(http.StatusBadRequest)
+	_ = tmpl.ExecuteTemplate(w, "layout", data)
 }

@@ -18,6 +18,7 @@ func Run(retention time.Duration) {
 		table string
 		sql   string
 	}{
+		{"authorize_requests", `DELETE FROM authorize_requests WHERE expires_at < ?`},
 		{"auth_codes", `DELETE FROM auth_codes WHERE expires_at < ?`},
 		{"mfa_challenges", `DELETE FROM mfa_challenges WHERE expires_at < ?`},
 		{"passkey_challenges", `DELETE FROM passkey_challenges WHERE expires_at < ?`},

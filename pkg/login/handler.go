@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -11,16 +12,90 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
-	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
+	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/view"
+	"github.com/gorilla/csrf"
 )
+
+// HandleLoginPage renders the login form. It reads the auth_request_id from the
+// query string and looks up the stored authorize parameters from the database.
+func HandleLoginPage(w http.ResponseWriter, r *http.Request) {
+	authReqID := r.URL.Query().Get("auth_request_id")
+	if authReqID == "" {
+		renderLoginError(w, "Missing authorization request. Please return to the application and try again.")
+		return
+	}
+
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		slog.Warn("login_page: invalid or expired auth request", "auth_request_id", authReqID, "error", err)
+		renderLoginError(w, "Authorization request expired. Please return to the application and try again.")
+		return
+	}
+
+	errorMsg := r.URL.Query().Get("error")
+	renderLogin(w, r, authReq, errorMsg)
+}
+
+// renderLogin renders the login form using stored authorize request parameters.
+func renderLogin(w http.ResponseWriter, r *http.Request, authReq *authrequest.AuthorizeRequest, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("login")
+	if err != nil {
+		slog.Error("login: failed to parse login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	federatedProviders, _ := federation.ListEnabledProviderViews()
+
+	data := map[string]any{
+		"AuthRequestID":       authReq.ID,
+		"ClientID":            authReq.ClientID,
+		"Error":               errorMsg,
+		"AuthMode":            cfg.AuthMode,
+		"AllowSelfSignup":     cfg.AuthAllowSelfSignup,
+		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
+		csrf.TemplateTag:      csrf.TemplateField(r),
+		"ThemeTitle":          cfg.Theme.Title,
+		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
+		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
+		"SmtpConfigured":      cfg.SmtpHost != "",
+		"FederatedProviders":  federatedProviders,
+	}
+
+	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Error("login: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
+	}
+}
+
+// renderLoginError renders a branded error page for authorization request failures.
+func renderLoginError(w http.ResponseWriter, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := view.ParseTemplate("error")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	data := map[string]any{
+		"Error":            errorMsg,
+		"ThemeTitle":       cfg.Theme.Title,
+		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
+		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+	}
+	w.WriteHeader(http.StatusBadRequest)
+	_ = tmpl.ExecuteTemplate(w, "layout", data)
+}
 
 // HandleLoginUser godoc
 // @Summary Log in a user
@@ -48,16 +123,33 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up the stored authorize request — all OAuth parameters come from the
+	// server-side record, not from the POST body. This prevents parameter tampering
+	// (PKCE downgrade, scope escalation, nonce injection — issues #184, #186).
+	authReqID := r.FormValue("auth_request_id")
+	if authReqID == "" {
+		renderLoginError(w, "Missing authorization request. Please return to the application and try again.")
+		return
+	}
+
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		slog.Warn("login: invalid or expired auth request", "request_id", middleware.GetRequestID(r.Context()), "auth_request_id", authReqID, "error", err)
+		renderLoginError(w, "Authorization request expired. Please return to the application and try again.")
+		return
+	}
+
+	// Only username and password come from the POST body
 	request := LoginRequest{
 		Username:            r.FormValue("username"),
 		Password:            r.FormValue("password"),
-		RedirectURI:         r.FormValue("redirect_uri"),
-		State:               r.FormValue("state"),
-		ClientID:            r.FormValue("client_id"),
-		Scope:               r.FormValue("scope"),
-		Nonce:               r.FormValue("nonce"),
-		CodeChallenge:       r.FormValue("code_challenge"),
-		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+		RedirectURI:         authReq.RedirectURI,
+		State:               authReq.State,
+		ClientID:            authReq.ClientID,
+		Scope:               authReq.Scope,
+		Nonce:               authReq.Nonce,
+		CodeChallenge:       authReq.CodeChallenge,
+		CodeChallengeMethod: authReq.CodeChallengeMethod,
 	}
 
 	if config.Get().AuthMode == "passkey_only" {
@@ -65,40 +157,9 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate redirect_uri format first
-	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
-		return
-	}
-
-	// Validate client_id is registered and redirect_uri is allowed for this client
-	registeredClient, err := client.ClientByClientID(request.ClientID)
-	if err != nil {
-		slog.Warn("login: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
-		return
-	}
-	if !registeredClient.IsActive {
-		slog.Warn("login: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
-		return
-	}
-	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
-		slog.Warn("login: redirect_uri not registered for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
-		return
-	}
-
-	// Reject any scope that the client is not allowed to use
-	if !client.ValidateScopes(registeredClient, request.Scope) {
-		slog.Warn("login: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
-		return
-	}
-
 	err = ValidateLoginRequest(request)
 	if err != nil {
-		redirectToLogin(w, r, request, fmt.Sprintf("user credentials error. %v", err))
+		redirectToLogin(w, r, authReqID, fmt.Sprintf("user credentials error. %v", err))
 		return
 	}
 
@@ -111,7 +172,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 		detail := audit.Detail("username", request.Username, "reason", loginError)
 		audit.Log(audit.EventLoginFailed, nil, audit.TargetUser, "", detail, utils.GetClientIP(r))
-		redirectToLogin(w, r, request, loginError)
+		redirectToLogin(w, r, authReqID, loginError)
 		return
 	}
 
@@ -151,7 +212,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 				method = "totp"
 			} else {
 				slog.Error("login: email MFA required but SMTP is not configured", "request_id", middleware.GetRequestID(r.Context()))
-				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
+				redirectToLogin(w, r, authReqID,"Email verification is not available. Please contact support.")
 				return
 			}
 		}
@@ -170,14 +231,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
 			slog.Error("login: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, authReqID,"Something went wrong. Please try again.")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
 			slog.Error("login: failed to generate challenge ID", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, authReqID,"Something went wrong. Please try again.")
 			return
 		}
 
@@ -191,7 +252,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
 			slog.Error("login: failed to create MFA challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, authReqID,"Something went wrong. Please try again.")
 			return
 		}
 
@@ -219,7 +280,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("login: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+		redirectToLogin(w, r, authReqID,"Something went wrong. Please try again.")
 		return
 	}
 
@@ -239,9 +300,12 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
 		slog.Error("login: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+		redirectToLogin(w, r, authReqID, "Something went wrong. Please try again.")
 		return
 	}
+
+	// Consume the authorize request to prevent reuse (e.g. browser back button)
+	_ = authrequest.Delete(authReqID)
 
 	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "password"), utils.GetClientIP(r))
 
@@ -254,23 +318,9 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, request.RedirectURI+"?"+params.Encode(), http.StatusFound)
 }
 
-// redirectToLogin redirects back to the authorize endpoint with an error message,
-// preserving all original OAuth parameters so the login form is re-rendered.
-func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, loginError string) {
-	params := url.Values{}
-	params.Set("response_type", "code")
-	params.Set("client_id", req.ClientID)
-	params.Set("redirect_uri", req.RedirectURI)
-	params.Set("state", req.State)
-	params.Set("scope", req.Scope)
-	params.Set("error", loginError)
-	if req.Nonce != "" {
-		params.Set("nonce", req.Nonce)
-	}
-	if req.CodeChallenge != "" {
-		params.Set("code_challenge", req.CodeChallenge)
-		params.Set("code_challenge_method", req.CodeChallengeMethod)
-	}
-	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+// redirectToLogin redirects back to the login page with an error message,
+// preserving the auth request ID so the form is re-rendered with stored params.
+func redirectToLogin(w http.ResponseWriter, r *http.Request, authReqID string, loginError string) {
+	loginURL := config.GetBootstrap().AppOAuthPath + "/login?auth_request_id=" + authReqID + "&error=" + url.QueryEscape(loginError)
+	http.Redirect(w, r, loginURL, http.StatusFound)
 }

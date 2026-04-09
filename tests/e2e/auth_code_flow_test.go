@@ -184,42 +184,25 @@ func TestAuthorizationCodeFlow_StatePreserved(t *testing.T) {
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	// GET /oauth2/authorize
-	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+	authReqID, csrfToken := authorizeAndGetLoginPage(t, ts, url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
 		"redirect_uri":          {redirectURI},
 		"state":                 {expectedState},
 		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
-	}.Encode()
+	})
 
-	resp, err := ts.Client.Get(authorizeURL)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	csrfToken := getCSRFToken(string(body))
-	require.NotEmpty(t, csrfToken)
-
-	// POST /oauth2/login
 	form := url.Values{}
 	form.Set("username", "user@test.com")
 	form.Set("password", "password123")
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", expectedState)
-	form.Set("client_id", "test-client")
-	form.Set("code_challenge", testCodeChallenge)
-	form.Set("code_challenge_method", "S256")
+	form.Set("auth_request_id", authReqID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err)
@@ -668,40 +651,27 @@ func TestAuthorizationCodeFlow_StateWithSpecialChars(t *testing.T) {
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+	params := url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
 		"redirect_uri":          {redirectURI},
 		"state":                 {specialState},
 		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
-	}.Encode()
+	}
 
-	resp, err := ts.Client.Get(authorizeURL)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	csrfToken := getCSRFToken(string(body))
-	require.NotEmpty(t, csrfToken)
+	authRequestID, csrfToken := authorizeAndGetLoginPage(t, ts, params)
 
 	form := url.Values{}
 	form.Set("username", "user@test.com")
 	form.Set("password", "password123")
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", specialState)
-	form.Set("client_id", "test-client")
-	form.Set("code_challenge", testCodeChallenge)
-	form.Set("code_challenge_method", "S256")
+	form.Set("auth_request_id", authRequestID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err)

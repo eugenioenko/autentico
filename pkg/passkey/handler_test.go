@@ -8,12 +8,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func createPasskeyAuthRequest(t *testing.T) string {
+	t.Helper()
+	id, err := authrequest.Create(authrequest.AuthorizeRequest{
+		ClientID: "c1", RedirectURI: "http://localhost/cb", Scope: "openid", State: "st1", ResponseType: "code",
+	})
+	require.NoError(t, err)
+	return id
+}
 
 // setupPasskeyTestUser inserts a minimal user row and returns (id, username).
 func setupPasskeyTestUser(t *testing.T) (id, username string) {
@@ -46,7 +56,7 @@ func TestHandleRegisterBegin_Success(t *testing.T) {
 	username := "new-passkey-user@example.com"
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/register/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
@@ -94,7 +104,7 @@ func TestHandleRegisterBegin_Success_Extra(t *testing.T) {
 	// User does not exist - should be created automatically
 	username := "brand-new-user"
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin?username="+username, nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t), nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
 
@@ -140,7 +150,7 @@ func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
 
 	_, username := setupPasskeyTestUser(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username, nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -156,7 +166,7 @@ func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
 
 	_, username := setupPasskeyTestUser(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username, nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -174,7 +184,7 @@ func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 	_, username := setupPasskeyTestUser(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -200,7 +210,7 @@ func TestHandleLoginBegin_WithCreds(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -227,7 +237,7 @@ func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid",
+		"/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -262,7 +272,7 @@ func TestHandleLoginBegin_Success_Extra(t *testing.T) {
 		VALUES ('pk1', ?, 'Passkey 1', '{}', CURRENT_TIMESTAMP)
 	`, userID)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username, nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin?username="+username+"&auth_request_id="+createPasskeyAuthRequest(t), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 

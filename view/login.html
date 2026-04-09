@@ -3,13 +3,7 @@
   {{template "logo" .}}
   <h1 class="auth-title">{{.ThemeTitle}}</h1>
   {{ .csrfField }}
-  <input type="hidden" name="state" value="{{.State}}" />
-  <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
-  <input type="hidden" name="client_id" value="{{.ClientID}}" />
-  <input type="hidden" name="scope" value="{{.Scope}}" />
-  <input type="hidden" name="nonce" value="{{.Nonce}}" />
-  <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
-  <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="auth_request_id" value="{{.AuthRequestID}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
     <label class="auth-label" for="username">Email</label>
@@ -47,17 +41,17 @@
   {{if or .AllowSelfSignup (and .SmtpConfigured (ne .AuthMode "passkey_only"))}}
   <div class="auth-links">
     {{if and .SmtpConfigured (ne .AuthMode "passkey_only")}}
-    <div class="auth-link"><a href="{{authURL "/forgot-password"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Forgot password?</a></div>
+    <div class="auth-link"><a href="{{authURL "/forgot-password"}}?auth_request_id={{.AuthRequestID}}">Forgot password?</a></div>
     {{end}}
     {{if .AllowSelfSignup}}
-    <div class="auth-link" style="margin-left:auto;"><a href="{{authURL "/authorize"}}?response_type=code&prompt=create&state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create account</a></div>
+    <div class="auth-link" style="margin-left:auto;"><a href="{{authURL "/signup"}}?auth_request_id={{.AuthRequestID}}">Create account</a></div>
     {{end}}
   </div>
   {{end}}
   {{if .FederatedProviders}}
   <div class="auth-divider">or</div>
   {{range .FederatedProviders}}
-  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
+  <a href="{{authURL "/federation/"}}{{.ID}}?auth_request_id={{$.AuthRequestID}}" class="auth-btn-secondary">
     {{if .IconSVG}}{{safeHTML .IconSVG}}{{end}}
     Sign in with {{.Name}}
   </a>
@@ -79,13 +73,7 @@
     if (!username) { showPasskeyError('Please enter your {{if eq .ProfileFieldEmail "is_username"}}email{{else}}username{{end}} first.'); return; }
     const params = new URLSearchParams({
       username,
-      redirect_uri: document.querySelector('[name=redirect_uri]').value,
-      state: document.querySelector('[name=state]').value,
-      client_id: document.querySelector('[name=client_id]').value,
-      scope: document.querySelector('[name=scope]').value,
-      nonce: document.querySelector('[name=nonce]').value,
-      code_challenge: document.querySelector('[name=code_challenge]').value,
-      code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      auth_request_id: document.querySelector('[name=auth_request_id]').value,
     });
     try {
       const beginResp = await fetch('{{authURL "/passkey/login/begin"}}?' + params.toString());

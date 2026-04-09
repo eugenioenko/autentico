@@ -137,17 +137,23 @@ func TestAuthorize_RendersLoginPage(t *testing.T) {
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
+	// Authorize now redirects to /login?auth_request_id=xxx
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode)
 
-	body, err := io.ReadAll(resp.Body)
+	loginLocation := resp.Header.Get("Location")
+	require.Contains(t, loginLocation, "auth_request_id=")
+
+	// Follow redirect to the login page
+	loginResp, err := ts.Client.Get(ts.BaseURL + loginLocation)
 	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	defer func() { _ = loginResp.Body.Close() }()
 
-	doc := string(body)
-	assert.Contains(t, doc, "http://localhost:3000/callback")
-	assert.Contains(t, doc, "<body id=\"autentico\">")
+	body, _ := io.ReadAll(loginResp.Body)
+	require.Equal(t, http.StatusOK, loginResp.StatusCode)
+	assert.Contains(t, string(body), "<body id=\"autentico\">")
 }
 
 func TestAuthorize_InvalidRequest(t *testing.T) {

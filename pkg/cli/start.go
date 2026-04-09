@@ -122,7 +122,9 @@ func RunStart(c *cli.Context) error {
 
 	mux.Handle("GET "+oauth+"/authorize", csrfProtected(authorize.HandleAuthorize))
 	mux.Handle("POST "+oauth+"/authorize", http.HandlerFunc(authorize.HandleAuthorize))
+	mux.Handle("GET "+oauth+"/login", csrfProtected(login.HandleLoginPage))
 	mux.Handle("POST "+oauth+"/login", rateLimited(csrfProtected(login.HandleLoginUser)))
+	mux.Handle("GET "+oauth+"/signup", csrfProtected(signup.HandleSignupPage))
 	mux.Handle(oauth+"/mfa", rateLimited(csrfProtected(mfa.HandleMfa)))
 	mux.Handle(oauth+"/mfa/", rateLimited(csrfProtected(mfa.HandleMfa)))
 	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimitedFunc(passkey.HandleLoginBegin))

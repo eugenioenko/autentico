@@ -10,6 +10,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -84,16 +85,28 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
 	}
 
+	// Look up stored authorize request (issues #184, #186).
+	authReqID := q.Get("auth_request_id")
+	if authReqID == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing auth_request_id")
+		return
+	}
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid or expired authorization request")
+		return
+	}
+
 	regState := RegistrationState{
 		Username:            username,
 		Email:               email,
-		RedirectURI:         q.Get("redirect_uri"),
-		State:               q.Get("state"),
-		ClientID:            q.Get("client_id"),
-		Scope:               q.Get("scope"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
+		RedirectURI:         authReq.RedirectURI,
+		State:               authReq.State,
+		ClientID:            authReq.ClientID,
+		Scope:               authReq.Scope,
+		Nonce:               authReq.Nonce,
+		CodeChallenge:       authReq.CodeChallenge,
+		CodeChallengeMethod: authReq.CodeChallengeMethod,
 	}
 	stateJSON, err := json.Marshal(regState)
 	if err != nil {
@@ -188,14 +201,27 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up stored authorize request — OAuth parameters come from the server-side
+	// record, not from query params (issues #184, #186).
+	authReqID := q.Get("auth_request_id")
+	if authReqID == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing auth_request_id")
+		return
+	}
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid or expired authorization request")
+		return
+	}
+
 	loginState := LoginState{
-		RedirectURI:            q.Get("redirect_uri"),
-		State:               q.Get("state"),
-		ClientID:            q.Get("client_id"),
-		Scope:               q.Get("scope"),
-		Nonce:               q.Get("nonce"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
+		RedirectURI:         authReq.RedirectURI,
+		State:               authReq.State,
+		ClientID:            authReq.ClientID,
+		Scope:               authReq.Scope,
+		Nonce:               authReq.Nonce,
+		CodeChallenge:       authReq.CodeChallenge,
+		CodeChallengeMethod: authReq.CodeChallengeMethod,
 	}
 	stateJSON, err := json.Marshal(loginState)
 	if err != nil {

@@ -9,16 +9,13 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
-	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
-
-	"github.com/gorilla/csrf"
 )
 
 // HandleAuthorize godoc
@@ -179,83 +176,42 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Store the authorize parameters server-side and redirect to the login/signup page.
+	// This prevents parameter tampering via hidden form fields (PKCE downgrade, scope
+	// escalation, nonce injection — see issues #184 and #186).
+	authReqID, err := authrequest.Create(authrequest.AuthorizeRequest{
+		ClientID:            request.ClientID,
+		RedirectURI:         request.RedirectURI,
+		Scope:               request.Scope,
+		State:               request.State,
+		Nonce:               request.Nonce,
+		CodeChallenge:       request.CodeChallenge,
+		CodeChallengeMethod: request.CodeChallengeMethod,
+		ResponseType:        request.ResponseType,
+	})
+	if err != nil {
+		slog.Error("authorize: failed to store authorize request", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		redirectWithError(w, r, request.RedirectURI, request.State, "server_error", "Failed to process authorization request")
+		return
+	}
+
 	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
 	if request.Prompt == "create" {
 		if !config.Get().AuthAllowSelfSignup {
-			renderLogin(w, r, request, "Self-registration is not enabled")
+			http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/login?auth_request_id="+authReqID+"&error=Self-registration+is+not+enabled", http.StatusFound)
 			return
 		}
-		signup.RenderSignup(w, r, signup.SignupParams{
-			State:               request.State,
-			RedirectURI:         request.RedirectURI,
-			ClientID:            request.ClientID,
-			Scope:               request.Scope,
-			Nonce:               request.Nonce,
-			CodeChallenge:       request.CodeChallenge,
-			CodeChallengeMethod: request.CodeChallengeMethod,
-		}, get("error"))
+		http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/signup?auth_request_id="+authReqID, http.StatusFound)
 		return
 	}
 
-	// If the authorize request arrived as POST, redirect to GET so that the CSRF
-	// middleware runs and sets the CSRF cookie before rendering the login form.
-	if r.Method == http.MethodPost {
-		q := url.Values{}
-		q.Set("response_type", request.ResponseType)
-		q.Set("client_id", request.ClientID)
-		q.Set("redirect_uri", request.RedirectURI)
-		q.Set("scope", request.Scope)
-		q.Set("state", request.State)
-		q.Set("nonce", request.Nonce)
-		q.Set("code_challenge", request.CodeChallenge)
-		q.Set("code_challenge_method", request.CodeChallengeMethod)
-		q.Set("prompt", request.Prompt)
-		q.Set("max_age", request.MaxAge)
-		http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
-		return
+	loginURL := config.GetBootstrap().AppOAuthPath + "/login?auth_request_id=" + authReqID
+	if errMsg := get("error"); errMsg != "" {
+		loginURL += "&error=" + url.QueryEscape(errMsg)
 	}
-
-	renderLogin(w, r, request, get("error"))
+	http.Redirect(w, r, loginURL, http.StatusFound)
 }
 
-// renderLogin renders the login form, or an error-only page when errorMsg is a fatal
-// configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
-func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
-	cfg := config.Get()
-	tmpl, err := view.ParseTemplate("login")
-	if err != nil {
-		slog.Error("authorize: failed to parse login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	federatedProviders, _ := federation.ListEnabledProviderViews()
-
-	data := map[string]any{
-		"State":               request.State,
-		"RedirectURI":         request.RedirectURI,
-		"ClientID":            request.ClientID,
-		"Scope":               request.Scope,
-		"Nonce":               request.Nonce,
-		"CodeChallenge":       request.CodeChallenge,
-		"CodeChallengeMethod": request.CodeChallengeMethod,
-		"Error":               errorMsg,
-		"AuthMode":            cfg.AuthMode,
-		"AllowSelfSignup":     cfg.AuthAllowSelfSignup,
-		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
-		csrf.TemplateTag:      csrf.TemplateField(r),
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		"SmtpConfigured":     cfg.SmtpHost != "",
-		"FederatedProviders":  federatedProviders,
-	}
-
-	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
-	}
-}
 
 // redirectWithError redirects back to the redirect_uri with OAuth2 error params.
 // Per RFC 6749 §4.1.2.1 and Appendix B, all query values are percent-encoded.

@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/model"
@@ -67,34 +66,18 @@ func TestServerJWKS(t *testing.T) {
 func TestServerAuthorizeRendersLoginPage(t *testing.T) {
 	ts := startTestServer(t)
 
-	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+	params := url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
 		"redirect_uri":          {"http://localhost:3000/callback"},
 		"state":                 {"abc123"},
 		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
-	}.Encode()
+	}
 
-	resp, err := ts.Client.Get(authorizeURL)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
+	// Authorize now redirects to /oauth2/login?auth_request_id=xxx
+	authRequestID, csrfToken := authorizeAndGetLoginPage(t, ts, params)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	bodyStr := string(body)
-
-	// Verify the login form is rendered
-	assert.True(t, strings.Contains(bodyStr, "<form"), "response should contain a form element")
-	assert.True(t, strings.Contains(bodyStr, `name="username"`), "response should contain username field")
-	assert.True(t, strings.Contains(bodyStr, `name="password"`), "response should contain password field")
-	assert.True(t, strings.Contains(bodyStr, `name="state"`), "response should contain state hidden field")
-	assert.True(t, strings.Contains(bodyStr, `value="abc123"`), "state value should be preserved")
-
-	// Verify CSRF token is present
-	csrfToken := getCSRFToken(bodyStr)
+	assert.NotEmpty(t, authRequestID, "auth_request_id should be present")
 	assert.NotEmpty(t, csrfToken, "CSRF token should be present in the login page")
 }

@@ -22,6 +22,7 @@ func TestHandleAuthorize_NoSelfSignup(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.NotContains(t, rr.Body.String(), "Create account")
+	// No prompt=create — redirects to login (signup link visibility is tested on the login page)
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
 }

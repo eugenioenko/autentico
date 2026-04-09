@@ -24,20 +24,22 @@ func authorizeURL(ts *TestServer, clientID, redirectURI, state string) string {
 	}.Encode()
 }
 
-// csrfTokenFromAuthorize fetches the authorize page for a known-good client
-// and extracts the CSRF token. This is used to obtain a valid CSRF cookie+token
-// pair before testing the login endpoint with invalid parameters.
+// csrfTokenFromAuthorize fetches the authorize page for a known-good client,
+// follows the redirect to the login page, and extracts the CSRF token.
+// This is used to obtain a valid CSRF cookie+token pair before testing
+// the login endpoint with invalid parameters.
 func csrfTokenFromAuthorize(t *testing.T, ts *TestServer) string {
 	t.Helper()
-	resp, err := ts.Client.Get(authorizeURL(ts, "test-client", "http://localhost:3000/callback", "state"))
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
-	token := getCSRFToken(string(body))
-	require.NotEmpty(t, token, "CSRF token not found in authorize page")
-	return token
+	params := url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"test-client"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"state":                 {"state"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
+	}
+	_, csrfToken := authorizeAndGetLoginPage(t, ts, params)
+	return csrfToken
 }
 
 // postLogin sends a POST to /oauth2/login with the given form values and CSRF token.
@@ -47,7 +49,7 @@ func postLogin(t *testing.T, ts *TestServer, form url.Values, csrfToken string) 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	req.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 	resp, err := ts.Client.Do(req)
 	require.NoError(t, err)
 	return resp
@@ -86,16 +88,15 @@ func TestAuthorize_RedirectURINotRegistered(t *testing.T) {
 
 // --- /oauth2/login tests ---
 
-func TestLogin_UnknownClientID(t *testing.T) {
+// TestLogin_MissingAuthRequestID verifies that POST /oauth2/login without an
+// auth_request_id returns an error (server-side authorize request storage).
+func TestLogin_MissingAuthRequestID(t *testing.T) {
 	ts := startTestServer(t)
 	csrfToken := csrfTokenFromAuthorize(t, ts)
 
 	form := url.Values{}
 	form.Set("username", "user@test.com")
 	form.Set("password", "password123")
-	form.Set("redirect_uri", "http://localhost:3000/callback")
-	form.Set("state", "s1")
-	form.Set("client_id", "nonexistent-client-xyz")
 
 	resp := postLogin(t, ts, form, csrfToken)
 	defer func() { _ = resp.Body.Close() }()
@@ -104,58 +105,9 @@ func TestLogin_UnknownClientID(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Unknown client_id")
+	assert.Contains(t, string(body), "Missing authorization request")
 }
 
-func TestLogin_InactiveClient(t *testing.T) {
-	ts := startTestServer(t)
-
-	_, err := db.GetDB().Exec(`
-		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, is_active)
-		VALUES ('inactive-e2e-id', 'inactive-e2e-client', 'Inactive E2E Client', 'public', '["http://localhost:3000/callback"]', FALSE)
-	`)
-	require.NoError(t, err)
-
-	csrfToken := csrfTokenFromAuthorize(t, ts)
-
-	form := url.Values{}
-	form.Set("username", "user@test.com")
-	form.Set("password", "password123")
-	form.Set("redirect_uri", "http://localhost:3000/callback")
-	form.Set("state", "s1")
-	form.Set("client_id", "inactive-e2e-client")
-
-	resp := postLogin(t, ts, form, csrfToken)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Client is inactive")
-}
-
-func TestLogin_RedirectURINotAllowedForClient(t *testing.T) {
-	ts := startTestServer(t)
-	csrfToken := csrfTokenFromAuthorize(t, ts)
-
-	// test-client only allows http://localhost:3000/callback, not evil.example.com
-	form := url.Values{}
-	form.Set("username", "user@test.com")
-	form.Set("password", "password123")
-	form.Set("redirect_uri", "http://evil.example.com/callback")
-	form.Set("state", "s1")
-	form.Set("client_id", "test-client")
-
-	resp := postLogin(t, ts, form, csrfToken)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "Redirect URI not allowed for this client")
-}
 
 // seedScopedClient inserts a client that only allows "openid profile" scopes.
 func seedScopedClient(t *testing.T) {
@@ -192,27 +144,30 @@ func TestAuthorize_InvalidScope(t *testing.T) {
 	assert.Contains(t, resp.Header.Get("Location"), "error=invalid_scope")
 }
 
-func TestLogin_InvalidScope(t *testing.T) {
+// TestLogin_InvalidScope_NowHandledByAuthorize verifies that scope validation
+// is handled by the authorize endpoint, which stores valid params server-side.
+// The login endpoint trusts the stored params and no longer validates scope.
+func TestLogin_InvalidScope_NowHandledByAuthorize(t *testing.T) {
 	ts := startTestServer(t)
 	seedScopedClient(t)
-	csrfToken := csrfTokenFromAuthorize(t, ts)
 
-	form := url.Values{}
-	form.Set("username", "user@test.com")
-	form.Set("password", "password123")
-	form.Set("redirect_uri", "http://localhost:3000/callback")
-	form.Set("state", "s1")
-	form.Set("client_id", "scoped-e2e-client")
-	form.Set("scope", "offline_access") // not in client's allowed scopes
+	// Attempting invalid scope at authorize endpoint → redirect back with error
+	authURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"scoped-e2e-client"},
+		"redirect_uri":          {"http://localhost:3000/callback"},
+		"state":                 {"s1"},
+		"scope":                 {"offline_access"},
+		"code_challenge":        {testCodeChallenge},
+		"code_challenge_method": {"S256"},
+	}.Encode()
 
-	resp := postLogin(t, ts, form, csrfToken)
+	resp, err := ts.Client.Get(authURL)
+	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Contains(t, string(body), "invalid_scope")
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Location"), "error=invalid_scope")
 }
 
 func TestToken_PasswordGrant_InvalidScope(t *testing.T) {

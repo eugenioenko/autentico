@@ -3,13 +3,7 @@
   {{template "logo" .}}
   <h1 class="auth-title">{{.ThemeTitle}}</h1>
   {{ .csrfField }}
-  <input type="hidden" name="state" value="{{.State}}" />
-  <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
-  <input type="hidden" name="client_id" value="{{.ClientID}}" />
-  <input type="hidden" name="scope" value="{{.Scope}}" />
-  <input type="hidden" name="nonce" value="{{.Nonce}}" />
-  <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
-  <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="auth_request_id" value="{{.AuthRequestID}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
     <label class="auth-label" for="username">Email</label>
@@ -97,7 +91,7 @@
   <button class="auth-btn" type="submit" id="signup-btn">
     {{if eq .AuthMode "passkey_only"}}Create Account with Passkey{{else}}Create Account{{end}}
   </button>
-  <div class="auth-link">Already have an account? <a href="{{authURL "/authorize"}}?response_type=code&client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Log in</a></div>
+  <div class="auth-link">Already have an account? <a href="{{authURL "/login"}}?auth_request_id={{.AuthRequestID}}">Log in</a></div>
 </form>
 {{end}}
 
@@ -134,13 +128,7 @@
     const params = new URLSearchParams({
       username,
       email,
-      redirect_uri: document.querySelector('[name=redirect_uri]').value,
-      state: document.querySelector('[name=state]').value,
-      client_id: document.querySelector('[name=client_id]').value,
-      scope: document.querySelector('[name=scope]').value,
-      nonce: document.querySelector('[name=nonce]').value,
-      code_challenge: document.querySelector('[name=code_challenge]').value,
-      code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      auth_request_id: document.querySelector('[name=auth_request_id]').value,
     });
     try {
       const beginResp = await fetch('{{authURL "/passkey/register/begin"}}?' + params.toString());

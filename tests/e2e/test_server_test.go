@@ -129,7 +129,9 @@ func startTestServer(t *testing.T) *TestServer {
 
 	// CSRF-protected routes (using plaintext wrapper for HTTP test server)
 	mux.Handle(oauth+"/authorize", plaintextCSRF(http.HandlerFunc(authorize.HandleAuthorize)))
-	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle("GET "+oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginPage)))
+	mux.Handle("POST "+oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle("GET "+oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignupPage)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 
 	// OAuth2 client registration (admin-protected)

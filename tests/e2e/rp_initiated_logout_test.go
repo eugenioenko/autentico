@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -86,14 +85,16 @@ func TestRpInitiatedLogout_DeactivatesIdpSession(t *testing.T) {
 	require.NotNil(t, clearedCookie, "logout should clear the IdP session cookie")
 	assert.True(t, clearedCookie.MaxAge < 0, "cleared cookie should have negative MaxAge")
 
-	// Step 6: /authorize should now show the login page (SSO revoked).
+	// Step 6: /authorize should now redirect to login page (SSO revoked).
 	postResp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err)
 	defer func() { _ = postResp.Body.Close() }()
 
-	assert.Equal(t, http.StatusOK, postResp.StatusCode, "should show login page after RP-Initiated Logout")
-	postBody, _ := io.ReadAll(postResp.Body)
-	assert.True(t, strings.Contains(string(postBody), "<form"), "should render login form after logout")
+	// Authorize now redirects to /oauth2/login?auth_request_id=xxx
+	assert.Equal(t, http.StatusFound, postResp.StatusCode, "should redirect to login page after RP-Initiated Logout")
+	postLocation := postResp.Header.Get("Location")
+	assert.Contains(t, postLocation, "/oauth2/login", "should redirect to login page after logout")
+	assert.Contains(t, postLocation, "auth_request_id=", "should include auth_request_id after logout")
 }
 
 // TestRpInitiatedLogout_PostLogoutRedirectWithState verifies that a registered

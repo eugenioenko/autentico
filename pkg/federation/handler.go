@@ -11,6 +11,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -44,15 +45,27 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Look up stored authorize request (issues #184, #186).
+	authReqID := q.Get("auth_request_id")
+	if authReqID == "" {
+		http.Error(w, "missing auth_request_id", http.StatusBadRequest)
+		return
+	}
+	authReq, err := authrequest.GetByID(authReqID)
+	if err != nil {
+		http.Error(w, "invalid or expired authorization request", http.StatusBadRequest)
+		return
+	}
+
 	state := FederationState{
 		Nonce:               nonce,
 		ProviderID:          providerID,
-		RedirectURI:         q.Get("redirect_uri"),
-		ClientID:            q.Get("client_id"),
-		Scope:               q.Get("scope"),
-		State:               q.Get("state"),
-		CodeChallenge:       q.Get("code_challenge"),
-		CodeChallengeMethod: q.Get("code_challenge_method"),
+		RedirectURI:         authReq.RedirectURI,
+		ClientID:            authReq.ClientID,
+		Scope:               authReq.Scope,
+		State:               authReq.State,
+		CodeChallenge:       authReq.CodeChallenge,
+		CodeChallengeMethod: authReq.CodeChallengeMethod,
 	}
 
 	signedState, err := SignState(state)

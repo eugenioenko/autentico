@@ -98,7 +98,7 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	assert.Equal(t, "", clearedCookie.Value)
 	assert.True(t, clearedCookie.MaxAge < 0, "cleared cookie should have negative MaxAge")
 
-	// Visit /authorize again — should show login page (not auto-redirect)
+	// Visit /authorize again — should redirect to login page (not auto-login with code)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
@@ -112,7 +112,11 @@ func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page, not auto-redirect")
+	// Authorize now redirects to /oauth2/login?auth_request_id=xxx (not auto-login to client)
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "should redirect to login page, not auto-login")
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "/oauth2/login", "should redirect to login page")
+	assert.Contains(t, location, "auth_request_id=", "should include auth_request_id")
 }
 
 func TestLogout_NoAuthNoParams_ShowsLogoutPage(t *testing.T) {
@@ -196,7 +200,7 @@ func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 	_, err := db.GetDB().Exec(`UPDATE idp_sessions SET last_activity_at = ?`, time.Now().Add(-10*time.Minute))
 	require.NoError(t, err)
 
-	// Visit /authorize — should show login page (session idle timeout expired)
+	// Visit /authorize — should redirect to login page (session idle timeout expired)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
@@ -210,10 +214,11 @@ func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page when idle timeout expired")
-
-	body, _ := io.ReadAll(resp.Body)
-	assert.True(t, strings.Contains(string(body), "<form"), "should render login form")
+	// Authorize now redirects to /oauth2/login?auth_request_id=xxx
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "should redirect to login page when idle timeout expired")
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "/oauth2/login", "should redirect to login page")
+	assert.Contains(t, location, "auth_request_id=", "should include auth_request_id")
 }
 
 func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
@@ -230,7 +235,7 @@ func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 	_, err := db.GetDB().Exec(`UPDATE idp_sessions SET deactivated_at = CURRENT_TIMESTAMP`)
 	require.NoError(t, err)
 
-	// Visit /authorize — should show login page (session deactivated)
+	// Visit /authorize — should redirect to login page (session deactivated)
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type":         {"code"},
 		"client_id":             {"test-client"},
@@ -244,10 +249,11 @@ func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "should show login page when IdP session deactivated")
-
-	body, _ := io.ReadAll(resp.Body)
-	assert.True(t, strings.Contains(string(body), "<form"), "should render login form")
+	// Authorize now redirects to /oauth2/login?auth_request_id=xxx
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "should redirect to login page when IdP session deactivated")
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "/oauth2/login", "should redirect to login page")
+	assert.Contains(t, location, "auth_request_id=", "should include auth_request_id")
 }
 
 func TestAdminSessionDeactivation_BlocksFurtherRequests(t *testing.T) {

@@ -108,7 +108,7 @@ func obtainTokensViaConfidentialClient(t *testing.T, ts *TestServer, username, p
 func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redirectURI, username, password, state string) string {
 	t.Helper()
 
-	// Step 1: GET /oauth2/authorize to get login page with CSRF token
+	// Step 1: GET /oauth2/authorize → 302 redirect to /oauth2/login?auth_request_id=xxx
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
 		"response_type":        {"code"},
 		"client_id":            {clientID},
@@ -120,31 +120,40 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 
 	resp, err := ts.Client.Get(authorizeURL)
 	require.NoError(t, err, "failed to GET /oauth2/authorize")
-	defer func() { _ = resp.Body.Close() }()
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize should redirect to login")
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "failed to read authorize response")
-	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
+	loginLocation := resp.Header.Get("Location")
+	require.Contains(t, loginLocation, "auth_request_id=", "authorize redirect must contain auth_request_id")
 
-	// Step 2: Extract CSRF token from the HTML
+	// Step 2: Follow redirect to GET /oauth2/login to get CSRF token
+	loginPageResp, err := ts.Client.Get(ts.BaseURL + loginLocation)
+	require.NoError(t, err, "failed to GET login page")
+	defer func() { _ = loginPageResp.Body.Close() }()
+
+	body, err := io.ReadAll(loginPageResp.Body)
+	require.NoError(t, err, "failed to read login page")
+	require.Equal(t, http.StatusOK, loginPageResp.StatusCode, "login page failed: %s", string(body))
+
 	csrfToken := getCSRFToken(string(body))
-	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	require.NotEmpty(t, csrfToken, "CSRF token not found in login page")
 
-	// Step 3: POST /oauth2/login with credentials and CSRF token
+	// Extract auth_request_id from the login page URL
+	loginURL, _ := url.Parse(loginLocation)
+	authRequestID := loginURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID, "auth_request_id not found in login URL")
+
+	// Step 3: POST /oauth2/login with auth_request_id + credentials + CSRF
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", state)
-	form.Set("client_id", clientID)
-	form.Set("code_challenge", testCodeChallenge)
-	form.Set("code_challenge_method", "S256")
+	form.Set("auth_request_id", authRequestID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 
 	loginResp, err := ts.Client.Do(loginReq)
 	require.NoError(t, err, "failed to POST /oauth2/login")
@@ -188,48 +197,46 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 		params.Set("nonce", nonce)
 	}
 
-	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + params.Encode()
-
-	resp, err := ts.Client.Get(authorizeURL)
+	// Step 1: GET /oauth2/authorize → 302 to /oauth2/login?auth_request_id=xxx
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + params.Encode())
 	require.NoError(t, err, "failed to GET /oauth2/authorize")
-	defer func() { _ = resp.Body.Close() }()
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize should redirect to login")
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "failed to read authorize response")
-	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
+	loginLocation := resp.Header.Get("Location")
+	loginURL, _ := url.Parse(loginLocation)
+	authRequestID := loginURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID, "auth_request_id not found")
+
+	// Step 2: GET login page for CSRF
+	loginPageResp, err := ts.Client.Get(ts.BaseURL + loginLocation)
+	require.NoError(t, err)
+	defer func() { _ = loginPageResp.Body.Close() }()
+	body, _ := io.ReadAll(loginPageResp.Body)
+	require.Equal(t, http.StatusOK, loginPageResp.StatusCode, "login page failed: %s", string(body))
 
 	csrfToken := getCSRFToken(string(body))
-	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	require.NotEmpty(t, csrfToken)
 
+	// Step 3: POST /oauth2/login
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", state)
-	form.Set("client_id", clientID)
-	form.Set("scope", scope)
-	form.Set("nonce", nonce)
-	form.Set("code_challenge", testCodeChallenge)
-	form.Set("code_challenge_method", "S256")
+	form.Set("auth_request_id", authRequestID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
-	require.NoError(t, err, "failed to create login request")
+	require.NoError(t, err)
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 
 	loginResp, err := ts.Client.Do(loginReq)
-	require.NoError(t, err, "failed to POST /oauth2/login")
+	require.NoError(t, err)
 	defer func() { _ = loginResp.Body.Close() }()
-
 	require.Equal(t, http.StatusFound, loginResp.StatusCode, "login should redirect with 302")
 
 	location := loginResp.Header.Get("Location")
-	require.NotEmpty(t, location, "missing Location header in login redirect")
-
-	redirectURL, err := url.Parse(location)
-	require.NoError(t, err, "failed to parse redirect URL")
-
+	redirectURL, _ := url.Parse(location)
 	code := redirectURL.Query().Get("code")
 	require.NotEmpty(t, code, "authorization code not found in redirect URL")
 
@@ -260,88 +267,99 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 		params.Set("code_challenge_method", codeChallengeMethod)
 	}
 
-	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + params.Encode()
+	// Step 1: GET /oauth2/authorize → 302 to /oauth2/login?auth_request_id=xxx
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + params.Encode())
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize should redirect to login")
 
-	resp, err := ts.Client.Get(authorizeURL)
-	require.NoError(t, err, "failed to GET /oauth2/authorize")
-	defer func() { _ = resp.Body.Close() }()
+	loginLocation := resp.Header.Get("Location")
+	loginURL, _ := url.Parse(loginLocation)
+	authRequestID := loginURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID, "auth_request_id not found")
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err, "failed to read authorize response")
-	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
+	// Step 2: GET login page for CSRF
+	loginPageResp, err := ts.Client.Get(ts.BaseURL + loginLocation)
+	require.NoError(t, err)
+	defer func() { _ = loginPageResp.Body.Close() }()
+	body, _ := io.ReadAll(loginPageResp.Body)
+	require.Equal(t, http.StatusOK, loginPageResp.StatusCode, "login page failed: %s", string(body))
 
 	csrfToken := getCSRFToken(string(body))
-	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	require.NotEmpty(t, csrfToken)
 
+	// Step 3: POST /oauth2/login
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", state)
-	form.Set("client_id", clientID)
-	form.Set("scope", scope)
-	form.Set("nonce", nonce)
-	form.Set("code_challenge", codeChallenge)
-	form.Set("code_challenge_method", codeChallengeMethod)
+	form.Set("auth_request_id", authRequestID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
-	require.NoError(t, err, "failed to create login request")
+	require.NoError(t, err)
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/authorize")
+	loginReq.Header.Set("Referer", ts.BaseURL+"/oauth2/login")
 
 	loginResp, err := ts.Client.Do(loginReq)
-	require.NoError(t, err, "failed to POST /oauth2/login")
+	require.NoError(t, err)
 	defer func() { _ = loginResp.Body.Close() }()
-
 	require.Equal(t, http.StatusFound, loginResp.StatusCode, "login should redirect with 302")
 
 	location := loginResp.Header.Get("Location")
-	require.NotEmpty(t, location, "missing Location header in login redirect")
-
-	redirectURL, err := url.Parse(location)
-	require.NoError(t, err, "failed to parse redirect URL")
-
+	redirectURL, _ := url.Parse(location)
 	code := redirectURL.Query().Get("code")
 	require.NotEmpty(t, code, "authorization code not found in redirect URL")
 
 	return code
 }
 
-// performSignupFlow drives the authorize?prompt=create → POST signup → extract code chain.
+// performSignupFlow drives the authorize?prompt=create → signup page → POST signup → extract code chain.
 func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirectURI, state string) string {
 	t.Helper()
 
-	// Step 1: GET /oauth2/authorize?prompt=create to obtain a CSRF token
+	// Step 1: GET /oauth2/authorize?prompt=create → 302 to /oauth2/signup?auth_request_id=xxx
 	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type":        {"code"},
-		"prompt":               {"create"},
-		"redirect_uri":         {redirectURI},
-		"state":                {state},
-		"client_id":            {"test-client"},
-		"code_challenge":       {testCodeChallenge},
+		"response_type":         {"code"},
+		"prompt":                {"create"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {state},
+		"client_id":             {"test-client"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
 	resp, err := ts.Client.Get(signupURL)
 	require.NoError(t, err, "failed to GET /oauth2/authorize?prompt=create")
-	defer func() { _ = resp.Body.Close() }()
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize?prompt=create should redirect to signup")
 
-	body, err := io.ReadAll(resp.Body)
+	signupLocation := resp.Header.Get("Location")
+	require.Contains(t, signupLocation, "/oauth2/signup", "should redirect to signup page")
+	require.Contains(t, signupLocation, "auth_request_id=", "should include auth_request_id")
+
+	// Extract auth_request_id from the redirect URL
+	signupRedirectURL, _ := url.Parse(signupLocation)
+	authRequestID := signupRedirectURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID, "auth_request_id not found in signup redirect")
+
+	// Step 2: GET /oauth2/signup?auth_request_id=xxx to get CSRF token
+	signupPageResp, err := ts.Client.Get(ts.BaseURL + signupLocation)
+	require.NoError(t, err, "failed to GET signup page")
+	defer func() { _ = signupPageResp.Body.Close() }()
+
+	body, err := io.ReadAll(signupPageResp.Body)
 	require.NoError(t, err, "failed to read signup page")
-	require.Equal(t, http.StatusOK, resp.StatusCode, "signup page failed: %s", string(body))
+	require.Equal(t, http.StatusOK, signupPageResp.StatusCode, "signup page failed: %s", string(body))
 
 	csrfToken := getCSRFToken(string(body))
 	require.NotEmpty(t, csrfToken, "CSRF token not found in signup page")
 
-	// Step 2: POST /oauth2/signup with credentials
+	// Step 3: POST /oauth2/signup with auth_request_id + credentials
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
 	form.Set("confirm_password", password)
-	form.Set("redirect_uri", redirectURI)
-	form.Set("state", state)
-	form.Set("client_id", "test-client")
+	form.Set("auth_request_id", authRequestID)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
@@ -408,4 +426,95 @@ func createTestClient(t *testing.T, ts *TestServer, adminToken string, reqBody i
 	require.NoError(t, err)
 
 	return result
+}
+
+// authorizeAndGetSignupPage performs GET /oauth2/authorize?prompt=create, follows the
+// redirect to the signup page, and returns (authRequestID, csrfToken). This is the
+// common setup step for tests that need to interact with the signup form.
+func authorizeAndGetSignupPage(t *testing.T, ts *TestServer, params url.Values) (authRequestID, csrfToken string) {
+	t.Helper()
+
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + params.Encode())
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize?prompt=create should redirect to signup")
+
+	signupLocation := resp.Header.Get("Location")
+	require.Contains(t, signupLocation, "/oauth2/signup", "should redirect to signup page")
+
+	signupURL, _ := url.Parse(signupLocation)
+	authRequestID = signupURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID)
+
+	signupPageResp, err := ts.Client.Get(ts.BaseURL + signupLocation)
+	require.NoError(t, err)
+	defer func() { _ = signupPageResp.Body.Close() }()
+
+	body, _ := io.ReadAll(signupPageResp.Body)
+	require.Equal(t, http.StatusOK, signupPageResp.StatusCode, "signup page failed: %s", string(body))
+
+	csrfToken = getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	return authRequestID, csrfToken
+}
+
+// authorizeAndGetSignupPageWithClient performs GET /oauth2/authorize?prompt=create using
+// the provided HTTP client (instead of ts.Client), follows the redirect to the signup page,
+// and returns (authRequestID, csrfToken).
+func authorizeAndGetSignupPageWithClient(t *testing.T, ts *TestServer, httpClient *http.Client, params url.Values) (authRequestID, csrfToken string) {
+	t.Helper()
+
+	resp, err := httpClient.Get(ts.BaseURL + "/oauth2/authorize?" + params.Encode())
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize?prompt=create should redirect to signup")
+
+	signupLocation := resp.Header.Get("Location")
+	require.Contains(t, signupLocation, "/oauth2/signup", "should redirect to signup page")
+
+	signupURL, _ := url.Parse(signupLocation)
+	authRequestID = signupURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID)
+
+	signupPageResp, err := httpClient.Get(ts.BaseURL + signupLocation)
+	require.NoError(t, err)
+	defer func() { _ = signupPageResp.Body.Close() }()
+
+	body, _ := io.ReadAll(signupPageResp.Body)
+	require.Equal(t, http.StatusOK, signupPageResp.StatusCode, "signup page failed: %s", string(body))
+
+	csrfToken = getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	return authRequestID, csrfToken
+}
+
+// authorizeAndGetLoginPage performs GET /oauth2/authorize, follows the redirect to
+// the login page, and returns (authRequestID, csrfToken). This is the common setup
+// step for tests that need to interact with the login form.
+func authorizeAndGetLoginPage(t *testing.T, ts *TestServer, params url.Values) (authRequestID, csrfToken string) {
+	t.Helper()
+
+	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + params.Encode())
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusFound, resp.StatusCode, "authorize should redirect to login")
+
+	loginLocation := resp.Header.Get("Location")
+	loginURL, _ := url.Parse(loginLocation)
+	authRequestID = loginURL.Query().Get("auth_request_id")
+	require.NotEmpty(t, authRequestID)
+
+	loginPageResp, err := ts.Client.Get(ts.BaseURL + loginLocation)
+	require.NoError(t, err)
+	defer func() { _ = loginPageResp.Body.Close() }()
+
+	body, _ := io.ReadAll(loginPageResp.Body)
+	require.Equal(t, http.StatusOK, loginPageResp.StatusCode, "login page failed: %s", string(body))
+
+	csrfToken = getCSRFToken(string(body))
+	require.NotEmpty(t, csrfToken)
+
+	return authRequestID, csrfToken
 }

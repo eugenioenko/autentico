@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -321,8 +322,15 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 		ID: "mock", Name: "Mock", Issuer: ts.URL, ClientID: "c1", ClientSecret: "s1", Enabled: true,
 	})
 
-	// 3. Begin federation
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?redirect_uri=http://localhost/cb", nil)
+	// 3. Create an authorize request and begin federation
+	authReqID, _ := authrequest.Create(authrequest.AuthorizeRequest{
+		ClientID:    "c1",
+		RedirectURI: "http://localhost/cb",
+		Scope:       "openid",
+		State:       "test-state",
+		ResponseType: "code",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?auth_request_id="+authReqID, nil)
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 	HandleFederationBegin(rr, req)

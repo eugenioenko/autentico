@@ -9,12 +9,27 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/appsettings"
+	"github.com/eugenioenko/autentico/pkg/authrequest"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func createSignupAuthRequest(t *testing.T, clientID, redirectURI string) string {
+	t.Helper()
+	id, err := authrequest.Create(authrequest.AuthorizeRequest{
+		ClientID:    clientID,
+		RedirectURI: redirectURI,
+		Scope:       "openid profile email",
+		State:       "test-state",
+		ResponseType: "code",
+	})
+	require.NoError(t, err)
+	return id
+}
 
 func TestHandleSignup_DisabledReturns404(t *testing.T) {
 	testutils.WithTestDB(t)
@@ -46,7 +61,7 @@ func TestHandleSignup_WrongMethod(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
-func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
+func TestHandleSignup_Post_MissingAuthRequestID(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
@@ -56,8 +71,6 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "not-a-valid-uri") // syntactically invalid
-	form.Set("state", "xyz123")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -66,21 +79,22 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	HandleSignup(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Invalid redirect_uri")
+	assert.Contains(t, rr.Body.String(), "Missing authorization request")
 }
 
 func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 	})
+	authReqID := createSignupAuthRequest(t, "c1", "http://localhost/callback")
 
 	form := url.Values{}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "different456")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "xyz123")
+	form.Set("auth_request_id", authReqID)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -90,8 +104,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "prompt=create")
-	assert.Contains(t, loc, "error=Passwords+do+not+match")
+	assert.Contains(t, loc, "Passwords+do+not+match")
 }
 
 func TestHandleSignup_Post_ValidationError(t *testing.T) {
@@ -105,8 +118,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 	form.Set("username", "ab") // too short
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "xyz123")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -116,7 +128,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "auth_request_id=")
 	assert.Contains(t, loc, "error=")
 }
 
@@ -134,8 +146,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	form.Set("username", "existinguser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "xyz123")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -145,8 +156,8 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "prompt=create")
-	assert.Contains(t, loc, "error=Could+not+create+account")
+	assert.Contains(t, loc, "auth_request_id=")
+	assert.Contains(t, loc, "Could+not+create+account")
 }
 
 func TestHandleSignup_Post_Success(t *testing.T) {
@@ -161,9 +172,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "abc123")
-	form.Set("client_id", "test-client")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -175,7 +184,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	location := rr.Header().Get("Location")
 	assert.Contains(t, location, "http://localhost/callback")
 	assert.Contains(t, location, "code=")
-	assert.Contains(t, location, "state=abc123")
+	assert.Contains(t, location, "state=test-state")
 }
 
 func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
@@ -191,8 +200,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "abc123")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -222,7 +230,11 @@ func TestHandleSignup_Post_PasskeyOnly(t *testing.T) {
 		config.Values.AuthMode = "passkey_only"
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", nil)
+	authReqID := createSignupAuthRequest(t, "test-client", "http://localhost/callback")
+	form := url.Values{}
+	form.Set("auth_request_id", authReqID)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
 	HandleSignup(rr, req)
@@ -241,7 +253,7 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 	// given_name is missing
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -252,8 +264,8 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "prompt=create")
-	assert.Contains(t, loc, "error=Please+fill+in+all+required+fields")
+	assert.Contains(t, loc, "auth_request_id=")
+	assert.Contains(t, loc, "Please+fill+in+all+required+fields")
 }
 
 func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
@@ -267,7 +279,7 @@ func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
 	form.Set("username", "user@example.com")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 	// email is NOT set explicitly
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
@@ -315,7 +327,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 	form.Set("email", "verifyme@test.com")
-	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 	form.Set("state", "xyz")
 	form.Set("client_id", "test-client")
 
@@ -347,7 +359,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 	form.Set("username", "noemailuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
-	form.Set("redirect_uri", "http://localhost/callback")
+	form.Set("auth_request_id", createSignupAuthRequest(t, "test-client", "http://localhost/callback"))
 	form.Set("state", "xyz")
 	form.Set("client_id", "test-client")
 	// No email provided

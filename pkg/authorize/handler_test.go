@@ -25,14 +25,14 @@ func TestHandleAuthorize(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Verify the response
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
-	assert.Contains(t, rr.Body.String(), "username")
-	assert.Contains(t, rr.Body.String(), "password")
+	// Authorize now stores the request server-side and redirects to the login page
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "/oauth2/login")
+	assert.Contains(t, loc, "auth_request_id=")
 }
 
-func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
+func TestHandleAuthorize_PostRedirectsToLogin(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
@@ -43,14 +43,11 @@ func TestHandleAuthorize_PostRedirectsToGet(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// POST must redirect to GET so the CSRF middleware can set the cookie
+	// POST also stores the request and redirects to login
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
-	assert.Contains(t, loc, "/oauth2/authorize")
-	assert.Contains(t, loc, "response_type=code")
-	assert.Contains(t, loc, "client_id=test-client")
-	assert.Contains(t, loc, "state=xyz")
-	assert.Contains(t, loc, "nonce=abc")
+	assert.Contains(t, loc, "/oauth2/login")
+	assert.Contains(t, loc, "auth_request_id=")
 }
 
 func TestHandleAuthorize_PostInvalidClient_ShowsError(t *testing.T) {
@@ -254,10 +251,10 @@ func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should show login form, not redirect
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
-	assert.Contains(t, rr.Body.String(), "username")
+	// Should redirect to login page, not auto-login
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
@@ -290,9 +287,10 @@ func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should show login form since last activity was too long ago
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	// Should redirect to login since last activity was too long ago
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
@@ -325,9 +323,10 @@ func TestHandleAuthorize_AutoLogin_DeactivatedSession(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should show login form since session is deactivated
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	// Should redirect to login since session is deactivated
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_PKCE_PlainRejected(t *testing.T) {
@@ -356,9 +355,10 @@ func TestHandleAuthorize_PKCE_PlainAllowed_WhenFlagDisabled(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should render login form, not an error
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	// Should redirect to login, not an error
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
@@ -370,8 +370,8 @@ func TestHandleAuthorize_PKCE_S256Accepted(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_PKCE_RequiredForPublicClient(t *testing.T) {
@@ -405,8 +405,8 @@ func TestHandleAuthorize_PKCE_NotRequiredForConfidentialClient(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_InvalidScope(t *testing.T) {
@@ -442,8 +442,8 @@ func TestHandleAuthorize_AllowedScope(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
@@ -460,8 +460,8 @@ func TestHandleAuthorize_AutoLogin_NoCookie(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	// Should show login form since no cookie
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_PromptNone_NoSession(t *testing.T) {
@@ -516,8 +516,9 @@ func TestHandleAuthorize_WithFederation(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Google")
+	// Should redirect to login (federation providers are rendered on the login page)
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
@@ -529,8 +530,8 @@ func TestHandleAuthorize_PromptLogin_NoSession(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
@@ -557,7 +558,8 @@ func TestHandleAuthorize_MaxAge_ExceedsSession_ForcesLogin(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "max_age exceeded must show login form")
+	assert.Equal(t, http.StatusFound, rr.Code, "max_age exceeded must redirect to login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=", "must redirect to login with auth_request_id")
 	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code when max_age exceeded")
 }
 
@@ -612,7 +614,8 @@ func TestHandleAuthorize_PromptLogin_BypassesSSO(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "prompt=login must show login form, not auto-login")
+	assert.Equal(t, http.StatusFound, rr.Code, "prompt=login must redirect to login, not auto-login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code via SSO bypass")
 }
 
@@ -641,7 +644,8 @@ func TestHandleAuthorize_PromptConsent_BypassesSSO(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "prompt=consent must show login form, not auto-login")
+	assert.Equal(t, http.StatusFound, rr.Code, "prompt=consent must redirect to login, not auto-login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code via SSO bypass")
 }
 
@@ -657,8 +661,10 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Create account")
+	// No prompt=create — redirects to login page (signup link available on login page)
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 // OIDC Core §3.1.2.1: prompt=create renders the signup form directly
@@ -674,11 +680,10 @@ func TestHandleAuthorize_PromptCreate_RendersSignup(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, `name="username"`)
-	assert.Contains(t, body, `name="password"`)
-	assert.Contains(t, body, `name="confirm_password"`)
+	// prompt=create renders signup page
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/signup")
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 // prompt=create with self-signup disabled must show login page with error
@@ -694,8 +699,10 @@ func TestHandleAuthorize_PromptCreate_SignupDisabled(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Self-registration is not enabled")
+	// Signup disabled — redirects to login with error
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "/oauth2/login")
+	assert.Contains(t, rr.Header().Get("Location"), "Self-registration")
 }
 
 func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
@@ -708,8 +715,8 @@ func TestHandleAuthorize_InvalidPrompt(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	// Should ignore invalid prompt and show login form
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "auth_request_id=")
 }
 
 func TestHandleAuthorize_InvalidRedirectURI_Extra(t *testing.T) {
@@ -760,8 +767,9 @@ func TestHandleAuthorize_WithGenericError(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "server_error")
+	// Error passed through to login redirect
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "server_error")
 }
 
 // TestHandleAuthorize_RequestObjectRejected verifies that a request containing
