@@ -17,6 +17,20 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
+// buildAudience constructs the access token audience list.
+// Always includes the issuer and client_id, plus any custom audiences from config.
+func buildAudience(issuer string, clientID string, customAudiences []string) []string {
+	seen := map[string]bool{issuer: true, clientID: true}
+	aud := []string{issuer, clientID}
+	for _, a := range customAudiences {
+		if !seen[a] {
+			seen[a] = true
+			aud = append(aud, a)
+		}
+	}
+	return aud
+}
+
 // GenerateTokens creates a signed access token and refresh token for the given user.
 // cfg should be the per-client resolved config (via config.GetForClient) so that
 // per-client overrides for expiration and audience are applied.
@@ -27,13 +41,17 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(cfg.AuthRefreshTokenExpiration).UTC()
 
+	// RFC 9068 §2.2: aud MUST identify the resource server(s) the token is intended for.
+	// Always include the issuer and client_id; custom per-client audiences are appended.
+	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
+
 	accessClaims := jwt.MapClaims{
 		"exp":       accessTokenExpiresAt.Unix(),
 		"iat":       time.Now().Unix(),
 		"auth_time": time.Now().Unix(),
 		"jti":       xid.New().String(),
 		"iss":       bs.AppAuthIssuer,
-		"aud":       cfg.AuthAccessTokenAudience,
+		"aud":       aud,
 		"sub":       user.ID,
 		"typ":       "Bearer",
 		"azp":       clientID,
@@ -172,13 +190,16 @@ func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.C
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 
+	// RFC 9068 §2.2: aud MUST identify the resource server(s) the token is intended for.
+	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
+
 	accessClaims := jwt.MapClaims{
 		"exp":       accessTokenExpiresAt.Unix(),
 		"iat":       time.Now().Unix(),
 		"auth_time": time.Now().Unix(),
 		"jti":       xid.New().String(),
 		"iss":       bs.AppAuthIssuer,
-		"aud":       cfg.AuthAccessTokenAudience,
+		"aud":       aud,
 		"sub":       clientID,
 		"typ":       "Bearer",
 		"azp":       clientID,

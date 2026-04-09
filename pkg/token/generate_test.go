@@ -265,6 +265,76 @@ func TestGenerateTokens_AcrValue(t *testing.T) {
 	assert.Equal(t, "1", claims["acr"], "OIDC Core §2: acr in access token must be '1', not 'password'")
 }
 
+func TestBuildAudience(t *testing.T) {
+	// Base case: no custom audiences
+	aud := buildAudience("https://auth.example.com", "my-client", nil)
+	assert.Equal(t, []string{"https://auth.example.com", "my-client"}, aud)
+
+	// With custom audiences
+	aud = buildAudience("https://auth.example.com", "my-client", []string{"https://api.example.com"})
+	assert.Equal(t, []string{"https://auth.example.com", "my-client", "https://api.example.com"}, aud)
+
+	// Deduplication: custom audience matches issuer or client_id
+	aud = buildAudience("https://auth.example.com", "my-client", []string{"https://auth.example.com", "https://api.example.com"})
+	assert.Equal(t, []string{"https://auth.example.com", "my-client", "https://api.example.com"}, aud)
+
+	// Empty custom audiences
+	aud = buildAudience("https://auth.example.com", "my-client", []string{})
+	assert.Equal(t, []string{"https://auth.example.com", "my-client"}, aud)
+}
+
+func TestGenerateTokens_AudContainsIssuerAndClientID(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+	config.Bootstrap.AppAuthIssuer = "https://auth.example.com/oauth2"
+	config.Values.AuthAccessTokenAudience = []string{}
+
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com"}
+	tokens, err := GenerateTokens(testUser, "test-client", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	// RFC 9068 §2.2: aud MUST identify the resource server(s)
+	audRaw := claims["aud"].([]interface{})
+	var aud []string
+	for _, a := range audRaw {
+		aud = append(aud, a.(string))
+	}
+	assert.Contains(t, aud, "https://auth.example.com/oauth2")
+	assert.Contains(t, aud, "test-client")
+}
+
+func TestGenerateTokens_AudIncludesCustomAudiences(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+	config.Bootstrap.AppAuthIssuer = "https://auth.example.com/oauth2"
+	config.Values.AuthAccessTokenAudience = []string{"https://api.example.com"}
+
+	testUser := user.User{ID: "user-1", Username: "testuser", Email: "test@example.com"}
+	tokens, err := GenerateTokens(testUser, "test-client", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	audRaw := claims["aud"].([]interface{})
+	var aud []string
+	for _, a := range audRaw {
+		aud = append(aud, a.(string))
+	}
+	assert.Contains(t, aud, "https://auth.example.com/oauth2")
+	assert.Contains(t, aud, "test-client")
+	assert.Contains(t, aud, "https://api.example.com")
+}
+
 func TestContainsScope(t *testing.T) {
 	assert.True(t, containsScope("openid profile email", "openid"))
 	assert.True(t, containsScope("openid profile email", "profile"))
