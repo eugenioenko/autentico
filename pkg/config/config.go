@@ -299,7 +299,7 @@ func GetForClient(overrides ClientOverrides) Config {
 		cfg.AuthAuthorizationCodeExpiration = ParseDuration(*overrides.AuthorizationCodeExpiration, cfg.AuthAuthorizationCodeExpiration)
 	}
 	if overrides.AllowedAudiences != nil {
-		cfg.AuthAccessTokenAudience = overrides.AllowedAudiences
+		cfg.AuthAccessTokenAudience = append(cfg.AuthAccessTokenAudience, overrides.AllowedAudiences...)
 	}
 	if overrides.AllowSelfSignup != nil {
 		cfg.AuthAllowSelfSignup = *overrides.AllowSelfSignup
