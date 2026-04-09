@@ -62,7 +62,9 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oidcProvider, err := oidc.NewProvider(r.Context(), provider.Issuer)
+	// Use a restricted HTTP client to prevent SSRF via redirect following.
+	safeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
+	oidcProvider, err := oidc.NewProvider(safeCtx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider", "request_id", middleware.GetRequestID(r.Context()), "issuer", provider.Issuer, "error", err)
 		http.Error(w, "federation provider unavailable", http.StatusBadGateway)
@@ -116,7 +118,8 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.Background()
+	// Use a restricted HTTP client to prevent SSRF via redirect following.
+	ctx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
 	oidcProvider, err := oidc.NewProvider(ctx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider in callback", "request_id", middleware.GetRequestID(r.Context()), "issuer", provider.Issuer, "error", err)
