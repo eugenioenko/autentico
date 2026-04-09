@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, postForm, postFormBasic, deleteRequest, getResponse, obtainTokenViaROPC } from '../helpers';
+import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, postForm, postFormBasic, deleteRequest, getResponse } from '../helpers';
 
 const API = `${BASE_URL}/admin/api/users`;
 const INTROSPECT = `${OAUTH_URL}/introspect`;
