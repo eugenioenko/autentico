@@ -16,7 +16,7 @@ describe('Authorization Code Flow', () => {
   it('completes full flow: authorize → login → token exchange → userinfo', async () => {
     const state = 'test-state-abc';
 
-    // Step 1: GET /authorize — renders login page with CSRF token
+    // Step 1: GET /authorize → 302 redirect to /login?auth_request_id=xxx
     const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
     authorizeURL.searchParams.set('response_type', 'code');
     authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
@@ -27,21 +27,33 @@ describe('Authorization Code Flow', () => {
     authorizeURL.searchParams.set('code_challenge_method', 'S256');
 
     const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
-    expect(authorizeResp.status).toBe(200);
+    expect(authorizeResp.status).toBe(302);
 
-    const html = await authorizeResp.text();
+    const loginRedirect = authorizeResp.headers.get('Location');
+    expect(loginRedirect).toBeTruthy();
+    expect(loginRedirect).toContain('auth_request_id=');
+
+    // Extract auth_request_id
+    const loginRedirectURL = new URL(loginRedirect!, BASE_URL);
+    const authRequestId = loginRedirectURL.searchParams.get('auth_request_id');
+    expect(authRequestId).toBeTruthy();
+
+    // Step 2: GET /login?auth_request_id=xxx — get login page with CSRF token
+    const loginPageResp = await fetch(`${BASE_URL}${loginRedirect}`, { redirect: 'manual' });
+    expect(loginPageResp.status).toBe(200);
+
+    const html = await loginPageResp.text();
     expect(html).toContain('<form');
 
-    // Extract CSRF token and cookie
     const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
     expect(csrfMatch).toBeTruthy();
     const csrfToken = csrfMatch![1];
 
-    const cookies = authorizeResp.headers.getSetCookie();
+    const cookies = loginPageResp.headers.getSetCookie();
     const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
     expect(csrfCookie).toBeTruthy();
 
-    // Step 2: POST /login — submit credentials
+    // Step 3: POST /login — submit credentials with auth_request_id
     const loginResp = await fetch(`${OAUTH_URL}/login`, {
       method: 'POST',
       headers: {
@@ -53,13 +65,7 @@ describe('Authorization Code Flow', () => {
         username: ADMIN_USERNAME,
         password: ADMIN_PASSWORD,
         'gorilla.csrf.Token': csrfToken,
-        client_id: ADMIN_CLIENT_ID,
-        redirect_uri: ADMIN_REDIRECT_URI,
-        scope: 'openid profile email',
-        state,
-        response_type: 'code',
-        code_challenge: TEST_CODE_CHALLENGE,
-        code_challenge_method: 'S256',
+        auth_request_id: authRequestId!,
       }),
       redirect: 'manual',
     });
@@ -75,7 +81,7 @@ describe('Authorization Code Flow', () => {
     expect(code).toBeTruthy();
     expect(returnedState).toBe(state);
 
-    // Step 3: POST /token — exchange code for tokens
+    // Step 4: POST /token — exchange code for tokens
     const tokenResp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'authorization_code',
       code: code!,
@@ -91,7 +97,7 @@ describe('Authorization Code Flow', () => {
     expect(tokens.id_token).toBeTruthy();
     expect(tokens.token_type).toBe('Bearer');
 
-    // Step 4: GET /userinfo — verify token works
+    // Step 5: GET /userinfo — verify token works
     const userinfoResp = await fetch(`${OAUTH_URL}/userinfo`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });

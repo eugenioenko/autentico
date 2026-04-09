@@ -89,7 +89,7 @@ export async function obtainTokenViaAuthCode(
   password: string,
   scope = 'openid profile email'
 ): Promise<{ access_token: string; refresh_token: string; id_token: string; token_type: string }> {
-  // Step 1: GET /authorize — renders login page with CSRF token
+  // Step 1: GET /authorize → 302 redirect to /login?auth_request_id=xxx
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
   authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
@@ -100,20 +100,34 @@ export async function obtainTokenViaAuthCode(
   authorizeURL.searchParams.set('code_challenge_method', 'S256');
 
   const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
-  if (authorizeResp.status !== 200) {
-    throw new Error(`Authorize returned ${authorizeResp.status}`);
+  if (authorizeResp.status !== 302) {
+    throw new Error(`Authorize returned ${authorizeResp.status}, expected 302`);
   }
 
-  const html = await authorizeResp.text();
+  const loginRedirect = authorizeResp.headers.get('Location');
+  if (!loginRedirect) throw new Error('Authorize did not return Location header');
+
+  // Extract auth_request_id from redirect URL
+  const loginRedirectURL = new URL(loginRedirect, BASE_URL);
+  const authRequestId = loginRedirectURL.searchParams.get('auth_request_id');
+  if (!authRequestId) throw new Error('No auth_request_id in authorize redirect');
+
+  // Step 2: GET /login?auth_request_id=xxx — get login page with CSRF token
+  const loginPageResp = await fetch(`${BASE_URL}${loginRedirect}`, { redirect: 'manual' });
+  if (loginPageResp.status !== 200) {
+    throw new Error(`Login page returned ${loginPageResp.status}`);
+  }
+
+  const html = await loginPageResp.text();
   const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
   if (!csrfMatch) throw new Error('Could not extract CSRF token from login page');
   const csrfToken = csrfMatch[1];
 
-  const cookies = authorizeResp.headers.getSetCookie();
+  const cookies = loginPageResp.headers.getSetCookie();
   const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
   if (!csrfCookie) throw new Error('Could not extract CSRF cookie');
 
-  // Step 2: POST /login — submit credentials
+  // Step 3: POST /login — submit credentials with auth_request_id
   const loginResp = await fetch(`${OAUTH_URL}/login`, {
     method: 'POST',
     headers: {
@@ -125,13 +139,7 @@ export async function obtainTokenViaAuthCode(
       username,
       password,
       'gorilla.csrf.Token': csrfToken,
-      client_id: ADMIN_CLIENT_ID,
-      redirect_uri: ADMIN_REDIRECT_URI,
-      scope,
-      state: 'helper-state',
-      response_type: 'code',
-      code_challenge: TEST_CODE_CHALLENGE,
-      code_challenge_method: 'S256',
+      auth_request_id: authRequestId,
     }),
     redirect: 'manual',
   });
@@ -146,7 +154,7 @@ export async function obtainTokenViaAuthCode(
   const code = new URL(location).searchParams.get('code');
   if (!code) throw new Error('No code in redirect URL');
 
-  // Step 3: POST /token — exchange code
+  // Step 4: POST /token — exchange code
   const tokenResp = await postForm(`${OAUTH_URL}/token`, {
     grant_type: 'authorization_code',
     code,
