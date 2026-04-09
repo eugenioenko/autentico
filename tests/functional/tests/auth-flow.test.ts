@@ -32,10 +32,13 @@ describe('Authorization Code Flow', () => {
     const html = await authorizeResp.text();
     expect(html).toContain('<form');
 
-    // Extract CSRF token and cookie
+    // Extract CSRF token, authorize signature, and cookie
     const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
     expect(csrfMatch).toBeTruthy();
     const csrfToken = csrfMatch![1];
+
+    const sigMatch = html.match(/name="authorize_sig"\s+value="([^"]*)"/);
+    const authorizeSig = sigMatch ? sigMatch[1] : '';
 
     const cookies = authorizeResp.headers.getSetCookie();
     const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
@@ -53,6 +56,7 @@ describe('Authorization Code Flow', () => {
         username: ADMIN_USERNAME,
         password: ADMIN_PASSWORD,
         'gorilla.csrf.Token': csrfToken,
+        authorize_sig: authorizeSig,
         client_id: ADMIN_CLIENT_ID,
         redirect_uri: ADMIN_REDIRECT_URI,
         scope: 'openid profile email',
@@ -118,5 +122,151 @@ describe('Authorization Code Flow', () => {
     expect(location).toBeTruthy();
     expect(location).toContain('error=invalid_request');
     expect(location).toContain('code_challenge');
+  });
+
+  it('rejects login when authorize_sig is missing', async () => {
+    const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
+    authorizeURL.searchParams.set('response_type', 'code');
+    authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
+    authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
+    authorizeURL.searchParams.set('scope', 'openid');
+    authorizeURL.searchParams.set('state', 'tamper-test');
+    authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
+    authorizeURL.searchParams.set('code_challenge_method', 'S256');
+
+    const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
+    expect(authorizeResp.status).toBe(200);
+
+    const html = await authorizeResp.text();
+    const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
+    expect(csrfMatch).toBeTruthy();
+
+    const cookies = authorizeResp.headers.getSetCookie();
+    const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
+    expect(csrfCookie).toBeTruthy();
+
+    // POST login WITHOUT authorize_sig — should be rejected
+    const loginResp = await fetch(`${OAUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: csrfCookie!.split(';')[0],
+        Origin: BASE_URL,
+      },
+      body: new URLSearchParams({
+        username: ADMIN_USERNAME,
+        password: ADMIN_PASSWORD,
+        'gorilla.csrf.Token': csrfMatch![1],
+        client_id: ADMIN_CLIENT_ID,
+        redirect_uri: ADMIN_REDIRECT_URI,
+        scope: 'openid',
+        state: 'tamper-test',
+        code_challenge: TEST_CODE_CHALLENGE,
+        code_challenge_method: 'S256',
+      }),
+      redirect: 'manual',
+    });
+
+    expect(loginResp.status).toBe(400);
+    const body = await loginResp.json();
+    expect(body.error_description).toContain('tampered');
+  });
+
+  it('rejects login when scope is tampered after authorize', async () => {
+    const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
+    authorizeURL.searchParams.set('response_type', 'code');
+    authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
+    authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
+    authorizeURL.searchParams.set('scope', 'openid');
+    authorizeURL.searchParams.set('state', 'scope-tamper');
+    authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
+    authorizeURL.searchParams.set('code_challenge_method', 'S256');
+
+    const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
+    expect(authorizeResp.status).toBe(200);
+
+    const html = await authorizeResp.text();
+    const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
+    const sigMatch = html.match(/name="authorize_sig"\s+value="([^"]*)"/);
+    expect(csrfMatch).toBeTruthy();
+    expect(sigMatch).toBeTruthy();
+
+    const cookies = authorizeResp.headers.getSetCookie();
+    const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
+
+    // POST login with escalated scope — sig was computed for "openid" only
+    const loginResp = await fetch(`${OAUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: csrfCookie!.split(';')[0],
+        Origin: BASE_URL,
+      },
+      body: new URLSearchParams({
+        username: ADMIN_USERNAME,
+        password: ADMIN_PASSWORD,
+        'gorilla.csrf.Token': csrfMatch![1],
+        authorize_sig: sigMatch![1],
+        client_id: ADMIN_CLIENT_ID,
+        redirect_uri: ADMIN_REDIRECT_URI,
+        scope: 'openid profile email offline_access', // tampered
+        state: 'scope-tamper',
+        code_challenge: TEST_CODE_CHALLENGE,
+        code_challenge_method: 'S256',
+      }),
+      redirect: 'manual',
+    });
+
+    expect(loginResp.status).toBe(400);
+    const body = await loginResp.json();
+    expect(body.error_description).toContain('tampered');
+  });
+
+  it('rejects login when PKCE is stripped after authorize', async () => {
+    const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
+    authorizeURL.searchParams.set('response_type', 'code');
+    authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
+    authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
+    authorizeURL.searchParams.set('scope', 'openid');
+    authorizeURL.searchParams.set('state', 'pkce-strip');
+    authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
+    authorizeURL.searchParams.set('code_challenge_method', 'S256');
+
+    const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
+    expect(authorizeResp.status).toBe(200);
+
+    const html = await authorizeResp.text();
+    const csrfMatch = html.match(/name="gorilla\.csrf\.Token"\s+value="([^"]+)"/);
+    const sigMatch = html.match(/name="authorize_sig"\s+value="([^"]*)"/);
+
+    const cookies = authorizeResp.headers.getSetCookie();
+    const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
+
+    // POST login with PKCE stripped — sig was computed with PKCE present
+    const loginResp = await fetch(`${OAUTH_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: csrfCookie!.split(';')[0],
+        Origin: BASE_URL,
+      },
+      body: new URLSearchParams({
+        username: ADMIN_USERNAME,
+        password: ADMIN_PASSWORD,
+        'gorilla.csrf.Token': csrfMatch![1],
+        authorize_sig: sigMatch![1],
+        client_id: ADMIN_CLIENT_ID,
+        redirect_uri: ADMIN_REDIRECT_URI,
+        scope: 'openid',
+        state: 'pkce-strip',
+        code_challenge: '',             // stripped
+        code_challenge_method: '',      // stripped
+      }),
+      redirect: 'manual',
+    });
+
+    expect(loginResp.status).toBe(400);
+    const body = await loginResp.json();
+    expect(body.error_description).toContain('tampered');
   });
 });
