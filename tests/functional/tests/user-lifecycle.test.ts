@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { BASE_URL, getAdminToken, postJSON, deleteRequest, getResponse, obtainTokenViaROPC } from '../helpers';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, postForm, postFormBasic, deleteRequest, getResponse, obtainTokenViaROPC } from '../helpers';
 
 const API = `${BASE_URL}/admin/api/users`;
+const INTROSPECT = `${OAUTH_URL}/introspect`;
+const INTROSPECT_CLIENT_ID = 'lifecycle-introspect-client';
+const INTROSPECT_CLIENT_SECRET = 'lifecycle-introspect-secret!';
 
 /**
  * Helper: create a user via admin API and return { id, username }.
@@ -23,6 +26,71 @@ async function postAction(url: string, token: string): Promise<Response> {
   });
 }
 
+/**
+ * Helper: introspect a token using client_secret_basic and return the response body.
+ */
+async function introspect(accessToken: string): Promise<{ active: boolean; sub?: string }> {
+  const resp = await postFormBasic(INTROSPECT, { token: accessToken }, INTROSPECT_CLIENT_ID, INTROSPECT_CLIENT_SECRET);
+  expect(resp.ok).toBe(true);
+  return resp.json();
+}
+
+/**
+ * Helper: attempt ROPC login, returning the response (not throwing on failure).
+ */
+async function attemptROPCLogin(username: string, password: string): Promise<Response> {
+  // Use the same ROPC client that obtainTokenViaROPC creates.
+  // First call obtainTokenViaROPC to ensure the client exists, then use postForm directly.
+  // We need a simpler approach — just call the token endpoint with the test-client.
+  return postForm(`${OAUTH_URL}/token`, {
+    grant_type: 'password',
+    username,
+    password,
+    scope: 'openid profile email',
+    client_id: 'test-ropc-lifecycle',
+  });
+}
+
+// Create a confidential client for introspection and a public client for ROPC
+beforeAll(async () => {
+  const adminToken = await getAdminToken();
+
+  // Confidential client for introspection
+  const introspectResp = await postJSON(
+    `${OAUTH_URL}/register`,
+    {
+      client_id: INTROSPECT_CLIENT_ID,
+      client_name: 'Lifecycle Introspect Client',
+      client_secret: INTROSPECT_CLIENT_SECRET,
+      redirect_uris: ['http://localhost:3000/callback'],
+      grant_types: ['authorization_code', 'password', 'refresh_token'],
+      response_types: ['code'],
+      scopes: 'openid profile email offline_access',
+      client_type: 'confidential',
+      token_endpoint_auth_method: 'client_secret_basic',
+    },
+    adminToken
+  );
+  expect(introspectResp.status).toBe(201);
+
+  // Public client for ROPC login attempts
+  const ropcResp = await postJSON(
+    `${OAUTH_URL}/register`,
+    {
+      client_id: 'test-ropc-lifecycle',
+      client_name: 'Lifecycle ROPC Client',
+      redirect_uris: ['http://localhost:3000/callback'],
+      grant_types: ['authorization_code', 'password', 'refresh_token'],
+      response_types: ['code'],
+      scopes: 'openid profile email offline_access',
+      client_type: 'public',
+      token_endpoint_auth_method: 'none',
+    },
+    adminToken
+  );
+  expect(ropcResp.status).toBe(201);
+});
+
 // --- Deactivation ---
 
 describe('User Deactivation', () => {
@@ -36,26 +104,41 @@ describe('User Deactivation', () => {
 
   it('deactivated user cannot login via ROPC', async () => {
     const token = await getAdminToken();
-    await createUser(token, 'deact-func2', 'Password123!', 'deact-func2@test.com');
+    const user = await createUser(token, 'deact-func2', 'Password123!', 'deact-func2@test.com');
 
-    // Obtain token before deactivation to confirm login works
-    const tokens = await obtainTokenViaROPC('deact-func2', 'Password123!');
-    expect(tokens.access_token).toBeTruthy();
+    // Login works before deactivation
+    const loginBefore = await attemptROPCLogin('deact-func2', 'Password123!');
+    expect(loginBefore.status).toBe(200);
 
     // Deactivate
-    const user = await getResponse(`${API}`, token).then(r => r.json()).then(body =>
-      body.data.find((u: { username: string }) => u.username === 'deact-func2')
-    );
     const deactResp = await postAction(`${API}/${user.id}/deactivate`, token);
     expect(deactResp.status).toBe(204);
 
-    // ROPC login should fail
-    try {
-      await obtainTokenViaROPC('deact-func2', 'Password123!');
-      expect.fail('Should have thrown — deactivated user should not be able to login');
-    } catch {
-      // Expected: login fails for deactivated user
-    }
+    // Login fails after deactivation
+    const loginAfter = await attemptROPCLogin('deact-func2', 'Password123!');
+    expect(loginAfter.status).not.toBe(200);
+  });
+
+  it('existing token returns active=false after deactivation', async () => {
+    const token = await getAdminToken();
+    const user = await createUser(token, 'deact-func-intr', 'Password123!', 'deact-func-intr@test.com');
+
+    // Get a token for the user
+    const loginResp = await attemptROPCLogin('deact-func-intr', 'Password123!');
+    expect(loginResp.status).toBe(200);
+    const tokens = await loginResp.json();
+
+    // Token should be active before deactivation
+    const before = await introspect(tokens.access_token);
+    expect(before.active).toBe(true);
+
+    // Deactivate
+    const deactResp = await postAction(`${API}/${user.id}/deactivate`, token);
+    expect(deactResp.status).toBe(204);
+
+    // Token should be inactive after deactivation
+    const after = await introspect(tokens.access_token);
+    expect(after.active).toBe(false);
   });
 
   it('deactivated user does not appear in user list', async () => {
@@ -113,8 +196,8 @@ describe('User Reactivation', () => {
     await postAction(`${API}/${user.id}/deactivate`, token);
     await postAction(`${API}/${user.id}/reactivate`, token);
 
-    const tokens = await obtainTokenViaROPC('react-func2', 'Password123!');
-    expect(tokens.access_token).toBeTruthy();
+    const loginResp = await attemptROPCLogin('react-func2', 'Password123!');
+    expect(loginResp.status).toBe(200);
   });
 
   it('returns 404 when reactivating a non-deactivated user', async () => {
@@ -145,6 +228,31 @@ describe('User Hard Delete', () => {
     // User should be gone
     const getResp = await getResponse(`${API}/${user.id}`, token);
     expect(getResp.status).toBe(404);
+  });
+
+  it('existing token returns active=false after hard delete', async () => {
+    const token = await getAdminToken();
+    await createUser(token, 'hd-func-intr', 'Password123!', 'hd-func-intr@test.com');
+
+    // Get a token for the user
+    const loginResp = await attemptROPCLogin('hd-func-intr', 'Password123!');
+    expect(loginResp.status).toBe(200);
+    const tokens = await loginResp.json();
+
+    // Token active before delete
+    const before = await introspect(tokens.access_token);
+    expect(before.active).toBe(true);
+
+    // Hard-delete
+    const user = await getResponse(API, token).then(r => r.json()).then(body =>
+      body.data.find((u: { username: string }) => u.username === 'hd-func-intr')
+    );
+    const delResp = await deleteRequest(`${API}/${user.id}`, token);
+    expect(delResp.status).toBe(204);
+
+    // Token inactive after delete
+    const after = await introspect(tokens.access_token);
+    expect(after.active).toBe(false);
   });
 
   it('frees username and email after hard delete', async () => {
