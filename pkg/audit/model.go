@@ -72,6 +72,8 @@ const (
 	EventUserCreated            Event = "user_created"
 	EventUserUpdated            Event = "user_updated"
 	EventUserDeactivated        Event = "user_deactivated"
+	EventUserReactivated        Event = "user_reactivated"
+	EventUserDeleted            Event = "user_deleted"
 	EventUserUnlocked           Event = "user_unlocked"
 	EventMfaEnrolled            Event = "mfa_enrolled"
 	EventMfaDisabled            Event = "mfa_disabled"

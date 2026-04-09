@@ -61,7 +61,7 @@ describe('Admin Users — happy path', () => {
   it('deletes user', async () => {
     const token = await getAdminToken();
     const resp = await deleteRequest(`${API}/${createdUserId}`, token);
-    expect(resp.status).toBe(200);
+    expect(resp.status).toBe(204);
   });
 
   it('returns 404 after deletion', async () => {

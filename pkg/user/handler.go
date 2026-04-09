@@ -154,13 +154,15 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleDeleteUser godoc
-// @Summary Delete a user
+// @Summary Permanently delete a user
+// @Description Hard-deletes a user and all associated data (tokens, sessions, group memberships, passkeys, etc.)
 // @Tags users-admin
 // @Produce json
 // @Param id path string true "User ID"
 // @Security BearerAuth
-// @Success 200 {object} map[string]string
+// @Success 204
 // @Failure 400 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users/{id} [delete]
 func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -169,10 +171,43 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
 		return
 	}
-	err := DeleteUser(id)
+	// Check user exists (including deactivated users)
+	u, err := UserByIDIncludingDeactivated(id)
+	if err != nil || u == nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+		return
+	}
+	if err := HardDeleteUser(id); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserDeleted, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleDeactivateUser godoc
+// @Summary Deactivate a user
+// @Description Soft-disables a user account, immediately revoking all tokens and deactivating all sessions.
+// @Tags users-admin
+// @Produce json
+// @Param id path string true "User ID"
+// @Security BearerAuth
+// @Success 204
+// @Failure 400 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users/{id}/deactivate [post]
+func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		return
+	}
+	err := DeactivateUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or already deactivated")
 			return
 		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
@@ -180,7 +215,39 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	admin, _ := GetUserFromRequest(r)
 	audit.Log(audit.EventUserDeactivated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
-	utils.SuccessResponse(w, map[string]string{"result": "deleted"}, http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleReactivateUser godoc
+// @Summary Reactivate a deactivated user
+// @Description Clears the deactivated status, allowing the user to log in again.
+// @Tags users-admin
+// @Produce json
+// @Param id path string true "User ID"
+// @Security BearerAuth
+// @Success 204
+// @Failure 400 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users/{id}/reactivate [post]
+func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		return
+	}
+	err := ReactivateUser(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or not deactivated")
+			return
+		}
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	admin, _ := GetUserFromRequest(r)
+	audit.Log(audit.EventUserReactivated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // HandleListUsers godoc

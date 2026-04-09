@@ -131,6 +131,17 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// RFC 7662 §2.2: tokens that are "otherwise invalid" SHOULD return active=false.
+	// A deactivated user's tokens are no longer valid by server policy.
+	if tkn.UserID != nil {
+		usr, err := user.UserByIDIncludingDeactivated(*tkn.UserID)
+		if err != nil || usr == nil || usr.DeactivatedAt != nil {
+			slog.Info("introspect: user deactivated or not found", "request_id", middleware.GetRequestID(r.Context()))
+			inactive(w)
+			return
+		}
+	}
+
 	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
 	// Note: client_id and username are not stored in the tokens table — omitted per spec allowance.
 	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")

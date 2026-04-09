@@ -28,7 +28,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	var email, passwordHash sql.NullString
 	query := `
 		SELECT id, username, password, email, created_at, role, failed_login_attempts, locked_until, totp_secret, totp_verified, is_email_verified
-		FROM users WHERE username = ?
+		FROM users WHERE username = ? AND deactivated_at IS NULL
 	`
 	row := db.GetDB().QueryRow(query, username)
 	err := row.Scan(
