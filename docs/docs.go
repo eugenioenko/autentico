@@ -1516,13 +1516,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Hard-deletes a user and all associated data (tokens, sessions, group memberships, passkeys, etc.)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "users-admin"
                 ],
-                "summary": "Delete a user",
+                "summary": "Permanently delete a user",
                 "parameters": [
                     {
                         "type": "string",
@@ -1533,17 +1534,66 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users/{id}/deactivate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-disables a user account, immediately revoking all tokens and deactivating all sessions.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "Deactivate a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }
@@ -1588,6 +1638,55 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/group.GroupResponse"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users/{id}/reactivate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Clears the deactivated status, allowing the user to log in again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users-admin"
+                ],
+                "summary": "Reactivate a deactivated user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }

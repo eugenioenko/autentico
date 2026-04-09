@@ -1596,6 +1596,8 @@ paths:
       - users-admin
   /admin/api/users/{id}:
     delete:
+      description: Hard-deletes a user and all associated data (tokens, sessions,
+        group memberships, passkeys, etc.)
       parameters:
       - description: User ID
         in: path
@@ -1605,14 +1607,14 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
+        "204":
+          description: No Content
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/model.ApiError'
         "500":
@@ -1621,7 +1623,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       security:
       - BearerAuth: []
-      summary: Delete a user
+      summary: Permanently delete a user
       tags:
       - users-admin
     get:
@@ -1686,6 +1688,38 @@ paths:
       summary: Update a user
       tags:
       - users-admin
+  /admin/api/users/{id}/deactivate:
+    post:
+      description: Soft-disables a user account, immediately revoking all tokens and
+        deactivating all sessions.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Deactivate a user
+      tags:
+      - users-admin
   /admin/api/users/{id}/groups:
     get:
       parameters:
@@ -1708,6 +1742,37 @@ paths:
       summary: Get groups for a user
       tags:
       - groups-admin
+  /admin/api/users/{id}/reactivate:
+    post:
+      description: Clears the deactivated status, allowing the user to log in again.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - BearerAuth: []
+      summary: Reactivate a deactivated user
+      tags:
+      - users-admin
   /admin/api/users/{id}/unlock:
     post:
       description: Resets the failed login attempts and clears the lockout time for
