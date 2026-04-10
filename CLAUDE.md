@@ -126,7 +126,7 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callba
 
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), CSRF secret, and token signing secrets
-- `autentico start` — loads config, initializes DB, checks schema version, seeds `autentico-admin` client, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--auto-migrate` flag to apply pending migrations automatically on startup
+- `autentico start` — loads config, initializes DB, auto-applies pending migrations, seeds `autentico-admin` client, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
 - `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts user to type the target version number to confirm (irreversible)
 
 ### Package Structure
@@ -233,8 +233,8 @@ Initialized by `db.InitDB()`. Schema in `pkg/db/db.go`. 11 tables:
 Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expected version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go`.
 
 - `InitDB()` stamps `user_version = 1` on fresh databases (when `user_version == 0`)
-- `autentico start` calls `migrations.Check()` — refuses to start if the DB is behind, printing a message to run `autentico migrate`
-- `autentico start --auto-migrate` calls `migrations.Run()` instead, applying pending migrations silently (for Docker/CI)
+- `autentico start` calls `migrations.Run()` by default, applying pending migrations automatically on startup
+- `autentico start --no-auto-migrate` calls `migrations.Check()` instead — refuses to start if the DB is behind, printing a message to run `autentico migrate`
 - `autentico migrate` is the interactive migration command — shows versions, warns about irreversibility, requires typing the target version number to confirm
 
 Migrations are the single source of truth for the schema. `001_initial_schema.go` creates all tables and is the baseline. Fresh databases run all migrations from scratch; existing databases run only pending ones.
