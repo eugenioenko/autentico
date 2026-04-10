@@ -7,11 +7,11 @@ import AppHeader from './AppHeader';
 import Spinner from './Spinner';
 
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
-const ProfilePage = React.lazy(() => import('../pages/ProfilePage'));
-const SecurityPage = React.lazy(() => import('../pages/SecurityPage'));
-const SessionsPage = React.lazy(() => import('../pages/SessionsPage'));
-const TrustedDevicesPage = React.lazy(() => import('../pages/TrustedDevicesPage'));
-const ConnectedProvidersPage = React.lazy(() => import('../pages/ConnectedProvidersPage'));
+const ProfilePage = React.lazy(() => import('../pages/Profile'));
+const SecurityPage = React.lazy(() => import('../pages/Security'));
+const SessionsPage = React.lazy(() => import('../pages/Sessions'));
+const TrustedDevicesPage = React.lazy(() => import('../pages/TrustedDevices'));
+const ConnectedProvidersPage = React.lazy(() => import('../pages/ConnectedProviders'));
 
 const pageTitles: Record<string, string> = {
   '/': 'Overview',

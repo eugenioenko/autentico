@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
         title="Account Security"
         action={
           <Link to="/security">
-            <Button variant="primary" className="text-xs px-3 py-1.5">
+            <Button variant="primary">
               Manage <IconChevronRight size={13} />
             </Button>
           </Link>
@@ -33,14 +33,23 @@ const Dashboard: React.FC = () => {
           <StatusDot active={!!mfa?.totp_enabled} />
           <span className="text-sm">
             Two-factor authentication{' '}
-            <span className={cn('font-semibold', mfa?.totp_enabled ? 'text-theme-highlight' : 'text-theme-muted')}>
+            <span className={cn('font-semibold', mfa?.totp_enabled ? 'text-theme-success' : 'text-theme-muted')}>
               {mfa?.totp_enabled ? 'enabled' : 'not configured'}
             </span>
           </span>
         </div>
       </Card>
 
-      <Card title="Profile">
+      <Card
+        title="Profile"
+        action={
+          <Link to="/profile">
+            <Button variant="primary">
+              Update <IconChevronRight size={13} />
+            </Button>
+          </Link>
+        }
+      >
         <dl className="space-y-3 mt-1">
           {[
             { label: 'Username', value: profile?.username },

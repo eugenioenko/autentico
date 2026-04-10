@@ -5,6 +5,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
 import Button from '../components/Button';
+import { extractError } from '../lib/utils';
 
 interface ConnectedProvider {
   id: string;
@@ -27,8 +28,7 @@ const ConnectedProvidersPage: React.FC = () => {
       await api.delete(`/connected-providers/${id}`);
       refetch();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Failed to disconnect provider.');
+      setError(extractError(err, 'Failed to disconnect provider.'));
     }
   };
 
@@ -56,7 +56,7 @@ const ConnectedProvidersPage: React.FC = () => {
             <Button
               variant="ghost"
               onClick={() => handleDisconnect(p.id)}
-              className="flex-shrink-0 text-xs px-3 py-1.5"
+              className="flex-shrink-0"
             >
               Disconnect
             </Button>

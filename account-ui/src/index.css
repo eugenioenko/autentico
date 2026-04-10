@@ -2,22 +2,26 @@
 @import "tailwindcss";
 
 @theme inline {
-  --radius-brand:              var(--radius);
-  --color-theme-bg:            var(--color-bg);
-  --color-theme-body:          var(--color-body);
-  --color-theme-fg:            var(--color-fg);
-  --color-theme-muted:         var(--color-muted);
-  --color-theme-primary-bg:    var(--color-primary-bg);
-  --color-theme-primary-fg:    var(--color-primary-fg);
-  --color-theme-accent-bg:     var(--color-accent-bg);
-  --color-theme-accent-fg:     var(--color-accent-fg);
-  --color-theme-danger-bg:     var(--color-danger-bg);
-  --color-theme-danger-fg:     var(--color-danger-fg);
-  --color-theme-highlight:     var(--color-highlight);
+  --radius-brand: var(--radius);
+  --color-theme-bg: var(--color-bg);
+  --color-theme-body: var(--color-body);
+  --color-theme-fg: var(--color-fg);
+  --color-theme-muted: var(--color-muted);
+  --color-theme-primary-bg: var(--color-primary-bg);
+  --color-theme-primary-fg: var(--color-primary-fg);
+  --color-theme-accent-bg: var(--color-accent-bg);
+  --color-theme-accent-fg: var(--color-accent-fg);
+  --color-theme-danger-bg: var(--color-danger-bg);
+  --color-theme-danger-fg: var(--color-danger-fg);
+  --color-theme-success-bg: var(--color-success-bg);
+  --color-theme-success-fg: var(--color-success-fg);
+  --color-theme-highlight: var(--color-highlight);
 }
 
 @layer base {
-  a, button {
+
+  a,
+  button {
     cursor: pointer;
   }
 

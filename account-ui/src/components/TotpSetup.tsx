@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { IconX, IconCopy, IconCheck } from '@tabler/icons-react';
+import { IconCopy, IconCheck } from '@tabler/icons-react';
 import api from '../api';
+import Modal from './Modal';
 import Button from './Button';
 import Alert from './Alert';
+import { extractError } from '../lib/utils';
 
 interface TotpSetupModalProps {
   onClose: () => void;
@@ -48,24 +50,14 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Invalid code. Please try again.');
+      setError(extractError(err, 'Invalid code. Please try again.'));
     } finally {
       setIsVerifying(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-theme-bg rounded-2xl shadow-xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-theme-fg/10">
-          <h2 className="text-base font-semibold">Set Up Authenticator</h2>
-          <button onClick={onClose} className="text-theme-muted hover:text-theme-fg transition-colors">
-            <IconX size={18} />
-          </button>
-        </div>
-
-        <div className="px-6 py-5">
+    <Modal title="Set Up Authenticator" onClose={onClose}>
           {step === 'loading' && (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-theme-fg/20 border-t-theme-fg rounded-full animate-spin" />
@@ -87,7 +79,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
                 <div className="flex items-center gap-2 px-3 py-2 bg-theme-body rounded-lg border border-theme-fg/15">
                   <code className="flex-1 text-xs font-mono text-theme-fg break-all">{secret}</code>
                   <button onClick={handleCopy} className="flex-shrink-0 text-theme-muted hover:text-theme-fg transition-colors">
-                    {copied ? <IconCheck size={15} className="text-theme-highlight" /> : <IconCopy size={15} />}
+                    {copied ? <IconCheck size={15} className="text-theme-success" /> : <IconCopy size={15} />}
                   </button>
                 </div>
               </div>
@@ -126,9 +118,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
               </div>
             </form>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

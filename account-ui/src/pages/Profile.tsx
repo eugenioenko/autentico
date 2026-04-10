@@ -5,6 +5,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
 import { useSettings } from '../context/SettingsContext';
+import { extractError } from '../lib/utils';
 
 interface ProfileForm {
   username: string;
@@ -108,8 +109,7 @@ const ProfilePage: React.FC = () => {
       setSuccess('Profile updated successfully.');
       refetch();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Failed to update profile.');
+      setError(extractError(err, 'Failed to update profile.'));
     } finally {
       setIsUpdating(false);
     }

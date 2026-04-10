@@ -5,6 +5,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
 import Button from '../components/Button';
+import { extractError } from '../lib/utils';
 
 interface Session {
   id: string;
@@ -28,8 +29,7 @@ const SessionsPage: React.FC = () => {
       await api.delete(`/sessions/${id}`);
       refetch();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Failed to revoke session.');
+      setError(extractError(err, 'Failed to revoke session.'));
     }
   };
 

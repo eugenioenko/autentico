@@ -2,7 +2,7 @@ import React from 'react';
 
 interface CardProps {
   title: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
 }
@@ -16,7 +16,7 @@ const Card: React.FC<CardProps> = ({ title, children, description, action }) => 
       </div>
       {action && <div className="flex-shrink-0 mt-0.5">{action}</div>}
     </div>
-    <div className="px-7 pb-7">{children}</div>
+    {children && <div className="px-7 pb-7">{children}</div>}
   </div>
 );
 
