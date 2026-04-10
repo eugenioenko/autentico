@@ -10,6 +10,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -572,6 +573,137 @@ func TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser(t *testing.
 	err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE id = ?`, userID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count, "registered user must NOT be deleted on registration failure")
+}
+
+// --- GeneratePasskeyName ---
+
+func TestGeneratePasskeyName(t *testing.T) {
+	name := GeneratePasskeyName()
+	assert.True(t, strings.HasPrefix(name, "Passkey "))
+	assert.Len(t, name, len("Passkey ")+4) // 2 bytes = 4 hex chars
+
+	// Two calls should produce different names
+	name2 := GeneratePasskeyName()
+	assert.NotEqual(t, name, name2)
+}
+
+// --- WebAuthnUser ---
+
+func TestWebAuthnUser_Interface(t *testing.T) {
+	u := WebAuthnUser{
+		ID:          []byte("user-123"),
+		Name:        "alice",
+		Credentials: nil,
+	}
+
+	assert.Equal(t, []byte("user-123"), u.WebAuthnID())
+	assert.Equal(t, "alice", u.WebAuthnName())
+	assert.Equal(t, "alice", u.WebAuthnDisplayName())
+	assert.Empty(t, u.WebAuthnCredentials())
+}
+
+// --- NewWebAuthn ---
+
+func TestNewWebAuthn(t *testing.T) {
+	withPasskeyConfig(t)
+
+	wauthn, err := NewWebAuthn()
+	assert.NoError(t, err)
+	assert.NotNil(t, wauthn)
+}
+
+// --- completeAuthFlow ---
+
+func TestCompleteAuthFlow_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	usr, err := user.CreateUser("authflow-user", "password123", "authflow@test.com")
+	require.NoError(t, err)
+
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
+
+	loginState := `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"n1","code_challenge":"","code_challenge_method":""}`
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/finish", nil)
+
+	fullUser, err := user.UserByID(usr.ID)
+	require.NoError(t, err)
+
+	redirectURL, err := completeAuthFlow(rr, req, fullUser, loginState)
+	require.NoError(t, err)
+	assert.Contains(t, redirectURL, "http://localhost/cb?code=")
+	assert.Contains(t, redirectURL, "state=s1")
+}
+
+func TestCompleteAuthFlow_InvalidLoginState(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	usr, _ := user.CreateUser("authflow-bad", "password123", "bad@test.com")
+	fullUser, _ := user.UserByID(usr.ID)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/finish", nil)
+
+	_, err := completeAuthFlow(rr, req, fullUser, "not-valid-json")
+	assert.Error(t, err)
+}
+
+// --- HandleRegisterBegin tampered sig ---
+
+func TestHandleRegisterBegin_StaleIncompleteUser(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	// Create a user with no password and no registered_at (incomplete signup)
+	username := "stale-user"
+	setupPendingPasskeyUser(t, "stale-id", username)
+
+	req := httptest.NewRequest(http.MethodGet,
+		testutils.SignedURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	// Should succeed — stale user is deleted and recreated
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "registration", resp["type"])
+}
+
+func TestHandleRegisterBegin_TamperedSig(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/passkey/register/begin?username=testuser&authorize_sig=tampered&client_id=c1&redirect_uri=http://localhost/cb&scope=openid&state=s1",
+		nil)
+	rr := httptest.NewRecorder()
+	HandleRegisterBegin(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "tampered")
+}
+
+func TestHandleLoginBegin_TamperedSig(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/passkey/login/begin?username=testuser&authorize_sig=tampered&client_id=c1&redirect_uri=http://localhost/cb&scope=openid&state=s1",
+		nil)
+	rr := httptest.NewRecorder()
+	HandleLoginBegin(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "tampered")
 }
 
 func TestCredentialsToWebAuthn_InvalidJSON(t *testing.T) {

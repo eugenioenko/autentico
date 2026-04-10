@@ -1,9 +1,8 @@
 # Autentico — OAuth 2.0 / OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-72.6%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-888-blue.svg)](https://github.com/eugenioenko/autentico)
-[![OIDC Certified](https://img.shields.io/badge/OIDC-certified-brightgreen.svg)](https://openid.net/certification/)
+[![Test Coverage](https://img.shields.io/badge/coverage-76.8%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-1250-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
@@ -911,19 +910,22 @@ The goal is not just high coverage, but **high confidence that every externally 
 
 ### Automated Tests
 
-**888 test functions** across unit, integration, end-to-end, and browser tests at **72.6% coverage**.
+**1,250 tests** across unit, integration, end-to-end, functional, and browser tests at **76.8% coverage**.
 
-- **Unit and integration tests** (800) — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
-- **End-to-end tests** (88) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
-- **Browser tests** (5) — Playwright tests that drive a real browser through authentication flows, verifying the full user-facing experience
+- **Unit and integration tests** (971) — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
+- **End-to-end tests** (131) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
+- **Functional tests** (142) — black-box HTTP tests (TypeScript/Vitest) against a running server, covering auth flows, parameter tampering rejection, and token lifecycle
+- **Browser tests** (6) — Playwright tests that drive a real browser through authentication flows, verifying the full user-facing experience
 
 Critical invariants (e.g., "authorization code can only be used once", "refresh token rotation invalidates previous token") are tested explicitly across layers.
 
 ```bash
-make test                                        # Run all tests
+make test                                        # Run all Go tests (unit + integration + e2e)
 go test ./pkg/token/... -v                       # Run a specific package
 go test -run TestCreateUser ./pkg/user/... -v    # Run a single test
 go test ./tests/e2e/... -v                       # Run end-to-end tests only
+cd tests/functional && npx vitest run            # Run functional tests
+cd tests/browser && npx playwright test          # Run browser tests
 ```
 
 Tests run with `-p 1` (sequential) because they share a process-level SQLite handle. Unit tests use an in-memory database, making them fast and isolated.
