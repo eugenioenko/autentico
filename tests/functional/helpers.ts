@@ -109,6 +109,9 @@ export async function obtainTokenViaAuthCode(
   if (!csrfMatch) throw new Error('Could not extract CSRF token from login page');
   const csrfToken = csrfMatch[1];
 
+  const sigMatch = html.match(/name="authorize_sig"\s+value="([^"]*)"/);
+  const authorizeSig = sigMatch ? sigMatch[1] : '';
+
   const cookies = authorizeResp.headers.getSetCookie();
   const csrfCookie = cookies.find((c) => c.startsWith('_gorilla_csrf='));
   if (!csrfCookie) throw new Error('Could not extract CSRF cookie');
@@ -125,6 +128,7 @@ export async function obtainTokenViaAuthCode(
       username,
       password,
       'gorilla.csrf.Token': csrfToken,
+      authorize_sig: authorizeSig,
       client_id: ADMIN_CLIENT_ID,
       redirect_uri: ADMIN_REDIRECT_URI,
       scope,

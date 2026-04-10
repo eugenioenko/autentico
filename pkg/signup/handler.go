@@ -10,6 +10,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -71,6 +72,22 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Nonce:               r.FormValue("nonce"),
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+		AuthorizeSig:        r.FormValue("authorize_sig"),
+	}
+
+	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            params.ClientID,
+		RedirectURI:         params.RedirectURI,
+		Scope:               params.Scope,
+		Nonce:               params.Nonce,
+		CodeChallenge:       params.CodeChallenge,
+		CodeChallengeMethod: params.CodeChallengeMethod,
+		State:               params.State,
+	}, params.AuthorizeSig) {
+		slog.Warn("signup: authorize parameter signature mismatch", "client_id", params.ClientID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
+		return
 	}
 
 	if !utils.IsValidRedirectURI(params.RedirectURI) {
@@ -170,6 +187,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 				Nonce:               params.Nonce,
 				CodeChallenge:       params.CodeChallenge,
 				CodeChallengeMethod: params.CodeChallengeMethod,
+				AuthorizeSig:        params.AuthorizeSig,
 			})
 			_ = mfa.SendVerificationEmail(usr.Email, verifyURL)
 		}
@@ -181,6 +199,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Nonce:               params.Nonce,
 			CodeChallenge:       params.CodeChallenge,
 			CodeChallengeMethod: params.CodeChallengeMethod,
+			AuthorizeSig:        params.AuthorizeSig,
 		}, "")
 		return
 	}
@@ -238,6 +257,7 @@ type SignupParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	AuthorizeSig        string
 }
 
 func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
@@ -256,6 +276,7 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"Nonce":               params.Nonce,
 		"CodeChallenge":       params.CodeChallenge,
 		"CodeChallengeMethod": params.CodeChallengeMethod,
+		"AuthorizeSig":        params.AuthorizeSig,
 		"Error":               errMsg,
 		"AuthMode":            cfg.AuthMode,
 		"ProfileFieldEmail":        cfg.ProfileFieldEmail,

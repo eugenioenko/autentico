@@ -29,7 +29,10 @@ func TestHandleVerifyEmail_MissingToken(t *testing.T) {
 func TestHandleVerifyEmail_InvalidToken(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?token=invalid-token-xyz", nil)
+	q := url.Values{}
+	q.Set("token", "invalid-token-xyz")
+	testutils.SetAuthorizeSig(q)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	HandleVerifyEmail(rr, req)
@@ -49,7 +52,10 @@ func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
 	pastExpiry := time.Now().Add(-1 * time.Hour)
 	require.NoError(t, user.SetEmailVerificationToken(u.ID, tokenHash, pastExpiry))
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?token="+rawToken, nil)
+	q := url.Values{}
+	q.Set("token", rawToken)
+	testutils.SetAuthorizeSig(q)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	HandleVerifyEmail(rr, req)
@@ -75,6 +81,7 @@ func TestHandleVerifyEmail_ValidToken_RedirectsWithCode(t *testing.T) {
 	q.Set("state", "abc123")
 	q.Set("client_id", "test-client")
 	q.Set("scope", "openid")
+	testutils.SetAuthorizeSig(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -99,7 +106,12 @@ func TestHandleVerifyEmail_ValidToken_MarksUserVerified(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, user.SetEmailVerificationToken(u.ID, tokenHash, time.Now().Add(time.Hour)))
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?token="+rawToken+"&redirect_uri=http://localhost/cb&state=s1", nil)
+	vq := url.Values{}
+	vq.Set("token", rawToken)
+	vq.Set("redirect_uri", "http://localhost/cb")
+	vq.Set("state", "s1")
+	testutils.SetAuthorizeSig(vq)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+vq.Encode(), nil)
 	rr := httptest.NewRecorder()
 
 	HandleVerifyEmail(rr, req)

@@ -59,6 +59,7 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	form.Set("redirect_uri", "not-a-valid-uri") // syntactically invalid
 	form.Set("state", "xyz123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -82,6 +83,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -108,6 +110,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -137,6 +140,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -165,6 +169,7 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	form.Set("state", "abc123")
 	form.Set("client_id", "test-client")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -194,6 +199,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -244,6 +250,7 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// given_name is missing
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -270,6 +277,7 @@ func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// email is NOT set explicitly
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -293,6 +301,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -319,6 +328,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	form.Set("state", "xyz")
 	form.Set("client_id", "test-client")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -352,6 +362,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 	form.Set("client_id", "test-client")
 	// No email provided
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()

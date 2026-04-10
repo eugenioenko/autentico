@@ -35,6 +35,7 @@ func TestHandleLoginUser_Success(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -61,6 +62,7 @@ func TestHandleLoginUser_MfaTotp(t *testing.T) {
 	form.Set("client_id", "test-client")
 	form.Set("redirect_uri", "http://localhost/callback")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -88,6 +90,7 @@ func TestHandleLoginUser_InvalidRedirect(t *testing.T) {
 	testutils.WithTestDB(t)
 	form := url.Values{}
 	form.Set("redirect_uri", "not-a-url")
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -103,6 +106,7 @@ func TestHandleLoginUser_InactiveClient(t *testing.T) {
 	form := url.Values{}
 	form.Set("client_id", "inactive")
 	form.Set("redirect_uri", "http://localhost")
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -119,6 +123,7 @@ func TestHandleLoginUser_InvalidScope(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 	form.Set("scope", "invalid")
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -140,6 +145,7 @@ func TestHandleLoginUser_LockedAccount(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -166,6 +172,7 @@ func TestHandleLoginUser_EmailMfaNoSmtp(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -186,6 +193,7 @@ func TestHandleLoginUser_InvalidCredentialsFormat(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -201,6 +209,7 @@ func TestHandleLoginUser_UnknownClient(t *testing.T) {
 	form := url.Values{}
 	form.Set("client_id", "nonexistent")
 	form.Set("redirect_uri", "http://localhost")
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -220,6 +229,7 @@ func TestHandleLoginUser_WrongPassword(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -239,6 +249,7 @@ func TestHandleLoginUser_NonexistentUser(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -283,6 +294,7 @@ func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// Add trusted device cookie
@@ -313,6 +325,7 @@ func TestHandleLoginUser_MfaMethodBoth_TotpVerified(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -340,6 +353,7 @@ func TestHandleLoginUser_MfaMethodBoth_NoTotpVerified(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -394,6 +408,7 @@ func TestHandleLoginUser_DbError_Session(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -423,6 +438,7 @@ func TestHandleLoginUser_MfaEnrollment(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -450,6 +466,7 @@ func TestHandleLoginUser_MfaEmailEnrollment(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -481,6 +498,7 @@ func TestHandleLoginUser_UnverifiedEmail_Blocked(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -509,6 +527,7 @@ func TestHandleLoginUser_AdminExemptFromEmailVerification(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -543,6 +562,7 @@ func TestHandleLoginUser_VerifiedUser_Proceeds(t *testing.T) {
 	form.Set("client_id", "c1")
 	form.Set("redirect_uri", "http://localhost")
 
+	testutils.SetAuthorizeSig(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()

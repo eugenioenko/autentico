@@ -126,9 +126,11 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	require.NoError(t, err, "failed to read authorize response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
-	// Step 2: Extract CSRF token from the HTML
-	csrfToken := getCSRFToken(string(body))
+	// Step 2: Extract CSRF token and authorize signature from the HTML
+	htmlBody := string(body)
+	csrfToken := getCSRFToken(htmlBody)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	authorizeSig := getAuthorizeSig(htmlBody)
 
 	// Step 3: POST /oauth2/login with credentials and CSRF token
 	form := url.Values{}
@@ -140,6 +142,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -198,8 +201,10 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	require.NoError(t, err, "failed to read authorize response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	htmlBody := string(body)
+	csrfToken := getCSRFToken(htmlBody)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	authorizeSig := getAuthorizeSig(htmlBody)
 
 	form := url.Values{}
 	form.Set("username", username)
@@ -212,6 +217,7 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -270,8 +276,10 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	require.NoError(t, err, "failed to read authorize response")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "authorize page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	htmlBody := string(body)
+	csrfToken := getCSRFToken(htmlBody)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in authorize page")
+	authorizeSig := getAuthorizeSig(htmlBody)
 
 	form := url.Values{}
 	form.Set("username", username)
@@ -284,6 +292,7 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	form.Set("code_challenge", codeChallenge)
 	form.Set("code_challenge_method", codeChallengeMethod)
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig)
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -331,8 +340,10 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	require.NoError(t, err, "failed to read signup page")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "signup page failed: %s", string(body))
 
-	csrfToken := getCSRFToken(string(body))
+	htmlBody := string(body)
+	csrfToken := getCSRFToken(htmlBody)
 	require.NotEmpty(t, csrfToken, "CSRF token not found in signup page")
+	authorizeSig := getAuthorizeSig(htmlBody)
 
 	// Step 2: POST /oauth2/signup with credentials
 	form := url.Values{}
@@ -342,7 +353,10 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	form.Set("redirect_uri", redirectURI)
 	form.Set("state", state)
 	form.Set("client_id", "test-client")
+	form.Set("code_challenge", testCodeChallenge)
+	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
+	form.Set("authorize_sig", authorizeSig)
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create signup request")

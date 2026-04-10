@@ -11,6 +11,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
@@ -62,6 +63,22 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	if config.Get().AuthMode == "passkey_only" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Password login is disabled; use passkey authentication")
+		return
+	}
+
+	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
+	authorizeSig := r.FormValue("authorize_sig")
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            request.ClientID,
+		RedirectURI:         request.RedirectURI,
+		Scope:               request.Scope,
+		Nonce:               request.Nonce,
+		CodeChallenge:       request.CodeChallenge,
+		CodeChallengeMethod: request.CodeChallengeMethod,
+		State:               request.State,
+	}, authorizeSig) {
+		slog.Warn("login: authorize parameter signature mismatch", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
 		return
 	}
 
@@ -126,6 +143,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			Nonce:               request.Nonce,
 			CodeChallenge:       request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
+			AuthorizeSig:        authorizeSig,
 		}, "")
 		return
 	}

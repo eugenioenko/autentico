@@ -193,6 +193,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 			Nonce:               request.Nonce,
 			CodeChallenge:       request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
+			AuthorizeSig:        AuthorizeSignature(request),
 		}, get("error"))
 		return
 	}
@@ -218,6 +219,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	renderLogin(w, r, request, get("error"))
 }
 
+
 // renderLogin renders the login form, or an error-only page when errorMsg is a fatal
 // configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
 func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
@@ -239,6 +241,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"Nonce":               request.Nonce,
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
+		"AuthorizeSig":        AuthorizeSignature(request),
 		"Error":               errorMsg,
 		"AuthMode":            cfg.AuthMode,
 		"AllowSelfSignup":     cfg.AuthAllowSelfSignup,
