@@ -7,47 +7,7 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Autentico is a single binary. There is no database to provision, no external services to start, and no multi-step infrastructure setup. The full process is: generate a `.env`, start the server, and complete onboarding in the browser.
 
-<Tabs>
-<TabItem label="Docker">
-
-<Steps>
-
-1. **Generate your configuration**
-
-   ```bash
-   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
-     init --output /output --url http://localhost:9999
-   ```
-
-   This creates a `.env` file in the current directory with a freshly generated RSA key, CSRF secret, and token signing secrets.
-
-2. **Start the server**
-
-   ```bash
-   docker run -d \
-     --name autentico \
-     -p 9999:9999 \
-     -v autentico-data:/data \
-     --env-file .env \
-     --restart unless-stopped \
-     ghcr.io/eugenioenko/autentico:latest \
-     start --auto-migrate
-   ```
-
-3. **Complete onboarding**
-
-   Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
-
-4. **Done**
-
-   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
-
-</Steps>
-
-For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`). See [Docker deployment](/deployment/docker/) and [Docker Compose](/deployment/docker-compose/) for full production setups.
-
-</TabItem>
-<TabItem label="Binary">
+## Quickstart with Binary
 
 <Steps>
 
@@ -148,13 +108,47 @@ For production, replace `http://localhost:9999` with your public URL (e.g. `http
 
 For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`).
 
-</TabItem>
-</Tabs>
+## Quickstart with Docker
 
-When you're ready to integrate, see [Registering clients](/clients/registering/) and the [Authorization Code + PKCE](/protocol/authorization-code/) flow.
+<Steps>
+
+1. **Generate your configuration**
+
+   ```bash
+   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
+     init --output /output --url http://localhost:9999
+   ```
+
+   This creates a `.env` file in the current directory with a freshly generated RSA key, CSRF secret, and token signing secrets.
+
+2. **Start the server**
+
+   ```bash
+   docker run -d \
+     --name autentico \
+     -p 9999:9999 \
+     -v autentico-data:/data \
+     --env-file .env \
+     --restart unless-stopped \
+     ghcr.io/eugenioenko/autentico:latest \
+     start --auto-migrate
+   ```
+
+3. **Complete onboarding**
+
+   Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
+
+4. **Done**
+
+   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
+
+</Steps>
+
+For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`). See [Docker deployment](/deployment/docker/) and [Docker Compose](/deployment/docker-compose/) for full production setups.
 
 ## What's next?
 
+- [Registering clients](/clients/registering/) — all registration options
+- [Authorization Code + PKCE](/protocol/authorization-code/) — integrate with your app
 - [Configuration reference](/configuration/overview/) — understand the three-layer config system
 - [Authentication modes](/authentication/overview/) — password, passkeys, MFA
-- [Registering clients](/clients/registering/) — all registration options
