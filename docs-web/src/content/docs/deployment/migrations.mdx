@@ -5,105 +5,59 @@ description: How to apply schema migrations when upgrading Autentico.
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Autentico uses explicit, versioned schema migrations. When a new release requires schema changes, the binary tracks the current database version and will refuse to start if the database is behind.
+Autentico uses explicit, versioned schema migrations. Migrations are applied automatically on startup by default — in most cases, you don't need to do anything.
 
 ## How versioning works
 
-Autentico uses SQLite's built-in `PRAGMA user_version` to track the current schema version. Each release that changes the schema increments this version. On startup, the binary compares the database version against the version it expects and acts accordingly.
+Autentico uses SQLite's built-in `PRAGMA user_version` to track the current schema version. Each release that changes the schema increments this version. On startup, the binary compares the database version against the version it expects and applies any pending migrations.
 
 Fresh databases are automatically stamped with the current version on first start — no action needed.
 
 ## Upgrading
 
-When you deploy a new binary that requires a schema change, `autentico start` will exit with a message like:
+By default, `autentico start` applies pending migrations automatically. Just deploy the new binary or image and restart:
 
-```
-database is at version 1, this binary requires version 2 — run: autentico migrate
+```bash
+# Binary
+autentico start
+
+# Docker Compose
+docker compose pull
+docker compose up -d
 ```
 
 <Aside type="caution">
-Migrations are irreversible. Back up your database file before running `autentico migrate`. A hot backup is safe while the server is stopped:
+Migrations are irreversible. Back up your database file before upgrading:
 
 ```bash
-cp /data/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
+cp /path/to/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
 ```
 </Aside>
 
-<Steps>
+## Manual migrations
 
-1. **Stop the server**
-
-   ```bash
-   systemctl stop autentico
-   # or: docker stop autentico
-   ```
-
-2. **Back up the database**
-
-   ```bash
-   cp /data/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
-   ```
-
-3. **Run the migration command**
-
-   ```bash
-   autentico migrate
-   ```
-
-   The command will show you the current and target versions, remind you to back up, and ask you to type the target version number to confirm:
-
-   ```
-   Current schema version : 1
-   Target schema version  : 2
-
-   WARNING: Migrations are irreversible. Back up your database file before proceeding.
-     DB file: /data/autentico.db
-
-   Type '2' to confirm and apply migrations:
-   ```
-
-   Type the target version number and press Enter. If you type anything else, the migration is cancelled with no changes made.
-
-4. **Start the server**
-
-   ```bash
-   systemctl start autentico
-   # or: docker start autentico
-   ```
-
-</Steps>
-
-## Automatic migrations (default)
-
-Autentico automatically applies pending migrations on startup. No flag is needed — this is the default behavior.
-
-```bash
-autentico start
-```
-
-If you want to prevent automatic migrations (e.g. to review changes manually first), use `--no-auto-migrate`:
+If you prefer to review and apply migrations manually, start with `--no-auto-migrate`:
 
 ```bash
 autentico start --no-auto-migrate
 ```
 
-With `--no-auto-migrate`, the server will refuse to start if the database schema is behind, and you must run `autentico migrate` manually.
+The server will refuse to start if the database is behind, showing:
 
-A typical Docker Compose upgrade flow:
-
-```bash
-# Pull the new image
-docker compose pull
-
-# Back up the database before starting
-cp /data/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
-
-# Start — migrations apply automatically
-docker compose up -d
+```
+database is at version 1, this binary requires version 2 — run: autentico migrate
 ```
 
+Then run the interactive migration command:
+
+```bash
+autentico migrate
+```
+
+This shows the current and target versions, warns about irreversibility, and asks you to type the target version number to confirm. Type anything else to cancel.
+
 <Aside type="tip">
-If the database is already at the latest version, startup proceeds normally with no migration work. It is always safe to start without `--no-auto-migrate`.
+If the database is already at the latest version, startup proceeds normally with no migration work.
 </Aside>
 
 ## Already up to date
