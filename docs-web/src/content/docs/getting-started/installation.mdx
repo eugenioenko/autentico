@@ -3,12 +3,46 @@ title: Installation
 description: How to install Autentico — binary download, Docker image, or build from source.
 ---
 
-import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
 
 Autentico ships as a single self-contained binary with no runtime dependencies. Choose the method that fits your environment.
 
-<Tabs>
-<TabItem label="Binary">
+## Install with Docker
+
+<Steps>
+1. Generate a `.env` file with all required secrets:
+   ```bash
+   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
+     init --output /output --url http://localhost:9999
+   ```
+
+2. Start the server:
+   ```bash
+   docker run -d \
+     --name autentico \
+     -p 9999:9999 \
+     -v autentico-data:/data \
+     --env-file .env \
+     --restart unless-stopped \
+     ghcr.io/eugenioenko/autentico:latest \
+     start --auto-migrate
+   ```
+</Steps>
+
+See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables. For production setups with Docker Compose, see [Docker Compose](/deployment/docker-compose/).
+
+:::tip[URL mismatch after restart]
+If you restart the container with a different `AUTENTICO_APP_URL` or port, the persisted database still has the admin UI OAuth2 client registered with the old callback URL. Login will fail with a "Redirect URI not allowed" error.
+
+To fix it, delete the volume and start fresh (this wipes all data):
+```bash
+docker stop autentico && docker rm autentico
+docker volume rm autentico-data
+```
+Then re-run with the new URL. This applies to local testing only — in production, `AUTENTICO_APP_URL` should be stable and the client redirect URIs are updated automatically on restart.
+:::
+
+## Install from Binary
 
 Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
 
@@ -35,49 +69,7 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Re
 
 Once installed, follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
 
-</TabItem>
-<TabItem label="Docker">
-
-<Steps>
-1. Generate a `.env` file with all required secrets:
-   ```bash
-   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
-     init --output /output --url http://localhost:9999
-   ```
-
-2. Start the server:
-   ```bash
-   docker run -d \
-     --name autentico \
-     -p 9999:9999 \
-     -v autentico-data:/data \
-     --env-file .env \
-     --restart unless-stopped \
-     ghcr.io/eugenioenko/autentico:latest \
-     start --auto-migrate
-   ```
-</Steps>
-
-See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
-
-:::tip[URL mismatch after restart]
-If you restart the container with a different `AUTENTICO_APP_URL` or port, the persisted database still has the admin UI OAuth2 client registered with the old callback URL. Login will fail with a "Redirect URI not allowed" error.
-
-To fix it, delete the volume and start fresh (this wipes all data):
-```bash
-docker stop autentico && docker rm autentico
-docker volume rm autentico-data
-```
-Then re-run with the new URL. This applies to local testing only — in production, `AUTENTICO_APP_URL` should be stable and the client redirect URIs are updated automatically on restart.
-:::
-
-</TabItem>
-<TabItem label="Docker Compose">
-
-See [Docker Compose](/deployment/docker-compose/) for a full annotated `docker-compose.yml` that mounts persistent storage, configures SMTP, and sits behind a reverse proxy.
-
-</TabItem>
-<TabItem label="From Source">
+## Build from Source
 
 Requires Go 1.22 or later.
 
@@ -95,9 +87,6 @@ Requires Go 1.22 or later.
 
 3. The compiled binary is at `./autentico`. Follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
 </Steps>
-
-</TabItem>
-</Tabs>
 
 ## CLI commands
 
