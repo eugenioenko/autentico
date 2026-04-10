@@ -121,7 +121,7 @@ For production, replace `http://localhost:9999` with your public URL (e.g. `http
      -v autentico-data:/app/db \
      --restart unless-stopped \
      ghcr.io/eugenioenko/autentico:latest \
-     start --auto-migrate --auto-setup
+     start --auto-setup
    ```
 
    On first run, `--auto-setup` generates a `.env` with fresh secrets (RSA key, CSRF secret, token signing secrets) and persists it on the volume. On subsequent restarts, the existing configuration is reused.
@@ -146,7 +146,7 @@ docker run -d \
   -e AUTENTICO_APP_URL=https://auth.example.com \
   --restart unless-stopped \
   ghcr.io/eugenioenko/autentico:latest \
-  start --auto-migrate --auto-setup
+  start --auto-setup
 ```
 
 See [Docker deployment](/deployment/docker/) and [Docker Compose](/deployment/docker-compose/) for full production setups.

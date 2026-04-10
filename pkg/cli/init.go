@@ -198,7 +198,7 @@ func RunInit(c *cli.Context) error {
 // This allows a single docker run command to bootstrap and start the server.
 // The .env is written to the DB directory so it persists on Docker volumes.
 // On subsequent runs, the existing .env is loaded and reused.
-func autoGenerateConfig() error {
+func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	// Skip if a .env already exists in CWD (e.g. provided via --env-file).
 	if _, err := os.Stat(".env"); err == nil {
 		return nil
@@ -217,7 +217,11 @@ func autoGenerateConfig() error {
 		return nil
 	}
 
-	appURL := os.Getenv("AUTENTICO_APP_URL")
+	// Determine the app URL: --url flag > AUTENTICO_APP_URL env var > default.
+	appURL := urlFlag
+	if appURL == "" {
+		appURL = os.Getenv("AUTENTICO_APP_URL")
+	}
 	if appURL == "" {
 		appURL = "http://localhost:9999"
 	}
@@ -225,7 +229,7 @@ func autoGenerateConfig() error {
 
 	u, err := url.Parse(appURL)
 	if err != nil {
-		return fmt.Errorf("auto-setup: invalid AUTENTICO_APP_URL: %w", err)
+		return fmt.Errorf("auto-setup: invalid URL: %w", err)
 	}
 
 	listenPort := u.Port()
@@ -255,7 +259,7 @@ func autoGenerateConfig() error {
 		return fmt.Errorf("auto-setup: failed to generate RSA key: %w", err)
 	}
 
-	dev := u.Scheme != "https"
+	dev := devFlag || u.Scheme != "https"
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,

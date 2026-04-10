@@ -65,8 +65,9 @@ make build
 CLI commands:
 - `autentico init` — generate .env configuration
 - `autentico onboard` — create first admin account (headless alternative to /onboard)
-- `autentico start` — start the server
-- `autentico start --auto-migrate` — start and auto-apply pending migrations
+- `autentico start` — start the server (auto-migrates by default)
+- `autentico start --auto-setup` — generate .env if missing, then start
+- `autentico start --no-auto-migrate` — start without auto-applying migrations
 - `autentico migrate` — interactively apply database migrations
 - `autentico version` — print version
 
@@ -595,8 +596,8 @@ When upgrading to a version with schema changes:
 # Interactive
 ./autentico migrate
 
-# Automatic (Docker/CI)
-./autentico start --auto-migrate
+# Automatic (default — migrations apply on every start)
+./autentico start
 ```
 
 ### Backup

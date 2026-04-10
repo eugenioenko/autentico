@@ -40,7 +40,7 @@ func Check(db *sql.DB) error {
 	}
 	if current < SchemaVersion {
 		return fmt.Errorf(
-			"database is at version %d, this binary requires version %d — run: autentico migrate (or start with --auto-migrate)",
+			"database is at version %d, this binary requires version %d — run: autentico migrate",
 			current, SchemaVersion,
 		)
 	}

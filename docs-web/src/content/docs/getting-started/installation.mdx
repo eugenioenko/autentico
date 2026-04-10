@@ -45,7 +45,7 @@ docker run -d \
   -v autentico-data:/app/db \
   --restart unless-stopped \
   ghcr.io/eugenioenko/autentico:latest \
-  start --auto-migrate --auto-setup
+  start --auto-setup
 ```
 
 The `--auto-setup` flag generates a `.env` with fresh secrets on first run and reuses it on restarts. For a custom URL, pass it via `-e AUTENTICO_APP_URL=https://auth.example.com`.
@@ -98,7 +98,9 @@ Requires Go 1.22 or later.
 | `autentico init` | Generate a `.env` file with all required secrets. Errors if `.env` already exists. |
 | `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
 | `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies, and enable CORS. Use this for local HTTP development only — never in production. |
-| `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
+| `autentico start` | Start the server. Auto-applies pending migrations. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
+| `autentico start --auto-setup` | Generate a `.env` if one does not exist, then start. Safe to pass on every run. |
+| `autentico start --no-auto-migrate` | Start without applying migrations automatically. The server will refuse to start if the database is behind. |
 | `autentico version` | Print the current version and exit. |
 
 ## Next steps

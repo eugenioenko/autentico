@@ -50,7 +50,7 @@ func TestCheck_Behind(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("version %d", SchemaVersion-1))
 	assert.Contains(t, err.Error(), fmt.Sprintf("version %d", SchemaVersion))
-	assert.Contains(t, err.Error(), "--auto-migrate")
+	assert.Contains(t, err.Error(), "autentico migrate")
 }
 
 func TestRun_AlreadyUpToDate(t *testing.T) {

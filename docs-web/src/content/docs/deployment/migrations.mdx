@@ -73,17 +73,23 @@ cp /data/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
 
 </Steps>
 
-## Automatic migrations (Docker / CI)
+## Automatic migrations (default)
 
-For containerized or automated deployments where you can't run interactive commands, use the `--auto-migrate` flag:
+Autentico automatically applies pending migrations on startup. No flag is needed — this is the default behavior.
 
 ```bash
-autentico start --auto-migrate
+autentico start
 ```
 
-This applies any pending migrations automatically on startup without prompting. Use this when you've already accepted the responsibility of backing up before deploying a new image.
+If you want to prevent automatic migrations (e.g. to review changes manually first), use `--no-auto-migrate`:
 
-A typical Docker Compose upgrade flow with auto-migrate:
+```bash
+autentico start --no-auto-migrate
+```
+
+With `--no-auto-migrate`, the server will refuse to start if the database schema is behind, and you must run `autentico migrate` manually.
+
+A typical Docker Compose upgrade flow:
 
 ```bash
 # Pull the new image
@@ -92,21 +98,12 @@ docker compose pull
 # Back up the database before starting
 cp /data/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
 
-# Start with auto-migrate
+# Start — migrations apply automatically
 docker compose up -d
 ```
 
-With `--auto-migrate` set in your `docker-compose.yml`:
-
-```yaml
-services:
-  autentico:
-    image: ghcr.io/eugenioenko/autentico:latest
-    command: start --auto-migrate
-```
-
 <Aside type="tip">
-If the database is already at the latest version, `--auto-migrate` does nothing and startup proceeds normally. It is safe to leave this flag on permanently in automated deployments.
+If the database is already at the latest version, startup proceeds normally with no migration work. It is always safe to start without `--no-auto-migrate`.
 </Aside>
 
 ## Already up to date

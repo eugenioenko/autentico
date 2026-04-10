@@ -51,7 +51,7 @@ import (
 
 func RunStart(c *cli.Context) error {
 	if c.Bool("auto-setup") {
-		if err := autoGenerateConfig(); err != nil {
+		if err := autoGenerateConfig(c.String("url"), c.Bool("dev")); err != nil {
 			return err
 		}
 	}
@@ -75,7 +75,7 @@ func RunStart(c *cli.Context) error {
 	}
 	defer db.CloseDB()
 
-	if c.Bool("auto-migrate") {
+	if !c.Bool("no-auto-migrate") {
 		if err := migrations.Run(db.GetDB(), true); err != nil {
 			return err
 		}
