@@ -49,24 +49,22 @@ make build
 ## Quick Start
 
 ```bash
-# 1. Generate .env with RSA key, CSRF secret, token signing secrets
-./autentico init --url https://auth.example.com
+# One command — generates config, applies migrations, starts the server
+./autentico start --auto-setup
 
-# For local development (disables Secure cookie flags, enables CORS):
-./autentico init --url http://localhost:9999 --dev
-
-# 2. Create admin account (or use browser at /onboard after starting)
-./autentico onboard --username admin --password yourpassword --auto-migrate
-
-# 3. Start the server
-./autentico start
+# Or step by step:
+./autentico init --url http://localhost:9999   # generate .env with secrets
+./autentico start                              # start (auto-migrates by default)
 ```
+
+Open http://localhost:9999/onboard to create your admin account.
 
 CLI commands:
 - `autentico init` — generate .env configuration
 - `autentico onboard` — create first admin account (headless alternative to /onboard)
-- `autentico start` — start the server
-- `autentico start --auto-migrate` — start and auto-apply pending migrations
+- `autentico start` — start the server (auto-migrates by default)
+- `autentico start --auto-setup` — generate .env if missing, then start
+- `autentico start --no-auto-migrate` — start without auto-applying migrations
 - `autentico migrate` — interactively apply database migrations
 - `autentico version` — print version
 
@@ -525,11 +523,16 @@ Keycloak-compatible aliases are available:
 
 ```bash
 ./autentico init --url https://auth.example.com
-./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
 ./autentico start
 ```
 
-Place behind a reverse proxy (nginx, Caddy) for TLS. The `onboard` step is optional if you prefer the browser wizard at `/onboard`.
+Open /onboard to create the admin account, or use the headless CLI:
+
+```bash
+./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
+```
+
+Place behind a reverse proxy (nginx, Caddy) for TLS.
 
 ### systemd Service
 
@@ -554,8 +557,16 @@ WantedBy=multi-user.target
 ### Docker
 
 ```bash
-docker run -p 9999:9999 -v autentico-data:/data --env-file .env ghcr.io/eugenioenko/autentico:latest
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
 ```
+
+For a custom URL: add `-e AUTENTICO_APP_URL=https://auth.example.com`.
 
 ### Docker Compose
 
@@ -563,17 +574,12 @@ docker run -p 9999:9999 -v autentico-data:/data --env-file .env ghcr.io/eugenioe
 services:
   autentico:
     image: ghcr.io/eugenioenko/autentico:latest
+    command: ["start", "--auto-setup"]
+    restart: unless-stopped
     ports:
       - "9999:9999"
     volumes:
-      - autentico-data:/data
-    env_file:
-      - .env
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9999/.well-known/openid-configuration"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      - autentico-data:/app/db
 
 volumes:
   autentico-data:
@@ -595,8 +601,8 @@ When upgrading to a version with schema changes:
 # Interactive
 ./autentico migrate
 
-# Automatic (Docker/CI)
-./autentico start --auto-migrate
+# Automatic (default — migrations apply on every start)
+./autentico start
 ```
 
 ### Backup

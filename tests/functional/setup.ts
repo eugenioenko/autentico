@@ -54,7 +54,7 @@ export async function setup() {
 
   // 5. Start the server
   console.log('[functional] Starting server...');
-  serverProcess = spawn(BINARY, ['start', '--auto-migrate'], {
+  serverProcess = spawn(BINARY, ['start'], {
     cwd: tempDir,
     stdio: 'pipe',
     detached: false,

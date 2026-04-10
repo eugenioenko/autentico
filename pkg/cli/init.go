@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v2"
 
 	"github.com/eugenioenko/autentico/pkg/key"
@@ -187,6 +189,99 @@ func RunInit(c *cli.Context) error {
 	fmt.Println("Next steps:")
 	fmt.Println("  Run 'autentico start' to start the server")
 
+	return nil
+}
+
+// autoGenerateConfig generates a .env file next to the database file
+// if one does not already exist. It uses AUTENTICO_APP_URL from the environment
+// (or defaults to http://localhost:9999) to derive the configuration.
+// This allows a single docker run command to bootstrap and start the server.
+// The .env is written to the DB directory so it persists on Docker volumes.
+// On subsequent runs, the existing .env is loaded and reused.
+func autoGenerateConfig(urlFlag string, devFlag bool) error {
+	// Skip if a .env already exists in CWD (e.g. provided via --env-file).
+	if _, err := os.Stat(".env"); err == nil {
+		return nil
+	}
+
+	dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
+	if dbFilePath == "" {
+		dbFilePath = "./db/autentico.db"
+	}
+	dbDir := filepath.Dir(dbFilePath)
+	envPath := filepath.Join(dbDir, ".env")
+
+	if _, err := os.Stat(envPath); err == nil {
+		// .env already exists from a previous run — load it.
+		_ = godotenv.Load(envPath)
+		return nil
+	}
+
+	// Determine the app URL: --url flag > AUTENTICO_APP_URL env var > default.
+	appURL := urlFlag
+	if appURL == "" {
+		appURL = os.Getenv("AUTENTICO_APP_URL")
+	}
+	if appURL == "" {
+		appURL = "http://localhost:9999"
+	}
+	appURL = strings.TrimRight(appURL, "/")
+
+	u, err := url.Parse(appURL)
+	if err != nil {
+		return fmt.Errorf("auto-setup: invalid URL: %w", err)
+	}
+
+	listenPort := u.Port()
+	if listenPort == "" {
+		if u.Scheme == "https" {
+			listenPort = "443"
+		} else {
+			listenPort = "80"
+		}
+	}
+
+	accessSecret, err := randomHex(32)
+	if err != nil {
+		return fmt.Errorf("auto-setup: failed to generate access token secret: %w", err)
+	}
+	refreshSecret, err := randomHex(32)
+	if err != nil {
+		return fmt.Errorf("auto-setup: failed to generate refresh token secret: %w", err)
+	}
+	csrfSecret, err := randomHex(32)
+	if err != nil {
+		return fmt.Errorf("auto-setup: failed to generate CSRF secret: %w", err)
+	}
+
+	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("auto-setup: failed to generate RSA key: %w", err)
+	}
+
+	dev := devFlag || u.Scheme != "https"
+	content := buildEnvContent(envParams{
+		appURL:        appURL,
+		listenPort:    listenPort,
+		accessSecret:  accessSecret,
+		refreshSecret: refreshSecret,
+		csrfSecret:    csrfSecret,
+		privateKeyB64: key.EncodeKeyToBase64(rsaKey),
+		dev:           dev,
+	})
+
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		return fmt.Errorf("auto-setup: failed to create directory %s: %w", dbDir, err)
+	}
+
+	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
+		return fmt.Errorf("auto-setup: failed to write .env: %w", err)
+	}
+
+	// Load the generated .env so InitBootstrap picks up the secrets.
+	_ = godotenv.Load(envPath)
+
+	fmt.Printf("  Auto-generated configuration: %s\n", envPath)
 	return nil
 }
 

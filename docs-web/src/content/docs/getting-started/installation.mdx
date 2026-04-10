@@ -3,115 +3,125 @@ title: Installation
 description: How to install Autentico — binary download, Docker image, or build from source.
 ---
 
-import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-Autentico ships as a single self-contained binary with no runtime dependencies. Choose the method that fits your environment.
+Autentico ships as a single self-contained binary with no runtime dependencies.
+
+## Binary
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/eugenioenko/autentico/releases/latest).
 
 <Tabs>
-<TabItem label="Binary">
-
-Pre-built binaries for Linux, macOS, and Windows are available on the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases).
-
-<Steps>
-1. Download the binary for your platform from the [GitHub Releases page](https://github.com/eugenioenko/autentico/releases/latest).
-
-   For example, on Linux (amd64):
-   ```bash
-   curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
-   ```
-
-   Builds are also available for Linux arm64, macOS (Intel and Apple Silicon), and Windows amd64.
-
-2. Make the binary executable:
-   ```bash
-   chmod +x autentico
-   ```
-
-3. Optionally move it somewhere on your `$PATH`:
-   ```bash
-   sudo mv autentico /usr/local/bin/
-   ```
-</Steps>
-
-Once installed, follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
-
-</TabItem>
-<TabItem label="Docker">
-
-Pull the latest image:
-
+<TabItem label="Linux (amd64)">
 ```bash
-docker pull ghcr.io/eugenioenko/autentico:latest
+curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
+chmod +x autentico
 ```
-
-Run with environment variables:
-
-```bash
-docker run \
-  --name autentico \
-  -p 9999:9999 \
-  -v autentico-data:/data \
-  -e AUTENTICO_APP_URL=http://localhost:9999\
-  -e AUTENTICO_LISTEN_PORT=9999 \
-  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
-  -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \
-  -e AUTENTICO_CSRF_SECRET_KEY=changeme-at-least-32-chars \
-  -e AUTENTICO_ACCESS_TOKEN_SECRET=changeme-at-least-32-chars \
-  -e AUTENTICO_REFRESH_TOKEN_SECRET=changeme-at-least-32-chars \
-  ghcr.io/eugenioenko/autentico:latest
-```
-
-See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
-
-:::tip[URL mismatch after restart]
-If you restart the container with a different `AUTENTICO_APP_URL` or port, the persisted database still has the admin UI OAuth2 client registered with the old callback URL. Login will fail with a "Redirect URI not allowed" error.
-
-To fix it, delete the volume and start fresh (this wipes all data):
-```bash
-docker stop autentico && docker rm autentico
-docker volume rm autentico-data
-```
-Then re-run with the new URL. This applies to local testing only — in production, `AUTENTICO_APP_URL` should be stable and the client redirect URIs are updated automatically on restart.
-:::
-
 </TabItem>
-<TabItem label="Docker Compose">
-
-See [Docker Compose](/deployment/docker-compose/) for a full annotated `docker-compose.yml` that mounts persistent storage, configures SMTP, and sits behind a reverse proxy.
-
+<TabItem label="Linux (arm64)">
+```bash
+curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-arm64 -o autentico
+chmod +x autentico
+```
 </TabItem>
-<TabItem label="From Source">
-
-Requires Go 1.22 or later.
-
-<Steps>
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/eugenioenko/autentico.git
-   cd autentico
-   ```
-
-2. Build the binary:
-   ```bash
-   make build
-   ```
-
-3. The compiled binary is at `./autentico`. Follow the [Quickstart](/getting-started/quickstart/) to initialize and run your instance.
-</Steps>
-
+<TabItem label="macOS (amd64)">
+```bash
+curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-amd64 -o autentico
+chmod +x autentico
+```
+</TabItem>
+<TabItem label="macOS (arm64)">
+```bash
+curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-arm64 -o autentico
+chmod +x autentico
+```
+</TabItem>
+<TabItem label="Windows">
+```powershell
+Invoke-WebRequest -Uri https://github.com/eugenioenko/autentico/releases/latest/download/autentico-windows-amd64.exe -OutFile autentico.exe
+```
 </TabItem>
 </Tabs>
 
-## CLI commands
+Optionally move it to your `$PATH`:
+
+```bash
+sudo mv autentico /usr/local/bin/
+```
+
+### Generate configuration
+
+Before starting for the first time, generate a `.env` file with fresh cryptographic secrets:
+
+```bash
+autentico init --url http://localhost:9999
+```
+
+This creates RSA signing keys, CSRF secrets, and token signing secrets. For production use `--url https://auth.example.com`. For local HTTP development add `--dev` to disable secure cookie flags.
+
+### Start
+
+```bash
+autentico start
+```
+
+## Docker
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
+```
+
+The `--auto-setup` flag generates a `.env` with fresh secrets on first run and reuses it on restarts. The volume at `/app/db` persists both the database and the generated configuration.
+
+For a custom URL, pass it via environment variable:
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
+  -e AUTENTICO_APP_URL=https://auth.example.com \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
+```
+
+See [Docker Compose](/deployment/docker-compose/) for production setups with reverse proxy and SMTP.
+
+<Aside type="caution" title="URL mismatch after restart">
+Changing `AUTENTICO_APP_URL` after first run leaves the admin client registered with the old callback URL. To fix, delete the volume and start fresh: `docker stop autentico && docker rm autentico && docker volume rm autentico-data`.
+</Aside>
+
+## Build from source
+
+Requires Go 1.22+ and Node.js 22+.
+
+```bash
+git clone https://github.com/eugenioenko/autentico.git
+cd autentico
+make build
+```
+
+The compiled binary is at `./autentico`.
+
+## CLI reference
 
 | Command | Description |
 |---|---|
-| `autentico init` | Generate a `.env` file with all required secrets. Errors if `.env` already exists. |
-| `autentico init --url <url>` | Set the public application URL (default: `http://localhost:9999`). Used as the OIDC issuer and for seeding redirect URIs. |
-| `autentico init --dev` | Disable the `Secure` flag on CSRF, IdP session, and refresh token cookies, and enable CORS. Use this for local HTTP development only — never in production. |
-| `autentico start` | Start the server. Reads `.env` from the current directory, or from the path set in `AUTENTICO_ENV_FILE`. |
-| `autentico version` | Print the current version and exit. |
+| `autentico init` | Generate a `.env` with fresh secrets. Use `--url` to set the app URL, `--dev` for local HTTP. |
+| `autentico start` | Start the server. Applies pending migrations automatically. |
+| `autentico start --auto-setup` | Generate `.env` if missing, then start. Safe to pass on every run. |
+| `autentico start --no-auto-migrate` | Skip automatic migrations. Server refuses to start if the schema is behind. |
+| `autentico migrate` | Interactively apply pending database migrations. |
+| `autentico onboard` | Create the first admin account headlessly (for CI/CD). |
+| `autentico version` | Print version and exit. |
 
 ## Next steps
 
-Once Autentico is installed, follow the [Quickstart](/getting-started/quickstart/) to initialize your instance, complete onboarding, and register your first client.
+Head to the [Quickstart](/getting-started/quickstart/) to complete onboarding and start using Autentico.

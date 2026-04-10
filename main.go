@@ -51,8 +51,20 @@ func main() {
 				Usage: "Start the HTTP server",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:  "auto-migrate",
-						Usage: "Automatically apply pending database migrations on startup",
+						Name:  "no-auto-migrate",
+						Usage: "Do not automatically apply pending database migrations on startup",
+					},
+					&cli.BoolFlag{
+						Name:  "auto-setup",
+						Usage: "Generate a .env file with secure defaults if one does not exist",
+					},
+					&cli.StringFlag{
+						Name:  "url",
+						Usage: "Application URL for --auto-setup (e.g. https://auth.example.com)",
+					},
+					&cli.BoolFlag{
+						Name:  "dev",
+						Usage: "With --auto-setup, disable secure cookie flags for local HTTP development",
 					},
 				},
 				Action: appCli.RunStart,

@@ -11,71 +11,83 @@ import { Aside } from '@astrojs/starlight/components';
 ghcr.io/eugenioenko/autentico:latest
 ```
 
-The image is a minimal Linux container with just the `autentico` binary. All configuration is via environment variables.
+The image is a minimal Linux container with just the `autentico` binary. The entrypoint is `./autentico` and the default command is `start`.
 
-## Run
-
-### Using an env file
-
-The simplest approach — generate your secrets once with `autentico init`, save them to a `.env` file, and pass it to Docker:
+## Quick start
 
 ```bash
-docker run \
+docker run -d \
   --name autentico \
   -p 9999:9999 \
-  -v autentico-data:/data \
+  -v autentico-data:/app/db \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
+```
+
+On first run, `--auto-setup` generates a `.env` with fresh secrets and persists it on the volume. On subsequent restarts, the existing configuration is reused.
+
+Open `http://localhost:9999/onboard` to create your admin account.
+
+## Custom URL
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
+  -e AUTENTICO_APP_URL=https://auth.example.com \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
+```
+
+## Using a pre-generated .env
+
+If you prefer to manage secrets explicitly:
+
+```bash
+# Generate .env locally (requires the binary)
+autentico init --url https://auth.example.com
+```
+
+```bash
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
   --env-file .env \
+  --restart unless-stopped \
   ghcr.io/eugenioenko/autentico:latest
 ```
-
-The `.env` file must be in the current working directory (or provide an absolute path). Add it to `.gitignore` to avoid committing secrets.
-
-### Using inline environment variables
-
-```bash
-docker run \
-  --name autentico \
-  -p 9999:9999 \
-  -v autentico-data:/data \
-  -e AUTENTICO_APP_URL=http://localhost:9999 \
-  -e AUTENTICO_LISTEN_PORT=9999 \
-  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
-  -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \
-  -e AUTENTICO_CSRF_SECRET_KEY=changeme-at-least-32-chars \
-  -e AUTENTICO_ACCESS_TOKEN_SECRET=changeme-at-least-32-chars \
-  -e AUTENTICO_REFRESH_TOKEN_SECRET=changeme-at-least-32-chars \
-  ghcr.io/eugenioenko/autentico:latest
-```
-
-`AUTENTICO_LISTEN_PORT` is required here because `AUTENTICO_APP_URL` uses HTTPS (port 443) but the container listens on `9999`. Without it, the server would try to bind to port 443. Mount the `/data` volume to persist the SQLite database across container restarts. The RSA private key is passed via the `AUTENTICO_PRIVATE_KEY` environment variable — generate it once with `autentico init` and store it in your secrets manager.
 
 ## Environment variables
 
-All configuration is done via [Bootstrap Settings](/configuration/bootstrap/). The most important ones:
+All configuration is via [Bootstrap Settings](/configuration/bootstrap/). Key variables:
 
 | Variable | Required | Notes |
 |---|---|---|
-| `AUTENTICO_APP_URL` | Yes | Public-facing URL, used in OIDC discovery and redirects |
-| `AUTENTICO_DB_FILE_PATH` | Yes | Path to SQLite database file inside the container |
-| `AUTENTICO_PRIVATE_KEY` | No | Base64-encoded RSA private key PEM; if unset, an ephemeral key is used and tokens are invalidated on restart |
-| `AUTENTICO_CSRF_SECRET_KEY` | Yes | At least 32 random characters |
-| `AUTENTICO_ACCESS_TOKEN_SECRET` | Yes | At least 32 random characters |
-| `AUTENTICO_REFRESH_TOKEN_SECRET` | Yes | At least 32 random characters |
-| `AUTENTICO_LISTEN_PORT` | No | Port the server binds to; defaults to the port in `AUTENTICO_APP_URL` |
+| `AUTENTICO_APP_URL` | No | Public URL. Defaults to `http://localhost:9999`. Used in OIDC discovery and redirects. |
+| `AUTENTICO_DB_FILE_PATH` | No | SQLite database path. Defaults to `./db/autentico.db`. |
+| `AUTENTICO_LISTEN_PORT` | No | Port the server binds to. Defaults to the port in `AUTENTICO_APP_URL`. |
+
+When using `--auto-setup`, secrets (`AUTENTICO_PRIVATE_KEY`, `AUTENTICO_CSRF_SECRET_KEY`, `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`) are generated automatically. When using a pre-generated `.env` or inline environment variables, all four are required.
 
 ## Health check
 
-Autentico exposes `/.well-known/openid-configuration` which returns 200 and can be used as a health check:
-
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=5s \
-  CMD wget -qO- http://localhost:9999/.well-known/openid-configuration || exit 1
+  CMD wget -qO- http://localhost:9999/healthz || exit 1
 ```
 
 ## Logs
 
-Autentico logs structured HTTP access logs to stdout. Collect them with your Docker logging driver or forward to a log aggregator.
+Autentico logs structured HTTP access logs to stdout. Collect them with your Docker logging driver.
 
 <Aside type="tip">
-For a complete production setup with a reverse proxy and persistent volumes, see [Docker Compose](/deployment/docker-compose/).
+For production setups with a reverse proxy, see [Docker Compose](/deployment/docker-compose/).
+</Aside>
+
+<Aside type="caution" title="URL mismatch">
+Changing `AUTENTICO_APP_URL` after first run leaves the admin client registered with the old callback URL. Delete the volume and start fresh: `docker stop autentico && docker rm autentico && docker volume rm autentico-data`.
 </Aside>

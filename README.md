@@ -865,10 +865,10 @@ autentico migrate
 
 The command shows the current and target versions, warns that migrations are irreversible, and asks you to type the target version number to confirm. Back up your database file before proceeding.
 
-For automated environments (Docker, CI), use the `--auto-migrate` flag to apply migrations automatically on startup:
+Migrations are applied automatically on startup by default. To skip automatic migrations and require manual approval, use `--no-auto-migrate`:
 
 ```bash
-autentico start --auto-migrate
+autentico start --no-auto-migrate
 ```
 
 ### Health Check
