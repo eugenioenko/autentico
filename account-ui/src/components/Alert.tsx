@@ -15,7 +15,7 @@ const config = {
   },
   success: {
     icon: IconCircleCheck,
-    className: 'bg-theme-highlight border border-theme-highlight text-theme-accent-fg',
+    className: 'bg-theme-success-bg border border-theme-success-bg text-theme-success-fg',
   },
 };
 

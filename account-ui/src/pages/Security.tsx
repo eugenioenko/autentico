@@ -8,8 +8,11 @@ import Button from '../components/Button';
 import Alert from '../components/Alert';
 import TotpCard from '../components/TotpCard';
 import EmailOtpCard from '../components/EmailOtpCard';
+import StatusDot from '../components/StatusDot';
+import PasswordChangeModal from '../components/PasswordChange';
+import AccountDeletionModal from '../components/AccountDeletion';
+import { extractError } from '../lib/utils';
 import { useSettings } from '../context/SettingsContext';
-import { useAuth } from '../AuthContext';
 
 interface DeletionRequest {
   id: string;
@@ -20,7 +23,6 @@ interface DeletionRequest {
 
 const SecurityPage: React.FC = () => {
   const settings = useSettings();
-  const { logout } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: mfa, refetch: refetchMfa } = useQuery({
@@ -32,12 +34,7 @@ const SecurityPage: React.FC = () => {
     queryFn: () => api.get('/passkeys').then((res) => res.data.data),
   });
 
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [isChangingPass, setIsChangingPass] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
-
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [addPasskeyError, setAddPasskeyError] = useState('');
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
@@ -47,29 +44,8 @@ const SecurityPage: React.FC = () => {
     queryKey: ['deletion-request'],
     queryFn: () => api.get('/deletion-request').then((res) => res.data.data ?? null),
   });
-  const [deletionReason, setDeletionReason] = useState('');
-  const [showDeletionConfirm, setShowDeletionConfirm] = useState(false);
-  const [deletionSubmitError, setDeletionSubmitError] = useState('');
+  const [showDeletionModal, setShowDeletionModal] = useState(false);
   const [deletionCancelError, setDeletionCancelError] = useState('');
-
-  const submitDeletionMutation = useMutation({
-    mutationFn: () =>
-      api.post('/deletion-request', deletionReason.trim() ? { reason: deletionReason.trim() } : {}),
-    onSuccess: () => {
-      if (settings.allow_self_service_deletion) {
-        logout();
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ['deletion-request'] });
-      setDeletionReason('');
-      setShowDeletionConfirm(false);
-      setDeletionSubmitError('');
-    },
-    onError: (err: unknown) => {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setDeletionSubmitError(axiosErr.response?.data?.error_description || 'Failed to submit request.');
-    },
-  });
 
   const cancelDeletionMutation = useMutation({
     mutationFn: () => api.delete('/deletion-request'),
@@ -78,28 +54,9 @@ const SecurityPage: React.FC = () => {
       setDeletionCancelError('');
     },
     onError: (err: unknown) => {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setDeletionCancelError(axiosErr.response?.data?.error_description || 'Failed to cancel request.');
+      setDeletionCancelError(extractError(err, 'Failed to cancel request.'));
     },
   });
-
-  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setPasswordError('');
-    setPasswordSuccess('');
-    setIsChangingPass(true);
-    try {
-      await api.post('/password', { current_password: currentPassword, new_password: newPassword });
-      setCurrentPassword('');
-      setNewPassword('');
-      setPasswordSuccess('Password updated successfully.');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setPasswordError(axiosErr.response?.data?.error_description || 'Failed to update password.');
-    } finally {
-      setIsChangingPass(false);
-    }
-  };
 
   const handleDeletePasskey = async (id: string) => {
     setDeletePasskeyError('');
@@ -107,8 +64,7 @@ const SecurityPage: React.FC = () => {
       await api.delete(`/passkeys/${id}`);
       refetchPasskeys();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setDeletePasskeyError(axiosErr.response?.data?.error_description || 'Failed to delete passkey.');
+      setDeletePasskeyError(extractError(err, 'Failed to delete passkey.'));
     }
   };
 
@@ -125,8 +81,7 @@ const SecurityPage: React.FC = () => {
       if (err instanceof Error && err.message.includes('cancel')) {
         setAddPasskeyError('Passkey registration was cancelled.');
       } else {
-        const axiosErr = err as { response?: { data?: { error_description?: string } } };
-        setAddPasskeyError(axiosErr.response?.data?.error_description || 'Failed to add passkey.');
+        setAddPasskeyError(extractError(err, 'Failed to add passkey.'));
       }
     } finally {
       setIsAddingPasskey(false);
@@ -135,33 +90,16 @@ const SecurityPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <Card title="Password" description="Change your password to keep your account secure.">
-        <form onSubmit={handleChangePassword} className="space-y-5 mt-2">
-          <div>
-            <label>Current Password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </div>
-          {passwordError && <Alert type="danger" message={passwordError} />}
-          {passwordSuccess && <Alert type="success" message={passwordSuccess} />}
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isChangingPass || !currentPassword || !newPassword}>
-              Update Password
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {showPasswordModal && <PasswordChangeModal onClose={() => setShowPasswordModal(false)} />}
+      <Card
+        title="Password"
+        description="Change your password to keep your account secure."
+        action={
+          <Button onClick={() => setShowPasswordModal(true)}>
+            Change Password
+          </Button>
+        }
+      />
 
       {(settings.mfa_method === 'totp' || settings.mfa_method === 'both') && (
         <TotpCard
@@ -179,7 +117,7 @@ const SecurityPage: React.FC = () => {
         title="Passkeys"
         description="Biometrics or security keys for passwordless login."
         action={
-          <Button onClick={handleAddPasskey} disabled={isAddingPasskey} className="text-xs px-3 py-1.5">
+          <Button onClick={handleAddPasskey} disabled={isAddingPasskey}>
             {isAddingPasskey ? 'Registering…' : 'Add Passkey'}
           </Button>
         }
@@ -204,7 +142,7 @@ const SecurityPage: React.FC = () => {
                 <Button
                   variant="danger"
                   onClick={() => handleDeletePasskey(pk.id)}
-                  className="text-xs px-3 py-1.5 flex-shrink-0"
+                  className="flex-shrink-0"
                 >
                   Remove
                 </Button>
@@ -212,10 +150,14 @@ const SecurityPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-theme-muted mt-1">No passkeys registered yet.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <StatusDot active={false} />
+            <span className="text-sm text-theme-fg">No passkeys registered</span>
+          </div>
         )}
       </Card>
 
+      {showDeletionModal && <AccountDeletionModal onClose={() => setShowDeletionModal(false)} />}
       <Card
         title="Danger Zone"
         description={
@@ -223,9 +165,16 @@ const SecurityPage: React.FC = () => {
             ? 'Permanently delete your account. This action cannot be undone.'
             : 'Request account deletion. An admin will review and process your request.'
         }
+        action={
+          !deletionRequest ? (
+            <Button variant="danger" onClick={() => setShowDeletionModal(true)}>
+              Delete Account
+            </Button>
+          ) : undefined
+        }
       >
-        {deletionRequest ? (
-          <div className="mt-2 space-y-4">
+        {deletionRequest && (
+          <div className="space-y-4">
             <div className="rounded-xl bg-theme-danger-bg border border-theme-danger-bg px-4 py-3 text-sm text-theme-danger-fg">
               A deletion request was submitted on{' '}
               <strong>{new Date(deletionRequest.requested_at).toLocaleDateString()}</strong>.
@@ -248,54 +197,6 @@ const SecurityPage: React.FC = () => {
                 {cancelDeletionMutation.isPending ? 'Cancelling…' : 'Cancel Deletion Request'}
               </Button>
             )}
-          </div>
-        ) : !showDeletionConfirm ? (
-          <div className="mt-2">
-            <Button variant="danger" onClick={() => setShowDeletionConfirm(true)}>
-              {settings.allow_self_service_deletion ? 'Delete My Account' : 'Request Account Deletion'}
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-2 space-y-4 border-t border-theme-fg/10 pt-4">
-            <p className="text-sm text-theme-fg font-medium">
-              {settings.allow_self_service_deletion
-                ? 'Are you sure you want to permanently delete your account? This cannot be undone.'
-                : 'A deletion request will be submitted for admin review.'}
-            </p>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Reason <span className="text-theme-muted font-normal">(optional)</span>
-              </label>
-              <textarea
-                className="w-full rounded-xl border border-theme-fg/20 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-theme-highlight bg-theme-bg text-theme-fg"
-                rows={3}
-                placeholder="Tell us why you want to delete your account…"
-                value={deletionReason}
-                onChange={(e) => setDeletionReason(e.target.value)}
-              />
-            </div>
-            {deletionSubmitError && <Alert type="danger" message={deletionSubmitError} />}
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => { setShowDeletionConfirm(false); setDeletionSubmitError(''); }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => submitDeletionMutation.mutate()}
-                disabled={submitDeletionMutation.isPending}
-                className="flex-1"
-              >
-                {submitDeletionMutation.isPending
-                  ? 'Submitting…'
-                  : settings.allow_self_service_deletion
-                  ? 'Delete Account'
-                  : 'Submit Request'}
-              </Button>
-            </div>
           </div>
         )}
       </Card>

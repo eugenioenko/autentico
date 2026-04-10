@@ -4,7 +4,8 @@ import Card from './Card';
 import Button from './Button';
 import Alert from './Alert';
 import StatusDot from './StatusDot';
-import TotpSetupModal from './TotpSetupModal';
+import TotpSetupModal from './TotpSetup';
+import { extractError } from '../lib/utils';
 
 interface TotpCardProps {
   totpEnabled: boolean;
@@ -27,8 +28,7 @@ const TotpCard: React.FC<TotpCardProps> = ({ totpEnabled, preferredLabel, onChan
       setPassword('');
       onChanged();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Failed to disable 2FA.');
+      setError(extractError(err, 'Failed to disable 2FA.'));
     }
   };
 
@@ -48,12 +48,11 @@ const TotpCard: React.FC<TotpCardProps> = ({ totpEnabled, preferredLabel, onChan
             <Button
               variant="danger"
               onClick={() => { setShowDisable(!showDisable); setError(''); }}
-              className="text-xs px-3 py-1.5"
             >
               Disable
             </Button>
           ) : (
-            <Button onClick={() => setShowModal(true)} className="text-xs px-3 py-1.5">
+            <Button onClick={() => setShowModal(true)}>
               Set Up
             </Button>
           )

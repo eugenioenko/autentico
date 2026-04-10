@@ -16,6 +16,8 @@
  *   --color-accent-fg    Text on --color-accent-bg
  *   --color-danger-bg    Errors, destructive actions surface
  *   --color-danger-fg    Text on --color-danger-bg
+ *   --color-success-bg   Confirmations, positive actions surface
+ *   --color-success-fg   Text on --color-success-bg
  *   --color-highlight    Links, focus rings, info states (no surface use)
  */
 
@@ -39,6 +41,8 @@
   --color-accent-fg:    #fafafa;
   --color-danger-bg:    #b91313;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #15803d;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #4779a1;
 }
 
@@ -58,6 +62,8 @@
     --color-accent-fg:    #ffffff;
     --color-danger-bg:    #d42f2f;
     --color-danger-fg:    #ffffff;
+    --color-success-bg:   #22c55e;
+    --color-success-fg:   #111111;
     --color-highlight:    #4779a1;
   }
 }
@@ -77,6 +83,8 @@
   --color-accent-fg:    #fafafa;
   --color-danger-bg:    #b91313;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #15803d;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #4779a1;
 }
 
@@ -94,6 +102,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #d42f2f;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #22c55e;
+  --color-success-fg:   #111111;
   --color-highlight:    #4779a1;
 }
 
@@ -111,6 +121,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #d60b0b;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #16a34a;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #0b66d6;
 }
 
@@ -128,6 +140,8 @@
   --color-accent-fg:    #efefef;
   --color-danger-bg:    #d60b0b;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #22c55e;
+  --color-success-fg:   #1a1a2a;
   --color-highlight:    #0b66d6;
 }
 
@@ -145,6 +159,8 @@
   --color-accent-fg:    #fdf6e3;
   --color-danger-bg:    #dc322f;
   --color-danger-fg:    #fdf6e3;
+  --color-success-bg:   #859900;
+  --color-success-fg:   #fdf6e3;
   --color-highlight:    #6c71c4;
 }
 
@@ -162,6 +178,8 @@
   --color-accent-fg:    #fafafa;
   --color-danger-bg:    #b91313;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #15803d;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #4779a1;
 }
 
@@ -179,6 +197,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #d42f2f;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #22c55e;
+  --color-success-fg:   #111111;
   --color-highlight:    #4779a1;
 }
 
@@ -196,6 +216,8 @@
   --color-accent-fg:    #fbf7ff;
   --color-danger-bg:    #e63946;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #16a34a;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #705ea4;
 }
 
@@ -213,6 +235,8 @@
   --color-accent-fg:    #fbf7ff;
   --color-danger-bg:    #e63946;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #22c55e;
+  --color-success-fg:   #201b3e;
   --color-highlight:    #564787;
 }
 
@@ -230,6 +254,8 @@
   --color-accent-fg:    #ffeef6;
   --color-danger-bg:    #c2185b;
   --color-danger-fg:    #ffeef6;
+  --color-success-bg:   #4caf50;
+  --color-success-fg:   #1e0f1b;
   --color-highlight:    #f78da7;
 }
 
@@ -247,6 +273,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #770000;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #006600;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #0000aa;
 }
 
@@ -264,6 +292,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #ff4444;
   --color-danger-fg:    #000000;
+  --color-success-bg:   #00cc00;
+  --color-success-fg:   #000000;
   --color-highlight:    #ffff00;
 }
 
@@ -281,6 +311,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #ff2400;
   --color-danger-fg:    #3b1d1d;
+  --color-success-bg:   #2e7d32;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #ff7e67;
 }
 
@@ -298,6 +330,8 @@
   --color-accent-fg:    #e8f7fe;
   --color-danger-bg:    #ff4d4d;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #00897b;
+  --color-success-fg:   #e8f7fe;
   --color-highlight:    #1ecbe1;
 }
 
@@ -315,6 +349,8 @@
   --color-accent-fg:    #e2e7e9;
   --color-danger-bg:    #e63946;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #2a9d8f;
+  --color-success-fg:   #e2e7e9;
   --color-highlight:    #a8dadc;
 }
 
@@ -332,6 +368,8 @@
   --color-accent-fg:    #000000;
   --color-danger-bg:    #d12f1d;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #27ae60;
+  --color-success-fg:   #000000;
   --color-highlight:    #f5b041;
 }
 
@@ -349,6 +387,8 @@
   --color-accent-fg:    #f5e8d0;
   --color-danger-bg:    #b22222;
   --color-danger-fg:    #f5e8d0;
+  --color-success-bg:   #558b2f;
+  --color-success-fg:   #f5e8d0;
   --color-highlight:    #9e7145;
 }
 
@@ -366,6 +406,8 @@
   --color-accent-fg:    #ffffff;
   --color-danger-bg:    #e60000;
   --color-danger-fg:    #ffffff;
+  --color-success-bg:   #1b5e20;
+  --color-success-fg:   #ffffff;
   --color-highlight:    #4169e1;
 }
 
@@ -383,5 +425,7 @@
   --color-accent-fg:    #f2f4f7;
   --color-danger-bg:    #b22222;
   --color-danger-fg:    #f2f4f7;
+  --color-success-bg:   #4caf50;
+  --color-success-fg:   #f2f4f7;
   --color-highlight:    #3b82f6;
 }

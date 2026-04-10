@@ -5,6 +5,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
 import Button from '../components/Button';
+import { extractError } from '../lib/utils';
 
 interface TrustedDevice {
   id: string;
@@ -27,8 +28,7 @@ const TrustedDevicesPage: React.FC = () => {
       await api.delete(`/trusted-devices/${id}`);
       refetch();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      setError(axiosErr.response?.data?.error_description || 'Failed to revoke trusted device.');
+      setError(extractError(err, 'Failed to revoke trusted device.'));
     }
   };
 
@@ -55,7 +55,7 @@ const TrustedDevicesPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Button variant="danger" onClick={() => handleRevoke(d.id)} className="flex-shrink-0 text-xs px-3 py-1.5">
+            <Button variant="danger" onClick={() => handleRevoke(d.id)} className="flex-shrink-0">
               Revoke
             </Button>
           </div>
