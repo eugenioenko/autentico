@@ -1,142 +1,57 @@
 ---
 title: Quickstart
-description: Get Autentico running and serving tokens in under five minutes.
+description: Get Autentico running in under a minute.
 ---
 
-import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Autentico is a single binary. There is no database to provision, no external services to start, and no multi-step infrastructure setup. The full process is: download, generate a `.env`, start the server, and complete onboarding in the browser.
+## 1. Start the server
 
-## Quickstart with Binary
+<Tabs>
+<TabItem label="Binary">
 
-<Steps>
+Download the latest release for your platform from [GitHub Releases](https://github.com/eugenioenko/autentico/releases), then:
 
-1. **Download the binary**
+```bash
+chmod +x autentico
+./autentico start --auto-setup
+```
 
-   Grab the latest release for your platform from [GitHub Releases](https://github.com/eugenioenko/autentico/releases).
+</TabItem>
+<TabItem label="Docker">
 
-   <Tabs>
-     <TabItem label="Linux (amd64)">
-     ```bash
-     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64 -o autentico
-     chmod +x autentico
-     ```
-     </TabItem>
-     <TabItem label="Linux (arm64)">
-     ```bash
-     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-arm64 -o autentico
-     chmod +x autentico
-     ```
-     </TabItem>
-     <TabItem label="macOS (amd64)">
-     ```bash
-     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-amd64 -o autentico
-     chmod +x autentico
-     ```
-     </TabItem>
-     <TabItem label="macOS (arm64)">
-     ```bash
-     curl -L https://github.com/eugenioenko/autentico/releases/latest/download/autentico-darwin-arm64 -o autentico
-     chmod +x autentico
-     ```
-     </TabItem>
-     <TabItem label="Windows (amd64)">
-     ```powershell
-     Invoke-WebRequest -Uri https://github.com/eugenioenko/autentico/releases/latest/download/autentico-windows-amd64.exe -OutFile autentico.exe
-     ```
-     </TabItem>
-     <TabItem label="Windows (arm64)">
-     ```powershell
-     Invoke-WebRequest -Uri https://github.com/eugenioenko/autentico/releases/latest/download/autentico-windows-arm64.exe -OutFile autentico.exe
-     ```
-     </TabItem>
-   </Tabs>
+```bash
+docker run -d \
+  --name autentico \
+  -p 9999:9999 \
+  -v autentico-data:/app/db \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-setup
+```
 
-2. **Generate your configuration**
+</TabItem>
+</Tabs>
 
-   ```bash
-   ./autentico init --url http://localhost:9999
-   ```
+The `--auto-setup` flag generates a `.env` with fresh secrets (RSA key, CSRF, token signing) on first run. On subsequent starts, the existing configuration is reused.
 
-   This creates a `.env` file in the current directory with a freshly generated RSA key, CSRF secret, and token signing secrets.
+## 2. Create your admin account
 
-3. **Start the server**
+Open [http://localhost:9999/onboard](http://localhost:9999/onboard) and set your admin credentials. Done.
 
-   ```bash
-   ./autentico start
-   ```
+## Custom URL
 
-   Output:
-   ```
-     Autentico OIDC Identity Provider
+By default Autentico binds to `http://localhost:9999`. To use a different URL:
 
-     ONBOARDING: http://localhost:9999/onboard
+<Tabs>
+<TabItem label="Binary">
 
-     Server:    http://localhost:9999
-     Admin UI:  http://localhost:9999/admin/
-     WellKnown: http://localhost:9999/.well-known/openid-configuration
-     JWKS:      http://localhost:9999/oauth2/.well-known/jwks.json
-     Authorize: http://localhost:9999/oauth2/authorize
-     Token:     http://localhost:9999/oauth2/token
-   ```
+```bash
+./autentico start --auto-setup --url https://auth.example.com
+```
 
-   The **ONBOARDING** URL is shown until the first administrator account is created.
-
-4. **Complete onboarding**
-
-   <Tabs>
-     <TabItem label="Browser">
-     Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
-     </TabItem>
-     <TabItem label="CLI (CI/CD)">
-     For automated deployments, create the admin account headlessly before starting the server:
-     ```bash
-     ./autentico onboard --username admin --password yourpassword --email admin@example.com --auto-migrate
-     ./autentico start
-     ```
-     Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`) to avoid exposing them in process listings.
-
-     The `onboard` command mirrors the browser wizard — same guards, same outcome. It only works once on a fresh database.
-     </TabItem>
-   </Tabs>
-
-5. **Done**
-
-   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
-
-</Steps>
-
-For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`).
-
-## Quickstart with Docker
-
-<Steps>
-
-1. **Start the server**
-
-   ```bash
-   docker run -d \
-     --name autentico \
-     -p 9999:9999 \
-     -v autentico-data:/app/db \
-     --restart unless-stopped \
-     ghcr.io/eugenioenko/autentico:latest \
-     start --auto-setup
-   ```
-
-   On first run, `--auto-setup` generates a `.env` with fresh secrets (RSA key, CSRF secret, token signing secrets) and persists it on the volume. On subsequent restarts, the existing configuration is reused.
-
-2. **Complete onboarding**
-
-   Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
-
-3. **Done**
-
-   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
-
-</Steps>
-
-For production, pass your public URL via an environment variable:
+</TabItem>
+<TabItem label="Docker">
 
 ```bash
 docker run -d \
@@ -149,11 +64,12 @@ docker run -d \
   start --auto-setup
 ```
 
-See [Docker deployment](/deployment/docker/) and [Docker Compose](/deployment/docker-compose/) for full production setups.
+</TabItem>
+</Tabs>
 
 ## What's next?
 
-- [Registering clients](/clients/registering/) — all registration options
-- [Authorization Code + PKCE](/protocol/authorization-code/) — integrate with your app
-- [Configuration reference](/configuration/overview/) — understand the three-layer config system
+- [Registering clients](/clients/registering/) — connect your app
+- [Authorization Code + PKCE](/protocol/authorization-code/) — the standard OAuth2 flow
+- [Configuration reference](/configuration/overview/) — bootstrap, runtime, and per-client settings
 - [Authentication modes](/authentication/overview/) — password, passkeys, MFA
