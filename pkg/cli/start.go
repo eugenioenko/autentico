@@ -50,6 +50,12 @@ import (
 )
 
 func RunStart(c *cli.Context) error {
+	if c.Bool("auto-setup") {
+		if err := autoGenerateConfig(); err != nil {
+			return err
+		}
+	}
+
 	config.InitBootstrap()
 
 	bs := config.GetBootstrap()

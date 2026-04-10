@@ -38,28 +38,17 @@ Once installed, follow the [Quickstart](/getting-started/quickstart/) to initial
 </TabItem>
 <TabItem label="Docker">
 
-Pull the latest image:
-
 ```bash
-docker pull ghcr.io/eugenioenko/autentico:latest
-```
-
-Run with environment variables:
-
-```bash
-docker run \
+docker run -d \
   --name autentico \
   -p 9999:9999 \
-  -v autentico-data:/data \
-  -e AUTENTICO_APP_URL=http://localhost:9999\
-  -e AUTENTICO_LISTEN_PORT=9999 \
-  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
-  -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \
-  -e AUTENTICO_CSRF_SECRET_KEY=changeme-at-least-32-chars \
-  -e AUTENTICO_ACCESS_TOKEN_SECRET=changeme-at-least-32-chars \
-  -e AUTENTICO_REFRESH_TOKEN_SECRET=changeme-at-least-32-chars \
-  ghcr.io/eugenioenko/autentico:latest
+  -v autentico-data:/app/db \
+  --restart unless-stopped \
+  ghcr.io/eugenioenko/autentico:latest \
+  start --auto-migrate --auto-setup
 ```
+
+The `--auto-setup` flag generates a `.env` with fresh secrets on first run and reuses it on restarts. For a custom URL, pass it via `-e AUTENTICO_APP_URL=https://auth.example.com`.
 
 See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
 

@@ -54,6 +54,10 @@ func main() {
 						Name:  "auto-migrate",
 						Usage: "Automatically apply pending database migrations on startup",
 					},
+					&cli.BoolFlag{
+						Name:  "auto-setup",
+						Usage: "Generate a .env file with secure defaults if one does not exist",
+					},
 				},
 				Action: appCli.RunStart,
 			},
