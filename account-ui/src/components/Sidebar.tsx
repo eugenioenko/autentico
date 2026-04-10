@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
         <button
           onClick={onLogout}
           data-testid="sign-out"
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-theme-accent-fg/70 hover:text-theme-primary-fg hover:bg-theme-primary-bg rounded-brand transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-theme-accent-fg/70 hover:text-theme-accent-fg hover:bg-theme-accent-fg/10 rounded-brand transition-colors"
         >
           <IconLogout size={15} />
           Sign out
