@@ -38,28 +38,25 @@ Once installed, follow the [Quickstart](/getting-started/quickstart/) to initial
 </TabItem>
 <TabItem label="Docker">
 
-Pull the latest image:
+<Steps>
+1. Generate a `.env` file with all required secrets:
+   ```bash
+   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
+     init --output /output --url http://localhost:9999
+   ```
 
-```bash
-docker pull ghcr.io/eugenioenko/autentico:latest
-```
-
-Run with environment variables:
-
-```bash
-docker run \
-  --name autentico \
-  -p 9999:9999 \
-  -v autentico-data:/data \
-  -e AUTENTICO_APP_URL=http://localhost:9999\
-  -e AUTENTICO_LISTEN_PORT=9999 \
-  -e AUTENTICO_DB_FILE_PATH=/data/autentico.db \
-  -e AUTENTICO_PRIVATE_KEY=base64-encoded-pem-string \
-  -e AUTENTICO_CSRF_SECRET_KEY=changeme-at-least-32-chars \
-  -e AUTENTICO_ACCESS_TOKEN_SECRET=changeme-at-least-32-chars \
-  -e AUTENTICO_REFRESH_TOKEN_SECRET=changeme-at-least-32-chars \
-  ghcr.io/eugenioenko/autentico:latest
-```
+2. Start the server:
+   ```bash
+   docker run -d \
+     --name autentico \
+     -p 9999:9999 \
+     -v autentico-data:/data \
+     --env-file .env \
+     --restart unless-stopped \
+     ghcr.io/eugenioenko/autentico:latest \
+     start --auto-migrate
+   ```
+</Steps>
 
 See [Bootstrap Settings](/configuration/bootstrap/) for all available environment variables.
 

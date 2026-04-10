@@ -5,9 +5,49 @@ description: Get Autentico running and serving tokens in under five minutes.
 
 import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-Autentico is a single binary. There is no database to provision, no external services to start, and no multi-step infrastructure setup. The full process is: download, generate a `.env`, start the server, and complete onboarding in the browser.
+Autentico is a single binary. There is no database to provision, no external services to start, and no multi-step infrastructure setup. The full process is: generate a `.env`, start the server, and complete onboarding in the browser.
 
-This guide takes you from zero to a running Autentico instance with a registered OAuth2 client. It assumes you want to run the binary directly. For Docker, see [Docker deployment](/deployment/docker/).
+<Tabs>
+<TabItem label="Docker">
+
+<Steps>
+
+1. **Generate your configuration**
+
+   ```bash
+   docker run --rm -v $(pwd):/output ghcr.io/eugenioenko/autentico:latest \
+     init --output /output --url http://localhost:9999
+   ```
+
+   This creates a `.env` file in the current directory with a freshly generated RSA key, CSRF secret, and token signing secrets.
+
+2. **Start the server**
+
+   ```bash
+   docker run -d \
+     --name autentico \
+     -p 9999:9999 \
+     -v autentico-data:/data \
+     --env-file .env \
+     --restart unless-stopped \
+     ghcr.io/eugenioenko/autentico:latest \
+     start --auto-migrate
+   ```
+
+3. **Complete onboarding**
+
+   Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
+
+4. **Done**
+
+   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
+
+</Steps>
+
+For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`). See [Docker deployment](/deployment/docker/) and [Docker Compose](/deployment/docker-compose/) for full production setups.
+
+</TabItem>
+<TabItem label="Binary">
 
 <Steps>
 
@@ -54,21 +94,11 @@ This guide takes you from zero to a running Autentico instance with a registered
 
 2. **Generate your configuration**
 
-   <Tabs>
-     <TabItem label="Development">
-     ```bash
-     ./autentico init --url http://localhost:9999
-     ```
-     </TabItem>
-     <TabItem label="Production">
-     ```bash
-     ./autentico init --url https://auth.example.com
-     ```
-     </TabItem>
-   </Tabs>
+   ```bash
+   ./autentico init --url http://localhost:9999
+   ```
 
-   This creates a `.env` file in the current directory containing a freshly generated RSA private key (base64-encoded), CSRF secret, and token signing secrets. You do not need a separate key file — everything is in `.env`.
-
+   This creates a `.env` file in the current directory with a freshly generated RSA key, CSRF secret, and token signing secrets.
 
 3. **Start the server**
 
@@ -96,7 +126,7 @@ This guide takes you from zero to a running Autentico instance with a registered
 
    <Tabs>
      <TabItem label="Browser">
-     Open `http://localhost:9999/onboard` in your browser. Fill in your administrator credentials to create the first account. Once complete, you are redirected to the Admin UI.
+     Open `http://localhost:9999/onboard` in your browser. Create the first administrator account. Once complete, you are redirected to the Admin UI.
      </TabItem>
      <TabItem label="CLI (CI/CD)">
      For automated deployments, create the admin account headlessly before starting the server:
@@ -112,9 +142,16 @@ This guide takes you from zero to a running Autentico instance with a registered
 
 5. **Done**
 
-   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings. When you're ready to integrate, see [Registering clients](/clients/registering/) and the [Authorization Code + PKCE](/protocol/authorization-code/) flow.
+   Autentico is running. From the Admin UI you can manage users, register OAuth2 clients, and configure settings.
 
 </Steps>
+
+For production, replace `http://localhost:9999` with your public URL (e.g. `https://auth.example.com`).
+
+</TabItem>
+</Tabs>
+
+When you're ready to integrate, see [Registering clients](/clients/registering/) and the [Authorization Code + PKCE](/protocol/authorization-code/) flow.
 
 ## What's next?
 
