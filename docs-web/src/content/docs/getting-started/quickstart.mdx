@@ -37,7 +37,22 @@ The `--auto-setup` flag generates a `.env` with fresh secrets (RSA key, CSRF, to
 
 ## 2. Create your admin account
 
+<Tabs>
+<TabItem label="Browser">
+
 Open [http://localhost:9999/onboard](http://localhost:9999/onboard) and set your admin credentials. Done.
+
+</TabItem>
+<TabItem label="CLI">
+
+```bash
+./autentico onboard --username admin --password yourpassword --email admin@example.com
+```
+
+Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`).
+
+</TabItem>
+</Tabs>
 
 <Aside type="tip">
 For production, set `AUTENTICO_APP_URL` to your public HTTPS URL (e.g. `https://auth.example.com`). Secure cookies require HTTPS — pass `--dev` only for local HTTP development. See [Configuration](/configuration/overview/) for details.
