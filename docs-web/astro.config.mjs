@@ -2,12 +2,14 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
+import sitemap from '@astrojs/sitemap';
 import starlightThemeGalaxy from 'starlight-theme-galaxy';
 
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://autentico.top',
 	integrations: [
+		sitemap(),
 		starlight({
 			head: [
 				{
