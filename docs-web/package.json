@@ -11,6 +11,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.2",
     "@astrojs/starlight": "^0.37.6",
     "@pasqal-io/starlight-client-mermaid": "^0.1.0",
     "astro": "^5.6.1",
