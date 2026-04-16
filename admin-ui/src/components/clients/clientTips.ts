@@ -7,6 +7,7 @@ export const tip = makeTip({
   client_type: "Confidential: server-side apps that can keep a secret. Public: browser or mobile apps that cannot — no secret is issued, use PKCE instead.",
   client_secret: "Optional. If left empty, a secret is auto-generated. Only shown once after creation.",
   redirect_uris: "Allowed callback URLs. The redirect_uri in each authorization request must exactly match one of these. No wildcards, max 10.",
+  post_logout_redirect_uris: "Allowed URLs for OIDC RP-initiated logout. The post_logout_redirect_uri in a logout request must exactly match one of these. Optional — leave empty to disable RP-initiated logout redirects.",
   grant_types: "OAuth2 flows this client is permitted to use.",
   response_types: "What the authorization endpoint returns. Use [code] for the standard Authorization Code flow.",
   scopes: "Scopes the client is allowed to request. Standard: openid, profile, email, address, phone, offline_access.",

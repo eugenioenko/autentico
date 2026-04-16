@@ -128,6 +128,7 @@ export default function ClientCreateForm({
             token_endpoint_auth_method: "client_secret_basic",
             scopes: ["openid", "profile", "email", "offline_access"],
             redirect_uris: [""],
+            post_logout_redirect_uris: [],
           }}
         >
           <Form.Item
@@ -223,6 +224,53 @@ export default function ClientCreateForm({
                     Add Redirect URI
                   </Button>
                   <Form.ErrorList errors={errors} />
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+
+          <Form.List name="post_logout_redirect_uris">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field) => (
+                  <Form.Item
+                    key={field.key}
+                    label={field.name === 0 ? "Post-Logout Redirect URIs" : undefined}
+                    tooltip={field.name === 0 ? { title: tip("post_logout_redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
+                  >
+                    <Space.Compact style={{ width: "100%" }}>
+                      <Form.Item
+                        {...field}
+                        noStyle
+                        rules={[
+                          { required: true, message: "URI is required" },
+                          { type: "url", message: "Must be a valid URL" },
+                        ]}
+                      >
+                        <Input
+                          placeholder="https://example.com/logout-callback"
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                      <Button
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => remove(field.name)}
+                      />
+                    </Space.Compact>
+                  </Form.Item>
+                ))}
+                <Form.Item
+                  label={fields.length === 0 ? "Post-Logout Redirect URIs" : undefined}
+                  tooltip={fields.length === 0 ? { title: tip("post_logout_redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
+                >
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    block
+                    icon={<PlusOutlined />}
+                  >
+                    Add Post-Logout Redirect URI
+                  </Button>
                 </Form.Item>
               </>
             )}
