@@ -50,6 +50,32 @@ func TestHandlePutSettings(t *testing.T) {
 	})
 }
 
+func TestHandlePutSettings_InvalidDuration(t *testing.T) {
+	testutils.WithTestDB(t)
+	body := `{"access_token_expiration": "30d"}`
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandlePutSettings(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "access_token_expiration")
+
+	// The invalid value must not have been persisted.
+	val, _ := GetSetting("access_token_expiration")
+	assert.NotEqual(t, "30d", val)
+}
+
+func TestHandlePutSettings_AuditLogRetentionSpecialValues(t *testing.T) {
+	testutils.WithTestDB(t)
+	for _, v := range []string{"0", "-1", "168h"} {
+		body := `{"audit_log_retention": "` + v + `"}`
+		req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", strings.NewReader(body))
+		rr := httptest.NewRecorder()
+		HandlePutSettings(rr, req)
+		assert.Equal(t, http.StatusNoContent, rr.Code, "value %q should be accepted", v)
+	}
+}
+
 func TestHandlePutSettings_InvalidJSON(t *testing.T) {
 	testutils.WithTestDB(t)
 	req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", bytes.NewBufferString("{invalid"))

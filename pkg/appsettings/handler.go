@@ -2,7 +2,9 @@ package appsettings
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -10,6 +12,43 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
+
+// durationSettings lists keys whose values must parse as Go durations
+// (time.ParseDuration). Values in the slice are non-duration strings that
+// are also accepted — e.g. "0" and "-1" on audit_log_retention mean
+// "disabled" and "keep forever" respectively.
+var durationSettings = map[string][]string{
+	"access_token_expiration":       nil,
+	"refresh_token_expiration":      nil,
+	"authorization_code_expiration": nil,
+	"sso_session_idle_timeout":      {"", "0"},
+	"account_lockout_duration":      nil,
+	"trust_device_expiration":       nil,
+	"cleanup_interval":              nil,
+	"cleanup_retention":             nil,
+	"email_verification_expiration": nil,
+	"password_reset_expiration":     nil,
+	"audit_log_retention":           {"", "0", "-1"},
+}
+
+// validateDurationSettings returns an error if any duration-typed setting
+// in updates has a value that neither parses as a Go duration nor matches
+// one of its allowed special values.
+func validateDurationSettings(updates map[string]string) error {
+	for k, allowed := range durationSettings {
+		v, ok := updates[k]
+		if !ok {
+			continue
+		}
+		if slices.Contains(allowed, v) {
+			continue
+		}
+		if _, err := time.ParseDuration(v); err != nil {
+			return fmt.Errorf("setting %q has invalid duration %q (expected a Go duration like 15m, 1h, 24h)", k, v)
+		}
+	}
+	return nil
+}
 
 // HandleGetSettings godoc
 // @Summary Get system settings
@@ -53,6 +92,11 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 		if protected[k] {
 			delete(updates, k)
 		}
+	}
+
+	if err := validateDurationSettings(updates); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
 	}
 
 	for k, v := range updates {
@@ -169,6 +213,11 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	protected := map[string]bool{"onboarded": true, "private_key": true}
+
+	if err := validateDurationSettings(payload.Settings); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
 
 	for k, v := range payload.Settings {
 		if protected[k] {
