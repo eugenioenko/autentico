@@ -101,6 +101,8 @@ type Config struct {
 	ValidationMaxUsernameLength        int
 	ValidationMinPasswordLength        int
 	ValidationMaxPasswordLength        int
+	ValidationPasswordPattern          string // optional regex; if non-empty, password must match
+	ValidationPasswordHint             string // human-readable hint shown in browser validation tooltip
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
 	// When true, users can delete their own account immediately without admin approval.
@@ -168,6 +170,8 @@ var defaultConfig = Config{
 	ValidationMaxUsernameLength:        64,
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
+	ValidationPasswordPattern:          "",
+	ValidationPasswordHint:             "",
 	Theme:                              ThemeConfig{Title: "Autentico"},
 	AllowSelfServiceDeletion:           false,
 	AllowUsernameChange:                false,

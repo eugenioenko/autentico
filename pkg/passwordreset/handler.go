@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -94,6 +95,10 @@ func renderResetPassword(w http.ResponseWriter, r *http.Request, mode, token str
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"PasswordMinLength":   cfg.ValidationMinPasswordLength,
+		"PasswordMaxLength":   cfg.ValidationMaxPasswordLength,
+		"PasswordPattern":     cfg.ValidationPasswordPattern,
+		"PasswordHint":        cfg.ValidationPasswordHint,
 	}
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
@@ -230,6 +235,16 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	if len(password) > cfg.ValidationMaxPasswordLength {
 		renderResetPassword(w, r, "form", rawToken, params, "Password is too long.")
 		return
+	}
+	if cfg.ValidationPasswordPattern != "" {
+		if re, err := regexp.Compile(cfg.ValidationPasswordPattern); err == nil && !re.MatchString(password) {
+			hint := cfg.ValidationPasswordHint
+			if hint == "" {
+				hint = "Password does not meet the required format."
+			}
+			renderResetPassword(w, r, "form", rawToken, params, hint)
+			return
+		}
 	}
 
 	// Look up and validate the token

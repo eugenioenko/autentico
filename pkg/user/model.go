@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -10,6 +11,30 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 )
+
+// validatePasswordPattern enforces the configured regex (if any) on a password.
+// The hint is returned in the error so the caller can surface exactly what the
+// browser-side tooltip also says.
+func validatePasswordPattern(password string) error {
+	pattern := config.Get().ValidationPasswordPattern
+	if pattern == "" {
+		return nil
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		// Settings validation should have caught this; ignore silently
+		// to avoid blocking login-adjacent flows on a bad config.
+		return nil
+	}
+	if !re.MatchString(password) {
+		hint := config.Get().ValidationPasswordHint
+		if hint == "" {
+			hint = "password does not meet the required format"
+		}
+		return fmt.Errorf("password is invalid: %s", hint)
+	}
+	return nil
+}
 
 type User struct {
 	ID                  string
@@ -200,6 +225,9 @@ func ValidateUserUpdateRequest(input UserUpdateRequest) error {
 		if err := validation.Validate(input.Password, validation.Length(config.Get().ValidationMinPasswordLength, config.Get().ValidationMaxPasswordLength)); err != nil {
 			return fmt.Errorf("password is invalid: %w", err)
 		}
+		if err := validatePasswordPattern(input.Password); err != nil {
+			return err
+		}
 	}
 	if input.Email != "" {
 		if err := validation.Validate(input.Email, is.Email); err != nil {
@@ -247,6 +275,9 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 	)
 	if err != nil {
 		return fmt.Errorf("password is invalid: %w", err)
+	}
+	if err := validatePasswordPattern(input.Password); err != nil {
+		return err
 	}
 
 	if config.Get().ProfileFieldEmail == "required" || input.Email != "" {

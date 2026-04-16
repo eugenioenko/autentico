@@ -117,13 +117,17 @@ func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams,
 	}
 
 	data := map[string]any{
-		"FormAction":        params.FormAction,
-		"Error":             errMsg,
-		"ProfileFieldEmail": cfg.ProfileFieldEmail,
-		csrf.TemplateTag:    csrf.TemplateField(r),
-		"ThemeTitle":        cfg.Theme.Title,
-		"ThemeLogoUrl":      cfg.Theme.LogoUrl,
-		"ThemeCssResolved":  template.CSS(cfg.ThemeCssResolved),
+		"FormAction":            params.FormAction,
+		"Error":                 errMsg,
+		"ProfileFieldEmail":     cfg.ProfileFieldEmail,
+		csrf.TemplateTag:        csrf.TemplateField(r),
+		"ThemeTitle":            cfg.Theme.Title,
+		"ThemeLogoUrl":          cfg.Theme.LogoUrl,
+		"ThemeCssResolved":      template.CSS(cfg.ThemeCssResolved),
+		"PasswordMinLength":     cfg.ValidationMinPasswordLength,
+		"PasswordMaxLength":     cfg.ValidationMaxPasswordLength,
+		"PasswordPattern":       cfg.ValidationPasswordPattern,
+		"PasswordHint":          cfg.ValidationPasswordHint,
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
