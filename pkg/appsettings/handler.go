@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"slices"
 	"time"
 
@@ -29,6 +30,19 @@ var durationSettings = map[string][]string{
 	"email_verification_expiration": nil,
 	"password_reset_expiration":     nil,
 	"audit_log_retention":           {"", "0", "-1"},
+}
+
+// validatePasswordPattern returns an error if validation_password_pattern is
+// present in updates and is not a valid Go regexp.
+func validatePasswordPattern(updates map[string]string) error {
+	v, ok := updates["validation_password_pattern"]
+	if !ok || v == "" {
+		return nil
+	}
+	if _, err := regexp.Compile(v); err != nil {
+		return fmt.Errorf("setting \"validation_password_pattern\" is not a valid regex: %v", err)
+	}
+	return nil
 }
 
 // validateDurationSettings returns an error if any duration-typed setting
@@ -95,6 +109,10 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validateDurationSettings(updates); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := validatePasswordPattern(updates); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
@@ -215,6 +233,10 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	protected := map[string]bool{"onboarded": true, "private_key": true}
 
 	if err := validateDurationSettings(payload.Settings); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := validatePasswordPattern(payload.Settings); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}

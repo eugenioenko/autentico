@@ -61,6 +61,8 @@ const tip = makeTip({
   validation_max_username_length: "Maximum length for usernames.",
   validation_min_password_length: "Minimum length for passwords.",
   validation_max_password_length: "Maximum length for passwords.",
+  validation_password_pattern: "Optional regex pattern (Go syntax) that passwords must match. Example: ^(?=.*[A-Z])(?=.*\\d).+$ requires at least one uppercase letter and one digit. Leave empty to disable.",
+  validation_password_hint: "Human-readable hint shown as a browser tooltip when the password regex fails. Example: 'Must contain an uppercase letter and a digit.' Ignored if pattern is empty.",
   account_lockout_max_attempts: "Maximum number of failed login attempts before account lockout. 0 to disable.",
   account_lockout_duration: "Duration of account lockout (e.g. 15m).",
   audit_log_retention: "How long audit events are kept. 0 = disabled, -1 = keep forever, or a duration (e.g. 720h for 30 days).",
@@ -437,6 +439,20 @@ export default function SettingsPage() {
                       <InputNumber min={1} />
                     </Form.Item>
                   </Space>
+                  <Form.Item
+                    label="Password Pattern (regex)"
+                    name="validation_password_pattern"
+                    tooltip={{ title: tip("validation_password_pattern"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="^(?=.*[A-Z])(?=.*\d).+$" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Password Hint"
+                    name="validation_password_hint"
+                    tooltip={{ title: tip("validation_password_hint"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="Must contain an uppercase letter and a digit." />
+                  </Form.Item>
 
                   <Divider />
 

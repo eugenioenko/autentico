@@ -292,6 +292,10 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"ProfileFieldPicture":    cfg.ProfileFieldPicture,
 		"ProfileFieldLocale":     cfg.ProfileFieldLocale,
 		"ProfileFieldAddress":    cfg.ProfileFieldAddress,
+		"PasswordMinLength":      cfg.ValidationMinPasswordLength,
+		"PasswordMaxLength":      cfg.ValidationMaxPasswordLength,
+		"PasswordPattern":        cfg.ValidationPasswordPattern,
+		"PasswordHint":           cfg.ValidationPasswordHint,
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

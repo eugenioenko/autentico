@@ -21,6 +21,8 @@ var defaults = map[string]string{
 	"validation_max_username_length": "64",
 	"validation_min_password_length": "6",
 	"validation_max_password_length": "64",
+	"validation_password_pattern":    "",
+	"validation_password_hint":       "",
 	"account_lockout_max_attempts":   "5",
 	"account_lockout_duration":       "15m",
 	"auth_mode":                      "password",
@@ -132,6 +134,12 @@ func LoadIntoConfig() error {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.ValidationMaxPasswordLength = n
 		}
+	}
+	if v, ok := all["validation_password_pattern"]; ok {
+		cfg.ValidationPasswordPattern = v
+	}
+	if v, ok := all["validation_password_hint"]; ok {
+		cfg.ValidationPasswordHint = v
 	}
 	if v, ok := all["allow_self_service_deletion"]; ok {
 		cfg.AllowSelfServiceDeletion = parseBool(v, false)
