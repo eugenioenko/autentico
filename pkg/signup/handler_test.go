@@ -46,6 +46,28 @@ func TestHandleSignup_WrongMethod(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
+func TestHandleSignup_Get_RedirectsToAuthorizePromptCreate(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAllowSelfSignup = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/signup?client_id=abc&redirect_uri=http%3A%2F%2Flocalhost%2Fcb&state=xyz&code_challenge=c&code_challenge_method=S256", nil)
+	rr := httptest.NewRecorder()
+
+	HandleSignup(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "/oauth2/authorize?")
+	assert.Contains(t, loc, "prompt=create")
+	assert.Contains(t, loc, "client_id=abc")
+	assert.Contains(t, loc, "redirect_uri=http%3A%2F%2Flocalhost%2Fcb")
+	assert.Contains(t, loc, "state=xyz")
+	assert.Contains(t, loc, "code_challenge=c")
+	assert.Contains(t, loc, "code_challenge_method=S256")
+}
+
 func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {

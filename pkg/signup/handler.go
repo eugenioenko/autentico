@@ -46,6 +46,13 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		handleSignupPost(w, r)
+	case http.MethodGet:
+		// Back-compat: GET /oauth2/signup used to render the signup page directly.
+		// It was removed in favor of OIDC Core §3.1.2.1 prompt=create on /oauth2/authorize.
+		// Redirect with all query params preserved so existing client links keep working.
+		q := r.URL.Query()
+		q.Set("prompt", "create")
+		http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/authorize?"+q.Encode(), http.StatusFound)
 	default:
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
 	}
