@@ -45,6 +45,17 @@ export default function ClientDetail({
             ))}
           </Space>
         </Descriptions.Item>
+        <Descriptions.Item label="Post-Logout Redirect URIs">
+          {client.post_logout_redirect_uris && client.post_logout_redirect_uris.length > 0 ? (
+            <Space direction="vertical" size={4}>
+              {client.post_logout_redirect_uris.map((uri) => (
+                <span key={uri}>{uri}</span>
+              ))}
+            </Space>
+          ) : (
+            <span style={{ color: "#999" }}>None</span>
+          )}
+        </Descriptions.Item>
         <Descriptions.Item label="Grant Types">
           <Space size={[0, 4]} wrap>
             {client.grant_types?.map((gt) => (
