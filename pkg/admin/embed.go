@@ -2,7 +2,6 @@ package admin
 
 import (
 	"embed"
-	"io"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -52,20 +51,24 @@ func Handler() http.Handler {
 	})
 }
 
-// ApiDocsHandler serves the embedded Redoc documentation page at /api-docs/.
+// ApiDocsHandler serves the Scalar API reference at /api-docs/.
+// No build step or embedded file needed — Scalar loads from CDN and
+// fetches the swagger spec from /swagger/doc.json at runtime.
 func ApiDocsHandler() http.HandlerFunc {
-	sub, err := fs.Sub(distFS, "dist")
-	if err != nil {
-		panic(err)
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		f, err := sub.Open("docs.html")
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		defer func() { _ = f.Close() }()
-		stat, _ := f.Stat()
-		http.ServeContent(w, r, "docs.html", stat.ModTime(), f.(io.ReadSeeker))
+	const page = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Autentico OIDC — API Reference</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <script id="api-reference" data-url="/swagger/doc.json"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(page))
 	}
 }

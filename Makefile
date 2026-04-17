@@ -59,14 +59,12 @@ tool-check:
 # Generate swagger docs
 generate-docs: tool-check
 	$(SWAG) init
-	npx --yes @redocly/cli build-docs ./docs/swagger.yaml --output=./docs/index.html
 
 # Build admin UI and copy to pkg/admin/dist
 admin-ui-build: generate-docs
 	cd admin-ui && pnpm install && pnpm run build
 	rm -rf pkg/admin/dist
 	cp -r admin-ui/dist pkg/admin/dist
-	cp docs/index.html pkg/admin/dist/docs.html
 
 # Build account UI and copy to pkg/account/dist
 account-ui-build:

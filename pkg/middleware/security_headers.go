@@ -9,7 +9,7 @@ import (
 // OWASP. These prevent clickjacking, MIME sniffing, and restrict embedding.
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Swagger/Redoc docs are static read-only HTML with inline scripts;
+		// Swagger UI and Scalar API docs load scripts from CDNs;
 		// skip CSP and caching headers so the documentation renders correctly.
 		if strings.HasPrefix(r.URL.Path, "/swagger/") || strings.HasPrefix(r.URL.Path, "/api-docs") {
 			next.ServeHTTP(w, r)
