@@ -19,6 +19,7 @@ import (
 type envParams struct {
 	appURL        string
 	listenPort    string
+	dbFilePath    string
 	accessSecret  string
 	refreshSecret string
 	csrfSecret    string
@@ -44,7 +45,7 @@ func buildEnvContent(p envParams) string {
 		"",
 		"# ── Database ────────────────────────────────────────────────────────────────",
 		"# Path to the SQLite database file. The directory must exist.",
-		"AUTENTICO_DB_FILE_PATH=./autentico.db",
+		fmt.Sprintf("AUTENTICO_DB_FILE_PATH=%s", p.dbFilePath),
 		"",
 		"# ── Server ──────────────────────────────────────────────────────────────────",
 		"# Public base URL of this instance. Used as the OIDC issuer and for building",
@@ -165,6 +166,7 @@ func RunInit(c *cli.Context) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
+		dbFilePath:    "./autentico.db",
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
@@ -263,6 +265,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
+		dbFilePath:    "./db/autentico.db",
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
