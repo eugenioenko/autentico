@@ -35,14 +35,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /app/data
 
-COPY --from=builder /app/autentico ./autentico
+COPY --from=builder /app/autentico /usr/local/bin/autentico
 
-# data/ holds the SQLite database and config — mount a volume to persist across restarts
 VOLUME ["/app/data"]
 
 EXPOSE 9999
 
-ENTRYPOINT ["./autentico"]
+ENTRYPOINT ["autentico"]
 CMD ["start"]
