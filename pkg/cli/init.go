@@ -16,6 +16,11 @@ import (
 	"github.com/eugenioenko/autentico/pkg/key"
 )
 
+const (
+	defaultDbFilePath      = "./autentico.db"
+	defaultAutoSetupDbPath = "./db/autentico.db"
+)
+
 type envParams struct {
 	appURL        string
 	listenPort    string
@@ -166,7 +171,7 @@ func RunInit(c *cli.Context) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
-		dbFilePath:    "./autentico.db",
+		dbFilePath:    defaultDbFilePath,
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
@@ -208,7 +213,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 
 	dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
 	if dbFilePath == "" {
-		dbFilePath = "./db/autentico.db"
+		dbFilePath = defaultAutoSetupDbPath
 	}
 	dbDir := filepath.Dir(dbFilePath)
 	envPath := filepath.Join(dbDir, ".env")
@@ -265,7 +270,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
-		dbFilePath:    "./db/autentico.db",
+		dbFilePath:    defaultAutoSetupDbPath,
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
