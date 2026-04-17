@@ -24,7 +24,7 @@ chmod +x autentico
 docker run -d \
   --name autentico \
   -p 9999:9999 \
-  -v autentico-data:/app/db \
+  -v autentico-data:/app/data \
   --restart unless-stopped \
   ghcr.io/eugenioenko/autentico:latest \
   start --auto-setup

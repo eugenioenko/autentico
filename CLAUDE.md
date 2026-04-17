@@ -83,7 +83,7 @@ The OpenID Foundation conformance suite runs locally via Docker. Specs and revie
 
 - Access the admin UI at **http://localhost:9999/admin** (not `172.17.0.1` — browser blocks `Crypto.subtle` on non-localhost HTTP)
 - `AUTENTICO_APP_URL` in `.env` should stay as `http://localhost:9999`; `make conformance-server` overrides it for the conformance suite
-- If the admin client has wrong redirect URIs (after URL change), delete the DB and restart: `rm autentico.db && make conformance-server`
+- If the admin client has wrong redirect URIs (after URL change), delete the DB and restart: `rm -rf data && make conformance-server`
 - Conformance clients must be recreated after wiping the DB (see below)
 
 ### Conformance Clients
@@ -190,7 +190,7 @@ HTML templates in `view/` rendered server-side for all interactive flows:
 
 Key fields:
 - `AUTENTICO_APP_URL` — base URL (derives issuer, domain, port)
-- `AUTENTICO_DB_FILE_PATH` — SQLite file path (default: `./db/autentico.db`)
+- `AUTENTICO_DB_FILE_PATH` — SQLite file path (default: `./data/autentico.db`)
 - `AUTENTICO_PRIVATE_KEY` — base64-encoded RSA private key PEM
 - `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`, `AUTENTICO_CSRF_SECRET_KEY`
 - `AUTENTICO_CSRF_SECURE_COOKIE`, `AUTENTICO_REFRESH_TOKEN_SECURE`, `AUTENTICO_IDP_SESSION_SECURE`

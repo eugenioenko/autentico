@@ -16,7 +16,7 @@ services:
     ports:
       - "9999:9999"
     volumes:
-      - autentico-data:/app/db
+      - autentico-data:/app/data
 
 volumes:
   autentico-data:
@@ -43,7 +43,7 @@ services:
     ports:
       - "127.0.0.1:9999:9999"
     volumes:
-      - autentico-data:/app/db
+      - autentico-data:/app/data
 
 volumes:
   autentico-data:
@@ -66,7 +66,7 @@ services:
     ports:
       - "127.0.0.1:9999:9999"
     volumes:
-      - autentico-data:/app/db
+      - autentico-data:/app/data
     env_file:
       - .env
 
@@ -89,7 +89,7 @@ services:
     expose:
       - "9999"
     volumes:
-      - autentico-data:/app/db
+      - autentico-data:/app/data
 
   caddy:
     image: caddy:2-alpine

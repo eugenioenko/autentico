@@ -7,7 +7,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 Bootstrap settings are loaded once at startup from the `.env` file (or OS environment variables if no `.env` is present). Changing any of these requires restarting the server.
 
-Autentico looks for `.env` in the current working directory first, then falls back to `./db/.env` (where `--auto-setup` writes it for Docker volume persistence).
+Autentico looks for `.env` in the current working directory first, then falls back to `./data/.env` (where `--auto-setup` writes it for Docker volume persistence).
 
 Generate a `.env` with secure defaults:
 
@@ -29,7 +29,7 @@ Never commit `.env` to source control. It contains your RSA private key and all 
 |---|---|---|
 | `AUTENTICO_APP_URL` | `http://localhost:9999` | Public base URL of the application. Used as the OIDC issuer (`iss`) and for constructing redirect URIs. Must match the URL clients use to reach the server. |
 | `AUTENTICO_APP_OAUTH_PATH` | `/oauth2` | URL path prefix for all OAuth2 endpoints. Change this only if you need to namespace the endpoints. |
-| `AUTENTICO_DB_FILE_PATH` | `./db/autentico.db` | Path to the SQLite database file. The directory must exist and be writable. Use an absolute path in production. |
+| `AUTENTICO_DB_FILE_PATH` | `./data/autentico.db` | Path to the SQLite database file. The directory must exist and be writable. Use an absolute path in production. |
 
 ## Cryptographic secrets
 

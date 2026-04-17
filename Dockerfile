@@ -39,8 +39,8 @@ WORKDIR /app
 
 COPY --from=builder /app/autentico ./autentico
 
-# db/ holds the SQLite database — mount a volume to persist data across restarts
-VOLUME ["/app/db"]
+# data/ holds the SQLite database and config — mount a volume to persist across restarts
+VOLUME ["/app/data"]
 
 EXPOSE 9999
 

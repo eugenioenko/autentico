@@ -16,9 +16,12 @@ import (
 	"github.com/eugenioenko/autentico/pkg/key"
 )
 
+const defaultDbFilePath = "./data/autentico.db"
+
 type envParams struct {
 	appURL        string
 	listenPort    string
+	dbFilePath    string
 	accessSecret  string
 	refreshSecret string
 	csrfSecret    string
@@ -44,7 +47,7 @@ func buildEnvContent(p envParams) string {
 		"",
 		"# ── Database ────────────────────────────────────────────────────────────────",
 		"# Path to the SQLite database file. The directory must exist.",
-		"AUTENTICO_DB_FILE_PATH=./autentico.db",
+		fmt.Sprintf("AUTENTICO_DB_FILE_PATH=%s", p.dbFilePath),
 		"",
 		"# ── Server ──────────────────────────────────────────────────────────────────",
 		"# Public base URL of this instance. Used as the OIDC issuer and for building",
@@ -115,7 +118,10 @@ func buildEnvContent(p envParams) string {
 
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
-	envPath := outputDir + "/.env"
+	if !c.IsSet("output") {
+		outputDir = "./data"
+	}
+	envPath := filepath.Join(outputDir, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
 	}
@@ -165,12 +171,17 @@ func RunInit(c *cli.Context) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
+		dbFilePath:    defaultDbFilePath,
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
 		privateKeyB64: key.EncodeKeyToBase64(rsaKey),
 		dev:           dev,
 	})
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", outputDir, err)
+	}
 
 	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
@@ -206,7 +217,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 
 	dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
 	if dbFilePath == "" {
-		dbFilePath = "./db/autentico.db"
+		dbFilePath = defaultDbFilePath
 	}
 	dbDir := filepath.Dir(dbFilePath)
 	envPath := filepath.Join(dbDir, ".env")
@@ -263,6 +274,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
+		dbFilePath:    defaultDbFilePath,
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
