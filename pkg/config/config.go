@@ -263,7 +263,7 @@ func InitBootstrap() {
 	}
 
 	Bootstrap = BootstrapConfig{
-		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./db/autentico.db"),
+		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./autentico.db"),
 		AppURL:                         appURL,
 		AppOAuthPath:                   oauthPath,
 		AppDomain:                      domain,
