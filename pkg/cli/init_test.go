@@ -49,6 +49,37 @@ func TestRunInit(t *testing.T) {
 	assert.Contains(t, err.Error(), "already exists")
 }
 
+func TestRunInit_WithOutput(t *testing.T) {
+	// When --output is explicitly set, .env should be written there (not ./data/)
+	tmpDir, err := os.MkdirTemp("", "autentico-cli-output-test")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	app := &cli.App{Name: "test"}
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("url", "http://test.com", "")
+	set.Bool("dev", false, "")
+	set.String("output", ".", "")
+	_ = set.Set("output", ".")
+	ctx := cli.NewContext(app, set, nil)
+
+	err = RunInit(ctx)
+	assert.NoError(t, err)
+
+	// .env should be at root, not in ./data/
+	_, err = os.Stat(".env")
+	assert.NoError(t, err)
+	_, err = os.Stat("./data/.env")
+	assert.Error(t, err, "./data/.env should not exist when --output is set")
+
+	content, _ := os.ReadFile(".env")
+	assert.Contains(t, string(content), "AUTENTICO_APP_URL=http://test.com")
+}
+
 func TestRunInit_DevMode(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "autentico-cli-dev-test")
 	assert.NoError(t, err)
