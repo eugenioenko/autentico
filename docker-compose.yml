@@ -5,10 +5,10 @@ services:
     ports:
       - "9999:9999"
     volumes:
-      - autentico-data:/app/db
+      - autentico-data:/app/data
     environment:
       AUTENTICO_APP_URL: http://localhost:9999
-      AUTENTICO_DB_FILE_PATH: /app/db/autentico.db
+      AUTENTICO_DB_FILE_PATH: /app/data/autentico.db
       # Secrets — override these or use a .env file
       AUTENTICO_ACCESS_TOKEN_SECRET: change-me-in-production
       AUTENTICO_REFRESH_TOKEN_SECRET: change-me-in-production

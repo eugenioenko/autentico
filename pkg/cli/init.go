@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultDbFilePath      = "./autentico.db"
-	defaultAutoSetupDbPath = "./db/autentico.db"
+	defaultAutoSetupDbPath = "./data/autentico.db"
 )
 
 type envParams struct {

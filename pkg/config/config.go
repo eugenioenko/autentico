@@ -190,7 +190,7 @@ var defaultConfig = Config{
 
 var (
 	Bootstrap = BootstrapConfig{
-		DbFilePath:                     "./db/autentico.db",
+		DbFilePath:                     "./autentico.db",
 		AppURL:                         "http://localhost:9999",
 		AppOAuthPath:                   "/oauth2",
 		AppDomain:                      "localhost",
@@ -234,11 +234,11 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 // OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
 // are derived from AppURL — they do not need to be set manually.
 func InitBootstrap() {
-	// Load .env: prefer CWD, fall back to ./db/.env (where --auto-setup writes it).
+	// Load .env: prefer CWD, fall back to ./data/.env (where --auto-setup writes it).
 	if _, err := os.Stat(".env"); err == nil {
 		_ = godotenv.Load(".env")
-	} else if _, err := os.Stat("./db/.env"); err == nil {
-		_ = godotenv.Load("./db/.env")
+	} else if _, err := os.Stat("./data/.env"); err == nil {
+		_ = godotenv.Load("./data/.env")
 	}
 
 	appURL := getEnv("AUTENTICO_APP_URL", "http://localhost:9999")

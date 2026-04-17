@@ -190,7 +190,7 @@ HTML templates in `view/` rendered server-side for all interactive flows:
 
 Key fields:
 - `AUTENTICO_APP_URL` — base URL (derives issuer, domain, port)
-- `AUTENTICO_DB_FILE_PATH` — SQLite file path (default: `./db/autentico.db`)
+- `AUTENTICO_DB_FILE_PATH` — SQLite file path (default: `./autentico.db`)
 - `AUTENTICO_PRIVATE_KEY` — base64-encoded RSA private key PEM
 - `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`, `AUTENTICO_CSRF_SECRET_KEY`
 - `AUTENTICO_CSRF_SECURE_COOKIE`, `AUTENTICO_REFRESH_TOKEN_SECURE`, `AUTENTICO_IDP_SESSION_SECURE`
