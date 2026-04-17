@@ -190,7 +190,7 @@ var defaultConfig = Config{
 
 var (
 	Bootstrap = BootstrapConfig{
-		DbFilePath:                     "./autentico.db",
+		DbFilePath:                     "./data/autentico.db",
 		AppURL:                         "http://localhost:9999",
 		AppOAuthPath:                   "/oauth2",
 		AppDomain:                      "localhost",
@@ -263,7 +263,7 @@ func InitBootstrap() {
 	}
 
 	Bootstrap = BootstrapConfig{
-		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./autentico.db"),
+		DbFilePath:                     getEnv("AUTENTICO_DB_FILE_PATH", "./data/autentico.db"),
 		AppURL:                         appURL,
 		AppOAuthPath:                   oauthPath,
 		AppDomain:                      domain,

@@ -16,10 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/key"
 )
 
-const (
-	defaultDbFilePath      = "./autentico.db"
-	defaultAutoSetupDbPath = "./data/autentico.db"
-)
+const defaultDbFilePath = "./data/autentico.db"
 
 type envParams struct {
 	appURL        string
@@ -121,7 +118,8 @@ func buildEnvContent(p envParams) string {
 
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
-	envPath := outputDir + "/.env"
+	dataDir := filepath.Join(outputDir, "data")
+	envPath := filepath.Join(dataDir, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
 	}
@@ -179,6 +177,10 @@ func RunInit(c *cli.Context) error {
 		dev:           dev,
 	})
 
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed to create data directory %s: %w", dataDir, err)
+	}
+
 	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
@@ -213,7 +215,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 
 	dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
 	if dbFilePath == "" {
-		dbFilePath = defaultAutoSetupDbPath
+		dbFilePath = defaultDbFilePath
 	}
 	dbDir := filepath.Dir(dbFilePath)
 	envPath := filepath.Join(dbDir, ".env")
@@ -270,7 +272,7 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
-		dbFilePath:    defaultAutoSetupDbPath,
+		dbFilePath:    defaultDbFilePath,
 		accessSecret:  accessSecret,
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
