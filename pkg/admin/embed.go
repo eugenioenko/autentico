@@ -64,7 +64,7 @@ func ApiDocsHandler() http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		stat, _ := f.Stat()
 		http.ServeContent(w, r, "docs.html", stat.ModTime(), f.(io.ReadSeeker))
 	}
