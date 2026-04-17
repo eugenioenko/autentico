@@ -52,3 +52,4 @@ pkg/account/dist/
 .env
 .env.*
 autentico.db
+data/
