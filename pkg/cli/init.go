@@ -118,8 +118,10 @@ func buildEnvContent(p envParams) string {
 
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
-	dataDir := filepath.Join(outputDir, "data")
-	envPath := filepath.Join(dataDir, ".env")
+	if !c.IsSet("output") {
+		outputDir = "./data"
+	}
+	envPath := filepath.Join(outputDir, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
 	}
@@ -177,8 +179,8 @@ func RunInit(c *cli.Context) error {
 		dev:           dev,
 	})
 
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return fmt.Errorf("failed to create data directory %s: %w", dataDir, err)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", outputDir, err)
 	}
 
 	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
