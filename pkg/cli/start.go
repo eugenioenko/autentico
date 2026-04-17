@@ -114,6 +114,8 @@ func RunStart(c *cli.Context) error {
 	// -------------------------------------------------------------------------
 	mux.HandleFunc("GET /healthz", health.HandleHealth)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+	mux.HandleFunc("GET /api-docs/", admin.ApiDocsHandler())
+	mux.HandleFunc("GET /api-docs", admin.ApiDocsHandler())
 
 	// -------------------------------------------------------------------------
 	// OIDC discovery (public, no auth)
@@ -270,7 +272,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Printf("  Admin UI:   %s/admin/\n", baseURL)
 	fmt.Printf("  Account UI: %s/account/\n", baseURL)
 	fmt.Println()
-	fmt.Printf("  API Docs:   %s/admin/docs/\n", baseURL)
+	fmt.Printf("  API Docs:   %s/api-docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
 	fmt.Printf("  Docs:       https://autentico.top\n")
 	fmt.Println()

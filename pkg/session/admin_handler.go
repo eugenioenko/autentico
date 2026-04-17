@@ -11,10 +11,10 @@ import (
 // HandleListSessions godoc
 // @Summary List sessions
 // @Description Lists all active sessions, optionally filtered by user ID.
-// @Tags sessions-admin
+// @Tags admin-sessions
 // @Produce json
 // @Param user_id query string false "Filter by User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} SessionResponse
 // @Router /admin/api/sessions [get]
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
@@ -46,10 +46,10 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeactivateSession godoc
 // @Summary Deactivate a session
-// @Tags sessions-admin
+// @Tags admin-sessions
 // @Produce json
 // @Param id path string true "Session ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Router /admin/api/sessions/{id} [delete]
 func HandleDeactivateSession(w http.ResponseWriter, r *http.Request) {

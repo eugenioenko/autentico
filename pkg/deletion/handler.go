@@ -14,10 +14,11 @@ import (
 // HandleRequestDeletion godoc
 // @Summary Request account deletion
 // @Description Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.
-// @Tags account
+// @Tags account-deletion
 // @Accept json
 // @Produce json
 // @Param body body CreateDeletionRequestInput false "Optional deletion reason"
+// @Security UserAuth
 // @Success 200 {object} DeletionRequestResponse
 // @Success 204 "Account deleted immediately (self-service mode)"
 // @Failure 401 {object} model.ApiError
@@ -69,8 +70,9 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetDeletionRequest godoc
 // @Summary Get pending deletion request for current user
-// @Tags account
+// @Tags account-deletion
 // @Produce json
+// @Security UserAuth
 // @Success 200 {object} DeletionRequestResponse
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/deletion-request [get]
@@ -95,8 +97,9 @@ func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 // HandleCancelDeletionRequest godoc
 // @Summary Cancel the current user's pending deletion request
-// @Tags account
+// @Tags account-deletion
 // @Produce json
+// @Security UserAuth
 // @Success 204
 // @Failure 401 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -127,9 +130,9 @@ func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 // HandleListDeletionRequests godoc
 // @Summary List all pending deletion requests
-// @Tags admin
+// @Tags admin-deletion
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} DeletionRequestResponse
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/deletion-requests [get]
@@ -152,10 +155,10 @@ func HandleListDeletionRequests(w http.ResponseWriter, _ *http.Request) {
 
 // HandleApproveDeletionRequest godoc
 // @Summary Approve a deletion request — permanently deletes the user
-// @Tags admin
+// @Tags admin-deletion
 // @Produce json
 // @Param id path string true "Deletion request ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 404 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
@@ -187,10 +190,10 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 // HandleAdminCancelDeletionRequest godoc
 // @Summary Cancel (dismiss) a deletion request without deleting the user
-// @Tags admin
+// @Tags admin-deletion
 // @Produce json
 // @Param id path string true "Deletion request ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 404 {object} model.ApiError
 // @Failure 500 {object} model.ApiError

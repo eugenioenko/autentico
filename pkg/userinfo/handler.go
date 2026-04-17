@@ -34,7 +34,7 @@ func containsScope(scope, s string) bool {
 // HandleUserInfo godoc
 // @Summary Get user information
 // @Description Retrieves user information based on the access token
-// @Tags userinfo
+// @Tags oauth2
 // @Accept json
 // @Produce json
 // @Param Authorization header string true "Bearer access token"

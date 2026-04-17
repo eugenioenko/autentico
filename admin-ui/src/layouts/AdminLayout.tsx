@@ -136,7 +136,7 @@ export default function AdminLayout() {
               if (key === "/account") {
                 window.open("/account/", "_blank");
               } else if (key === "/docs") {
-                window.open("/admin/docs/", "_blank");
+                window.open("/api-docs/", "_blank");
               } else if (key === "/swagger") {
                 window.open("/swagger/index.html", "_blank");
               } else if (key === "/autentico-docs") {

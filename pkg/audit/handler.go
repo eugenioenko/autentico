@@ -10,9 +10,9 @@ import (
 // HandleListAuditLogs godoc
 // @Summary List audit log events
 // @Description Returns a paginated list of audit events with optional filters.
-// @Tags admin
+// @Tags admin-settings
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Param event query string false "Filter by event type"
 // @Param actor_id query string false "Filter by actor user ID"
 // @Param limit query int false "Page size (default 50)"

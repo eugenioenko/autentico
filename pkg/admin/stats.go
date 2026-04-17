@@ -19,9 +19,9 @@ type StatsResponse struct {
 // HandleStats returns system-wide statistics for the admin dashboard.
 // @Summary System statistics
 // @Description Returns a summary of users, clients, and active sessions.
-// @Tags admin
+// @Tags admin-settings
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} StatsResponse
 // @Router /admin/api/stats [get]
 func HandleStats(w http.ResponseWriter, r *http.Request) {

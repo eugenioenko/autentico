@@ -13,7 +13,7 @@ import (
 // HandleWellKnownConfig handles the .well-known configuration endpoint
 // @Summary Get Well-Known Configuration
 // @Description Returns the OpenID Connect Well-Known Configuration
-// @Tags Well-Known
+// @Tags oauth2
 // @Accept json
 // @Produce json
 // @Success 200 {object} model.WellKnownConfigResponse
@@ -82,7 +82,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 // HandleJWKS returns the JWKS (JSON Web Key Set) for OIDC clients
 // @Summary Get JWKS
 // @Description Returns the JSON Web Key Set for verifying JWTs
-// @Tags Well-Known
+// @Tags oauth2
 // @Accept json
 // @Produce json
 // @Success 200 {object} model.JWKSResponse

@@ -9,6 +9,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// HandleListSessions godoc
+// @Summary List current user's sessions
+// @Description Returns all active sessions for the authenticated user, with the current session flagged.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {array} SessionResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/sessions [get]
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -49,6 +58,19 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
+// HandleRevokeSession godoc
+// @Summary Revoke a session
+// @Description Revokes one of the authenticated user's sessions. Cannot revoke the current session.
+// @Tags account-security
+// @Produce json
+// @Param id path string true "Session ID"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Failure 404 {object} model.ApiError
+// @Router /account/api/sessions/{id} [delete]
 func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

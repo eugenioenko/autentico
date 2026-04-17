@@ -9,14 +9,14 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleRegister handles POST /oauth2/register and POST /admin/api/clients - creates a new client
+// HandleRegister handles POST /oauth2/register (RFC 7591) and POST /admin/api/clients - creates a new client
 // @Summary Register a new OAuth2 client
-// @Description Registers a new OAuth2/OIDC client (admin only)
-// @Tags client
+// @Description Registers a new OAuth2/OIDC client. Also available at /oauth2/register (RFC 7591 Dynamic Client Registration).
+// @Tags admin-client
 // @Accept json
 // @Produce json
 // @Param request body ClientCreateRequest true "Client registration request"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 201 {object} ClientResponse
 // @Failure 400 {object} model.AuthErrorResponse
 // @Failure 500 {object} model.AuthErrorResponse
@@ -62,13 +62,13 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, response, http.StatusCreated)
 }
 
-// HandleGetClient handles GET /oauth2/register/{client_id} and GET /admin/api/clients/{client_id}
+// HandleGetClient handles GET /oauth2/register/{client_id} (RFC 7591) and GET /admin/api/clients/{client_id}
 // @Summary Get client information
-// @Description Retrieves information about a registered client (admin only)
-// @Tags client
+// @Description Retrieves information about a registered client. Also available at /oauth2/register/{client_id}.
+// @Tags admin-client
 // @Produce json
 // @Param client_id path string true "Client ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} ClientInfoResponse
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [get]
@@ -89,15 +89,15 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, client.ToInfoResponse(), http.StatusOK)
 }
 
-// HandleUpdateClient handles PUT /oauth2/register/{client_id} and PUT /admin/api/clients/{client_id}
+// HandleUpdateClient handles PUT /oauth2/register/{client_id} (RFC 7591) and PUT /admin/api/clients/{client_id}
 // @Summary Update client information
-// @Description Updates a registered client (admin only)
-// @Tags client
+// @Description Updates a registered client. Also available at /oauth2/register/{client_id}.
+// @Tags admin-client
 // @Accept json
 // @Produce json
 // @Param client_id path string true "Client ID"
 // @Param request body ClientUpdateRequest true "Client update request"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} ClientInfoResponse
 // @Failure 400 {object} model.AuthErrorResponse
 // @Failure 404 {object} model.AuthErrorResponse
@@ -145,12 +145,12 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
 
-// HandleDeleteClient handles DELETE /oauth2/register/{client_id} and DELETE /admin/api/clients/{client_id}
+// HandleDeleteClient handles DELETE /oauth2/register/{client_id} (RFC 7591) and DELETE /admin/api/clients/{client_id}
 // @Summary Deactivate a client
-// @Description Deactivates (soft deletes) a registered client (admin only)
-// @Tags client
+// @Description Deactivates (soft deletes) a registered client. Also available at /oauth2/register/{client_id}.
+// @Tags admin-client
 // @Param client_id path string true "Client ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204 "No Content"
 // @Failure 404 {object} model.AuthErrorResponse
 // @Router /oauth2/register/{client_id} [delete]
@@ -175,12 +175,12 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleListClients handles GET /oauth2/register and GET /admin/api/clients - lists all clients
+// HandleListClients handles GET /oauth2/register (RFC 7591) and GET /admin/api/clients - lists all clients
 // @Summary List all clients
-// @Description Lists all registered clients (admin only)
-// @Tags client
+// @Description Lists all registered clients. Also available at /oauth2/register.
+// @Tags admin-client
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} ClientInfoResponse
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /oauth2/register [get]

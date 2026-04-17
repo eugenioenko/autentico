@@ -8,6 +8,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// HandleListTrustedDevices godoc
+// @Summary List trusted devices
+// @Description Returns all trusted devices for the authenticated user (devices that bypass MFA).
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {array} TrustedDeviceResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/trusted-devices [get]
 func HandleListTrustedDevices(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -35,6 +44,18 @@ func HandleListTrustedDevices(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
+// HandleRevokeTrustedDevice godoc
+// @Summary Revoke a trusted device
+// @Description Removes a trusted device so it will require MFA again on next login.
+// @Tags account-security
+// @Produce json
+// @Param id path string true "Trusted device ID"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/trusted-devices/{id} [delete]
 func HandleRevokeTrustedDevice(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

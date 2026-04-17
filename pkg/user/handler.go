@@ -42,11 +42,11 @@ func GetUserFromRequest(r *http.Request) (*User, error) {
 // HandleCreateUser godoc
 // @Summary Create a new user
 // @Description Registers a new user in the system (admin only)
-// @Tags users-admin
+// @Tags admin-users
 // @Accept json
 // @Produce json
 // @Param user body UserCreateRequest true "User creation payload"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 201 {object} UserResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
@@ -81,10 +81,10 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetUser godoc
 // @Summary Get a user by ID
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} UserResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -105,12 +105,12 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateUser godoc
 // @Summary Update a user
-// @Tags users-admin
+// @Tags admin-users
 // @Accept json
 // @Produce json
 // @Param id path string true "User ID"
 // @Param user body UserUpdateRequest true "User update payload"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} UserResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
@@ -156,10 +156,10 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 // HandleDeleteUser godoc
 // @Summary Permanently delete a user
 // @Description Hard-deletes a user and all associated data (tokens, sessions, group memberships, passkeys, etc.)
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -189,10 +189,10 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 // HandleDeactivateUser godoc
 // @Summary Deactivate a user
 // @Description Soft-disables a user account, immediately revoking all tokens and deactivating all sessions.
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -221,10 +221,10 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 // HandleReactivateUser godoc
 // @Summary Reactivate a deactivated user
 // @Description Clears the deactivated status, allowing the user to log in again.
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -252,9 +252,9 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 
 // HandleListUsers godoc
 // @Summary List all users
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} UserResponse
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users [get]
@@ -280,10 +280,10 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 // HandleUnlockUser unlocks a user account after multiple failed login attempts.
 // @Summary Unlock user account
 // @Description Resets the failed login attempts and clears the lockout time for a user.
-// @Tags users-admin
+// @Tags admin-users
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} UserResponse
 // @Router /admin/api/users/{id}/unlock [post]
 func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {

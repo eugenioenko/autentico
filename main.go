@@ -11,14 +11,46 @@ import (
 
 // @title Autentico OIDC
 // @version 1.0
-// @description Authentication Service
+// @description Self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite.
 // @host localhost:9999
 // @BasePath /
 
-// @securityDefinitions.apikey BearerAuth
+// @tag.name oauth2
+// @tag.description OAuth2 and OpenID Connect endpoints (authorize, token, introspect, revoke, userinfo, logout, discovery)
+// @tag.name admin-client
+// @tag.description Client registration and management (also available via /oauth2/register per RFC 7591)
+// @tag.name admin-settings
+// @tag.description System settings, statistics, audit logs, and SMTP configuration
+// @tag.name admin-users
+// @tag.description User account management (CRUD, deactivate, reactivate, unlock)
+// @tag.name admin-sessions
+// @tag.description OAuth session management
+// @tag.name admin-groups
+// @tag.description Group and membership management
+// @tag.name admin-federation
+// @tag.description Federation / external identity provider configuration
+// @tag.name admin-deletion
+// @tag.description Account deletion request review and approval
+// @tag.name account
+// @tag.description User profile and account settings
+// @tag.name account-security
+// @tag.description Password, sessions, passkeys, MFA, and trusted devices
+// @tag.name account-federation
+// @tag.description Connected external identity providers
+// @tag.name account-deletion
+// @tag.description Account deletion requests
+// @tag.name health
+// @tag.description Server health check
+
+// @securityDefinitions.apikey AdminAuth
 // @in header
 // @name Authorization
-// @description Type "Bearer" followed by a space and then your access token.
+// @description Admin access token — requires admin role and autentico-admin audience. Type "Bearer" followed by your token.
+
+// @securityDefinitions.apikey UserAuth
+// @in header
+// @name Authorization
+// @description User access token — any valid bearer token. Type "Bearer" followed by your token.
 
 func main() {
 	app := &cli.App{

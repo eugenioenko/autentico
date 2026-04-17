@@ -17,6 +17,15 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
+// HandleListPasskeys godoc
+// @Summary List passkeys
+// @Description Returns all registered passkeys for the authenticated user.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {array} PasskeyResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/passkeys [get]
 func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -43,6 +52,18 @@ func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
+// HandleDeletePasskey godoc
+// @Summary Delete a passkey
+// @Description Deletes a registered passkey belonging to the authenticated user.
+// @Tags account-security
+// @Produce json
+// @Param id path string true "Passkey ID"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/passkeys/{id} [delete]
 func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -71,6 +92,20 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, map[string]string{"message": "Passkey deleted"}, http.StatusOK)
 }
 
+// HandleRenamePasskey godoc
+// @Summary Rename a passkey
+// @Description Updates the display name of a registered passkey.
+// @Tags account-security
+// @Accept json
+// @Produce json
+// @Param id path string true "Passkey ID"
+// @Param request body PasskeyRenameRequest true "Rename payload"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/passkeys/{id} [patch]
 func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -104,6 +139,16 @@ func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, map[string]string{"message": "Passkey renamed"}, http.StatusOK)
 }
 
+// HandleAddPasskeyBegin godoc
+// @Summary Begin passkey registration
+// @Description Initiates a WebAuthn registration ceremony to add a new passkey to the authenticated user's account.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} map[string]any "Challenge ID and WebAuthn creation options"
+// @Failure 401 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /account/api/passkeys/register/begin [post]
 func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -162,6 +207,19 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// HandleAddPasskeyFinish godoc
+// @Summary Complete passkey registration
+// @Description Completes the WebAuthn registration ceremony and stores the new passkey credential.
+// @Tags account-security
+// @Accept json
+// @Produce json
+// @Param challenge_id query string true "Challenge ID from begin registration"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/passkeys/register/finish [post]
 func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 // HandleToken godoc
 // @Summary Token endpoint
 // @Description Exchanges authorization code or credentials for tokens
-// @Tags token
+// @Tags oauth2
 // @Accept application/x-www-form-urlencoded
 // @Produce json
 // @Param grant_type formData string true "Grant type (authorization_code, password, refresh_token, client_credentials)"

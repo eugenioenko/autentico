@@ -24,7 +24,7 @@ func inactive(w http.ResponseWriter) {
 // HandleIntrospect godoc
 // @Summary Introspect a token
 // @Description Validates and retrieves metadata about a token
-// @Tags introspect
+// @Tags oauth2
 // @Accept json
 // @Produce json
 // @Param token body IntrospectRequest true "Token introspection payload"

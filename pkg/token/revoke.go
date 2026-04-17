@@ -28,7 +28,7 @@ func RevokeTokensByUserAndClient(userID, _ string) error {
 // HandleRevoke godoc
 // @Summary Revoke a token
 // @Description Revokes an access or refresh token
-// @Tags token
+// @Tags oauth2
 // @Accept application/x-www-form-urlencoded
 // @Produce json
 // @Param token formData string true "Token to revoke"

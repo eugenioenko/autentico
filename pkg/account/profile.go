@@ -11,6 +11,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// HandleGetProfile godoc
+// @Summary Get current user profile
+// @Description Returns the authenticated user's profile information.
+// @Tags account
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} user.UserResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/profile [get]
 func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -20,6 +29,20 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, usr.ToResponse(), http.StatusOK)
 }
 
+// HandleUpdateProfile godoc
+// @Summary Update current user profile
+// @Description Updates the authenticated user's profile fields (username, email, name, etc.).
+// @Tags account
+// @Accept json
+// @Produce json
+// @Param request body user.UserUpdateRequest true "Profile update payload"
+// @Security UserAuth
+// @Success 200 {object} user.UserResponse
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Failure 409 {object} model.ApiError
+// @Router /account/api/profile [put]
 func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -102,6 +125,19 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, updated.ToResponse(), http.StatusOK)
 }
 
+// HandleUpdatePassword godoc
+// @Summary Change password
+// @Description Changes the authenticated user's password. Requires the current password for verification.
+// @Tags account-security
+// @Accept json
+// @Produce json
+// @Param request body UpdatePasswordRequest true "Password change payload"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/password [post]
 func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

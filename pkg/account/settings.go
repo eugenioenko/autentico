@@ -7,6 +7,14 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// HandleGetSettings godoc
+// @Summary Get account settings
+// @Description Returns public-facing configuration the account UI needs (theme, auth mode, profile field visibility, etc.).
+// @Tags account
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} map[string]any
+// @Router /account/api/settings [get]
 func HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	utils.SuccessResponse(w, map[string]any{
