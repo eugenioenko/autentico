@@ -68,11 +68,8 @@ autentico start
 ## Docker
 
 ```bash
-docker run --rm \
-  -p 9999:9999 \
-  -v autentico-data:/app/data \
-  ghcr.io/eugenioenko/autentico:latest \
-  start --auto-setup
+docker run -p 9999:9999 -v autentico-data:/app/data \
+  ghcr.io/eugenioenko/autentico:latest start --auto-setup
 ```
 
 The `--auto-setup` flag generates a `.env` with fresh secrets on first run and reuses it on restarts. The volume at `/app/data` persists both the database and the generated configuration.
@@ -80,12 +77,9 @@ The `--auto-setup` flag generates a `.env` with fresh secrets on first run and r
 For a custom URL, pass it via environment variable:
 
 ```bash
-docker run --rm \
-  -p 9999:9999 \
-  -v autentico-data:/app/data \
+docker run -p 9999:9999 -v autentico-data:/app/data \
   -e AUTENTICO_APP_URL=https://auth.example.com \
-  ghcr.io/eugenioenko/autentico:latest \
-  start --auto-setup
+  ghcr.io/eugenioenko/autentico:latest start --auto-setup
 ```
 
 See [Docker Compose](/deployment/docker-compose/) for production setups with reverse proxy and SMTP.

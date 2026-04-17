@@ -21,11 +21,8 @@ chmod +x autentico
 <TabItem label="Docker">
 
 ```bash
-docker run --rm \
-  -p 9999:9999 \
-  -v autentico-data:/app/data \
-  ghcr.io/eugenioenko/autentico:latest \
-  start --auto-setup
+docker run -p 9999:9999 -v autentico-data:/app/data \
+  ghcr.io/eugenioenko/autentico:latest start --auto-setup
 ```
 
 </TabItem>
