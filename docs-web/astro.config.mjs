@@ -130,6 +130,7 @@ export default defineConfig({
 					label: 'Integrate',
 					items: [
 						{ label: 'Connecting an OIDC Client', link: '/integrate/connecting/' },
+						{ label: 'Client Libraries', link: '/integrate/client-libraries/' },
 						{ label: 'PKCE Flow Walkthrough', link: '/integrate/pkce-walkthrough/' },
 						{ label: 'Verifying Tokens', link: '/integrate/verifying-tokens/' },
 					],
