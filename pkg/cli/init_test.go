@@ -29,12 +29,12 @@ func TestRunInit(t *testing.T) {
 	err = RunInit(ctx)
 	assert.NoError(t, err)
 
-	// Verify .env was created
-	_, err = os.Stat(".env")
+	// Verify .env was created in ./data/
+	_, err = os.Stat("./data/.env")
 	assert.NoError(t, err)
 
 	// Verify .env content roughly
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile("./data/.env")
 	sContent := string(content)
 	assert.Contains(t, sContent, "AUTENTICO_APP_URL=http://test.com")
 	assert.Contains(t, sContent, "AUTENTICO_PRIVATE_KEY=")
@@ -46,7 +46,7 @@ func TestRunInit(t *testing.T) {
 	// Test re-init error
 	err = RunInit(ctx)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), ".env already exists")
+	assert.Contains(t, err.Error(), "already exists")
 }
 
 func TestRunInit_DevMode(t *testing.T) {
@@ -69,7 +69,7 @@ func TestRunInit_DevMode(t *testing.T) {
 	err = RunInit(ctx)
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile("./data/.env")
 	sContent := string(content)
 	// Dev mode: all secure cookie flags must be false
 	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=false")
@@ -105,7 +105,7 @@ func TestRunInit_DefaultURL(t *testing.T) {
 	err := RunInit(ctx)
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile("./data/.env")
 	assert.Contains(t, string(content), "AUTENTICO_APP_URL=http://localhost:9999")
 }
 
@@ -151,16 +151,15 @@ func TestRunInit_EnvDirectoryError(t *testing.T) {
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
 	
-	// Create a directory named .env so WriteFile fails
-	_ = os.Mkdir(".env", 0755)
-	
+	// Create data/.env as a directory so WriteFile fails
+	_ = os.MkdirAll("./data/.env", 0755)
+
 	app := &cli.App{Name: "test"}
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://test.com", "")
-	set.String("output", ".", "")
 	ctx := cli.NewContext(app, set, nil)
 
 	err := RunInit(ctx)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), ".env already exists")
+	assert.Contains(t, err.Error(), "already exists")
 }
