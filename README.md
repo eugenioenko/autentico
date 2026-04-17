@@ -1031,5 +1031,5 @@ Contributions are welcome. Before starting significant work, open an issue to al
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE) for the full text.
+GNU GENERAL PUBLIC LICENSE. See [`LICENSE`](LICENSE) for the full text.
 
