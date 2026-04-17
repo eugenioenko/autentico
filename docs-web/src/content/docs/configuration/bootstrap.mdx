@@ -7,6 +7,8 @@ import { Aside } from '@astrojs/starlight/components';
 
 Bootstrap settings are loaded once at startup from the `.env` file (or OS environment variables if no `.env` is present). Changing any of these requires restarting the server.
 
+Autentico looks for `.env` in the current working directory first, then falls back to `./db/.env` (where `--auto-setup` writes it for Docker volume persistence).
+
 Generate a `.env` with secure defaults:
 
 ```bash
