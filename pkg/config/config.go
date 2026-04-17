@@ -3,7 +3,6 @@ package config
 import (
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -237,16 +236,11 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 func InitBootstrap() {
 	_ = godotenv.Load() // silent if no .env file in CWD
 
-	// Fallback: check for .env next to the database file (e.g. ./db/.env),
-	// which is where --auto-setup writes it for Docker volume persistence.
+	// Fallback: check for .env in ./db/, which is where --auto-setup
+	// writes it for Docker volume persistence.
 	if _, err := os.Stat(".env"); err != nil {
-		dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
-		if dbFilePath == "" {
-			dbFilePath = "./db/autentico.db"
-		}
-		dbEnv := filepath.Join(filepath.Dir(dbFilePath), ".env")
-		if _, err := os.Stat(dbEnv); err == nil {
-			_ = godotenv.Load(dbEnv)
+		if _, err := os.Stat("./db/.env"); err == nil {
+			_ = godotenv.Load("./db/.env")
 		}
 	}
 
