@@ -68,7 +68,7 @@ All configuration is via [Bootstrap Settings](/configuration/bootstrap/). Key va
 | Variable | Required | Notes |
 |---|---|---|
 | `AUTENTICO_APP_URL` | No | Public URL. Defaults to `http://localhost:9999`. Used in OIDC discovery and redirects. |
-| `AUTENTICO_DB_FILE_PATH` | No | SQLite database path. Defaults to `./data/autentico.db`. |
+| `AUTENTICO_DB_FILE_PATH` | No | SQLite database path. Defaults to `./autentico.db`. |
 | `AUTENTICO_LISTEN_PORT` | No | Port the server binds to. Defaults to the port in `AUTENTICO_APP_URL`. |
 
 When using `--auto-setup`, secrets (`AUTENTICO_PRIVATE_KEY`, `AUTENTICO_CSRF_SECRET_KEY`, `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`) are generated automatically. When using a pre-generated `.env` or inline environment variables, all four are required.

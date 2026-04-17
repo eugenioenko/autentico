@@ -16,7 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/key"
 )
 
-const defaultDbFilePath = "./data/autentico.db"
+const defaultDbFilePath = "./autentico.db"
 
 type envParams struct {
 	appURL        string
@@ -118,9 +118,6 @@ func buildEnvContent(p envParams) string {
 
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
-	if !c.IsSet("output") {
-		outputDir = "./data"
-	}
 	envPath := filepath.Join(outputDir, ".env")
 	if _, err := os.Stat(envPath); err == nil {
 		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
@@ -179,10 +176,6 @@ func RunInit(c *cli.Context) error {
 		dev:           dev,
 	})
 
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", outputDir, err)
-	}
-
 	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
@@ -203,28 +196,12 @@ func RunInit(c *cli.Context) error {
 	return nil
 }
 
-// autoGenerateConfig generates a .env file next to the database file
-// if one does not already exist. It uses AUTENTICO_APP_URL from the environment
-// (or defaults to http://localhost:9999) to derive the configuration.
-// This allows a single docker run command to bootstrap and start the server.
-// The .env is written to the DB directory so it persists on Docker volumes.
+// autoGenerateConfig generates a .env file in CWD if one does not already exist.
+// In Docker, WORKDIR is /app/data (the volume), so .env and DB persist automatically.
 // On subsequent runs, the existing .env is loaded and reused.
 func autoGenerateConfig(urlFlag string, devFlag bool) error {
-	// Skip if a .env already exists in CWD (e.g. provided via --env-file).
 	if _, err := os.Stat(".env"); err == nil {
-		return nil
-	}
-
-	dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
-	if dbFilePath == "" {
-		dbFilePath = defaultDbFilePath
-	}
-	dbDir := filepath.Dir(dbFilePath)
-	envPath := filepath.Join(dbDir, ".env")
-
-	if _, err := os.Stat(envPath); err == nil {
-		// .env already exists from a previous run — load it.
-		_ = godotenv.Load(envPath)
+		_ = godotenv.Load(".env")
 		return nil
 	}
 
@@ -282,18 +259,13 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 		dev:           dev,
 	})
 
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return fmt.Errorf("auto-setup: failed to create directory %s: %w", dbDir, err)
-	}
-
-	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(".env", []byte(content), 0600); err != nil {
 		return fmt.Errorf("auto-setup: failed to write .env: %w", err)
 	}
 
-	// Load the generated .env so InitBootstrap picks up the secrets.
-	_ = godotenv.Load(envPath)
+	_ = godotenv.Load(".env")
 
-	fmt.Printf("  Auto-generated configuration: %s\n", envPath)
+	fmt.Printf("  Auto-generated configuration: .env\n")
 	return nil
 }
 
