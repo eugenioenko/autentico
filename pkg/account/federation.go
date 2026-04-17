@@ -8,6 +8,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// HandleListConnectedProviders godoc
+// @Summary List connected providers
+// @Description Returns all external identity providers linked to the authenticated user's account.
+// @Tags account-federation
+// @Produce json
+// @Security UserAuth
+// @Success 200 {array} ConnectedProviderResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/connected-providers [get]
 func HandleListConnectedProviders(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -43,6 +52,18 @@ func HandleListConnectedProviders(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, response, http.StatusOK)
 }
 
+// HandleDisconnectProvider godoc
+// @Summary Disconnect a provider
+// @Description Removes a linked external identity provider. Cannot disconnect the only login method.
+// @Tags account-federation
+// @Produce json
+// @Param id path string true "Federated identity ID"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/connected-providers/{id} [delete]
 func HandleDisconnectProvider(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

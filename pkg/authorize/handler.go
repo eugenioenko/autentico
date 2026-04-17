@@ -24,7 +24,7 @@ import (
 // HandleAuthorize godoc
 // @Summary Authorize a client
 // @Description Handles the authorization request and displays the login page
-// @Tags authorize
+// @Tags oauth2
 // @Accept json
 // @Produce html
 // @Param response_type query string true "Response type"

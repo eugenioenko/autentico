@@ -1,5 +1,93 @@
 basePath: /
 definitions:
+  account.ConnectedProviderResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      provider_id:
+        type: string
+      provider_name:
+        type: string
+    type: object
+  account.DisableMfaRequest:
+    properties:
+      code:
+        type: string
+      current_password:
+        type: string
+    type: object
+  account.MfaStatusResponse:
+    properties:
+      totp_enabled:
+        type: boolean
+    type: object
+  account.PasskeyRenameRequest:
+    properties:
+      name:
+        type: string
+    type: object
+  account.PasskeyResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+      name:
+        type: string
+    type: object
+  account.SessionResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      is_current:
+        type: boolean
+      last_activity_at:
+        type: string
+      user_agent:
+        type: string
+    type: object
+  account.TotpSetupResponse:
+    properties:
+      qr_code_data:
+        type: string
+      secret:
+        type: string
+    type: object
+  account.TotpVerifyRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  account.TrustedDeviceResponse:
+    properties:
+      created_at:
+        type: string
+      device_name:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      last_used_at:
+        type: string
+    type: object
+  account.UpdatePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
   admin.StatsResponse:
     properties:
       active_clients:
@@ -716,7 +804,8 @@ definitions:
 host: localhost:9999
 info:
   contact: {}
-  description: Authentication Service
+  description: Self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider
+    built with Go and SQLite.
   title: Autentico OIDC
   version: "1.0"
 paths:
@@ -734,7 +823,65 @@ paths:
             $ref: '#/definitions/model.WellKnownConfigResponse'
       summary: Get Well-Known Configuration
       tags:
-      - Well-Known
+      - oauth2
+  /account/api/connected-providers:
+    get:
+      description: Returns all external identity providers linked to the authenticated
+        user's account.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/account.ConnectedProviderResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: List connected providers
+      tags:
+      - account-federation
+  /account/api/connected-providers/{id}:
+    delete:
+      description: Removes a linked external identity provider. Cannot disconnect
+        the only login method.
+      parameters:
+      - description: Federated identity ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Disconnect a provider
+      tags:
+      - account-federation
   /account/api/deletion-request:
     delete:
       produces:
@@ -750,9 +897,11 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
       summary: Cancel the current user's pending deletion request
       tags:
-      - account
+      - account-deletion
     get:
       produces:
       - application/json
@@ -765,9 +914,11 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
       summary: Get pending deletion request for current user
       tags:
-      - account
+      - account-deletion
     post:
       consumes:
       - application/json
@@ -800,9 +951,523 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
       summary: Request account deletion
       tags:
+      - account-deletion
+  /account/api/mfa:
+    get:
+      description: Returns the MFA enrollment status for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/account.MfaStatusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Get MFA status
+      tags:
+      - account-security
+  /account/api/mfa/totp:
+    delete:
+      consumes:
+      - application/json
+      description: Disables TOTP MFA for the authenticated user. Requires current
+        password and a valid TOTP code. Revokes all sessions after disabling.
+      parameters:
+      - description: Password and TOTP code for confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/account.DisableMfaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Disable MFA
+      tags:
+      - account-security
+  /account/api/mfa/totp/setup:
+    post:
+      description: Generates a TOTP secret and QR code URI for enrollment. Must be
+        verified before activation.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/account.TotpSetupResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Begin TOTP setup
+      tags:
+      - account-security
+  /account/api/mfa/totp/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a TOTP code to complete enrollment. The secret must have
+        been generated via setup first.
+      parameters:
+      - description: TOTP verification code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/account.TotpVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Verify TOTP enrollment
+      tags:
+      - account-security
+  /account/api/passkeys:
+    get:
+      description: Returns all registered passkeys for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/account.PasskeyResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: List passkeys
+      tags:
+      - account-security
+  /account/api/passkeys/{id}:
+    delete:
+      description: Deletes a registered passkey belonging to the authenticated user.
+      parameters:
+      - description: Passkey ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Delete a passkey
+      tags:
+      - account-security
+    patch:
+      consumes:
+      - application/json
+      description: Updates the display name of a registered passkey.
+      parameters:
+      - description: Passkey ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rename payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/account.PasskeyRenameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Rename a passkey
+      tags:
+      - account-security
+  /account/api/passkeys/register/begin:
+    post:
+      description: Initiates a WebAuthn registration ceremony to add a new passkey
+        to the authenticated user's account.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Challenge ID and WebAuthn creation options
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Begin passkey registration
+      tags:
+      - account-security
+  /account/api/passkeys/register/finish:
+    post:
+      consumes:
+      - application/json
+      description: Completes the WebAuthn registration ceremony and stores the new
+        passkey credential.
+      parameters:
+      - description: Challenge ID from begin registration
+        in: query
+        name: challenge_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Complete passkey registration
+      tags:
+      - account-security
+  /account/api/password:
+    post:
+      consumes:
+      - application/json
+      description: Changes the authenticated user's password. Requires the current
+        password for verification.
+      parameters:
+      - description: Password change payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/account.UpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Change password
+      tags:
+      - account-security
+  /account/api/profile:
+    get:
+      description: Returns the authenticated user's profile information.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Get current user profile
+      tags:
       - account
+    put:
+      consumes:
+      - application/json
+      description: Updates the authenticated user's profile fields (username, email,
+        name, etc.).
+      parameters:
+      - description: Profile update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Update current user profile
+      tags:
+      - account
+  /account/api/sessions:
+    get:
+      description: Returns all active sessions for the authenticated user, with the
+        current session flagged.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/account.SessionResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: List current user's sessions
+      tags:
+      - account-security
+  /account/api/sessions/{id}:
+    delete:
+      description: Revokes one of the authenticated user's sessions. Cannot revoke
+        the current session.
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Revoke a session
+      tags:
+      - account-security
+  /account/api/settings:
+    get:
+      description: Returns public-facing configuration the account UI needs (theme,
+        auth mode, profile field visibility, etc.).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - UserAuth: []
+      summary: Get account settings
+      tags:
+      - account
+  /account/api/trusted-devices:
+    get:
+      description: Returns all trusted devices for the authenticated user (devices
+        that bypass MFA).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/account.TrustedDeviceResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: List trusted devices
+      tags:
+      - account-security
+  /account/api/trusted-devices/{id}:
+    delete:
+      description: Removes a trusted device so it will require MFA again on next login.
+      parameters:
+      - description: Trusted device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Revoke a trusted device
+      tags:
+      - account-security
   /admin/api/audit-logs:
     get:
       description: Returns a paginated list of audit events with optional filters.
@@ -831,13 +1496,13 @@ paths:
           schema:
             $ref: '#/definitions/audit.AuditLogListResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List audit log events
       tags:
-      - admin
+      - admin-settings
   /admin/api/clients:
     get:
-      description: Lists all registered clients (admin only)
+      description: Lists all registered clients. Also available at /oauth2/register.
       produces:
       - application/json
       responses:
@@ -852,14 +1517,15 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List all clients
       tags:
-      - client
+      - admin-client
     post:
       consumes:
       - application/json
-      description: Registers a new OAuth2/OIDC client (admin only)
+      description: Registers a new OAuth2/OIDC client. Also available at /oauth2/register
+        (RFC 7591 Dynamic Client Registration).
       parameters:
       - description: Client registration request
         in: body
@@ -883,13 +1549,14 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Register a new OAuth2 client
       tags:
-      - client
+      - admin-client
   /admin/api/clients/{client_id}:
     delete:
-      description: Deactivates (soft deletes) a registered client (admin only)
+      description: Deactivates (soft deletes) a registered client. Also available
+        at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -904,12 +1571,13 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Deactivate a client
       tags:
-      - client
+      - admin-client
     get:
-      description: Retrieves information about a registered client (admin only)
+      description: Retrieves information about a registered client. Also available
+        at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -928,14 +1596,14 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get client information
       tags:
-      - client
+      - admin-client
     put:
       consumes:
       - application/json
-      description: Updates a registered client (admin only)
+      description: Updates a registered client. Also available at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -964,10 +1632,10 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update client information
       tags:
-      - client
+      - admin-client
   /admin/api/deletion-requests:
     get:
       produces:
@@ -984,10 +1652,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List all pending deletion requests
       tags:
-      - admin
+      - admin-deletion
   /admin/api/deletion-requests/{id}:
     delete:
       parameters:
@@ -1010,10 +1678,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Cancel (dismiss) a deletion request without deleting the user
       tags:
-      - admin
+      - admin-deletion
   /admin/api/deletion-requests/{id}/approve:
     post:
       parameters:
@@ -1036,10 +1704,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Approve a deletion request — permanently deletes the user
       tags:
-      - admin
+      - admin-deletion
   /admin/api/federation:
     get:
       produces:
@@ -1052,10 +1720,10 @@ paths:
               $ref: '#/definitions/federation.ProviderResponse'
             type: array
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List federation providers
       tags:
-      - federation-admin
+      - admin-federation
     post:
       consumes:
       - application/json
@@ -1076,10 +1744,10 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Create a federation provider
       tags:
-      - federation-admin
+      - admin-federation
   /admin/api/federation/{id}:
     delete:
       parameters:
@@ -1096,10 +1764,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Delete a federation provider
       tags:
-      - federation-admin
+      - admin-federation
     get:
       parameters:
       - description: Provider ID
@@ -1119,10 +1787,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get a federation provider
       tags:
-      - federation-admin
+      - admin-federation
     put:
       consumes:
       - application/json
@@ -1152,10 +1820,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update a federation provider
       tags:
-      - federation-admin
+      - admin-federation
   /admin/api/groups:
     get:
       produces:
@@ -1168,10 +1836,10 @@ paths:
               $ref: '#/definitions/group.GroupResponse'
             type: array
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List all groups
       tags:
-      - groups-admin
+      - admin-groups
     post:
       consumes:
       - application/json
@@ -1194,10 +1862,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Create a new group
       tags:
-      - groups-admin
+      - admin-groups
   /admin/api/groups/{id}:
     delete:
       parameters:
@@ -1220,10 +1888,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Delete a group
       tags:
-      - groups-admin
+      - admin-groups
     get:
       parameters:
       - description: Group ID
@@ -1243,10 +1911,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get a group by ID
       tags:
-      - groups-admin
+      - admin-groups
     put:
       consumes:
       - application/json
@@ -1278,10 +1946,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update a group
       tags:
-      - groups-admin
+      - admin-groups
   /admin/api/groups/{id}/members:
     get:
       parameters:
@@ -1300,10 +1968,10 @@ paths:
               $ref: '#/definitions/group.GroupMemberResponse'
             type: array
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List members of a group
       tags:
-      - groups-admin
+      - admin-groups
     post:
       consumes:
       - application/json
@@ -1337,10 +2005,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Add a user to a group
       tags:
-      - groups-admin
+      - admin-groups
   /admin/api/groups/{id}/members/{user_id}:
     delete:
       parameters:
@@ -1368,10 +2036,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Remove a user from a group
       tags:
-      - groups-admin
+      - admin-groups
   /admin/api/sessions:
     get:
       description: Lists all active sessions, optionally filtered by user ID.
@@ -1390,10 +2058,10 @@ paths:
               $ref: '#/definitions/session.SessionResponse'
             type: array
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List sessions
       tags:
-      - sessions-admin
+      - admin-sessions
   /admin/api/sessions/{id}:
     delete:
       parameters:
@@ -1412,10 +2080,10 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Deactivate a session
       tags:
-      - sessions-admin
+      - admin-sessions
   /admin/api/settings:
     get:
       description: Retrieve all system settings (except sensitive values).
@@ -1429,10 +2097,10 @@ paths:
               type: string
             type: object
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get system settings
       tags:
-      - admin
+      - admin-settings
     put:
       consumes:
       - application/json
@@ -1449,10 +2117,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update system settings
       tags:
-      - admin
+      - admin-settings
   /admin/api/settings/export:
     get:
       description: Export all settings as a JSON file (smtp_password excluded).
@@ -1464,10 +2132,10 @@ paths:
           schema:
             $ref: '#/definitions/appsettings.settingsExport'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Export settings
       tags:
-      - admin
+      - admin-settings
   /admin/api/settings/import/apply:
     post:
       consumes:
@@ -1480,10 +2148,10 @@ paths:
         "204":
           description: No Content
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Apply settings import
       tags:
-      - admin
+      - admin-settings
   /admin/api/settings/import/preview:
     post:
       consumes:
@@ -1498,10 +2166,10 @@ paths:
           schema:
             $ref: '#/definitions/appsettings.settingsPreviewResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Preview settings import
       tags:
-      - admin
+      - admin-settings
   /admin/api/settings/test-smtp:
     post:
       description: Sends a test email to the currently authenticated admin's registered
@@ -1524,10 +2192,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Test SMTP configuration
       tags:
-      - admin
+      - admin-settings
   /admin/api/stats:
     get:
       description: Returns a summary of users, clients, and active sessions.
@@ -1539,10 +2207,10 @@ paths:
           schema:
             $ref: '#/definitions/admin.StatsResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: System statistics
       tags:
-      - admin
+      - admin-settings
   /admin/api/users:
     get:
       produces:
@@ -1559,10 +2227,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List all users
       tags:
-      - users-admin
+      - admin-users
     post:
       consumes:
       - application/json
@@ -1590,10 +2258,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Create a new user
       tags:
-      - users-admin
+      - admin-users
   /admin/api/users/{id}:
     delete:
       description: Hard-deletes a user and all associated data (tokens, sessions,
@@ -1622,10 +2290,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Permanently delete a user
       tags:
-      - users-admin
+      - admin-users
     get:
       parameters:
       - description: User ID
@@ -1649,10 +2317,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get a user by ID
       tags:
-      - users-admin
+      - admin-users
     put:
       consumes:
       - application/json
@@ -1684,10 +2352,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update a user
       tags:
-      - users-admin
+      - admin-users
   /admin/api/users/{id}/deactivate:
     post:
       description: Soft-disables a user account, immediately revoking all tokens and
@@ -1716,10 +2384,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Deactivate a user
       tags:
-      - users-admin
+      - admin-users
   /admin/api/users/{id}/groups:
     get:
       parameters:
@@ -1738,10 +2406,10 @@ paths:
               $ref: '#/definitions/group.GroupResponse'
             type: array
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get groups for a user
       tags:
-      - groups-admin
+      - admin-groups
   /admin/api/users/{id}/reactivate:
     post:
       description: Clears the deactivated status, allowing the user to log in again.
@@ -1769,10 +2437,10 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Reactivate a deactivated user
       tags:
-      - users-admin
+      - admin-users
   /admin/api/users/{id}/unlock:
     post:
       description: Resets the failed login attempts and clears the lockout time for
@@ -1791,10 +2459,10 @@ paths:
           schema:
             $ref: '#/definitions/user.UserResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Unlock user account
       tags:
-      - users-admin
+      - admin-users
   /healthz:
     get:
       description: Returns the health status of the server and its dependencies. Returns
@@ -1812,7 +2480,7 @@ paths:
             $ref: '#/definitions/health.HealthResponse'
       summary: Health check
       tags:
-      - Health
+      - health
   /oauth2/.well-known/jwks.json:
     get:
       consumes:
@@ -1827,7 +2495,7 @@ paths:
             $ref: '#/definitions/model.JWKSResponse'
       summary: Get JWKS
       tags:
-      - Well-Known
+      - oauth2
   /oauth2/authorize:
     get:
       consumes:
@@ -1875,7 +2543,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       summary: Authorize a client
       tags:
-      - authorize
+      - oauth2
   /oauth2/introspect:
     post:
       consumes:
@@ -1913,51 +2581,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       summary: Introspect a token
       tags:
-      - introspect
-  /oauth2/login:
-    post:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Authenticates a user and generates an authorization code
-      parameters:
-      - description: Username
-        in: formData
-        name: username
-        required: true
-        type: string
-      - description: Password
-        in: formData
-        name: password
-        required: true
-        type: string
-      - description: Redirect URI
-        in: formData
-        name: redirect
-        required: true
-        type: string
-      - description: State
-        in: formData
-        name: state
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "302":
-          description: Redirect to the provided URI with code and state
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/model.ApiError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.ApiError'
-      summary: Log in a user
-      tags:
-      - auth
+      - oauth2
   /oauth2/logout:
     get:
       description: |-
@@ -1990,7 +2614,7 @@ paths:
             type: string
       summary: RP-Initiated Logout (GET)
       tags:
-      - session
+      - oauth2
     post:
       consumes:
       - application/x-www-form-urlencoded
@@ -2026,226 +2650,10 @@ paths:
             type: string
       summary: RP-Initiated Logout (POST)
       tags:
-      - session
-  /oauth2/mfa:
-    get:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the MFA verification or enrollment page (GET) or processes
-        the MFA code (POST).
-      parameters:
-      - description: MFA challenge ID (GET)
-        in: query
-        name: challenge_id
-        type: string
-      - description: MFA challenge ID (POST)
-        in: formData
-        name: challenge_id
-        type: string
-      - description: Verification code (POST)
-        in: formData
-        name: code
-        type: string
-      - description: TOTP secret for enrollment (POST)
-        in: formData
-        name: totp_secret
-        type: string
-      - description: Whether to trust the device (POST)
-        in: formData
-        name: trust_device
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: MFA form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect back to client with code after success (POST)
-          schema:
-            type: string
-      summary: Multi-factor authentication
-      tags:
-      - mfa
-    post:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the MFA verification or enrollment page (GET) or processes
-        the MFA code (POST).
-      parameters:
-      - description: MFA challenge ID (GET)
-        in: query
-        name: challenge_id
-        type: string
-      - description: MFA challenge ID (POST)
-        in: formData
-        name: challenge_id
-        type: string
-      - description: Verification code (POST)
-        in: formData
-        name: code
-        type: string
-      - description: TOTP secret for enrollment (POST)
-        in: formData
-        name: totp_secret
-        type: string
-      - description: Whether to trust the device (POST)
-        in: formData
-        name: trust_device
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: MFA form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect back to client with code after success (POST)
-          schema:
-            type: string
-      summary: Multi-factor authentication
-      tags:
-      - mfa
-  /oauth2/passkey/login/begin:
-    get:
-      consumes:
-      - application/json
-      description: Initiates a WebAuthn authentication ceremony. The user must already
-        have a registered passkey. Returns the options for the navigator.credentials.get
-        call.
-      parameters:
-      - description: User's username
-        in: query
-        name: username
-        required: true
-        type: string
-      - description: Redirect URI
-        in: query
-        name: redirect_uri
-        type: string
-      - description: OAuth2 state
-        in: query
-        name: state
-        type: string
-      - description: OAuth2 client ID
-        in: query
-        name: client_id
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: WebAuthn assertion options
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Begin passkey login
-      tags:
-      - passkey
-  /oauth2/passkey/login/finish:
-    post:
-      consumes:
-      - application/json
-      description: Processes the WebAuthn assertion from the client and issues an
-        authorization code.
-      parameters:
-      - description: Challenge ID from BeginLogin
-        in: query
-        name: challenge_id
-        required: true
-        type: string
-      - description: WebAuthn assertion response
-        in: body
-        name: assertion
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Redirect URL
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Complete passkey login
-      tags:
-      - passkey
-  /oauth2/passkey/register/begin:
-    get:
-      description: Creates a user account (if not already present) and initiates a
-        WebAuthn registration ceremony.
-      parameters:
-      - description: Desired username
-        in: query
-        name: username
-        required: true
-        type: string
-      - description: Email address
-        in: query
-        name: email
-        type: string
-      - description: Redirect URI
-        in: query
-        name: redirect_uri
-        type: string
-      - description: OAuth2 state
-        in: query
-        name: state
-        type: string
-      - description: OAuth2 client ID
-        in: query
-        name: client_id
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: WebAuthn registration options
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Begin passkey registration
-      tags:
-      - passkey
-  /oauth2/passkey/register/finish:
-    post:
-      consumes:
-      - application/json
-      description: Processes the WebAuthn attestation from the client and registers
-        the passkey.
-      parameters:
-      - description: Challenge ID from BeginRegistration
-        in: query
-        name: challenge_id
-        required: true
-        type: string
-      - description: WebAuthn attestation response
-        in: body
-        name: attestation
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Redirect URL
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Complete passkey registration
-      tags:
-      - passkey
+      - oauth2
   /oauth2/register:
     get:
-      description: Lists all registered clients (admin only)
+      description: Lists all registered clients. Also available at /oauth2/register.
       produces:
       - application/json
       responses:
@@ -2260,14 +2668,15 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: List all clients
       tags:
-      - client
+      - admin-client
     post:
       consumes:
       - application/json
-      description: Registers a new OAuth2/OIDC client (admin only)
+      description: Registers a new OAuth2/OIDC client. Also available at /oauth2/register
+        (RFC 7591 Dynamic Client Registration).
       parameters:
       - description: Client registration request
         in: body
@@ -2291,13 +2700,14 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Register a new OAuth2 client
       tags:
-      - client
+      - admin-client
   /oauth2/register/{client_id}:
     delete:
-      description: Deactivates (soft deletes) a registered client (admin only)
+      description: Deactivates (soft deletes) a registered client. Also available
+        at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -2312,12 +2722,13 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Deactivate a client
       tags:
-      - client
+      - admin-client
     get:
-      description: Retrieves information about a registered client (admin only)
+      description: Retrieves information about a registered client. Also available
+        at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -2336,14 +2747,14 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Get client information
       tags:
-      - client
+      - admin-client
     put:
       consumes:
       - application/json
-      description: Updates a registered client (admin only)
+      description: Updates a registered client. Also available at /oauth2/register/{client_id}.
       parameters:
       - description: Client ID
         in: path
@@ -2372,10 +2783,10 @@ paths:
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
-      - BearerAuth: []
+      - AdminAuth: []
       summary: Update client information
       tags:
-      - client
+      - admin-client
   /oauth2/revoke:
     post:
       consumes:
@@ -2404,96 +2815,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       summary: Revoke a token
       tags:
-      - token
-  /oauth2/signup:
-    get:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the signup page (GET) or processes a new user registration
-        (POST).
-      parameters:
-      - description: Desired username
-        in: formData
-        name: username
-        type: string
-      - description: Password
-        in: formData
-        name: password
-        type: string
-      - description: Confirm password
-        in: formData
-        name: confirm_password
-        type: string
-      - description: Email address
-        in: formData
-        name: email
-        type: string
-      - description: Redirect URI
-        in: formData
-        name: redirect_uri
-        type: string
-      - description: OAuth2 state
-        in: formData
-        name: state
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: Signup form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect back to client with code (POST)
-          schema:
-            type: string
-      summary: User signup
-      tags:
-      - signup
-    post:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the signup page (GET) or processes a new user registration
-        (POST).
-      parameters:
-      - description: Desired username
-        in: formData
-        name: username
-        type: string
-      - description: Password
-        in: formData
-        name: password
-        type: string
-      - description: Confirm password
-        in: formData
-        name: confirm_password
-        type: string
-      - description: Email address
-        in: formData
-        name: email
-        type: string
-      - description: Redirect URI
-        in: formData
-        name: redirect_uri
-        type: string
-      - description: OAuth2 state
-        in: formData
-        name: state
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: Signup form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect back to client with code (POST)
-          schema:
-            type: string
-      summary: User signup
-      tags:
-      - signup
+      - oauth2
   /oauth2/token:
     post:
       consumes:
@@ -2546,7 +2868,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       summary: Token endpoint
       tags:
-      - token
+      - oauth2
   /oauth2/userinfo:
     get:
       consumes:
@@ -2576,84 +2898,47 @@ paths:
             $ref: '#/definitions/model.ApiError'
       summary: Get user information
       tags:
-      - userinfo
-  /onboard:
-    get:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the onboarding page (GET) or creates the initial administrator
-        (POST).
-      parameters:
-      - description: Admin username
-        in: formData
-        name: username
-        type: string
-      - description: Admin password
-        in: formData
-        name: password
-        type: string
-      - description: Confirm password
-        in: formData
-        name: confirm_password
-        type: string
-      - description: Admin email
-        in: formData
-        name: email
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: Onboarding form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect to /admin/ after success (POST)
-          schema:
-            type: string
-      summary: Initial admin setup
-      tags:
-      - onboarding
-    post:
-      consumes:
-      - application/x-www-form-urlencoded
-      description: Renders the onboarding page (GET) or creates the initial administrator
-        (POST).
-      parameters:
-      - description: Admin username
-        in: formData
-        name: username
-        type: string
-      - description: Admin password
-        in: formData
-        name: password
-        type: string
-      - description: Confirm password
-        in: formData
-        name: confirm_password
-        type: string
-      - description: Admin email
-        in: formData
-        name: email
-        type: string
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: Onboarding form (GET)
-          schema:
-            type: string
-        "302":
-          description: Redirect to /admin/ after success (POST)
-          schema:
-            type: string
-      summary: Initial admin setup
-      tags:
-      - onboarding
+      - oauth2
 securityDefinitions:
-  BearerAuth:
-    description: Type "Bearer" followed by a space and then your access token.
+  AdminAuth:
+    description: Admin access token — requires admin role and autentico-admin audience.
+      Type "Bearer" followed by your token.
+    in: header
+    name: Authorization
+    type: apiKey
+  UserAuth:
+    description: User access token — any valid bearer token. Type "Bearer" followed
+      by your token.
     in: header
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: OAuth2 and OpenID Connect endpoints (authorize, token, introspect,
+    revoke, userinfo, logout, discovery)
+  name: oauth2
+- description: Client registration and management (also available via /oauth2/register
+    per RFC 7591)
+  name: admin-client
+- description: System settings, statistics, audit logs, and SMTP configuration
+  name: admin-settings
+- description: User account management (CRUD, deactivate, reactivate, unlock)
+  name: admin-users
+- description: OAuth session management
+  name: admin-sessions
+- description: Group and membership management
+  name: admin-groups
+- description: Federation / external identity provider configuration
+  name: admin-federation
+- description: Account deletion request review and approval
+  name: admin-deletion
+- description: User profile and account settings
+  name: account
+- description: Password, sessions, passkeys, MFA, and trusted devices
+  name: account-security
+- description: Connected external identity providers
+  name: account-federation
+- description: Account deletion requests
+  name: account-deletion
+- description: Server health check
+  name: health

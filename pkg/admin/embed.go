@@ -2,6 +2,7 @@ package admin
 
 import (
 	"embed"
+	"io"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -27,13 +28,6 @@ func Handler() http.Handler {
 			path = "/"
 		}
 
-		// Handle /admin/docs specifically to serve the embedded documentation
-		if path == "/docs" || path == "/docs/" {
-			r.URL.Path = "/admin/docs.html"
-			http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
-			return
-		}
-
 		// Try to open the file to see if it exists
 		if path != "/" {
 			trimmed := strings.TrimPrefix(path, "/")
@@ -56,4 +50,22 @@ func Handler() http.Handler {
 		r.URL.Path = "/admin/"
 		http.StripPrefix("/admin", fileServer).ServeHTTP(w, r)
 	})
+}
+
+// ApiDocsHandler serves the embedded Redoc documentation page at /api-docs/.
+func ApiDocsHandler() http.HandlerFunc {
+	sub, err := fs.Sub(distFS, "dist")
+	if err != nil {
+		panic(err)
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		f, err := sub.Open("docs.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer f.Close()
+		stat, _ := f.Stat()
+		http.ServeContent(w, r, "docs.html", stat.ModTime(), f.(io.ReadSeeker))
+	}
 }

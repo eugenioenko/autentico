@@ -21,17 +21,17 @@ import (
 )
 
 // HandleRegisterBegin starts a passkey registration ceremony.
-// @Summary Begin passkey registration
-// @Description Creates a user account (if not already present) and initiates a WebAuthn registration ceremony.
-// @Tags passkey
-// @Produce json
-// @Param username query string true "Desired username"
-// @Param email query string false "Email address"
-// @Param redirect_uri query string false "Redirect URI"
-// @Param state query string false "OAuth2 state"
-// @Param client_id query string false "OAuth2 client ID"
-// @Success 200 {object} map[string]any "WebAuthn registration options"
-// @Router /oauth2/passkey/register/begin [get]
+// Internal JS-only endpoint protected by HMAC authorize signatures — not included in public API docs.
+//
+// Method: GET
+// Route: /oauth2/passkey/register/begin
+// Produce: json
+// Param username query string true "Desired username"
+// Param email query string false "Email address"
+// Param redirect_uri query string false "Redirect URI"
+// Param state query string false "OAuth2 state"
+// Param client_id query string false "OAuth2 client ID"
+// Success 200 "WebAuthn registration options"
 func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	username := q.Get("username")
@@ -171,17 +171,17 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLoginBegin starts a passkey authentication ceremony.
-// @Summary Begin passkey login
-// @Description Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.
-// @Tags passkey
-// @Accept json
-// @Produce json
-// @Param username query string true "User's username"
-// @Param redirect_uri query string false "Redirect URI"
-// @Param state query string false "OAuth2 state"
-// @Param client_id query string false "OAuth2 client ID"
-// @Success 200 {object} map[string]any "WebAuthn assertion options"
-// @Router /oauth2/passkey/login/begin [get]
+// Internal JS-only endpoint protected by HMAC authorize signatures — not included in public API docs.
+//
+// Method: GET
+// Route: /oauth2/passkey/login/begin
+// Accept: json
+// Produce: json
+// Param username query string true "User's username"
+// Param redirect_uri query string false "Redirect URI"
+// Param state query string false "OAuth2 state"
+// Param client_id query string false "OAuth2 client ID"
+// Success 200 "WebAuthn assertion options"
 func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	username := q.Get("username")
@@ -283,15 +283,15 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleLoginFinish completes a passkey authentication ceremony.
-// @Summary Complete passkey login
-// @Description Processes the WebAuthn assertion from the client and issues an authorization code.
-// @Tags passkey
-// @Accept json
-// @Produce json
-// @Param challenge_id query string true "Challenge ID from BeginLogin"
-// @Param assertion body map[string]any true "WebAuthn assertion response"
-// @Success 200 {object} map[string]string "Redirect URL"
-// @Router /oauth2/passkey/login/finish [post]
+// Internal JS-only endpoint protected by HMAC authorize signatures — not included in public API docs.
+//
+// Method: POST
+// Route: /oauth2/passkey/login/finish
+// Accept: json
+// Produce: json
+// Param challenge_id query string true "Challenge ID from BeginLogin"
+// Param assertion body map[string]any true "WebAuthn assertion response"
+// Success 200 "Redirect URL"
 func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
 	if challengeID == "" {
@@ -368,15 +368,15 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleRegisterFinish completes a passkey registration ceremony.
-// @Summary Complete passkey registration
-// @Description Processes the WebAuthn attestation from the client and registers the passkey.
-// @Tags passkey
-// @Accept json
-// @Produce json
-// @Param challenge_id query string true "Challenge ID from BeginRegistration"
-// @Param attestation body map[string]any true "WebAuthn attestation response"
-// @Success 200 {object} map[string]string "Redirect URL"
-// @Router /oauth2/passkey/register/finish [post]
+// Internal JS-only endpoint protected by HMAC authorize signatures — not included in public API docs.
+//
+// Method: POST
+// Route: /oauth2/passkey/register/finish
+// Accept: json
+// Produce: json
+// Param challenge_id query string true "Challenge ID from BeginRegistration"
+// Param attestation body map[string]any true "WebAuthn attestation response"
+// Success 200 "Redirect URL"
 func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
 	if challengeID == "" {

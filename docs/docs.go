@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Well-Known"
+                    "oauth2"
                 ],
                 "summary": "Get Well-Known Configuration",
                 "responses": {
@@ -38,13 +38,107 @@ const docTemplate = `{
                 }
             }
         },
-        "/account/api/deletion-request": {
+        "/account/api/connected-providers": {
             "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns all external identity providers linked to the authenticated user's account.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "account-federation"
+                ],
+                "summary": "List connected providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/account.ConnectedProviderResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/connected-providers/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Removes a linked external identity provider. Cannot disconnect the only login method.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-federation"
+                ],
+                "summary": "Disconnect a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Federated identity ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/deletion-request": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-deletion"
                 ],
                 "summary": "Get pending deletion request for current user",
                 "responses": {
@@ -63,6 +157,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
                 "description": "Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.",
                 "consumes": [
                     "application/json"
@@ -71,7 +170,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "account-deletion"
                 ],
                 "summary": "Request account deletion",
                 "parameters": [
@@ -115,11 +214,16 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "account"
+                    "account-deletion"
                 ],
                 "summary": "Cancel the current user's pending deletion request",
                 "responses": {
@@ -141,11 +245,805 @@ const docTemplate = `{
                 }
             }
         },
+        "/account/api/mfa": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns the MFA enrollment status for the authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Get MFA status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/account.MfaStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/mfa/totp": {
+            "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Disables TOTP MFA for the authenticated user. Requires current password and a valid TOTP code. Revokes all sessions after disabling.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Disable MFA",
+                "parameters": [
+                    {
+                        "description": "Password and TOTP code for confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/account.DisableMfaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/mfa/totp/setup": {
+            "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Generates a TOTP secret and QR code URI for enrollment. Must be verified before activation.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Begin TOTP setup",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/account.TotpSetupResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/mfa/totp/verify": {
+            "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Verifies a TOTP code to complete enrollment. The secret must have been generated via setup first.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Verify TOTP enrollment",
+                "parameters": [
+                    {
+                        "description": "TOTP verification code",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/account.TotpVerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/passkeys": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns all registered passkeys for the authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "List passkeys",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/account.PasskeyResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/passkeys/register/begin": {
+            "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Initiates a WebAuthn registration ceremony to add a new passkey to the authenticated user's account.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Begin passkey registration",
+                "responses": {
+                    "200": {
+                        "description": "Challenge ID and WebAuthn creation options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/passkeys/register/finish": {
+            "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Completes the WebAuthn registration ceremony and stores the new passkey credential.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Complete passkey registration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Challenge ID from begin registration",
+                        "name": "challenge_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/passkeys/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Deletes a registered passkey belonging to the authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Delete a passkey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Passkey ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Updates the display name of a registered passkey.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Rename a passkey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Passkey ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rename payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/account.PasskeyRenameRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/password": {
+            "post": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Changes the authenticated user's password. Requires the current password for verification.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Change password",
+                "parameters": [
+                    {
+                        "description": "Password change payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/account.UpdatePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/profile": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's profile information.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Get current user profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Updates the authenticated user's profile fields (username, email, name, etc.).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Update current user profile",
+                "parameters": [
+                    {
+                        "description": "Profile update payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.UserUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns all active sessions for the authenticated user, with the current session flagged.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "List current user's sessions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/account.SessionResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/sessions/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Revokes one of the authenticated user's sessions. Cannot revoke the current session.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Revoke a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/settings": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns public-facing configuration the account UI needs (theme, auth mode, profile field visibility, etc.).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "Get account settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/trusted-devices": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns all trusted devices for the authenticated user (devices that bypass MFA).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "List trusted devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/account.TrustedDeviceResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/account/api/trusted-devices/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Removes a trusted device so it will require MFA again on next login.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account-security"
+                ],
+                "summary": "Revoke a trusted device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Trusted device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/audit-logs": {
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Returns a paginated list of audit events with optional filters.",
@@ -153,7 +1051,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "List audit log events",
                 "parameters": [
@@ -196,15 +1094,15 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Lists all registered clients (admin only)",
+                "description": "Lists all registered clients. Also available at /oauth2/register.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "List all clients",
                 "responses": {
@@ -228,10 +1126,10 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Registers a new OAuth2/OIDC client (admin only)",
+                "description": "Registers a new OAuth2/OIDC client. Also available at /oauth2/register (RFC 7591 Dynamic Client Registration).",
                 "consumes": [
                     "application/json"
                 ],
@@ -239,7 +1137,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Register a new OAuth2 client",
                 "parameters": [
@@ -279,15 +1177,15 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Retrieves information about a registered client (admin only)",
+                "description": "Retrieves information about a registered client. Also available at /oauth2/register/{client_id}.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Get client information",
                 "parameters": [
@@ -317,10 +1215,10 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Updates a registered client (admin only)",
+                "description": "Updates a registered client. Also available at /oauth2/register/{client_id}.",
                 "consumes": [
                     "application/json"
                 ],
@@ -328,7 +1226,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Update client information",
                 "parameters": [
@@ -373,12 +1271,12 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Deactivates (soft deletes) a registered client (admin only)",
+                "description": "Deactivates (soft deletes) a registered client. Also available at /oauth2/register/{client_id}.",
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Deactivate a client",
                 "parameters": [
@@ -407,14 +1305,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-deletion"
                 ],
                 "summary": "List all pending deletion requests",
                 "responses": {
@@ -440,14 +1338,14 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-deletion"
                 ],
                 "summary": "Cancel (dismiss) a deletion request without deleting the user",
                 "parameters": [
@@ -482,14 +1380,14 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-deletion"
                 ],
                 "summary": "Approve a deletion request — permanently deletes the user",
                 "parameters": [
@@ -524,14 +1422,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "federation-admin"
+                    "admin-federation"
                 ],
                 "summary": "List federation providers",
                 "responses": {
@@ -549,7 +1447,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -559,7 +1457,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "federation-admin"
+                    "admin-federation"
                 ],
                 "summary": "Create a federation provider",
                 "parameters": [
@@ -590,14 +1488,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "federation-admin"
+                    "admin-federation"
                 ],
                 "summary": "Get a federation provider",
                 "parameters": [
@@ -627,7 +1525,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -637,7 +1535,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "federation-admin"
+                    "admin-federation"
                 ],
                 "summary": "Update a federation provider",
                 "parameters": [
@@ -679,11 +1577,11 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "tags": [
-                    "federation-admin"
+                    "admin-federation"
                 ],
                 "summary": "Delete a federation provider",
                 "parameters": [
@@ -712,14 +1610,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "List all groups",
                 "responses": {
@@ -737,7 +1635,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -747,7 +1645,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Create a new group",
                 "parameters": [
@@ -781,14 +1679,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Get a group by ID",
                 "parameters": [
@@ -818,7 +1716,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -828,7 +1726,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Update a group",
                 "parameters": [
@@ -873,14 +1771,14 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Delete a group",
                 "parameters": [
@@ -915,14 +1813,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "List members of a group",
                 "parameters": [
@@ -949,7 +1847,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -959,7 +1857,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Add a user to a group",
                 "parameters": [
@@ -1009,14 +1907,14 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Remove a user from a group",
                 "parameters": [
@@ -1058,7 +1956,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Lists all active sessions, optionally filtered by user ID.",
@@ -1066,7 +1964,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "sessions-admin"
+                    "admin-sessions"
                 ],
                 "summary": "List sessions",
                 "parameters": [
@@ -1094,14 +1992,14 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "sessions-admin"
+                    "admin-sessions"
                 ],
                 "summary": "Deactivate a session",
                 "parameters": [
@@ -1130,7 +2028,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Retrieve all system settings (except sensitive values).",
@@ -1138,7 +2036,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Get system settings",
                 "responses": {
@@ -1156,7 +2054,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Update multiple settings by key-value pairs.",
@@ -1164,7 +2062,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Update system settings",
                 "responses": {
@@ -1190,7 +2088,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Export all settings as a JSON file (smtp_password excluded).",
@@ -1198,7 +2096,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Export settings",
                 "responses": {
@@ -1215,7 +2113,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Applies imported settings, skipping unknown keys and protected fields.",
@@ -1226,7 +2124,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Apply settings import",
                 "responses": {
@@ -1240,7 +2138,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Returns a diff of current vs incoming values for all known keys, plus unknown keys.",
@@ -1251,7 +2149,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Preview settings import",
                 "responses": {
@@ -1268,7 +2166,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Sends a test email to the currently authenticated admin's registered email address.",
@@ -1276,7 +2174,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "Test SMTP configuration",
                 "responses": {
@@ -1308,7 +2206,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Returns a summary of users, clients, and active sessions.",
@@ -1316,7 +2214,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "admin-settings"
                 ],
                 "summary": "System statistics",
                 "responses": {
@@ -1333,14 +2231,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "List all users",
                 "responses": {
@@ -1364,7 +2262,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Registers a new user in the system (admin only)",
@@ -1375,7 +2273,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Create a new user",
                 "parameters": [
@@ -1415,14 +2313,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Get a user by ID",
                 "parameters": [
@@ -1458,7 +2356,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "consumes": [
@@ -1468,7 +2366,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Update a user",
                 "parameters": [
@@ -1513,7 +2411,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Hard-deletes a user and all associated data (tokens, sessions, group memberships, passkeys, etc.)",
@@ -1521,7 +2419,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Permanently delete a user",
                 "parameters": [
@@ -1562,7 +2460,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Soft-disables a user account, immediately revoking all tokens and deactivating all sessions.",
@@ -1570,7 +2468,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Deactivate a user",
                 "parameters": [
@@ -1611,14 +2509,14 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "groups-admin"
+                    "admin-groups"
                 ],
                 "summary": "Get groups for a user",
                 "parameters": [
@@ -1647,7 +2545,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Clears the deactivated status, allowing the user to log in again.",
@@ -1655,7 +2553,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Reactivate a deactivated user",
                 "parameters": [
@@ -1696,7 +2594,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
                 "description": "Resets the failed login attempts and clears the lockout time for a user.",
@@ -1704,7 +2602,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "users-admin"
+                    "admin-users"
                 ],
                 "summary": "Unlock user account",
                 "parameters": [
@@ -1733,7 +2631,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Health"
+                    "health"
                 ],
                 "summary": "Health check",
                 "responses": {
@@ -1762,7 +2660,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Well-Known"
+                    "oauth2"
                 ],
                 "summary": "Get JWKS",
                 "responses": {
@@ -1785,7 +2683,7 @@ const docTemplate = `{
                     "text/html"
                 ],
                 "tags": [
-                    "authorize"
+                    "oauth2"
                 ],
                 "summary": "Authorize a client",
                 "parameters": [
@@ -1856,7 +2754,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "introspect"
+                    "oauth2"
                 ],
                 "summary": "Introspect a token",
                 "parameters": [
@@ -1904,71 +2802,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/oauth2/login": {
-            "post": {
-                "description": "Authenticates a user and generates an authorization code",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Log in a user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username",
-                        "name": "username",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Password",
-                        "name": "password",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "State",
-                        "name": "state",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Redirect to the provided URI with code and state",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.ApiError"
-                        }
-                    }
-                }
-            }
-        },
         "/oauth2/logout": {
             "get": {
                 "description": "OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0 §2.\nClears the IdP session and optionally redirects to post_logout_redirect_uri.",
@@ -1976,7 +2809,7 @@ const docTemplate = `{
                     "text/html"
                 ],
                 "tags": [
-                    "session"
+                    "oauth2"
                 ],
                 "summary": "RP-Initiated Logout (GET)",
                 "parameters": [
@@ -2023,7 +2856,7 @@ const docTemplate = `{
                     "text/html"
                 ],
                 "tags": [
-                    "session"
+                    "oauth2"
                 ],
                 "summary": "RP-Initiated Logout (POST)",
                 "parameters": [
@@ -2068,334 +2901,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/oauth2/mfa": {
-            "get": {
-                "description": "Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "mfa"
-                ],
-                "summary": "Multi-factor authentication",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "MFA challenge ID (GET)",
-                        "name": "challenge_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA challenge ID (POST)",
-                        "name": "challenge_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Verification code (POST)",
-                        "name": "code",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "TOTP secret for enrollment (POST)",
-                        "name": "totp_secret",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Whether to trust the device (POST)",
-                        "name": "trust_device",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "MFA form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect back to client with code after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "mfa"
-                ],
-                "summary": "Multi-factor authentication",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "MFA challenge ID (GET)",
-                        "name": "challenge_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA challenge ID (POST)",
-                        "name": "challenge_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Verification code (POST)",
-                        "name": "code",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "TOTP secret for enrollment (POST)",
-                        "name": "totp_secret",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Whether to trust the device (POST)",
-                        "name": "trust_device",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "MFA form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect back to client with code after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/passkey/login/begin": {
-            "get": {
-                "description": "Initiates a WebAuthn authentication ceremony. The user must already have a registered passkey. Returns the options for the navigator.credentials.get call.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "passkey"
-                ],
-                "summary": "Begin passkey login",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User's username",
-                        "name": "username",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 client ID",
-                        "name": "client_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "WebAuthn assertion options",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/passkey/login/finish": {
-            "post": {
-                "description": "Processes the WebAuthn assertion from the client and issues an authorization code.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "passkey"
-                ],
-                "summary": "Complete passkey login",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Challenge ID from BeginLogin",
-                        "name": "challenge_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "WebAuthn assertion response",
-                        "name": "assertion",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Redirect URL",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/passkey/register/begin": {
-            "get": {
-                "description": "Creates a user account (if not already present) and initiates a WebAuthn registration ceremony.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "passkey"
-                ],
-                "summary": "Begin passkey registration",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Desired username",
-                        "name": "username",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Email address",
-                        "name": "email",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 client ID",
-                        "name": "client_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "WebAuthn registration options",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/passkey/register/finish": {
-            "post": {
-                "description": "Processes the WebAuthn attestation from the client and registers the passkey.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "passkey"
-                ],
-                "summary": "Complete passkey registration",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Challenge ID from BeginRegistration",
-                        "name": "challenge_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "WebAuthn attestation response",
-                        "name": "attestation",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Redirect URL",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/oauth2/register": {
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Lists all registered clients (admin only)",
+                "description": "Lists all registered clients. Also available at /oauth2/register.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "List all clients",
                 "responses": {
@@ -2419,10 +2937,10 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Registers a new OAuth2/OIDC client (admin only)",
+                "description": "Registers a new OAuth2/OIDC client. Also available at /oauth2/register (RFC 7591 Dynamic Client Registration).",
                 "consumes": [
                     "application/json"
                 ],
@@ -2430,7 +2948,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Register a new OAuth2 client",
                 "parameters": [
@@ -2470,15 +2988,15 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Retrieves information about a registered client (admin only)",
+                "description": "Retrieves information about a registered client. Also available at /oauth2/register/{client_id}.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Get client information",
                 "parameters": [
@@ -2508,10 +3026,10 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Updates a registered client (admin only)",
+                "description": "Updates a registered client. Also available at /oauth2/register/{client_id}.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2519,7 +3037,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Update client information",
                 "parameters": [
@@ -2564,12 +3082,12 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminAuth": []
                     }
                 ],
-                "description": "Deactivates (soft deletes) a registered client (admin only)",
+                "description": "Deactivates (soft deletes) a registered client. Also available at /oauth2/register/{client_id}.",
                 "tags": [
-                    "client"
+                    "admin-client"
                 ],
                 "summary": "Deactivate a client",
                 "parameters": [
@@ -2604,7 +3122,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "token"
+                    "oauth2"
                 ],
                 "summary": "Revoke a token",
                 "parameters": [
@@ -2638,138 +3156,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/oauth2/signup": {
-            "get": {
-                "description": "Renders the signup page (GET) or processes a new user registration (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "signup"
-                ],
-                "summary": "User signup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Desired username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Email address",
-                        "name": "email",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Signup form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect back to client with code (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Renders the signup page (GET) or processes a new user registration (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "signup"
-                ],
-                "summary": "User signup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Desired username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Email address",
-                        "name": "email",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Redirect URI",
-                        "name": "redirect_uri",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "OAuth2 state",
-                        "name": "state",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Signup form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect back to client with code (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/oauth2/token": {
             "post": {
                 "description": "Exchanges authorization code or credentials for tokens",
@@ -2780,7 +3166,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "token"
+                    "oauth2"
                 ],
                 "summary": "Token endpoint",
                 "parameters": [
@@ -2860,7 +3246,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "userinfo"
+                    "oauth2"
                 ],
                 "summary": "Get user information",
                 "parameters": [
@@ -2894,117 +3280,146 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/onboard": {
-            "get": {
-                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "onboarding"
-                ],
-                "summary": "Initial admin setup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Admin username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin email",
-                        "name": "email",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Onboarding form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect to /admin/ after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Renders the onboarding page (GET) or creates the initial administrator (POST).",
-                "consumes": [
-                    "application/x-www-form-urlencoded"
-                ],
-                "produces": [
-                    "text/html"
-                ],
-                "tags": [
-                    "onboarding"
-                ],
-                "summary": "Initial admin setup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Admin username",
-                        "name": "username",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin password",
-                        "name": "password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Confirm password",
-                        "name": "confirm_password",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Admin email",
-                        "name": "email",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Onboarding form (GET)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "302": {
-                        "description": "Redirect to /admin/ after success (POST)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
+        "account.ConnectedProviderResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.DisableMfaRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "current_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.MfaStatusResponse": {
+            "type": "object",
+            "properties": {
+                "totp_enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "account.PasskeyRenameRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.PasskeyResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.SessionResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "is_current": {
+                    "type": "boolean"
+                },
+                "last_activity_at": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.TotpSetupResponse": {
+            "type": "object",
+            "properties": {
+                "qr_code_data": {
+                    "type": "string"
+                },
+                "secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.TotpVerifyRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.TrustedDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_used_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "account.UpdatePasswordRequest": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string"
+                }
+            }
+        },
         "admin.StatsResponse": {
             "type": "object",
             "properties": {
@@ -4060,13 +4475,73 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Type \"Bearer\" followed by a space and then your access token.",
+        "AdminAuth": {
+            "description": "Admin access token — requires admin role and autentico-admin audience. Type \"Bearer\" followed by your token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "UserAuth": {
+            "description": "User access token — any valid bearer token. Type \"Bearer\" followed by your token.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "OAuth2 and OpenID Connect endpoints (authorize, token, introspect, revoke, userinfo, logout, discovery)",
+            "name": "oauth2"
+        },
+        {
+            "description": "Client registration and management (also available via /oauth2/register per RFC 7591)",
+            "name": "admin-client"
+        },
+        {
+            "description": "System settings, statistics, audit logs, and SMTP configuration",
+            "name": "admin-settings"
+        },
+        {
+            "description": "User account management (CRUD, deactivate, reactivate, unlock)",
+            "name": "admin-users"
+        },
+        {
+            "description": "OAuth session management",
+            "name": "admin-sessions"
+        },
+        {
+            "description": "Group and membership management",
+            "name": "admin-groups"
+        },
+        {
+            "description": "Federation / external identity provider configuration",
+            "name": "admin-federation"
+        },
+        {
+            "description": "Account deletion request review and approval",
+            "name": "admin-deletion"
+        },
+        {
+            "description": "User profile and account settings",
+            "name": "account"
+        },
+        {
+            "description": "Password, sessions, passkeys, MFA, and trusted devices",
+            "name": "account-security"
+        },
+        {
+            "description": "Connected external identity providers",
+            "name": "account-federation"
+        },
+        {
+            "description": "Account deletion requests",
+            "name": "account-deletion"
+        },
+        {
+            "description": "Server health check",
+            "name": "health"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
@@ -4076,7 +4551,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Autentico OIDC",
-	Description:      "Authentication Service",
+	Description:      "Self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

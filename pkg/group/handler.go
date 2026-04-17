@@ -11,9 +11,9 @@ import (
 
 // HandleListGroups godoc
 // @Summary List all groups
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} GroupResponse
 // @Router /admin/api/groups [get]
 func HandleListGroups(w http.ResponseWriter, r *http.Request) {
@@ -27,11 +27,11 @@ func HandleListGroups(w http.ResponseWriter, r *http.Request) {
 
 // HandleCreateGroup godoc
 // @Summary Create a new group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Accept json
 // @Produce json
 // @Param group body GroupCreateRequest true "Group creation payload"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 201 {object} GroupResponse
 // @Failure 400 {object} model.ApiError
 // @Router /admin/api/groups [post]
@@ -59,10 +59,10 @@ func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetGroup godoc
 // @Summary Get a group by ID
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
 // @Param id path string true "Group ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} GroupResponse
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/groups/{id} [get]
@@ -82,12 +82,12 @@ func HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateGroup godoc
 // @Summary Update a group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Accept json
 // @Produce json
 // @Param id path string true "Group ID"
 // @Param group body GroupUpdateRequest true "Group update payload"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} GroupResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
@@ -129,10 +129,10 @@ func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteGroup godoc
 // @Summary Delete a group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
 // @Param id path string true "Group ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/groups/{id} [delete]
@@ -155,10 +155,10 @@ func HandleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 
 // HandleListMembers godoc
 // @Summary List members of a group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
 // @Param id path string true "Group ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} GroupMemberResponse
 // @Router /admin/api/groups/{id}/members [get]
 func HandleListMembers(w http.ResponseWriter, r *http.Request) {
@@ -181,12 +181,12 @@ func HandleListMembers(w http.ResponseWriter, r *http.Request) {
 
 // HandleAddMember godoc
 // @Summary Add a user to a group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Accept json
 // @Produce json
 // @Param id path string true "Group ID"
 // @Param member body GroupMemberRequest true "Member payload"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 201 {object} map[string]string
 // @Failure 400 {object} model.ApiError
 // @Failure 409 {object} model.ApiError
@@ -223,11 +223,11 @@ func HandleAddMember(w http.ResponseWriter, r *http.Request) {
 
 // HandleRemoveMember godoc
 // @Summary Remove a user from a group
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
 // @Param id path string true "Group ID"
 // @Param user_id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/groups/{id}/members/{user_id} [delete]
@@ -251,10 +251,10 @@ func HandleRemoveMember(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetUserGroups godoc
 // @Summary Get groups for a user
-// @Tags groups-admin
+// @Tags admin-groups
 // @Produce json
 // @Param id path string true "User ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} GroupResponse
 // @Router /admin/api/users/{id}/groups [get]
 func HandleGetUserGroups(w http.ResponseWriter, r *http.Request) {

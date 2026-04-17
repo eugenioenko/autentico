@@ -17,19 +17,18 @@ import (
 // HandleOnboardDirect handles GET/POST /onboard — a direct onboarding URL that requires no
 // OIDC state. After setup completes the user is redirected to /admin/ where the IdP session
 // created here allows silent SSO login without re-entering credentials.
-// @Summary Initial admin setup
-// @Description Renders the onboarding page (GET) or creates the initial administrator (POST).
-// @Tags onboarding
-// @Accept x-www-form-urlencoded
-// @Produce html
-// @Param username formData string false "Admin username"
-// @Param password formData string false "Admin password"
-// @Param confirm_password formData string false "Confirm password"
-// @Param email formData string false "Admin email"
-// @Success 200 {string} string "Onboarding form (GET)"
-// @Success 302 {string} string "Redirect to /admin/ after success (POST)"
-// @Router /onboard [get]
-// @Router /onboard [post]
+// CSRF-protected form — not included in public API docs.
+//
+// Methods: GET, POST
+// Route: /onboard
+// Accept: x-www-form-urlencoded
+// Produce: html
+// Param username formData string false "Admin username"
+// Param password formData string false "Admin password"
+// Param confirm_password formData string false "Confirm password"
+// Param email formData string false "Admin email"
+// Success 200 "Onboarding form (GET)"
+// Success 302 "Redirect to /admin/ after success (POST)"
 func HandleOnboardDirect(w http.ResponseWriter, r *http.Request) {
 	count, _ := user.CountUsers()
 	if appsettings.IsOnboarded() || count > 0 {

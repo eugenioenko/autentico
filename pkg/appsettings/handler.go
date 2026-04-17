@@ -53,9 +53,9 @@ func validateDurationSettings(updates map[string]string) error {
 // HandleGetSettings godoc
 // @Summary Get system settings
 // @Description Retrieve all system settings (except sensitive values).
-// @Tags admin
+// @Tags admin-settings
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Router /admin/api/settings [get]
 func HandleGetSettings(w http.ResponseWriter, _ *http.Request) {
@@ -73,9 +73,9 @@ func HandleGetSettings(w http.ResponseWriter, _ *http.Request) {
 // HandlePutSettings godoc
 // @Summary Update system settings
 // @Description Update multiple settings by key-value pairs.
-// @Tags admin
+// @Tags admin-settings
 // @Accept json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
@@ -136,9 +136,9 @@ type settingsPreviewResponse struct {
 // HandleExportSettings godoc
 // @Summary Export settings
 // @Description Export all settings as a JSON file (smtp_password excluded).
-// @Tags admin
+// @Tags admin-settings
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} settingsExport
 // @Router /admin/api/settings/export [get]
 func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
@@ -159,10 +159,10 @@ func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
 // HandleImportPreview godoc
 // @Summary Preview settings import
 // @Description Returns a diff of current vs incoming values for all known keys, plus unknown keys.
-// @Tags admin
+// @Tags admin-settings
 // @Accept json
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} settingsPreviewResponse
 // @Router /admin/api/settings/import/preview [post]
 func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
@@ -199,10 +199,10 @@ func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
 // HandleImportApply godoc
 // @Summary Apply settings import
 // @Description Applies imported settings, skipping unknown keys and protected fields.
-// @Tags admin
+// @Tags admin-settings
 // @Accept json
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Router /admin/api/settings/import/apply [post]
 func HandleImportApply(w http.ResponseWriter, r *http.Request) {
@@ -240,9 +240,9 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 // HandleTestSmtp godoc
 // @Summary Test SMTP configuration
 // @Description Sends a test email to the currently authenticated admin's registered email address.
-// @Tags admin
+// @Tags admin-settings
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} model.ApiError
 // @Failure 500 {object} model.ApiError

@@ -18,7 +18,7 @@ import (
 // HandleLogout godoc
 // @Summary RP-Initiated Logout (POST)
 // @Description RP-Initiated Logout via POST (form-encoded) per OpenID Connect RP-Initiated Logout 1.0 §2.
-// @Tags session
+// @Tags oauth2
 // @Accept application/x-www-form-urlencoded
 // @Produce html
 // @Param id_token_hint formData string false "Previously issued ID token"
@@ -102,7 +102,7 @@ func parseIDTokenHint(hint string) *idTokenHintClaims {
 // @Summary RP-Initiated Logout (GET)
 // @Description OIDC RP-Initiated Logout per OpenID Connect RP-Initiated Logout 1.0 §2.
 // @Description Clears the IdP session and optionally redirects to post_logout_redirect_uri.
-// @Tags session
+// @Tags oauth2
 // @Produce html
 // @Param id_token_hint query string false "Previously issued ID token"
 // @Param post_logout_redirect_uri query string false "URI to redirect to after logout"

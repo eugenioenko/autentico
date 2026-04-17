@@ -15,7 +15,7 @@ type HealthResponse struct {
 // HandleHealth returns the health status of the server.
 // @Summary Health check
 // @Description Returns the health status of the server and its dependencies. Returns 200 when healthy, 503 when the database is unreachable.
-// @Tags Health
+// @Tags health
 // @Produce json
 // @Success 200 {object} HealthResponse
 // @Failure 503 {object} HealthResponse

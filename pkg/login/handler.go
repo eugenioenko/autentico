@@ -23,20 +23,20 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleLoginUser godoc
-// @Summary Log in a user
-// @Description Authenticates a user and generates an authorization code
-// @Tags auth
-// @Accept application/x-www-form-urlencoded
-// @Produce json
-// @Param username formData string true "Username"
-// @Param password formData string true "Password"
-// @Param redirect formData string true "Redirect URI"
-// @Param state formData string true "State"
-// @Success 302 {string} string "Redirect to the provided URI with code and state"
-// @Failure 400 {object} model.ApiError
-// @Failure 500 {object} model.ApiError
-// @Router /oauth2/login [post]
+// HandleLoginUser handles user login requests.
+// CSRF-protected form — not included in public API docs.
+//
+// Method: POST
+// Route: /oauth2/login
+// Accept: application/x-www-form-urlencoded
+// Produce: json
+// Param username formData string true "Username"
+// Param password formData string true "Password"
+// Param redirect formData string true "Redirect URI"
+// Param state formData string true "State"
+// Success 302 "Redirect to the provided URI with code and state"
+// Failure 400 model.ApiError
+// Failure 500 model.ApiError
 func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")

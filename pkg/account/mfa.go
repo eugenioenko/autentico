@@ -12,6 +12,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// HandleGetMfaStatus godoc
+// @Summary Get MFA status
+// @Description Returns the MFA enrollment status for the authenticated user.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} MfaStatusResponse
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/mfa [get]
 func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -24,6 +33,16 @@ func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// HandleSetupTotp godoc
+// @Summary Begin TOTP setup
+// @Description Generates a TOTP secret and QR code URI for enrollment. Must be verified before activation.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} TotpSetupResponse
+// @Failure 401 {object} model.ApiError
+// @Failure 409 {object} model.ApiError
+// @Router /account/api/mfa/totp/setup [post]
 func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -54,6 +73,18 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// HandleVerifyTotp godoc
+// @Summary Verify TOTP enrollment
+// @Description Verifies a TOTP code to complete enrollment. The secret must have been generated via setup first.
+// @Tags account-security
+// @Accept json
+// @Produce json
+// @Param request body TotpVerifyRequest true "TOTP verification code"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Router /account/api/mfa/totp/verify [post]
 func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {
@@ -88,6 +119,19 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 	utils.SuccessResponse(w, map[string]string{"message": "TOTP enabled successfully"}, http.StatusOK)
 }
 
+// HandleDeleteMfa godoc
+// @Summary Disable MFA
+// @Description Disables TOTP MFA for the authenticated user. Requires current password and a valid TOTP code. Revokes all sessions after disabling.
+// @Tags account-security
+// @Accept json
+// @Produce json
+// @Param request body DisableMfaRequest true "Password and TOTP code for confirmation"
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /account/api/mfa/totp [delete]
 func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.GetUserFromRequest(r)
 	if err != nil {

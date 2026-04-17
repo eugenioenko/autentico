@@ -11,9 +11,9 @@ import (
 
 // HandleListProviders godoc
 // @Summary List federation providers
-// @Tags federation-admin
+// @Tags admin-federation
 // @Produce json
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {array} ProviderResponse
 // @Router /admin/api/federation [get]
 func HandleListProviders(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +36,11 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 
 // HandleCreateProvider godoc
 // @Summary Create a federation provider
-// @Tags federation-admin
+// @Tags admin-federation
 // @Accept json
 // @Produce json
 // @Param request body FederationProviderRequest true "Provider request"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 201 {object} map[string]string
 // @Router /admin/api/federation [post]
 func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
@@ -89,10 +89,10 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetProvider godoc
 // @Summary Get a federation provider
-// @Tags federation-admin
+// @Tags admin-federation
 // @Produce json
 // @Param id path string true "Provider ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} ProviderResponse
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/federation/{id} [get]
@@ -108,12 +108,12 @@ func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateProvider godoc
 // @Summary Update a federation provider
-// @Tags federation-admin
+// @Tags admin-federation
 // @Accept json
 // @Produce json
 // @Param id path string true "Provider ID"
 // @Param request body FederationProviderRequest true "Provider request"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 200 {object} map[string]string
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/federation/{id} [put]
@@ -151,9 +151,9 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteProvider godoc
 // @Summary Delete a federation provider
-// @Tags federation-admin
+// @Tags admin-federation
 // @Param id path string true "Provider ID"
-// @Security BearerAuth
+// @Security AdminAuth
 // @Success 204
 // @Failure 404 {object} model.ApiError
 // @Router /admin/api/federation/{id} [delete]
