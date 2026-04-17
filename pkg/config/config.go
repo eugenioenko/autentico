@@ -3,6 +3,7 @@ package config
 import (
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -234,7 +235,20 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 // OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
 // are derived from AppURL — they do not need to be set manually.
 func InitBootstrap() {
-	_ = godotenv.Load() // silent if no .env file
+	_ = godotenv.Load() // silent if no .env file in CWD
+
+	// Fallback: check for .env next to the database file (e.g. ./db/.env),
+	// which is where --auto-setup writes it for Docker volume persistence.
+	if _, err := os.Stat(".env"); err != nil {
+		dbFilePath := os.Getenv("AUTENTICO_DB_FILE_PATH")
+		if dbFilePath == "" {
+			dbFilePath = "./db/autentico.db"
+		}
+		dbEnv := filepath.Join(filepath.Dir(dbFilePath), ".env")
+		if _, err := os.Stat(dbEnv); err == nil {
+			_ = godotenv.Load(dbEnv)
+		}
+	}
 
 	appURL := getEnv("AUTENTICO_APP_URL", "http://localhost:9999")
 	oauthPath := getEnv("AUTENTICO_APP_OAUTH_PATH", "/oauth2")
