@@ -63,7 +63,7 @@ func ApiDocsHandler() http.HandlerFunc {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
-  <script id="api-reference" data-url="/swagger/doc.json" data-configuration='{"authentication":{"preferredSecurityScheme":"AdminAuth"}}'></script>
+  <script id="api-reference" data-url="/swagger/doc.json"></script>
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`
