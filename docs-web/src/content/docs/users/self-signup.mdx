@@ -18,7 +18,7 @@ curl -X PUT https://auth.example.com/admin/api/settings \
   -d '{"allow_self_signup": "true"}'
 ```
 
-When enabled, a **Create account** link appears on the login page, pointing to `/oauth2/signup`.
+When enabled, a **Create account** link appears on the login page, pointing to `/oauth2/authorize?prompt=create`.
 
 ## Per-client control
 

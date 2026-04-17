@@ -24,20 +24,19 @@ import (
 )
 
 // HandleMfa handles multi-factor authentication requests.
-// @Summary Multi-factor authentication
-// @Description Renders the MFA verification or enrollment page (GET) or processes the MFA code (POST).
-// @Tags mfa
-// @Accept x-www-form-urlencoded
-// @Produce html
-// @Param challenge_id query string false "MFA challenge ID (GET)"
-// @Param challenge_id formData string false "MFA challenge ID (POST)"
-// @Param code formData string false "Verification code (POST)"
-// @Param totp_secret formData string false "TOTP secret for enrollment (POST)"
-// @Param trust_device formData string false "Whether to trust the device (POST)"
-// @Success 200 {string} string "MFA form (GET)"
-// @Success 302 {string} string "Redirect back to client with code after success (POST)"
-// @Router /oauth2/mfa [get]
-// @Router /oauth2/mfa [post]
+// CSRF-protected form — not included in public API docs.
+//
+// Methods: GET, POST
+// Route: /oauth2/mfa
+// Accept: x-www-form-urlencoded
+// Produce: html
+// Param challenge_id query string false "MFA challenge ID (GET)"
+// Param challenge_id formData string false "MFA challenge ID (POST)"
+// Param code formData string false "Verification code (POST)"
+// Param totp_secret formData string false "TOTP secret for enrollment (POST)"
+// Param trust_device formData string false "Whether to trust the device (POST)"
+// Success 200 "MFA form (GET)"
+// Success 302 "Redirect back to client with code after success (POST)"
 func HandleMfa(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
