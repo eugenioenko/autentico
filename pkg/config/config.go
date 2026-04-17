@@ -234,14 +234,11 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 // OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
 // are derived from AppURL — they do not need to be set manually.
 func InitBootstrap() {
-	_ = godotenv.Load() // silent if no .env file in CWD
-
-	// Fallback: check for .env in ./db/, which is where --auto-setup
-	// writes it for Docker volume persistence.
-	if _, err := os.Stat(".env"); err != nil {
-		if _, err := os.Stat("./db/.env"); err == nil {
-			_ = godotenv.Load("./db/.env")
-		}
+	// Load .env: prefer CWD, fall back to ./db/.env (where --auto-setup writes it).
+	if _, err := os.Stat(".env"); err == nil {
+		_ = godotenv.Load(".env")
+	} else if _, err := os.Stat("./db/.env"); err == nil {
+		_ = godotenv.Load("./db/.env")
 	}
 
 	appURL := getEnv("AUTENTICO_APP_URL", "http://localhost:9999")
