@@ -1,0 +1,117 @@
+---
+title: Client Libraries
+description: Popular OIDC client libraries and minimal configuration examples for connecting to Autentico.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Autentico works with any OIDC-compliant client library. Point it at the discovery URL and the library handles the rest.
+
+```
+DISCOVERY_URL = https://auth.example.com/oauth2/.well-known/openid-configuration
+```
+
+## JavaScript / TypeScript
+
+### oidc-client-ts (SPA)
+
+```ts
+import { UserManager } from "oidc-client-ts";
+
+const userManager = new UserManager({
+  authority: "https://auth.example.com/oauth2",
+  client_id: "your-client-id",
+  redirect_uri: "http://localhost:3000/callback",
+  scope: "openid profile email",
+  response_type: "code",
+});
+
+// Redirect to login
+userManager.signinRedirect();
+
+// Handle callback
+const user = await userManager.signinRedirectCallback();
+console.log(user.profile);
+```
+
+### next-auth (Next.js)
+
+```ts
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth";
+
+export const { handlers, auth } = NextAuth({
+  providers: [
+    {
+      id: "autentico",
+      name: "Autentico",
+      type: "oidc",
+      issuer: "https://auth.example.com/oauth2",
+      clientId: "your-client-id",
+      clientSecret: "your-client-secret",
+    },
+  ],
+});
+```
+
+### arctic (lightweight)
+
+```ts
+import { createOIDCClient } from "arctic";
+
+const client = await createOIDCClient(
+  "https://auth.example.com/oauth2",
+  "your-client-id",
+  "your-client-secret",
+  "http://localhost:3000/callback"
+);
+```
+
+## Go
+
+### coreos/go-oidc
+
+```go
+provider, _ := oidc.NewProvider(ctx, "https://auth.example.com/oauth2")
+
+oauth2Config := oauth2.Config{
+    ClientID:     "your-client-id",
+    ClientSecret: "your-client-secret",
+    RedirectURL:  "http://localhost:8080/callback",
+    Endpoint:     provider.Endpoint(),
+    Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+}
+
+// Redirect to login
+http.Redirect(w, r, oauth2Config.AuthCodeURL(state), http.StatusFound)
+
+// Verify ID token in callback
+verifier := provider.Verifier(&oidc.Config{ClientID: "your-client-id"})
+idToken, _ := verifier.Verify(ctx, rawIDToken)
+```
+
+## Python
+
+### authlib
+
+```python
+from authlib.integrations.requests_client import OAuth2Session
+
+client = OAuth2Session(
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    redirect_uri="http://localhost:5000/callback",
+    scope="openid profile email",
+)
+
+# Discovery-based configuration
+metadata = client.fetch_server_metadata(
+    "https://auth.example.com/oauth2/.well-known/openid-configuration"
+)
+```
+
+## Notes
+
+- All libraries auto-discover endpoints from the issuer URL — you don't need to hardcode `/token`, `/authorize`, etc.
+- Use PKCE (`S256`) for public clients (SPAs, mobile apps). Most modern libraries enable it by default.
+- For Keycloak migrations, Autentico also exposes `/oauth2/protocol/openid-connect/token` and `/oauth2/protocol/openid-connect/userinfo`.
