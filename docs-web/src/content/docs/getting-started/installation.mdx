@@ -110,6 +110,7 @@ The compiled binary is at `./autentico`.
 | `autentico start --no-auto-migrate` | Skip automatic migrations. Server refuses to start if the schema is behind. |
 | `autentico migrate` | Interactively apply pending database migrations. |
 | `autentico onboard` | Create the first admin account headlessly (for CI/CD). |
+| `autentico onboard --enable-admin-password-grant` | Also seed the `autentico-admin` client with the `password` (ROPC) grant so admin-API tokens can be fetched headlessly. Works on both `onboard` and `start` (including `start --auto-setup`), and via `AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT=true`. Only takes effect when seeding a fresh admin client — existing clients are left alone. |
 | `autentico version` | Print version and exit. |
 
 ## Next steps

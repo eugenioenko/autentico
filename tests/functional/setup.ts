@@ -48,7 +48,7 @@ export async function setup() {
   // 4. Create admin account via CLI onboard
   console.log('[functional] Running onboard...');
   execSync(
-    `${BINARY} onboard --username admin --password Password123! --email admin@test.com --auto-migrate`,
+    `${BINARY} onboard --username admin --password Password123! --email admin@test.com --auto-migrate --enable-admin-password-grant`,
     { cwd: tempDir, stdio: 'inherit', env }
   );
 

@@ -95,7 +95,7 @@ func RunStart(c *cli.Context) error {
 	key.GetPrivateKey()
 
 	// Auto-seed required OAuth2 clients
-	seedAdminClient()
+	seedAdminClient(c.Bool("enable-admin-password-grant"))
 	seedAccountClient()
 
 	cfg := config.Get()
@@ -310,17 +310,23 @@ func RunStart(c *cli.Context) error {
 }
 
 // seedAdminClient creates the autentico-admin OAuth2 client if it does not already exist.
-func seedAdminClient() {
+// When enablePasswordGrant is true, "password" is included in grant_types so the client
+// can issue admin-API tokens headlessly for CI automation (RFC 6749 §4.3 / ROPC).
+func seedAdminClient(enablePasswordGrant bool) {
 	const adminClientID = "autentico-admin"
 	const adminClientName = "Autentico Admin UI"
 	if existing, err := client.ClientByClientID(adminClientID); err == nil && existing != nil {
 		return
 	}
+	grantTypes := []string{"authorization_code", "refresh_token"}
+	if enablePasswordGrant {
+		grantTypes = append(grantTypes, "password")
+	}
 	redirectURI := config.GetBootstrap().AppURL + "/admin/callback"
 	if _, err := client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
 		ClientName:              adminClientName,
 		RedirectURIs:            []string{redirectURI},
-		GrantTypes:              []string{"authorization_code", "refresh_token"},
+		GrantTypes:              grantTypes,
 		ResponseTypes:           []string{"code"},
 		Scopes:                  "openid profile email offline_access",
 		ClientType:              "public",
