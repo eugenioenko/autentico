@@ -98,11 +98,6 @@ func main() {
 						Name:  "dev",
 						Usage: "With --auto-setup, disable secure cookie flags for local HTTP development",
 					},
-					&cli.BoolFlag{
-						Name:    "enable-admin-password-grant",
-						Usage:   "Seed the autentico-admin client with the password (ROPC) grant so admin-API tokens can be obtained headlessly (for CI/CD). Only applied when seeding a fresh admin client. MFA and account lockout still apply.",
-						EnvVars: []string{"AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT"},
-					},
 				},
 				Action: appCli.RunStart,
 			},

@@ -95,7 +95,7 @@ func RunStart(c *cli.Context) error {
 	key.GetPrivateKey()
 
 	// Auto-seed required OAuth2 clients
-	seedAdminClient(c.Bool("enable-admin-password-grant"))
+	seedAdminClient(false)
 	seedAccountClient()
 
 	cfg := config.Get()
