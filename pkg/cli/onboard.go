@@ -41,7 +41,15 @@ func RunOnboard(c *cli.Context) error {
 		log.Printf("warning: could not load settings from DB: %v", err)
 	}
 
-	return executeOnboard(c.String("username"), c.String("password"), c.String("email"))
+	if err := executeOnboard(c.String("username"), c.String("password"), c.String("email")); err != nil {
+		return err
+	}
+
+	// Seed the admin client here (rather than waiting for `autentico start`) so the
+	// --enable-admin-password-grant flag takes effect. Idempotent: seedAdminClient
+	// skips if the client already exists.
+	seedAdminClient(c.Bool("enable-admin-password-grant"))
+	return nil
 }
 
 // executeOnboard contains the core onboarding logic, separated from bootstrap

@@ -16,20 +16,38 @@ func TestSeedClients(t *testing.T) {
 		config.Bootstrap.AppURL = "http://test.com"
 	})
 
-	seedAdminClient()
+	seedAdminClient(false)
 	seedAccountClient()
 
 	c1, err := client.ClientByClientID("autentico-admin")
 	assert.NoError(t, err)
 	assert.NotNil(t, c1)
+	assert.NotContains(t, c1.GetGrantTypes(), "password", "default seed must not include password grant")
 
 	c2, err := client.ClientByClientID("autentico-account")
 	assert.NoError(t, err)
 	assert.NotNil(t, c2)
 
 	// Test idempotent seeding
-	seedAdminClient()
+	seedAdminClient(false)
 	seedAccountClient()
+}
+
+func TestSeedAdminClient_WithPasswordGrant(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AppURL = "http://test.com"
+	})
+
+	seedAdminClient(true)
+
+	c, err := client.ClientByClientID("autentico-admin")
+	assert.NoError(t, err)
+	assert.NotNil(t, c)
+	grants := c.GetGrantTypes()
+	assert.Contains(t, grants, "password", "password grant must be present when enabled")
+	assert.Contains(t, grants, "authorization_code")
+	assert.Contains(t, grants, "refresh_token")
 }
 
 func TestValidateBootstrapSecrets_MissingAll(t *testing.T) {
@@ -66,6 +84,6 @@ func TestSeedClients_Errors(t *testing.T) {
 	db.CloseDB()
 	
 	// These should not panic but will log warnings
-	seedAdminClient()
+	seedAdminClient(false)
 	seedAccountClient()
 }

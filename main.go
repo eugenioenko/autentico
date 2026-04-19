@@ -131,6 +131,11 @@ func main() {
 						Name:  "auto-migrate",
 						Usage: "Automatically apply pending database migrations",
 					},
+					&cli.BoolFlag{
+						Name:    "enable-admin-password-grant",
+						Usage:   "Seed the autentico-admin client with the password (ROPC) grant so admin-API tokens can be obtained headlessly (for CI/CD). MFA and account lockout still apply.",
+						EnvVars: []string{"AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT"},
+					},
 				},
 				Action: appCli.RunOnboard,
 			},

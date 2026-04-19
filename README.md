@@ -251,6 +251,8 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 
 The `onboard` command creates the admin account headlessly — useful for CI/CD, Docker, and automated deployments. Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`). Alternatively, start the server first and visit `http://localhost:9999/onboard/` to complete setup in the browser.
 
+To fetch admin-API tokens from scripts (integration tests, CI/CD), pass `--enable-admin-password-grant` on `autentico onboard` (or set `AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT=true`). This seeds the `autentico-admin` client with the `password` (ROPC) grant so `POST /oauth2/token` with `grant_type=password` can issue admin tokens headlessly. If you onboard via the browser wizard instead, add the `password` grant afterwards from the Admin UI (Clients → `autentico-admin`). MFA and account lockout still apply.
+
 ### Building from Source
 
 **1. Clone the repository**
