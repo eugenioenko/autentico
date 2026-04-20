@@ -765,7 +765,7 @@ export default function SettingsPage() {
                     <Input placeholder="https://..." />
                   </Form.Item>
                   <Form.Item
-                    label="CSS Overrides"
+                    label="Custom CSS"
                     name="theme_css_inline"
                     tooltip={{ title: tip("theme_css_inline"), icon: <ExclamationCircleOutlined /> }}
                   >
