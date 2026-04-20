@@ -1,7 +1,9 @@
 package view
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -19,9 +21,6 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"authURL": func(path string) string {
 			return config.GetBootstrap().AppOAuthPath + path
 		},
-		"safeHTML": func(s template.HTML) template.HTML {
-			return s
-		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }
@@ -34,4 +33,24 @@ func StaticHandler() http.Handler {
 		panic(err)
 	}
 	return http.FileServer(http.FS(sub))
+}
+
+// ThemeCSSHandler serves admin-supplied theme CSS (theme_css_inline +
+// theme_css_file content) with text/css content-type. Serving as an external
+// stylesheet — instead of injecting into a page <style> block — eliminates
+// the </style> breakout vector that turned admin-controlled CSS into XSS.
+func ThemeCSSHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		css := config.Get().ThemeCssResolved
+		sum := sha256.Sum256([]byte(css))
+		etag := `"` + hex.EncodeToString(sum[:8]) + `"`
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "public, max-age=60, must-revalidate")
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write([]byte(css))
+	})
 }

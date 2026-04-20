@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -91,7 +90,6 @@ func RenderVerifyEmail(w http.ResponseWriter, r *http.Request, mode, username st
 		"Error":               errMsg,
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

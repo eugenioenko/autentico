@@ -289,7 +289,6 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		csrf.TemplateTag:     csrf.TemplateField(r),
 		"ThemeTitle":         cfg.Theme.Title,
 		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
-		"ThemeCssResolved":   template.CSS(cfg.ThemeCssResolved),
 		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
 		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
 	}
@@ -323,14 +322,13 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	}
 
 	data := map[string]any{
-		"ChallengeID":      challenge.ID,
-		"TotpSecret":       secret,
-		"QRCodeDataURI":    template.URL(qrDataURI),
-		"Error":            errorMsg,
-		csrf.TemplateTag:   csrf.TemplateField(r),
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+		"ChallengeID":    challenge.ID,
+		"TotpSecret":     secret,
+		"QRCodeDataURI":  template.URL(qrDataURI),
+		"Error":          errorMsg,
+		csrf.TemplateTag: csrf.TemplateField(r),
+		"ThemeTitle":     cfg.Theme.Title,
+		"ThemeLogoUrl":   cfg.Theme.LogoUrl,
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {

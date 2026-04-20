@@ -3,7 +3,6 @@ package passwordreset
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -64,7 +63,6 @@ func renderForgotPassword(w http.ResponseWriter, r *http.Request, mode string, p
 		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
@@ -92,7 +90,6 @@ func renderResetPassword(w http.ResponseWriter, r *http.Request, mode, token str
 		"Error":               errMsg,
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

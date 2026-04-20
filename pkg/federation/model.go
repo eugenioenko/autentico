@@ -2,7 +2,6 @@ package federation
 
 import (
 	"database/sql"
-	"html/template"
 	"time"
 )
 
@@ -20,10 +19,12 @@ type FederationProvider struct {
 }
 
 // FederationProviderView is a safe, template-ready representation of a provider.
+// HasIcon signals whether to emit an <img> referencing the icon route — admin SVG
+// is never injected into the login HTML directly to prevent stored XSS.
 type FederationProviderView struct {
 	ID      string
 	Name    string
-	IconSVG template.HTML
+	HasIcon bool
 }
 
 // FederatedIdentity links a local user to a provider-specific subject (sub).

@@ -3,7 +3,6 @@ package federation
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -30,7 +29,9 @@ func ListFederationProviders() ([]*FederationProvider, error) {
 }
 
 // ListEnabledProviderViews returns only enabled providers as template-safe views,
-// ordered by sort_order for display on the login page.
+// ordered by sort_order for display on the login page. Admin-supplied SVG never
+// flows into the template — HasIcon tells the template to emit an <img> pointing
+// at the federation icon route, which serves the SVG with image/svg+xml.
 func ListEnabledProviderViews() ([]FederationProviderView, error) {
 	rows, err := db.GetDB().Query(
 		`SELECT id, name, icon_svg FROM federation_providers
@@ -51,7 +52,7 @@ func ListEnabledProviderViews() ([]FederationProviderView, error) {
 		views = append(views, FederationProviderView{
 			ID:      id,
 			Name:    name,
-			IconSVG: template.HTML(iconSVG.String),
+			HasIcon: iconSVG.Valid && iconSVG.String != "",
 		})
 	}
 	return views, rows.Err()
