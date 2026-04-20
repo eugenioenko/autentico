@@ -88,6 +88,7 @@ const tip = makeTip({
   profile_field_address: "Controls all address fields (street, city, region, postal code, country) as a group.",
   theme_title: "Custom title for the login and account pages.",
   theme_logo_url: "URL for the custom logo shown on login and account pages.",
+  theme_css_inline: "Custom CSS appended to the login and account pages. Served as an external stylesheet, so admin CSS cannot break out into HTML.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
 }, "https://autentico.top/configuration/runtime-settings");
 
@@ -762,6 +763,18 @@ export default function SettingsPage() {
                     tooltip={{ title: tip("theme_logo_url"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="https://..." />
+                  </Form.Item>
+                  <Form.Item
+                    label="Custom CSS"
+                    name="theme_css_inline"
+                    tooltip={{ title: tip("theme_css_inline"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input.TextArea
+                      rows={8}
+                      autoSize={{ minRows: 8, maxRows: 24 }}
+                      placeholder=":root { --color-primary-bg: #ff7b00; }"
+                      style={{ fontFamily: "monospace", fontSize: 13 }}
+                    />
                   </Form.Item>
                   <Form.Item
                     label="Passkey RP Name"

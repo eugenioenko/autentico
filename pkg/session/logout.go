@@ -2,7 +2,6 @@ package session
 
 import (
 	"encoding/json"
-	"html/template"
 	"log/slog"
 	"net/http"
 
@@ -211,9 +210,8 @@ func renderLogoutSuccess(w http.ResponseWriter) {
 		return
 	}
 	data := map[string]any{
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+		"ThemeTitle":   cfg.Theme.Title,
+		"ThemeLogoUrl": cfg.Theme.LogoUrl,
 	}
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("session: failed to execute logout_success template", "error", err)

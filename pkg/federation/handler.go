@@ -2,7 +2,9 @@ package federation
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -19,6 +21,33 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
+
+// HandleFederationIcon serves a provider's icon_svg with image/svg+xml content type.
+// The login template references this via <img src> — SVGs loaded via <img> are
+// processed by browsers in secure static mode (scripts and external resources
+// disabled), neutralizing any malicious content in the admin-supplied SVG.
+// The restrictive per-response CSP defends the case where someone navigates
+// directly to the URL, treating the SVG as a top-level document.
+func HandleFederationIcon(w http.ResponseWriter, r *http.Request) {
+	providerID := r.PathValue("id")
+	provider, err := FederationProviderByID(providerID)
+	if err != nil || !provider.Enabled || !provider.IconSVG.Valid || provider.IconSVG.String == "" {
+		http.NotFound(w, r)
+		return
+	}
+	svg := []byte(provider.IconSVG.String)
+	sum := sha256.Sum256(svg)
+	etag := `"` + hex.EncodeToString(sum[:8]) + `"`
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "public, max-age=300, must-revalidate")
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	_, _ = w.Write(svg)
+}
 
 // HandleFederationBegin initiates an OIDC federation login by redirecting
 // the user to the external identity provider.

@@ -2,7 +2,6 @@ package signup
 
 import (
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -282,7 +281,6 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
 		// Profile field visibility
 		"ProfileFieldGivenName":  cfg.ProfileFieldGivenName,
 		"ProfileFieldFamilyName": cfg.ProfileFieldFamilyName,

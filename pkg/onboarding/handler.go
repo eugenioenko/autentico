@@ -1,7 +1,6 @@
 package onboarding
 
 import (
-	"html/template"
 	"net/http"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
@@ -122,7 +121,6 @@ func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams,
 		csrf.TemplateTag:    csrf.TemplateField(r),
 		"ThemeTitle":        cfg.Theme.Title,
 		"ThemeLogoUrl":      cfg.Theme.LogoUrl,
-		"ThemeCssResolved":  template.CSS(cfg.ThemeCssResolved),
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

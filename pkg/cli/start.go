@@ -234,6 +234,8 @@ func RunStart(c *cli.Context) error {
 	// -------------------------------------------------------------------------
 	mux.Handle("/admin/", admin.Handler())
 	mux.Handle("/account/", account.Handler())
+	mux.Handle("GET "+oauth+"/static/theme.css", view.ThemeCSSHandler())
+	mux.HandleFunc("GET "+oauth+"/federation/{id}/icon.svg", federation.HandleFederationIcon)
 	mux.Handle(oauth+"/static/", http.StripPrefix(oauth+"/static/", view.StaticHandler()))
 
 	// -------------------------------------------------------------------------

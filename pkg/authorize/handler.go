@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -249,8 +248,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeCssResolved":    template.CSS(cfg.ThemeCssResolved),
-		"SmtpConfigured":     cfg.SmtpHost != "",
+		"SmtpConfigured":      cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
 	}
 
@@ -299,10 +297,9 @@ func renderError(w http.ResponseWriter, errorMsg string) {
 	}
 
 	data := map[string]any{
-		"Error":            errorMsg,
-		"ThemeTitle":       cfg.Theme.Title,
-		"ThemeLogoUrl":     cfg.Theme.LogoUrl,
-		"ThemeCssResolved": template.CSS(cfg.ThemeCssResolved),
+		"Error":        errorMsg,
+		"ThemeTitle":   cfg.Theme.Title,
+		"ThemeLogoUrl": cfg.Theme.LogoUrl,
 	}
 
 	w.WriteHeader(http.StatusBadRequest)

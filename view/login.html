@@ -59,7 +59,7 @@
   <div class="auth-divider">or</div>
   {{range .FederatedProviders}}
   <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
-    {{if .IconSVG}}{{safeHTML .IconSVG}}{{end}}
+    {{if .HasIcon}}<img src="{{authURL "/federation/"}}{{.ID}}/icon.svg" alt="" width="20" height="20" class="federation-icon" />{{end}}
     Sign in with {{.Name}}
   </a>
   {{end}}
