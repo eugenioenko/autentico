@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -293,6 +294,82 @@ func TestDeriveUsername_EdgeCases_Extra(t *testing.T) {
 	// No email
 	u = deriveUsername("", "sub1234567890")
 	assert.Equal(t, "sub1234567890-34567890", u)
+}
+
+func TestHandleFederationIcon(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	const maliciousSVG = `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`
+
+	_ = CreateFederationProvider(FederationProvider{
+		ID: "with-icon", Name: "With Icon", Issuer: "https://i.com", ClientID: "c", ClientSecret: "s",
+		Enabled: true, IconSVG: sql.NullString{String: maliciousSVG, Valid: true},
+	})
+	_ = CreateFederationProvider(FederationProvider{
+		ID: "no-icon", Name: "No Icon", Issuer: "https://i.com", ClientID: "c", ClientSecret: "s",
+		Enabled: true,
+	})
+	_ = CreateFederationProvider(FederationProvider{
+		ID: "disabled", Name: "Disabled", Issuer: "https://i.com", ClientID: "c", ClientSecret: "s",
+		Enabled: false, IconSVG: sql.NullString{String: "<svg/>", Valid: true},
+	})
+
+	t.Run("serves svg with restrictive headers", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/with-icon/icon.svg", nil)
+		req.SetPathValue("id", "with-icon")
+		rr := httptest.NewRecorder()
+		HandleFederationIcon(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "image/svg+xml", rr.Header().Get("Content-Type"))
+		assert.Contains(t, rr.Header().Get("Content-Security-Policy"), "default-src 'none'")
+		assert.Contains(t, rr.Header().Get("Content-Security-Policy"), "sandbox")
+		assert.NotEmpty(t, rr.Header().Get("ETag"))
+		// Body is returned verbatim — script-safety comes from <img> containment
+		// in the template, not from sanitization. Asserting the raw body documents
+		// that contract: if someone adds sanitization, this test should change.
+		assert.Equal(t, maliciousSVG, rr.Body.String())
+	})
+
+	t.Run("304 on matching If-None-Match", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/with-icon/icon.svg", nil)
+		req.SetPathValue("id", "with-icon")
+		rr := httptest.NewRecorder()
+		HandleFederationIcon(rr, req)
+		etag := rr.Header().Get("ETag")
+
+		req2 := httptest.NewRequest(http.MethodGet, "/oauth2/federation/with-icon/icon.svg", nil)
+		req2.SetPathValue("id", "with-icon")
+		req2.Header.Set("If-None-Match", etag)
+		rr2 := httptest.NewRecorder()
+		HandleFederationIcon(rr2, req2)
+		assert.Equal(t, http.StatusNotModified, rr2.Code)
+		assert.Empty(t, rr2.Body.String())
+	})
+
+	t.Run("404 when provider has no icon", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/no-icon/icon.svg", nil)
+		req.SetPathValue("id", "no-icon")
+		rr := httptest.NewRecorder()
+		HandleFederationIcon(rr, req)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+	})
+
+	t.Run("404 when provider disabled", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/disabled/icon.svg", nil)
+		req.SetPathValue("id", "disabled")
+		rr := httptest.NewRecorder()
+		HandleFederationIcon(rr, req)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+	})
+
+	t.Run("404 when provider missing", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/nonexistent/icon.svg", nil)
+		req.SetPathValue("id", "nonexistent")
+		rr := httptest.NewRecorder()
+		HandleFederationIcon(rr, req)
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+	})
 }
 
 func TestHandleFederationBegin_Success(t *testing.T) {
