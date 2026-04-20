@@ -21,6 +21,9 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"authURL": func(path string) string {
 			return config.GetBootstrap().AppOAuthPath + path
 		},
+		"hasThemeCss": func() bool {
+			return config.Get().ThemeCssResolved != ""
+		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }
