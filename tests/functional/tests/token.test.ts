@@ -3,10 +3,19 @@ import {
   OAUTH_URL,
   ADMIN_USERNAME,
   ADMIN_PASSWORD,
+  ADMIN_EMAIL,
   obtainTokenViaROPC,
   postForm,
   getAdminToken,
 } from '../helpers';
+
+function decodeJwtPayload(jwt: string): Record<string, unknown> {
+  const parts = jwt.split('.');
+  if (parts.length !== 3) throw new Error('not a JWT');
+  const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+  return JSON.parse(Buffer.from(padded, 'base64').toString('utf-8'));
+}
 
 describe('Token endpoint — ROPC', () => {
   it('returns access, refresh, and id tokens', async () => {
@@ -16,6 +25,27 @@ describe('Token endpoint — ROPC', () => {
     expect(tokens.refresh_token).toBeTruthy();
     expect(tokens.id_token).toBeTruthy();
     expect(tokens.token_type).toBe('Bearer');
+  });
+});
+
+// OIDC Core §5.4: the AS MAY include email/email_verified in the ID token when the
+// "email" scope is requested. Autentico includes them so RPs can auto-link accounts
+// without a separate UserInfo call. Issue #220.
+describe('ID token — email scope claims', () => {
+  it('includes email and email_verified when email scope is requested', async () => {
+    const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD, 'openid email');
+
+    const claims = decodeJwtPayload(tokens.id_token);
+    expect(claims.email).toBe(ADMIN_EMAIL);
+    expect(typeof claims.email_verified).toBe('boolean');
+  });
+
+  it('omits email and email_verified when email scope is not requested', async () => {
+    const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD, 'openid profile');
+
+    const claims = decodeJwtPayload(tokens.id_token);
+    expect(claims.email).toBeUndefined();
+    expect(claims.email_verified).toBeUndefined();
   });
 });
 

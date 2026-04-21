@@ -41,9 +41,10 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
 
 	testUser := user.User{
-		ID:       "user-1",
-		Username: "testuser",
-		Email:    "testuser@example.com",
+		ID:              "user-1",
+		Username:        "testuser",
+		Email:           "testuser@example.com",
+		IsEmailVerified: true,
 	}
 
 	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce-123", "openid profile email", "my-client", time.Now(), "fake-access-token")
@@ -60,8 +61,8 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	assert.Equal(t, "session-1", claims["sid"])
 	assert.Equal(t, "testuser", claims["name"])
 	assert.Equal(t, "testuser", claims["preferred_username"])
-	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
-	assert.Nil(t, claims["email_verified"], "email_verified must not be in id_token")
+	assert.Equal(t, "testuser@example.com", claims["email"], "email must be in id_token when email scope requested")
+	assert.Equal(t, true, claims["email_verified"], "email_verified must be in id_token when email scope requested")
 	assert.NotNil(t, claims["exp"])
 	assert.NotNil(t, claims["iat"])
 	assert.NotNil(t, claims["auth_time"])
@@ -91,9 +92,10 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
 
 	testUser := user.User{
-		ID:       "user-1",
-		Username: "testuser",
-		Email:    "testuser@example.com",
+		ID:              "user-1",
+		Username:        "testuser",
+		Email:           "testuser@example.com",
+		IsEmailVerified: true,
 	}
 
 	// Only "openid" scope — profile and email claims must NOT be included
@@ -114,20 +116,21 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	assert.Nil(t, claims["email"])
 	assert.Nil(t, claims["email_verified"])
 
-	// "openid email" — email is served via userinfo only, never in id_token
+	// "openid email" — email claims included in id_token per OIDC §5.4 MAY clause
 	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid email", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
-	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
-	assert.Nil(t, claims["email_verified"])
+	assert.Equal(t, "testuser@example.com", claims["email"])
+	assert.Equal(t, true, claims["email_verified"])
 
-	// "openid profile email" — profile claims in id_token, email only via userinfo
+	// "openid profile email" — both profile and email claims in id_token
 	idToken, err = GenerateIDToken(testUser, "session-1", "", "openid profile email", "my-client", time.Now(), "fake-access-token")
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
-	assert.Nil(t, claims["email"], "email must not be in id_token per OIDC §5.4")
+	assert.Equal(t, "testuser@example.com", claims["email"])
+	assert.Equal(t, true, claims["email_verified"])
 }
 
 // Issue #9/#10: auth_time must reflect the original authentication time, not token issuance time
