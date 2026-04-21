@@ -69,12 +69,13 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"scope":     scope,
 	}
 
-	// OIDC Core §5.4: only embed profile claims when "profile" scope was requested
+	// OIDC Core §5.4: only embed profile claims when "profile" scope was requested.
+	// RFC 9068 §2.2: access tokens SHOULD NOT include personal data unless needed
+	// for authorization — so given_name/family_name are kept out of the access token
+	// and returned only via the ID token and UserInfo endpoint.
 	if containsScope(scope, "profile") {
 		accessClaims["name"] = user.Username
 		accessClaims["preferred_username"] = user.Username
-		accessClaims["given_name"] = user.GivenName
-		accessClaims["family_name"] = user.FamilyName
 	}
 
 	// OIDC Core §5.4: only embed email claims when "email" scope was requested
@@ -162,10 +163,18 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["azp"] = clientID
 	}
 
-	// Include profile claims only when "profile" scope is explicitly requested
+	// OIDC Core §5.4: profile scope grants access to name, preferred_username,
+	// given_name, family_name, and other profile claims. §5.1: claims with empty
+	// values are omitted rather than returned as null.
 	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
+		if user.GivenName != "" {
+			claims["given_name"] = user.GivenName
+		}
+		if user.FamilyName != "" {
+			claims["family_name"] = user.FamilyName
+		}
 	}
 
 	// Embed groups claim when "groups" scope was requested

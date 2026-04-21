@@ -43,6 +43,8 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	testUser := user.User{
 		ID:              "user-1",
 		Username:        "testuser",
+		GivenName:       "Test",
+		FamilyName:      "User",
 		Email:           "testuser@example.com",
 		IsEmailVerified: true,
 	}
@@ -61,6 +63,8 @@ func TestGenerateIDToken_WithNonce(t *testing.T) {
 	assert.Equal(t, "session-1", claims["sid"])
 	assert.Equal(t, "testuser", claims["name"])
 	assert.Equal(t, "testuser", claims["preferred_username"])
+	assert.Equal(t, "Test", claims["given_name"])
+	assert.Equal(t, "User", claims["family_name"])
 	assert.Equal(t, "testuser@example.com", claims["email"], "email must be in id_token when email scope requested")
 	assert.Equal(t, true, claims["email_verified"], "email_verified must be in id_token when email scope requested")
 	assert.NotNil(t, claims["exp"])
@@ -94,6 +98,8 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	testUser := user.User{
 		ID:              "user-1",
 		Username:        "testuser",
+		GivenName:       "Test",
+		FamilyName:      "User",
 		Email:           "testuser@example.com",
 		IsEmailVerified: true,
 	}
@@ -104,6 +110,8 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	claims := parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
 	assert.Nil(t, claims["preferred_username"])
+	assert.Nil(t, claims["given_name"])
+	assert.Nil(t, claims["family_name"])
 	assert.Nil(t, claims["email"])
 	assert.Nil(t, claims["email_verified"])
 
@@ -113,6 +121,8 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
 	assert.Equal(t, "testuser", claims["preferred_username"])
+	assert.Equal(t, "Test", claims["given_name"])
+	assert.Equal(t, "User", claims["family_name"])
 	assert.Nil(t, claims["email"])
 	assert.Nil(t, claims["email_verified"])
 
@@ -121,6 +131,8 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Nil(t, claims["name"])
+	assert.Nil(t, claims["given_name"])
+	assert.Nil(t, claims["family_name"])
 	assert.Equal(t, "testuser@example.com", claims["email"])
 	assert.Equal(t, true, claims["email_verified"])
 
@@ -129,8 +141,31 @@ func TestGenerateIDToken_ScopeBasedClaims(t *testing.T) {
 	require.NoError(t, err)
 	claims = parseIDTokenClaims(t, idToken)
 	assert.Equal(t, "testuser", claims["name"])
+	assert.Equal(t, "Test", claims["given_name"])
+	assert.Equal(t, "User", claims["family_name"])
 	assert.Equal(t, "testuser@example.com", claims["email"])
 	assert.Equal(t, true, claims["email_verified"])
+}
+
+// OIDC Core §5.1: claims with empty values MUST be omitted rather than returned as null.
+func TestGenerateIDToken_ProfileClaims_EmptyNamesOmitted(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{
+		ID:       "user-1",
+		Username: "testuser",
+		// GivenName and FamilyName intentionally empty
+	}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid profile", "my-client", time.Now(), "fake-access-token")
+	require.NoError(t, err)
+	claims := parseIDTokenClaims(t, idToken)
+
+	assert.Equal(t, "testuser", claims["name"])
+	assert.Equal(t, "testuser", claims["preferred_username"])
+	assert.Nil(t, claims["given_name"], "empty given_name must be omitted per OIDC §5.1")
+	assert.Nil(t, claims["family_name"], "empty family_name must be omitted per OIDC §5.1")
 }
 
 // Issue #9/#10: auth_time must reflect the original authentication time, not token issuance time
@@ -229,11 +264,14 @@ func TestGenerateTokens_ScopeFiltering(t *testing.T) {
 	assert.Nil(t, claims["email"], "OIDC Core §5.4: email must not be in access token without email scope")
 	assert.Nil(t, claims["email_verified"], "email_verified must not be present without email scope")
 
-	// openid profile — profile claims included, email not
+	// openid profile — profile claims included, email not.
+	// RFC 9068 §2.2: given_name/family_name are intentionally kept out of the access token.
 	tokens, err = GenerateTokens(testUser, "", "openid profile", config.Get())
 	require.NoError(t, err)
 	claims = parseAccessClaims(t, tokens)
 	assert.NotNil(t, claims["name"], "name must be in access token with profile scope")
+	assert.Nil(t, claims["given_name"], "given_name must not be in access token per RFC 9068 §2.2")
+	assert.Nil(t, claims["family_name"], "family_name must not be in access token per RFC 9068 §2.2")
 	assert.Nil(t, claims["email"], "email must not be present without email scope")
 
 	// openid email — email claims included, profile not
