@@ -49,6 +49,21 @@ describe('ID token — email scope claims', () => {
   });
 });
 
+// RFC 9068 §2.2: access tokens SHOULD NOT include personal data unless needed
+// for authorization. given_name/family_name are kept out of the access token and
+// returned only via the ID token and UserInfo endpoint.
+describe('Access token — profile claim scoping', () => {
+  it('omits given_name and family_name even when profile scope is requested', async () => {
+    const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD, 'openid profile');
+
+    const claims = decodeJwtPayload(tokens.access_token);
+    expect(claims.given_name).toBeUndefined();
+    expect(claims.family_name).toBeUndefined();
+    expect(claims.name).toBe(ADMIN_USERNAME);
+    expect(claims.preferred_username).toBe(ADMIN_USERNAME);
+  });
+});
+
 // OIDC Core §5.4: profile scope grants access to given_name and family_name.
 // OIDC Core §5.1: claims with empty values MUST be omitted rather than returned as null.
 describe('ID token — profile scope claims', () => {

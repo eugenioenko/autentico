@@ -264,11 +264,14 @@ func TestGenerateTokens_ScopeFiltering(t *testing.T) {
 	assert.Nil(t, claims["email"], "OIDC Core §5.4: email must not be in access token without email scope")
 	assert.Nil(t, claims["email_verified"], "email_verified must not be present without email scope")
 
-	// openid profile — profile claims included, email not
+	// openid profile — profile claims included, email not.
+	// RFC 9068 §2.2: given_name/family_name are intentionally kept out of the access token.
 	tokens, err = GenerateTokens(testUser, "", "openid profile", config.Get())
 	require.NoError(t, err)
 	claims = parseAccessClaims(t, tokens)
 	assert.NotNil(t, claims["name"], "name must be in access token with profile scope")
+	assert.Nil(t, claims["given_name"], "given_name must not be in access token per RFC 9068 §2.2")
+	assert.Nil(t, claims["family_name"], "family_name must not be in access token per RFC 9068 §2.2")
 	assert.Nil(t, claims["email"], "email must not be present without email scope")
 
 	// openid email — email claims included, profile not

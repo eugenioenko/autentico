@@ -367,6 +367,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §5.4 | MAY include email claims in ID token when `email` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added (issue #220) |
 | §5.4 | MAY include `given_name`, `family_name` in ID token when `profile` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added |
 | §5.1 | Claims with empty values are omitted, not returned as null | `pkg/token/generate.go` `GenerateIDToken` — ✅ Enforced for `given_name`, `family_name` |
+| RFC 9068 §2.2 | Access tokens SHOULD NOT carry personal data not needed for authorization | `pkg/token/generate.go` `GenerateTokens` — ✅ `given_name`/`family_name` removed from access token; available via ID token and UserInfo |
 | §11 | `offline_access` requires `prompt=consent` | ⏭ Skipped — refresh tokens always issued; `offline_access` is effectively always on |
 | §16.14 | `acr` value consistency | `pkg/token/generate.go` — consistently `"1"` in both access and ID tokens ✅ |
 
