@@ -176,9 +176,13 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		}
 	}
 
-	// Email claims are intentionally excluded from the id_token.
-	// Per OIDC Core §5.4, scope=email grants access to email via the userinfo endpoint;
-	// it does not require email to be present in the id_token.
+	// OIDC Core §5.4: the AS MAY return email claims in the ID token when the
+	// "email" scope was requested, even if they are also available via UserInfo.
+	// Many RPs rely on ID token claims without calling UserInfo, so we include them here.
+	if containsScope(scope, "email") {
+		claims["email"] = user.Email
+		claims["email_verified"] = user.IsEmailVerified
+	}
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	idToken.Header["kid"] = bs.AuthJwkCertKeyID

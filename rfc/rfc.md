@@ -364,6 +364,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §5.1 | UserInfo standard claims scope-filtered | `pkg/userinfo/handler.go` lines 102-145 |
 | §5.3 | UserInfo `sub` MUST match ID token `sub` | `pkg/userinfo/handler.go` — both use `user.ID` / `tok.UserID` |
 | §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — ✅ Fixed (PR #108) |
+| §5.4 | MAY include email claims in ID token when `email` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added (issue #220) |
 | §11 | `offline_access` requires `prompt=consent` | ⏭ Skipped — refresh tokens always issued; `offline_access` is effectively always on |
 | §16.14 | `acr` value consistency | `pkg/token/generate.go` — consistently `"1"` in both access and ID tokens ✅ |
 
@@ -377,6 +378,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §3.1.3.3 | `aud` contains the client_id | ✅ Verified + annotated (2026-03-30) |
 | MUST | §5.3 | UserInfo `sub` matches ID token `sub` | ✅ Verified + annotated (2026-03-30) — both use same user ID |
 | MUST | §5.4 | Access token claims respect requested scope | ✅ Fixed (PR #108) |
+| MAY | §5.4 | Email claims returned in ID token when `email` scope requested | ✅ Added (issue #220) — mirrors Google/Auth0/Okta behavior |
 | SHOULD | §3.1.3.6 | `at_hash` in ID token from token endpoint | ✅ Implemented (2026-04-08) — PR #165 |
 | SHOULD | §3.1.3.7 | `azp` present in ID token | ✅ Verified + annotated (2026-03-30) |
 | SHOULD | §11 | `offline_access` only with `prompt=consent` | ⏭ Skipped — refresh tokens always issued by design |
