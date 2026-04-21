@@ -10,7 +10,7 @@ Scopes control which claims are included in the ID token and returned from the U
 | Scope | Claims included |
 |---|---|
 | `openid` | `sub`, `iss`, `aud`, `exp`, `iat` — required for OIDC; also triggers ID token issuance |
-| `profile` | `name` (same as username) |
+| `profile` | `name`, `preferred_username`, `given_name`, `family_name` (empty values omitted) |
 | `email` | `email`, `email_verified` |
 
 Always request `openid` to get an ID token. Add `profile` and `email` to include those claims.
@@ -44,6 +44,9 @@ The scopes are recorded on the authorization code and propagated to the token re
   "iat": 1699999100,
   "sid": "session-id",
   "name": "alice",
+  "preferred_username": "alice",
+  "given_name": "Alice",
+  "family_name": "Smith",
   "email": "alice@example.com",
   "email_verified": true
 }

@@ -162,10 +162,18 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		claims["azp"] = clientID
 	}
 
-	// Include profile claims only when "profile" scope is explicitly requested
+	// OIDC Core §5.4: profile scope grants access to name, preferred_username,
+	// given_name, family_name, and other profile claims. §5.1: claims with empty
+	// values are omitted rather than returned as null.
 	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
+		if user.GivenName != "" {
+			claims["given_name"] = user.GivenName
+		}
+		if user.FamilyName != "" {
+			claims["family_name"] = user.FamilyName
+		}
 	}
 
 	// Embed groups claim when "groups" scope was requested

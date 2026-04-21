@@ -365,6 +365,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §5.3 | UserInfo `sub` MUST match ID token `sub` | `pkg/userinfo/handler.go` — both use `user.ID` / `tok.UserID` |
 | §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — ✅ Fixed (PR #108) |
 | §5.4 | MAY include email claims in ID token when `email` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added (issue #220) |
+| §5.4 | MAY include `given_name`, `family_name` in ID token when `profile` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added |
+| §5.1 | Claims with empty values are omitted, not returned as null | `pkg/token/generate.go` `GenerateIDToken` — ✅ Enforced for `given_name`, `family_name` |
 | §11 | `offline_access` requires `prompt=consent` | ⏭ Skipped — refresh tokens always issued; `offline_access` is effectively always on |
 | §16.14 | `acr` value consistency | `pkg/token/generate.go` — consistently `"1"` in both access and ID tokens ✅ |
 
@@ -379,6 +381,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §5.3 | UserInfo `sub` matches ID token `sub` | ✅ Verified + annotated (2026-03-30) — both use same user ID |
 | MUST | §5.4 | Access token claims respect requested scope | ✅ Fixed (PR #108) |
 | MAY | §5.4 | Email claims returned in ID token when `email` scope requested | ✅ Added (issue #220) — mirrors Google/Auth0/Okta behavior |
+| MAY | §5.4 | `given_name`, `family_name` returned in ID token when `profile` scope requested | ✅ Added — mirrors Google/Keycloak/Auth0 behavior |
 | SHOULD | §3.1.3.6 | `at_hash` in ID token from token endpoint | ✅ Implemented (2026-04-08) — PR #165 |
 | SHOULD | §3.1.3.7 | `azp` present in ID token | ✅ Verified + annotated (2026-03-30) |
 | SHOULD | §11 | `offline_access` only with `prompt=consent` | ⏭ Skipped — refresh tokens always issued by design |

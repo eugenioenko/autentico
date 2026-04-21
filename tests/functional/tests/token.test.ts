@@ -49,6 +49,31 @@ describe('ID token — email scope claims', () => {
   });
 });
 
+// OIDC Core §5.4: profile scope grants access to given_name and family_name.
+// OIDC Core §5.1: claims with empty values MUST be omitted rather than returned as null.
+describe('ID token — profile scope claims', () => {
+  it('omits given_name and family_name when profile scope is not requested', async () => {
+    const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD, 'openid email');
+
+    const claims = decodeJwtPayload(tokens.id_token);
+    expect(claims.name).toBeUndefined();
+    expect(claims.given_name).toBeUndefined();
+    expect(claims.family_name).toBeUndefined();
+  });
+
+  it('omits empty given_name and family_name even when profile scope is requested', async () => {
+    // The seeded admin user has no given_name/family_name set, so per §5.1 they must
+    // be omitted. Presence of "name" and "preferred_username" confirms the scope was honored.
+    const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD, 'openid profile');
+
+    const claims = decodeJwtPayload(tokens.id_token);
+    expect(claims.name).toBe(ADMIN_USERNAME);
+    expect(claims.preferred_username).toBe(ADMIN_USERNAME);
+    expect(claims.given_name).toBeUndefined();
+    expect(claims.family_name).toBeUndefined();
+  });
+});
+
 describe('Token endpoint — Refresh', () => {
   it('returns new tokens from refresh token', async () => {
     const original = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
