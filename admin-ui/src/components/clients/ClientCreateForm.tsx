@@ -69,10 +69,46 @@ export default function ClientCreateForm({
   const [form] = Form.useForm();
   const createClient = useCreateClient();
   const [secretModal, setSecretModal] = useState<ClientResponse | null>(null);
+  const [modal, modalContextHolder] = Modal.useModal();
+
+  // Service-account elevation mints admin-API credentials. Always require an
+  // explicit confirmation before the form is submitted with the flag enabled.
+  const confirmServiceAccount = () =>
+    new Promise<boolean>((resolve) => {
+      modal.confirm({
+        title: "Enable admin service account?",
+        icon: <ExclamationCircleOutlined />,
+        okText: "Yes, enable",
+        okType: "danger",
+        cancelText: "Cancel",
+        content: (
+          <div>
+            <p>
+              This client's <strong>client_secret</strong> becomes equivalent to
+              admin bearer credentials. Any <code>client_credentials</code>{" "}
+              token it obtains can call every endpoint under{" "}
+              <code>/admin/api</code>.
+            </p>
+            <p>
+              Store the secret in a secret manager and rotate it on leak. Only
+              enable for headless automation that truly needs admin API access.
+            </p>
+          </div>
+        ),
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
 
   const handleSubmit = async (
     values: Omit<ClientCreateRequest, "scopes"> & { scopes?: string[] },
   ) => {
+    if (values.is_admin_service_account) {
+      const confirmed = await confirmServiceAccount();
+      if (!confirmed) {
+        return;
+      }
+    }
     try {
       const result = await createClient.mutateAsync({
         ...values,
@@ -99,6 +135,7 @@ export default function ClientCreateForm({
 
   return (
     <>
+      {modalContextHolder}
       <Drawer
         title="Create Client"
         open={open}
@@ -310,6 +347,19 @@ export default function ClientCreateForm({
             tooltip={{ title: tip("token_endpoint_auth_method"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select options={AUTH_METHOD_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item
+            name="is_admin_service_account"
+            label="Admin Service Account"
+            valuePropName="checked"
+            tooltip={{
+              title:
+                "When enabled, client_credentials tokens from this client can call the admin API without a user. Requires a confidential client with the client_credentials grant and autentico-admin in Allowed Audiences. The secret becomes equivalent to an admin bearer token — use only for trusted CI/automation.",
+              icon: <ExclamationCircleOutlined />,
+            }}
+          >
+            <Switch />
           </Form.Item>
 
           <Divider />

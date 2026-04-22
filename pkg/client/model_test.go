@@ -139,6 +139,91 @@ func TestValidateClientCreateRequest(t *testing.T) {
 	}
 }
 
+// ptrTrue returns a pointer to true for the optional IsAdminServiceAccount field.
+func ptrTrue() *bool { b := true; return &b }
+
+// ptrFalse returns a pointer to false for the optional IsAdminServiceAccount field.
+func ptrFalse() *bool { b := false; return &b }
+
+func TestValidateClientCreateRequest_AdminServiceAccount(t *testing.T) {
+	tests := []struct {
+		name    string
+		request ClientCreateRequest
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "service account on confidential client with client_credentials grant",
+			request: ClientCreateRequest{
+				ClientName:            "Svc",
+				RedirectURIs:          []string{"http://localhost/cb"},
+				ClientType:            "confidential",
+				GrantTypes:            []string{"client_credentials"},
+				IsAdminServiceAccount: ptrTrue(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "service account with default (confidential) client_type + client_credentials",
+			request: ClientCreateRequest{
+				ClientName:            "Svc",
+				RedirectURIs:          []string{"http://localhost/cb"},
+				GrantTypes:            []string{"client_credentials"},
+				IsAdminServiceAccount: ptrTrue(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "service account on public client is rejected",
+			request: ClientCreateRequest{
+				ClientName:            "Svc",
+				RedirectURIs:          []string{"http://localhost/cb"},
+				ClientType:            "public",
+				GrantTypes:            []string{"client_credentials"},
+				IsAdminServiceAccount: ptrTrue(),
+			},
+			wantErr: true,
+			errMsg:  "confidential",
+		},
+		{
+			name: "service account without client_credentials grant is rejected",
+			request: ClientCreateRequest{
+				ClientName:            "Svc",
+				RedirectURIs:          []string{"http://localhost/cb"},
+				ClientType:            "confidential",
+				GrantTypes:            []string{"authorization_code"},
+				IsAdminServiceAccount: ptrTrue(),
+			},
+			wantErr: true,
+			errMsg:  "client_credentials",
+		},
+		{
+			name: "service account flag false does not trigger validation",
+			request: ClientCreateRequest{
+				ClientName:            "Svc",
+				RedirectURIs:          []string{"http://localhost/cb"},
+				ClientType:            "public",
+				IsAdminServiceAccount: ptrFalse(),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateClientCreateRequest(tt.request)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateRedirectURIs(t *testing.T) {
 	tests := []struct {
 		name    string

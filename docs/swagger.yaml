@@ -189,6 +189,11 @@ definitions:
         items:
           type: string
         type: array
+      is_admin_service_account:
+        description: |-
+          Elevates client_credentials tokens to admin-API access. Requires
+          client_type=confidential and grant_types containing "client_credentials".
+        type: boolean
       post_logout_redirect_uris:
         items:
           type: string
@@ -238,6 +243,8 @@ definitions:
           type: string
         type: array
       is_active:
+        type: boolean
+      is_admin_service_account:
         type: boolean
       post_logout_redirect_uris:
         items:
@@ -326,6 +333,9 @@ definitions:
           type: string
         type: array
       is_active:
+        type: boolean
+      is_admin_service_account:
+        description: Elevates client_credentials tokens to admin-API access. See ClientCreateRequest.
         type: boolean
       post_logout_redirect_uris:
         items:

@@ -54,6 +54,16 @@ export default function ClientsPage() {
       title: "Name",
       dataIndex: "client_name",
       key: "client_name",
+      render: (name: string, record) => (
+        <Space>
+          <span>{name}</span>
+          {record.is_admin_service_account && (
+            <Tag color="red" title="Admin service account — client_credentials token can call admin API">
+              admin svc
+            </Tag>
+          )}
+        </Space>
+      ),
     },
     {
       title: "Client ID",

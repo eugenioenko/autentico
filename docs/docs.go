@@ -3574,6 +3574,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "is_admin_service_account": {
+                    "description": "Elevates client_credentials tokens to admin-API access. Requires\nclient_type=confidential and grant_types containing \"client_credentials\".",
+                    "type": "boolean"
+                },
                 "post_logout_redirect_uris": {
                     "type": "array",
                     "items": {
@@ -3647,6 +3651,9 @@ const docTemplate = `{
                     }
                 },
                 "is_active": {
+                    "type": "boolean"
+                },
+                "is_admin_service_account": {
                     "type": "boolean"
                 },
                 "post_logout_redirect_uris": {
@@ -3773,6 +3780,10 @@ const docTemplate = `{
                     }
                 },
                 "is_active": {
+                    "type": "boolean"
+                },
+                "is_admin_service_account": {
+                    "description": "Elevates client_credentials tokens to admin-API access. See ClientCreateRequest.",
                     "type": "boolean"
                 },
                 "post_logout_redirect_uris": {

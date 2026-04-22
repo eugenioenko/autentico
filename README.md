@@ -622,6 +622,14 @@ The dev server proxies API requests to the Go server on port 9999.
 | `/admin/api/stats`        | GET                 | Dashboard statistics         |
 | `/admin/api/settings`     | GET/PUT             | Read/update runtime settings |
 
+The admin API accepts two kinds of bearer tokens: **user-backed tokens** (issued
+to an admin user via the normal login flow) and **service-account tokens**
+(issued to a confidential client via the `client_credentials` grant when the
+client has `is_admin_service_account` set). Service accounts are the recommended
+pattern for headless CI/CD automation — the client's secret replaces the need
+for a dedicated admin user and its password. See the documentation for setup
+and rotation guidance.
+
 ### User Self-Service
 
 | Endpoint | Method | Description                                 |

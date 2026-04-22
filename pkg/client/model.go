@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"regexp"
@@ -40,6 +41,10 @@ type Client struct {
 	SsoSessionIdleTimeout       *string `db:"sso_session_idle_timeout"`
 	TrustDeviceEnabled          *bool   `db:"trust_device_enabled"`
 	TrustDeviceExpiration       *string `db:"trust_device_expiration"`
+	// IsAdminServiceAccount, when true, allows client_credentials tokens issued
+	// to this client to satisfy the admin-API authorization check without a user.
+	// Only valid on confidential clients with the client_credentials grant enabled.
+	IsAdminServiceAccount bool `db:"is_admin_service_account"`
 }
 
 // ClientCreateRequest represents the request body for client registration
@@ -63,6 +68,9 @@ type ClientCreateRequest struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	// Elevates client_credentials tokens to admin-API access. Requires
+	// client_type=confidential and grant_types containing "client_credentials".
+	IsAdminServiceAccount *bool `json:"is_admin_service_account,omitempty"`
 }
 
 // ClientUpdateRequest represents the request body for updating a client
@@ -84,6 +92,8 @@ type ClientUpdateRequest struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	// Elevates client_credentials tokens to admin-API access. See ClientCreateRequest.
+	IsAdminServiceAccount *bool `json:"is_admin_service_account,omitempty"`
 }
 
 // ClientResponse represents the response for client operations
@@ -130,6 +140,7 @@ type ClientInfoResponse struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	IsAdminServiceAccount       bool     `json:"is_admin_service_account"`
 }
 
 // GetRedirectURIs parses and returns the redirect URIs as a slice
@@ -183,6 +194,7 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		SsoSessionIdleTimeout:       c.SsoSessionIdleTimeout,
 		TrustDeviceEnabled:          c.TrustDeviceEnabled,
 		TrustDeviceExpiration:       c.TrustDeviceExpiration,
+		IsAdminServiceAccount:       c.IsAdminServiceAccount,
 	}
 	if c.AllowedAudiences != nil {
 		var aud []string
@@ -216,14 +228,22 @@ func (c *Client) ToOverrides() config.ClientOverrides {
 
 // ValidateClientCreateRequest validates a client registration request
 func ValidateClientCreateRequest(input ClientCreateRequest) error {
-	return validation.ValidateStruct(&input,
+	if err := validation.ValidateStruct(&input,
 		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Required, validation.Length(1, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.ClientType, validation.In("", "confidential", "public")),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
-	)
+	); err != nil {
+		return err
+	}
+	if input.IsAdminServiceAccount != nil && *input.IsAdminServiceAccount {
+		if err := validateAdminServiceAccount(input.ClientType, input.GrantTypes); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ValidateRedirectURIs validates that all redirect URIs are valid URLs
@@ -245,4 +265,20 @@ func ValidateClientUpdateRequest(input ClientUpdateRequest) error {
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
 	)
+}
+
+// validateAdminServiceAccount enforces that a client flagged as an admin
+// service account is confidential and has the client_credentials grant enabled.
+// effectiveClientType is "" when the caller did not specify one — in that
+// case the server default ("confidential") applies and validation passes.
+func validateAdminServiceAccount(effectiveClientType string, grantTypes []string) error {
+	if effectiveClientType == "public" {
+		return fmt.Errorf("is_admin_service_account requires client_type=confidential")
+	}
+	for _, g := range grantTypes {
+		if g == "client_credentials" {
+			return nil
+		}
+	}
+	return fmt.Errorf("is_admin_service_account requires grant_types to include client_credentials")
 }

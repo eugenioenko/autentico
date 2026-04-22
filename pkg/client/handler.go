@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -58,7 +59,23 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 7591 §3.2.1: The server MUST return all registered metadata about this client.
-	audit.Log(audit.EventClientCreated, audit.ActorFromRequest(r), audit.TargetClient, response.ClientID, nil, utils.GetClientIP(r))
+	var createDetail map[string]string
+	if request.IsAdminServiceAccount != nil && *request.IsAdminServiceAccount {
+		actor := audit.ActorFromRequest(r)
+		actorID := ""
+		if actor != nil {
+			actorID = actor.GetID()
+		}
+		// Service-account elevation is equivalent to minting admin-API credentials.
+		// Log at WARN so leaks are traceable to the acting admin via audit + logs.
+		slog.Warn("client: admin service account created",
+			"client_id", response.ClientID,
+			"actor_id", actorID,
+			"ip", utils.GetClientIP(r),
+		)
+		createDetail = audit.Detail("is_admin_service_account", "true")
+	}
+	audit.Log(audit.EventClientCreated, audit.ActorFromRequest(r), audit.TargetClient, response.ClientID, createDetail, utils.GetClientIP(r))
 	utils.WriteApiResponse(w, response, http.StatusCreated)
 }
 
@@ -130,6 +147,9 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Snapshot the existing flag so we can detect a true-state transition for audit.
+	existing, _ := ClientByClientID(clientID)
+
 	err := UpdateClient(clientID, request)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -140,7 +160,26 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
+	var updateDetail map[string]string
+	if request.IsAdminServiceAccount != nil && existing != nil && *request.IsAdminServiceAccount != existing.IsAdminServiceAccount {
+		actor := audit.ActorFromRequest(r)
+		actorID := ""
+		if actor != nil {
+			actorID = actor.GetID()
+		}
+		slog.Warn("client: admin service account flag toggled",
+			"client_id", clientID,
+			"actor_id", actorID,
+			"ip", utils.GetClientIP(r),
+			"new_value", *request.IsAdminServiceAccount,
+		)
+		newVal := "false"
+		if *request.IsAdminServiceAccount {
+			newVal = "true"
+		}
+		updateDetail = audit.Detail("is_admin_service_account", newVal)
+	}
+	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, updateDetail, utils.GetClientIP(r))
 	updated, _ := ClientByClientID(clientID)
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
