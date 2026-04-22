@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
@@ -55,20 +56,19 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	}
 	if authenticatedClient == nil {
 		// RFC 7662 §2.1 / RFC 6750: alternatively accept an admin Bearer token
-		bearerToken := utils.ExtractBearerToken(r.Header.Get("Authorization"))
-		if bearerToken == "" {
+		if r.Header.Get("Authorization") == "" {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
 			return
 		}
-		claims, err := jwtutil.ValidateAccessToken(bearerToken)
+		v, err := bearer.ValidateBearer(r)
 		if err != nil {
-			slog.Warn("revoke: bearer token invalid", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid or expired")
+			slog.Warn("revoke: bearer auth failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
-		usr, err := user.UserByID(claims.UserID)
+		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
-			slog.Warn("revoke: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", claims.UserID)
+			slog.Warn("revoke: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", v.Claims.UserID)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token revocation")
 			return
 		}

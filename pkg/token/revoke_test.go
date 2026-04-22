@@ -7,11 +7,16 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -220,6 +225,58 @@ func TestHandleRevoke_ClientSecretPost(t *testing.T) {
 
 const otherRevokeClientID = "other-revoke-client"
 const otherRevokeClientSecret = "other-revoke-secret"
+
+// TestHandleRevoke_BearerAuth_DeactivatedSession verifies that an admin
+// bearer token whose backing session has been revoked is rejected. Same
+// class of bug as issue #225: the admin bearer fallback must honor session
+// revocation, matching the check in pkg/middleware/admin_auth.go. Without
+// this check a deactivated admin could still mass-revoke users' tokens.
+func TestHandleRevoke_BearerAuth_DeactivatedSession(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	adminID := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, 'admin')`,
+		adminID, "revokeadmindeactivated", "revokeadmindeactivated@example.com", "hash")
+	require.NoError(t, err)
+
+	accessTokenExpiresAt := time.Now().Add(time.Hour).UTC()
+	sessionID := xid.New().String()
+	claims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   config.Get().AuthAccessTokenAudience,
+		"sub":   adminID,
+		"typ":   "Bearer",
+		"sid":   sessionID,
+		"scope": "openid",
+	}
+	jwtTok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	jwtTok.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	bearerJWT, err := jwtTok.SignedString(key.GetPrivateKey())
+	require.NoError(t, err)
+
+	// Persist a session row for the bearer and flag it deactivated.
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
+		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+	`, sessionID, adminID, bearerJWT, "refresh-placeholder", accessTokenExpiresAt)
+	require.NoError(t, err)
+
+	form := url.Values{}
+	form.Set("token", "some-victim-token")
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+bearerJWT)
+	rr := httptest.NewRecorder()
+
+	token.HandleRevoke(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code,
+		"admin bearer on a deactivated session MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "invalid_token")
+}
 
 // TestHandleRevoke_CrossClient_NoOp verifies RFC 7009 §2.1:
 // "The authorization server ... verifies whether the token was issued to the

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
@@ -55,20 +56,19 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		// determine whether or not the token can be introspected by the specific
 		// resource server making the request." We restrict bearer auth to admin
 		// users only to prevent arbitrary users from inspecting other users' tokens.
-		bearerToken := utils.ExtractBearerToken(r.Header.Get("Authorization"))
-		if bearerToken == "" {
+		if r.Header.Get("Authorization") == "" {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
 			return
 		}
-		claims, err := jwtutil.ValidateAccessToken(bearerToken)
+		v, err := bearer.ValidateBearer(r)
 		if err != nil {
-			slog.Warn("introspect: bearer token invalid", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid or expired")
+			slog.Warn("introspect: bearer auth failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
-		usr, err := user.UserByID(claims.UserID)
+		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
-			slog.Warn("introspect: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", claims.UserID)
+			slog.Warn("introspect: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", v.Claims.UserID)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token introspection")
 			return
 		}

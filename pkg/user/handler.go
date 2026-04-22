@@ -7,38 +7,19 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
-	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// GetUserFromRequest extracts the user and role from the Authorization header
+// GetUserFromRequest validates the bearer token on the request (checks the
+// JWT, rejects revoked sessions) and returns the owning user.
 func GetUserFromRequest(r *http.Request) (*User, error) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return nil, fmt.Errorf("missing Authorization header")
-	}
-	tokenStr := utils.ExtractBearerToken(authHeader)
-	if tokenStr == "" {
-		return nil, fmt.Errorf("invalid Authorization header")
-	}
-	if _, err := jwtutil.ValidateAccessToken(tokenStr); err != nil {
-		return nil, fmt.Errorf("invalid token: %v", err)
-	}
-	// Find session by access token
-	sess, err := session.SessionByAccessToken(tokenStr)
+	v, err := bearer.ValidateBearer(r)
 	if err != nil {
-		return nil, fmt.Errorf("invalid session: %v", err)
+		return nil, err
 	}
-	// A revoked session (self-service logout or admin DELETE /sessions/:id)
-	// must invalidate the token across the entire API surface, matching the
-	// behavior of /oauth2/userinfo and the admin middleware.
-	if sess.DeactivatedAt != nil {
-		return nil, fmt.Errorf("session has been deactivated")
-	}
-	// Find user by session.UserID
-	user, err := UserByID(sess.UserID)
+	user, err := UserByID(v.Session.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
 	}
