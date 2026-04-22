@@ -7,24 +7,9 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
-
-// GetUserFromRequest validates the bearer token on the request (checks the
-// JWT, rejects revoked sessions) and returns the owning user.
-func GetUserFromRequest(r *http.Request) (*User, error) {
-	v, err := bearer.ValidateBearer(r)
-	if err != nil {
-		return nil, err
-	}
-	user, err := UserByID(v.Session.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %v", err)
-	}
-	return user, nil
-}
 
 // HandleCreateUser godoc
 // @Summary Create a new user
@@ -61,7 +46,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("User creation error. %v", err))
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserCreated, admin, audit.TargetUser, response.ID, audit.Detail("source", "admin"), utils.GetClientIP(r))
 	utils.SuccessResponse(w, response, http.StatusCreated)
 }
@@ -130,7 +115,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserUpdated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {
@@ -168,7 +153,7 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserDeleted, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -200,7 +185,7 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserDeactivated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -232,7 +217,7 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserReactivated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -288,7 +273,7 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	admin, _ := GetUserFromRequest(r)
+	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserUnlocked, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {

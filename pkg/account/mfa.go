@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -22,7 +23,7 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/mfa [get]
 func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -44,7 +45,7 @@ func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} model.ApiError
 // @Router /account/api/mfa/totp/setup [post]
 func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -86,7 +87,7 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/mfa/totp/verify [post]
 func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -133,7 +134,7 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/mfa/totp [delete]
 func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

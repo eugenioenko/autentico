@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/reqid"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -27,7 +27,7 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/passkeys [get]
 func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -65,7 +65,7 @@ func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/{id} [delete]
 func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -107,7 +107,7 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/{id} [patch]
 func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -150,7 +150,7 @@ func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/passkeys/register/begin [post]
 func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -221,7 +221,7 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/register/finish [post]
 func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

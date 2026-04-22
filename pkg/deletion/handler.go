@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -26,7 +26,7 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/deletion-request [post]
 func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -77,7 +77,7 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/deletion-request [get]
 func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -105,7 +105,7 @@ func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} model.ApiError
 // @Router /account/api/deletion-request [delete]
 func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

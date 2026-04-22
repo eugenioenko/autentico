@@ -19,24 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 )
-
-const revokeTestClientID = "revoke-handler-client"
-const revokeTestClientSecret = "revoke-handler-secret"
-
-// insertRevokeTestClient creates a confidential client with ROPC support for revoke handler tests.
-func insertRevokeTestClient(t *testing.T) {
-	t.Helper()
-	hashed, err := bcrypt.GenerateFromPassword([]byte(revokeTestClientSecret), bcrypt.MinCost)
-	require.NoError(t, err)
-	_, err = db.GetDB().Exec(
-		`INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, is_active, scopes, grant_types)
-		 VALUES (?, ?, 'Revoke Handler Confidential Client', ?, 'confidential', '[]', '[]', TRUE, 'openid profile email', '["authorization_code","password","refresh_token"]')`,
-		"id-"+revokeTestClientID, revokeTestClientID, string(hashed),
-	)
-	require.NoError(t, err)
-}
 
 // insertROPCTestClient seeds a public OAuth2 client that allows password and refresh_token grants.
 func insertROPCTestClient(t *testing.T) {
@@ -861,100 +844,6 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 	assert.True(t, cookie.HttpOnly)
 	assert.True(t, cookie.Secure)
 	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
-}
-
-// RFC 7009 §2.1: revocation request MUST be HTTP POST
-func TestHandleRevoke_NonPostMethod(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/revoke", nil)
-	rr := httptest.NewRecorder()
-
-	HandleRevoke(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Only POST method is allowed")
-}
-
-// RFC 7009 §2.1: "token" parameter is REQUIRED
-func TestHandleRevoke_MissingToken(t *testing.T) {
-	testutils.WithTestDB(t)
-	insertRevokeTestClient(t)
-
-	form := url.Values{}
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
-	rr := httptest.NewRecorder()
-
-	HandleRevoke(rr, req)
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Token is required")
-}
-
-func TestHandleRevoke_InvalidToken(t *testing.T) {
-	testutils.WithTestDB(t)
-	insertRevokeTestClient(t)
-
-	form := url.Values{}
-	form.Add("token", "invalid-token")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
-	rr := httptest.NewRecorder()
-
-	HandleRevoke(rr, req)
-
-	// RFC 7009 §2.2: invalid tokens MUST return 200, not 401.
-	assert.Equal(t, http.StatusOK, rr.Code)
-}
-
-func TestHandleRevoke_ValidToken(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Bootstrap.AuthRefreshTokenCookieOnly = false
-	})
-
-	_, err := user.CreateUser("testuser", "password123", "testuser@example.com")
-	assert.NoError(t, err)
-	insertRevokeTestClient(t)
-
-	// Issue token via the same confidential client that will revoke it
-	form := url.Values{}
-	form.Add("grant_type", "password")
-	form.Add("client_id", revokeTestClientID)
-	form.Add("client_secret", revokeTestClientSecret)
-	form.Add("username", "testuser")
-	form.Add("password", "password123")
-
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-	HandleToken(rr, req)
-
-	var tokenResp TokenResponse
-	_ = json.Unmarshal(rr.Body.Bytes(), &tokenResp)
-
-	// Revoke it (with client auth — same client)
-	form2 := url.Values{}
-	form2.Add("token", tokenResp.AccessToken)
-
-	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", strings.NewReader(form2.Encode()))
-	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req2.SetBasicAuth(revokeTestClientID, revokeTestClientSecret)
-	rr2 := httptest.NewRecorder()
-
-	HandleRevoke(rr2, req2)
-
-	assert.Equal(t, http.StatusOK, rr2.Code)
-
-	// Verify revoked_at is set
-	var revokedAt *string
-	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tokenResp.AccessToken).Scan(&revokedAt)
-	assert.NoError(t, err)
-	assert.NotNil(t, revokedAt)
 }
 
 func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {

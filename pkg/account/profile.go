@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -21,7 +22,7 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/profile [get]
 func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -44,7 +45,7 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} model.ApiError
 // @Router /account/api/profile [put]
 func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -139,7 +140,7 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/password [post]
 func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

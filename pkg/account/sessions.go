@@ -3,9 +3,9 @@ package account
 import (
 	"net/http"
 
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -19,7 +19,7 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/sessions [get]
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -72,7 +72,7 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} model.ApiError
 // @Router /account/api/sessions/{id} [delete]
 func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

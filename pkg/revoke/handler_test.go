@@ -1,4 +1,4 @@
-package token_test
+package revoke_test
 
 import (
 	"encoding/json"
@@ -13,6 +13,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
+	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -54,7 +55,7 @@ func TestHandleRevoke_NoAuth_Returns401(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	body := map[string]string{"token": "some-token"}
-	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke)
+	res := testutils.MockFormRequest(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke)
 
 	assert.Equal(t, http.StatusUnauthorized, res.Code, "RFC 7009 §2.1: unauthenticated request MUST be rejected")
 	assert.Contains(t, res.Body.String(), "invalid_client")
@@ -67,7 +68,7 @@ func TestHandleRevoke_InvalidClientCredentials_Returns401(t *testing.T) {
 	setupRevokeClient(t)
 
 	body := map[string]string{"token": "some-token"}
-	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, "wrong-secret")
+	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, "wrong-secret")
 
 	assert.Equal(t, http.StatusUnauthorized, res.Code)
 	assert.Contains(t, res.Body.String(), "invalid_client")
@@ -85,7 +86,7 @@ func TestHandleRevoke_InvalidToken_Returns200(t *testing.T) {
 	setupRevokeClient(t)
 
 	body := map[string]string{"token": "this-is-not-a-valid-jwt"}
-	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 
 	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: invalid token MUST return 200, not 4xx")
 }
@@ -98,7 +99,7 @@ func TestHandleRevoke_UnknownToken_Returns200(t *testing.T) {
 
 	fakeJWT := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1bmtub3duIiwiZXhwIjo5OTk5OTk5OTk5fQ.invalidsignature"
 	body := map[string]string{"token": fakeJWT}
-	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 
 	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: unrecognised token MUST return 200, not 4xx")
 }
@@ -126,7 +127,7 @@ func TestHandleRevoke(t *testing.T) {
 	body = map[string]string{
 		"token": tkn.AccessToken,
 	}
-	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 
 	// Verify the response
 	assert.Equal(t, http.StatusOK, res.Code)
@@ -148,7 +149,7 @@ func TestHandleRevoke_TokenTypeHint_Accepted(t *testing.T) {
 		"token":           "nonexistent-token",
 		"token_type_hint": "refresh_token",
 	}
-	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.1: token_type_hint must be accepted without error")
 }
 
@@ -161,7 +162,7 @@ func TestHandleRevoke_InvalidTokenTypeHint_Ignored(t *testing.T) {
 		"token":           "nonexistent-token",
 		"token_type_hint": "totally_invalid_hint",
 	}
-	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res := testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 	assert.Equal(t, http.StatusOK, res.Code, "RFC 7009 §2.2: invalid hint must be ignored, still return 200")
 }
 
@@ -190,7 +191,7 @@ func TestHandleRevoke_RefreshToken_AlsoRevokesAccess(t *testing.T) {
 
 	// Revoke by refresh_token (with client auth — same client)
 	body = map[string]string{"token": tkn.RefreshToken}
-	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, revokeClientID, revokeClientSecret)
+	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, revokeClientID, revokeClientSecret)
 	assert.Equal(t, http.StatusOK, res.Code)
 
 	// Both tokens on the same row should now be revoked
@@ -214,7 +215,7 @@ func TestHandleRevoke_ClientSecretPost(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
-	token.HandleRevoke(rr, req)
+	revoke.HandleRevoke(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
@@ -271,7 +272,7 @@ func TestHandleRevoke_BearerAuth_DeactivatedSession(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+bearerJWT)
 	rr := httptest.NewRecorder()
 
-	token.HandleRevoke(rr, req)
+	revoke.HandleRevoke(rr, req)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code,
 		"admin bearer on a deactivated session MUST be rejected")
@@ -304,7 +305,7 @@ func TestHandleRevoke_CrossClient_NoOp(t *testing.T) {
 
 	// Attempt to revoke using a different client
 	body = map[string]string{"token": tkn.AccessToken}
-	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", token.HandleRevoke, otherRevokeClientID, otherRevokeClientSecret)
+	res = testutils.MockFormRequestWithBasicAuth(t, body, http.MethodPost, "/oauth2/revoke", revoke.HandleRevoke, otherRevokeClientID, otherRevokeClientSecret)
 
 	// RFC 7009 §2.1: response is always 200 to avoid leaking token existence
 	assert.Equal(t, http.StatusOK, res.Code)

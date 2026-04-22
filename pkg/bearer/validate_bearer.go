@@ -4,13 +4,29 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
+
+// UserFromRequest validates the bearer token on the request (JWT, session,
+// revocation) and returns the owning user. Thin convenience wrapper over
+// ValidateBearer for handlers that need the user rather than the raw
+// Validated struct.
+func UserFromRequest(r *http.Request) (*user.User, error) {
+	v, err := ValidateBearer(r)
+	if err != nil {
+		return nil, err
+	}
+	usr, err := user.UserByID(v.Session.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %v", err)
+	}
+	return usr, nil
+}
 
 // Validated is a fully-verified user-backed bearer credential: the JWT is
 // signed correctly, unexpired, has the correct audience, and is tied to a
@@ -37,15 +53,15 @@ func ValidateBearer(r *http.Request) (*Validated, error) {
 	if authHeader == "" {
 		return nil, fmt.Errorf("missing Authorization header")
 	}
-	token := utils.ExtractBearerToken(authHeader)
-	if token == "" {
+	bearerToken := utils.ExtractBearerToken(authHeader)
+	if bearerToken == "" {
 		return nil, fmt.Errorf("invalid Authorization header")
 	}
-	claims, err := jwtutil.ValidateAccessToken(token)
+	claims, err := jwtutil.ValidateAccessToken(bearerToken)
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %v", err)
 	}
-	sess, err := session.SessionByAccessToken(token)
+	sess, err := session.SessionByAccessToken(bearerToken)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session: %v", err)
 	}
@@ -53,20 +69,15 @@ func ValidateBearer(r *http.Request) (*Validated, error) {
 		return nil, fmt.Errorf("session has been deactivated")
 	}
 	// RFC 7009: tokens can be individually revoked via /oauth2/revoke,
-	// independent of session state. Reject if revoked_at is set.
-	// A missing row (sql.ErrNoRows) means the token was never persisted in
-	// the tokens table — that's valid (not every flow persists) and must
-	// not reject.
-	var revokedAt *time.Time
-	err = db.GetDB().QueryRow(
-		`SELECT revoked_at FROM tokens WHERE access_token = ?`,
-		token,
-	).Scan(&revokedAt)
+	// independent of session state. A missing row (sql.ErrNoRows) means
+	// the token was never persisted — valid (not every flow persists) and
+	// must not reject.
+	tkn, err := token.TokenByAccessToken(bearerToken)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("token lookup failed: %v", err)
 	}
-	if revokedAt != nil {
+	if tkn != nil && tkn.RevokedAt != nil {
 		return nil, fmt.Errorf("token has been revoked")
 	}
-	return &Validated{Token: token, Claims: claims, Session: sess}, nil
+	return &Validated{Token: bearerToken, Claims: claims, Session: sess}, nil
 }
