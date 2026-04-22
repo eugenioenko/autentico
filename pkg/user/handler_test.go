@@ -152,6 +152,30 @@ func TestGetUserFromRequest_DeactivatedSession(t *testing.T) {
 	assert.Contains(t, err.Error(), "deactivated")
 }
 
+// A token revoked via /oauth2/revoke (RFC 7009 — sets tokens.revoked_at)
+// must also be rejected by the account API, same class of bug as #225 but
+// on the tokens table instead of sessions.
+func TestGetUserFromRequest_RevokedToken(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	token, userID := setupAuthenticatedUser(t)
+	// Persist a tokens row so /oauth2/revoke's revoked_at setter has
+	// something to mark, matching the real-world flow.
+	now := time.Now().UTC()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at)
+		VALUES (?, ?, ?, 'refresh', 'Bearer', ?, ?, ?, 'openid', 'password', ?)
+	`, "tok-"+userID[:6], userID, token, now.Add(time.Hour), now.Add(time.Hour), now, now)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	_, err = GetUserFromRequest(req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "revoked")
+}
+
 // --- HandleCreateUser tests ---
 
 func TestHandleCreateUser_InvalidBody(t *testing.T) {

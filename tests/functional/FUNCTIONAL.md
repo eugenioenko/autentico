@@ -14,7 +14,7 @@ The setup automatically builds the binary (if not already built), creates a temp
 
 ## Coverage
 
-**105 tests** across **17 test files** covering **47 of 58 Swagger endpoints** (81%).
+**106 tests** across **18 test files** covering **47 of 58 Swagger endpoints** (81%).
 
 | File | Tests | Endpoints covered |
 |------|-------|-------------------|
@@ -32,6 +32,7 @@ The setup automatically builds the binary (if not already built), creates a temp
 | logout.test.ts | 5 | `GET/POST /oauth2/logout` |
 | account-api.test.ts | 7 | `POST/GET/DELETE /account/api/deletion-request` |
 | account-api-session-revocation.test.ts | 1 | Issue #225 — `DELETE /account/api/sessions/{id}` cross-token invalidation |
+| account-api-token-revocation.test.ts | 1 | `tokens.revoked_at` honored across `/oauth2/userinfo` and `/account/api/profile` |
 | admin-deletions.test.ts | 6 | `GET/DELETE /admin/api/deletion-requests`, `POST /admin/api/deletion-requests/{id}/approve` |
 | admin-federation.test.ts | 12 | `POST/GET/PUT/DELETE /admin/api/federation` |
 | health.test.ts | 4 | `GET /healthz`, `GET/POST /onboard` |

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/reqid"
 )
 
 var silentPrefixes = []string{
@@ -48,7 +50,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		duration := time.Since(start)
 
 		slog.Info("request",
-			"request_id", GetRequestID(r.Context()),
+			"request_id", reqid.Get(r.Context()),
 			"method", r.Method,
 			"url", r.URL.String(),
 			"status", ww.statusCode,

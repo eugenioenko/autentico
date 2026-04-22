@@ -1,9 +1,12 @@
 package bearer
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -27,7 +30,8 @@ type Validated struct {
 // of the returned claims/session.
 //
 // Not applicable to client_credentials tokens (no session). Admin-API
-// middleware uses its own flow because of the service-account fast path.
+// middleware uses its own flow because it needs per-step RFC 6750 response
+// mapping.
 func ValidateBearer(r *http.Request) (*Validated, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -47,6 +51,22 @@ func ValidateBearer(r *http.Request) (*Validated, error) {
 	}
 	if sess.DeactivatedAt != nil {
 		return nil, fmt.Errorf("session has been deactivated")
+	}
+	// RFC 7009: tokens can be individually revoked via /oauth2/revoke,
+	// independent of session state. Reject if revoked_at is set.
+	// A missing row (sql.ErrNoRows) means the token was never persisted in
+	// the tokens table — that's valid (not every flow persists) and must
+	// not reject.
+	var revokedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT revoked_at FROM tokens WHERE access_token = ?`,
+		token,
+	).Scan(&revokedAt)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("token lookup failed: %v", err)
+	}
+	if revokedAt != nil {
+		return nil, fmt.Errorf("token has been revoked")
 	}
 	return &Validated{Token: token, Claims: claims, Session: sess}, nil
 }

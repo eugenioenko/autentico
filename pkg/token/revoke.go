@@ -9,7 +9,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -50,7 +50,7 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	// token revocation, consistent with RFC 7662 §2.1 introspection auth.
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
-		slog.Warn("revoke: client authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Warn("revoke: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
 		return
 	}
@@ -62,13 +62,13 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		}
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
-			slog.Warn("revoke: bearer auth failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			slog.Warn("revoke: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
-			slog.Warn("revoke: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", v.Claims.UserID)
+			slog.Warn("revoke: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token revocation")
 			return
 		}
@@ -96,7 +96,7 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	if authenticatedClient != nil {
 		azp := jwtutil.ExtractAzp(tokenID)
 		if azp != "" && azp != authenticatedClient.ClientID {
-			slog.Info("revoke: token belongs to different client", "request_id", middleware.GetRequestID(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
+			slog.Info("revoke: token belongs to different client", "request_id", reqid.Get(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
 			w.WriteHeader(http.StatusOK)
 			return
 		}

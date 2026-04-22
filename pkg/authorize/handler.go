@@ -12,7 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -69,13 +69,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// Validate client_id — if unknown we cannot redirect back safely
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
-		slog.Warn("authorize: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		slog.Warn("authorize: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		renderError(w, "Unknown client_id")
 		return
 	}
 
 	if !registeredClient.IsActive {
-		slog.Warn("authorize: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		slog.Warn("authorize: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		renderError(w, "Client is inactive")
 		return
 	}
@@ -83,7 +83,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// RFC 6749 §4.1.3: redirect_uri MUST match a URI registered for the client;
 	// if invalid, do not redirect — render an error page instead to avoid open redirector.
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
-		slog.Warn("authorize: invalid redirect_uri for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
+		slog.Warn("authorize: invalid redirect_uri for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
 		renderError(w, "Redirect URI not allowed for this client")
 		return
 	}
@@ -114,13 +114,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
-		slog.Warn("authorize: invalid response_type for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
+		slog.Warn("authorize: invalid response_type for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
 		redirectWithError(w, r, request.RedirectURI, request.State, "unsupported_response_type", "response_type not allowed for this client")
 		return
 	}
 
 	if !client.ValidateScopes(registeredClient, request.Scope) {
-		slog.Warn("authorize: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
+		slog.Warn("authorize: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_scope", "one or more requested scopes are not allowed for this client")
 		return
 	}
@@ -218,14 +218,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	renderLogin(w, r, request, get("error"))
 }
 
-
 // renderLogin renders the login form, or an error-only page when errorMsg is a fatal
 // configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
 func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("login")
 	if err != nil {
-		slog.Error("authorize: failed to parse login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("authorize: failed to parse login template", "request_id", reqid.Get(r.Context()), "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -253,7 +252,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Error("authorize: failed to execute login template", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("authorize: failed to execute login template", "request_id", reqid.Get(r.Context()), "error", err)
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
 }

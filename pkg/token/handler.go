@@ -13,7 +13,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/mfa"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -82,7 +82,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	var authenticatedClient *client.Client
 	authenticatedClient, err = client.AuthenticateClientFromRequest(r)
 	if err != nil {
-		slog.Warn("token: invalid client credentials", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		slog.Warn("token: invalid client credentials", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
 		// RFC 6749 §5.2: invalid_client MUST use HTTP 401; all other errors use HTTP 400
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
 		return
@@ -90,7 +90,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	// If a client was resolved, validate that it allows the requested grant type
 	if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
-		slog.Warn("token: grant type not allowed for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
+		slog.Warn("token: grant type not allowed for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
 		return
 	}
@@ -125,11 +125,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		usr, err = user.AuthenticateUser(request.Username, request.Password)
 		if err != nil {
 			if errors.Is(err, user.ErrAccountLocked) {
-				slog.Warn("token: account locked (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+				slog.Warn("token: account locked (ROPC)", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 				utils.WriteErrorResponse(w, http.StatusForbidden, "account_locked", err.Error())
 				return
 			}
-			slog.Warn("token: invalid ROPC credentials", "request_id", middleware.GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+			slog.Warn("token: invalid ROPC credentials", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 			// RFC 6749 §4.3.2: invalid credentials in ROPC MUST return invalid_grant (not invalid_client)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
 			return
@@ -139,18 +139,18 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		if cfg.RequireMfa || usr.TotpVerified {
 			if !usr.TotpVerified {
 				// MFA is required but user has not enrolled — they must enroll via browser flow first.
-				slog.Warn("token: MFA required but not enrolled (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				slog.Warn("token: MFA required but not enrolled (ROPC)", "request_id", reqid.Get(r.Context()), "user_id", usr.ID)
 				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "MFA is required but not enrolled. Please enroll via the login page.")
 				return
 			}
 			if request.TotpCode == "" {
 				// User has TOTP enrolled but no code provided.
-				slog.Info("token: MFA code required (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				slog.Info("token: MFA code required (ROPC)", "request_id", reqid.Get(r.Context()), "user_id", usr.ID)
 				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "TOTP code is required")
 				return
 			}
 			if !mfa.ValidateTotpCode(usr.TotpSecret, request.TotpCode) {
-				slog.Warn("token: invalid MFA code (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "user_id", usr.ID)
+				slog.Warn("token: invalid MFA code (ROPC)", "request_id", reqid.Get(r.Context()), "user_id", usr.ID)
 				utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_mfa_code", "Invalid TOTP code")
 				return
 			}
@@ -166,7 +166,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			requestedScope = "openid profile email"
 		}
 		if !client.ValidateScopes(authenticatedClient, requestedScope) {
-			slog.Warn("token: invalid scope for client (ROPC)", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", requestedScope)
+			slog.Warn("token: invalid scope for client (ROPC)", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", requestedScope)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
 			return
 		}
@@ -196,7 +196,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !client.ValidateScopes(authenticatedClient, ccScope) {
-			slog.Warn("token: invalid scope for client (client_credentials)", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", ccScope)
+			slog.Warn("token: invalid scope for client (client_credentials)", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", ccScope)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
 			return
 		}
@@ -210,7 +210,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 		ccToken, ccErr := GenerateClientCredentialsToken(request.ClientID, ccScope, ccCfg)
 		if ccErr != nil {
-			slog.Error("token: failed to generate client_credentials token", "request_id", middleware.GetRequestID(r.Context()), "error", ccErr)
+			slog.Error("token: failed to generate client_credentials token", "request_id", reqid.Get(r.Context()), "error", ccErr)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", ccErr))
 			return
 		}
@@ -228,7 +228,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			GrantType:             "client_credentials",
 		})
 		if ccErr != nil {
-			slog.Error("token: failed to store client_credentials token", "request_id", middleware.GetRequestID(r.Context()), "error", ccErr)
+			slog.Error("token: failed to store client_credentials token", "request_id", reqid.Get(r.Context()), "error", ccErr)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", ccErr))
 			return
 		}
@@ -300,7 +300,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := GenerateTokens(*usr, request.ClientID, codeScope, clientCfg)
 	if err != nil {
-		slog.Error("token: failed to generate tokens", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("token: failed to generate tokens", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
 		return
 	}
@@ -318,7 +318,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		slog.Error("token: failed to store token", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("token: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
@@ -334,7 +334,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		slog.Error("token: failed to create session", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("token: failed to create session", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
 		return
 	}
@@ -352,7 +352,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if containsScope(codeScope, "openid") {
 		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID, codeAuthTime, authToken.AccessToken)
 		if idErr != nil {
-			slog.Error("token: failed to generate ID token", "request_id", middleware.GetRequestID(r.Context()), "error", idErr)
+			slog.Error("token: failed to generate ID token", "request_id", reqid.Get(r.Context()), "error", idErr)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("ID token generation failed: %v", idErr))
 			return
 		}

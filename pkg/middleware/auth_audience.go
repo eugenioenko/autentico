@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -30,13 +31,13 @@ func AuthAudienceMiddleware(next http.Handler) http.Handler {
 		tokenString := parts[1]
 		claims, err := jwtutil.ValidateAccessToken(tokenString)
 		if err != nil {
-			slog.Warn("auth_audience: invalid or expired token", "request_id", GetRequestID(r.Context()), "error", err, "ip", utils.GetClientIP(r))
+			slog.Warn("auth_audience: invalid or expired token", "request_id", reqid.Get(r.Context()), "error", err, "ip", utils.GetClientIP(r))
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
 			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
 			return
 		}
 		if err := jwtutil.ValidateAudience(claims.Audience, config.Get().AuthAccessTokenAudience); err != nil {
-			slog.Warn("auth_audience: invalid token audience", "request_id", GetRequestID(r.Context()), "ip", utils.GetClientIP(r))
+			slog.Warn("auth_audience: invalid token audience", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Invalid token audience")
 			return
 		}

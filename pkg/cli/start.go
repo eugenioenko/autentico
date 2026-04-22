@@ -39,6 +39,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/passwordreset"
 	"github.com/eugenioenko/autentico/pkg/ratelimit"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
@@ -286,7 +287,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{
-		middleware.RequestIDMiddleware,
+		reqid.Middleware,
 		middleware.SecurityHeadersMiddleware,
 		middleware.LoggingMiddleware,
 		middleware.CORSMiddleware,

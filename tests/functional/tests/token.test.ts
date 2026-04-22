@@ -4,9 +4,9 @@ import {
   ADMIN_USERNAME,
   ADMIN_PASSWORD,
   ADMIN_EMAIL,
+  obtainTokenViaAuthCode,
   obtainTokenViaROPC,
   postForm,
-  getAdminToken,
 } from '../helpers';
 
 function decodeJwtPayload(jwt: string): Record<string, unknown> {
@@ -159,12 +159,15 @@ describe('Token endpoint — Refresh', () => {
 describe('Token revocation', () => {
   it('revoked token is rejected by userinfo', async () => {
     const tokens = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
-    const adminToken = await getAdminToken();
+    // Use a fresh admin token rather than the cached one — earlier replay-detection
+    // tests in this file revoke all of the admin user's authorization_code tokens,
+    // which now correctly also fails the admin bearer gate on /oauth2/revoke.
+    const adminTokens = await obtainTokenViaAuthCode(ADMIN_USERNAME, ADMIN_PASSWORD);
 
     // Revoke (with bearer auth — admin token)
     const revokeResp = await postForm(`${OAUTH_URL}/revoke`, {
       token: tokens.access_token,
-    }, adminToken);
+    }, adminTokens.access_token);
     expect(revokeResp.status).toBe(200);
 
     // Verify rejected

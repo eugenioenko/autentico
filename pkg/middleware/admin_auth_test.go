@@ -338,6 +338,54 @@ func TestAdminAuthMiddleware_SessionDeactivated(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Session has been deactivated")
 }
 
+// TestAdminAuthMiddleware_TokenRevoked verifies that a token marked
+// revoked in the tokens table (via /oauth2/revoke, RFC 7009) is rejected
+// by the admin middleware even when the session is still active.
+func TestAdminAuthMiddleware_TokenRevoked(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, 'admin')`,
+		userID, "revokedadminuser", "revoked-admin@example.com", "hashed")
+	assert.NoError(t, err)
+
+	token, err := generateTestAccessToken(userID)
+	assert.NoError(t, err)
+
+	// Active session — the session gate should pass.
+	sessionID := xid.New().String()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
+	`, sessionID, userID, token, "")
+	assert.NoError(t, err)
+
+	// Persisted, revoked tokens row — the new check should catch this.
+	now := time.Now().UTC()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at)
+		VALUES (?, ?, ?, 'refresh', 'Bearer', ?, ?, ?, 'openid', 'password', ?)
+	`, "tok-"+userID[:6], userID, token, now.Add(time.Hour), now.Add(time.Hour), now, now)
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Token has been revoked")
+}
+
 // TestAdminAuthMiddleware_WWWAuthenticate_On401 verifies RFC 6750 §3.1:
 // all 401 responses from the admin auth middleware MUST include WWW-Authenticate.
 func TestAdminAuthMiddleware_WWWAuthenticate_On401(t *testing.T) {

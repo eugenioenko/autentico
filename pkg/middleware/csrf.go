@@ -6,13 +6,14 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/gorilla/csrf"
 )
 
 func csrfErrorHandler(w http.ResponseWriter, r *http.Request) {
 	reason := csrf.FailureReason(r)
-	requestID := GetRequestID(r.Context())
+	requestID := reqid.Get(r.Context())
 
 	hint := ""
 	bs := config.GetBootstrap()
