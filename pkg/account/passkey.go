@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
-	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/passkey"
-	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -27,7 +27,7 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/passkeys [get]
 func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -65,7 +65,7 @@ func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/{id} [delete]
 func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -107,7 +107,7 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/{id} [patch]
 func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -150,7 +150,7 @@ func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/passkeys/register/begin [post]
 func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -159,7 +159,7 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 	existingCreds, _ := passkey.PasskeyCredentialsByUserID(usr.ID)
 	wauthn, err := passkey.NewWebAuthn()
 	if err != nil {
-		slog.Error("account: passkey add: failed to initialize WebAuthn", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to initialize WebAuthn", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "WebAuthn initialization failed")
 		return
 	}
@@ -182,7 +182,7 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 		}),
 	)
 	if err != nil {
-		slog.Error("account: passkey add: failed to begin registration", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to begin registration", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to begin registration")
 		return
 	}
@@ -221,7 +221,7 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/passkeys/register/finish [post]
 func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -249,7 +249,7 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 
 	var sessionData webauthn.SessionData
 	if err := json.Unmarshal([]byte(challenge.ChallengeData), &sessionData); err != nil {
-		slog.Error("account: passkey add: failed to parse session data", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to parse session data", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to parse challenge")
 		return
 	}
@@ -263,14 +263,14 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 
 	wauthn, err := passkey.NewWebAuthn()
 	if err != nil {
-		slog.Error("account: passkey add: failed to initialize WebAuthn", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to initialize WebAuthn", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "WebAuthn initialization failed")
 		return
 	}
 
 	credential, err := wauthn.FinishRegistration(wUser, sessionData, r)
 	if err != nil {
-		slog.Warn("account: passkey add: registration failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Warn("account: passkey add: registration failed", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "registration_failed", "Passkey registration failed")
 		return
 	}
@@ -278,7 +278,7 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
 	credJSON, err := json.Marshal(credential)
 	if err != nil {
-		slog.Error("account: passkey add: failed to marshal credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to marshal credential", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store credential")
 		return
 	}
@@ -290,7 +290,7 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 		Credential: string(credJSON),
 	}
 	if err := passkey.CreatePasskeyCredential(pCred); err != nil {
-		slog.Error("account: passkey add: failed to store credential", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("account: passkey add: failed to store credential", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store credential")
 		return
 	}

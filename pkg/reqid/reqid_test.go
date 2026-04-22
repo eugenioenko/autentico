@@ -1,4 +1,4 @@
-package middleware
+package reqid
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRequestIDMiddleware(t *testing.T) {
-	handler := RequestIDMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := GetRequestID(r.Context())
+func TestMiddleware(t *testing.T) {
+	handler := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := Get(r.Context())
 		assert.NotEmpty(t, id)
 		w.Header().Set("X-Test-Request-ID", id)
 	}))
@@ -25,7 +25,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 	assert.NotEmpty(t, id)
 }
 
-func TestGetRequestID_Empty(t *testing.T) {
-	id := GetRequestID(context.Background())
+func TestGet_Empty(t *testing.T) {
+	id := Get(context.Background())
 	assert.Empty(t, id)
 }

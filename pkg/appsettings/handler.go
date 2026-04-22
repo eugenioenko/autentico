@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/mfa"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -248,7 +248,7 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/settings/test-smtp [post]
 func HandleTestSmtp(w http.ResponseWriter, r *http.Request) {
-	usr, err := user.GetUserFromRequest(r)
+	usr, err := bearer.UserFromRequest(r)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return

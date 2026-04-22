@@ -16,8 +16,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -77,7 +77,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: request.CodeChallengeMethod,
 		State:               request.State,
 	}, authorizeSig) {
-		slog.Warn("login: authorize parameter signature mismatch", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		slog.Warn("login: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
 		return
 	}
@@ -91,24 +91,24 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	// Validate client_id is registered and redirect_uri is allowed for this client
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
-		slog.Warn("login: unknown client_id", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		slog.Warn("login: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
 		return
 	}
 	if !registeredClient.IsActive {
-		slog.Warn("login: inactive client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
+		slog.Warn("login: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
 		return
 	}
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
-		slog.Warn("login: redirect_uri not registered for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI, "ip", utils.GetClientIP(r))
+		slog.Warn("login: redirect_uri not registered for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
 		return
 	}
 
 	// Reject any scope that the client is not allowed to use
 	if !client.ValidateScopes(registeredClient, request.Scope) {
-		slog.Warn("login: invalid scope for client", "request_id", middleware.GetRequestID(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
+		slog.Warn("login: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
 		return
 	}
@@ -124,7 +124,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		loginError := "Invalid username or password"
 		if errors.Is(err, user.ErrAccountLocked) {
 			loginError = "Account is temporarily locked due to too many failed login attempts"
-			slog.Warn("login: account locked", "request_id", middleware.GetRequestID(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
+			slog.Warn("login: account locked", "request_id", reqid.Get(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
 		}
 		detail := audit.Detail("username", request.Username, "reason", loginError)
 		audit.Log(audit.EventLoginFailed, nil, audit.TargetUser, "", detail, utils.GetClientIP(r))
@@ -168,7 +168,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			if usr.TotpVerified {
 				method = "totp"
 			} else {
-				slog.Error("login: email MFA required but SMTP is not configured", "request_id", middleware.GetRequestID(r.Context()))
+				slog.Error("login: email MFA required but SMTP is not configured", "request_id", reqid.Get(r.Context()))
 				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
 				return
 			}
@@ -177,7 +177,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		// For email method, always proceed (no per-user setup needed)
 
 		loginState := mfa.LoginState{
-			RedirectURI:            request.RedirectURI,
+			RedirectURI:         request.RedirectURI,
 			State:               request.State,
 			ClientID:            request.ClientID,
 			Scope:               request.Scope,
@@ -187,14 +187,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
-			slog.Error("login: failed to serialize login state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			slog.Error("login: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
 			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
-			slog.Error("login: failed to generate challenge ID", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			slog.Error("login: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
 			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
@@ -208,7 +208,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
-			slog.Error("login: failed to create MFA challenge", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+			slog.Error("login: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
 			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 			return
 		}
@@ -236,7 +236,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
-		slog.Error("login: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("login: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
 		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
@@ -256,7 +256,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err = authcode.CreateAuthCode(code)
 	if err != nil {
-		slog.Error("login: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("login: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
 		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}

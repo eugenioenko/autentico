@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/ratelimit"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -16,7 +17,7 @@ func RateLimitMiddleware(store *ratelimit.Store) func(http.Handler) http.Handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := utils.GetClientIP(r)
 			if !store.Allow(ip) {
-				slog.Warn("rate_limit: request blocked", "request_id", GetRequestID(r.Context()), "ip", ip, "url", r.URL.Path)
+				slog.Warn("rate_limit: request blocked", "request_id", reqid.Get(r.Context()), "ip", ip, "url", r.URL.Path)
 				w.Header().Set("Retry-After", "1")
 				utils.WriteErrorResponse(w, http.StatusTooManyRequests, "too_many_requests", "Rate limit exceeded, please slow down")
 				return

@@ -39,6 +39,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/passwordreset"
 	"github.com/eugenioenko/autentico/pkg/ratelimit"
+	"github.com/eugenioenko/autentico/pkg/reqid"
+	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
@@ -147,7 +149,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
 	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))
 	mux.Handle("POST "+oauth+"/protocol/openid-connect/token", rateLimitedFunc(token.HandleToken))
-	mux.HandleFunc("POST "+oauth+"/revoke", token.HandleRevoke)
+	mux.HandleFunc("POST "+oauth+"/revoke", revoke.HandleRevoke)
 	mux.HandleFunc("POST "+oauth+"/introspect", introspect.HandleIntrospect)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
@@ -286,7 +288,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{
-		middleware.RequestIDMiddleware,
+		reqid.Middleware,
 		middleware.SecurityHeadersMiddleware,
 		middleware.LoggingMiddleware,
 		middleware.CORSMiddleware,

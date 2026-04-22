@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -43,7 +44,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	// Usage [RFC6750]."
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
-		slog.Warn("introspect: client authentication failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Warn("introspect: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
 		return
 	}
@@ -55,20 +56,19 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		// determine whether or not the token can be introspected by the specific
 		// resource server making the request." We restrict bearer auth to admin
 		// users only to prevent arbitrary users from inspecting other users' tokens.
-		bearerToken := utils.ExtractBearerToken(r.Header.Get("Authorization"))
-		if bearerToken == "" {
+		if r.Header.Get("Authorization") == "" {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
 			return
 		}
-		claims, err := jwtutil.ValidateAccessToken(bearerToken)
+		v, err := bearer.ValidateBearer(r)
 		if err != nil {
-			slog.Warn("introspect: bearer token invalid", "request_id", middleware.GetRequestID(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid or expired")
+			slog.Warn("introspect: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
-		usr, err := user.UserByID(claims.UserID)
+		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
-			slog.Warn("introspect: bearer auth requires admin role", "request_id", middleware.GetRequestID(r.Context()), "user_id", claims.UserID)
+			slog.Warn("introspect: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token introspection")
 			return
 		}
@@ -114,7 +114,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	// MUST return 200 {"active":false} — never a 4xx error.
 	tkn, err := IntrospectToken(req.Token)
 	if err != nil {
-		slog.Info("introspect: inactive token", "request_id", middleware.GetRequestID(r.Context()), "reason", err)
+		slog.Info("introspect: inactive token", "request_id", reqid.Get(r.Context()), "reason", err)
 		inactive(w)
 		return
 	}
@@ -127,7 +127,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	if authenticatedClient != nil {
 		azp := jwtutil.ExtractAzp(tkn.AccessToken)
 		if azp != "" && azp != authenticatedClient.ClientID {
-			slog.Info("introspect: token belongs to different client", "request_id", middleware.GetRequestID(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
+			slog.Info("introspect: token belongs to different client", "request_id", reqid.Get(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
 			inactive(w)
 			return
 		}
@@ -139,7 +139,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		// should no longer be considered active.
 		sess, err := session.SessionByAccessToken(tkn.AccessToken)
 		if err != nil || sess == nil || sess.DeactivatedAt != nil {
-			slog.Info("introspect: session not active", "request_id", middleware.GetRequestID(r.Context()))
+			slog.Info("introspect: session not active", "request_id", reqid.Get(r.Context()))
 			inactive(w)
 			return
 		}
@@ -150,7 +150,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	if tkn.UserID != nil {
 		usr, err := user.UserByIDIncludingDeactivated(*tkn.UserID)
 		if err != nil || usr == nil || usr.DeactivatedAt != nil {
-			slog.Info("introspect: user deactivated or not found", "request_id", middleware.GetRequestID(r.Context()))
+			slog.Info("introspect: user deactivated or not found", "request_id", reqid.Get(r.Context()))
 			inactive(w)
 			return
 		}

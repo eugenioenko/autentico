@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
 
@@ -60,7 +60,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 
 	provider, err := FederationProviderByID(providerID)
 	if err != nil || !provider.Enabled {
-		slog.Warn("federation: provider not found or disabled", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID)
+		slog.Warn("federation: provider not found or disabled", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "federation provider not found", http.StatusNotFound)
 		return
 	}
@@ -68,7 +68,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	nonce, err := authcode.GenerateSecureCode()
 	if err != nil {
-		slog.Error("federation: failed to generate nonce", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("federation: failed to generate nonce", "request_id", reqid.Get(r.Context()), "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
@@ -86,7 +86,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 
 	signedState, err := SignState(state)
 	if err != nil {
-		slog.Error("federation: failed to sign state", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("federation: failed to sign state", "request_id", reqid.Get(r.Context()), "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
@@ -95,7 +95,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	safeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
 	oidcProvider, err := oidc.NewProvider(safeCtx, provider.Issuer)
 	if err != nil {
-		slog.Error("federation: failed to discover OIDC provider", "request_id", middleware.GetRequestID(r.Context()), "issuer", provider.Issuer, "error", err)
+		slog.Error("federation: failed to discover OIDC provider", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)
 		http.Error(w, "federation provider unavailable", http.StatusBadGateway)
 		return
 	}
@@ -122,27 +122,27 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	code := q.Get("code")
 
 	if rawState == "" || code == "" {
-		slog.Warn("federation: missing state or code in callback", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID)
+		slog.Warn("federation: missing state or code in callback", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "invalid callback", http.StatusBadRequest)
 		return
 	}
 
 	state, err := VerifyState(rawState)
 	if err != nil {
-		slog.Warn("federation: invalid state signature", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Warn("federation: invalid state signature", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		return
 	}
 
 	if state.ProviderID != providerID {
-		slog.Warn("federation: provider_id mismatch in state", "request_id", middleware.GetRequestID(r.Context()), "expected", providerID, "got", state.ProviderID)
+		slog.Warn("federation: provider_id mismatch in state", "request_id", reqid.Get(r.Context()), "expected", providerID, "got", state.ProviderID)
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		return
 	}
 
 	provider, err := FederationProviderByID(providerID)
 	if err != nil || !provider.Enabled {
-		slog.Warn("federation: provider not found or disabled in callback", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID)
+		slog.Warn("federation: provider not found or disabled in callback", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "federation provider not found", http.StatusNotFound)
 		return
 	}
@@ -151,7 +151,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
 	oidcProvider, err := oidc.NewProvider(ctx, provider.Issuer)
 	if err != nil {
-		slog.Error("federation: failed to discover OIDC provider in callback", "request_id", middleware.GetRequestID(r.Context()), "issuer", provider.Issuer, "error", err)
+		slog.Error("federation: failed to discover OIDC provider in callback", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)
 		http.Error(w, "federation provider unavailable", http.StatusBadGateway)
 		return
 	}
@@ -166,14 +166,14 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := oauth2Cfg.Exchange(ctx, code)
 	if err != nil {
-		slog.Warn("federation: failed to exchange code", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Warn("federation: failed to exchange code", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		slog.Warn("federation: no id_token in response", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID)
+		slog.Warn("federation: no id_token in response", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
@@ -181,7 +181,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	verifier := oidcProvider.Verifier(&oidc.Config{ClientID: provider.ClientID})
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
-		slog.Warn("federation: id_token verification failed", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Warn("federation: id_token verification failed", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
@@ -192,21 +192,21 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		EmailVerified bool   `json:"email_verified"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		slog.Error("federation: failed to extract claims", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Error("federation: failed to extract claims", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 
 	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified)
 	if err != nil {
-		slog.Error("federation: failed to resolve user", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Error("federation: failed to resolve user", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
 	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "federation", "provider", providerID), utils.GetClientIP(r))
 
 	if err := completeAuthFlow(w, r, usr, state); err != nil {
-		slog.Error("federation: failed to complete auth flow", "request_id", middleware.GetRequestID(r.Context()), "provider_id", providerID, "error", err)
+		slog.Error("federation: failed to complete auth flow", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 	}
 }

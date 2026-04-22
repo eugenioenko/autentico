@@ -549,22 +549,31 @@ func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
 // RFC 7662 §2.1 — Bearer token authentication (RFC 6750 alternative)
 // ---------------------------------------------------------------------------
 
-// generateBearerJWT creates a signed JWT for the given userID.
+// generateBearerJWT creates a signed JWT for the given userID and inserts a
+// matching active session row so that bearer-auth liveness checks pass.
 func generateBearerJWT(t *testing.T, userID string) string {
 	t.Helper()
+	sessionID := xid.New().String()
+	accessTokenExpiresAt := time.Now().Add(time.Hour).UTC()
 	claims := jwt.MapClaims{
-		"exp":   time.Now().Add(time.Hour).Unix(),
+		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
 		"iss":   config.GetBootstrap().AppAuthIssuer,
 		"aud":   config.Get().AuthAccessTokenAudience,
 		"sub":   userID,
 		"typ":   "Bearer",
-		"sid":   xid.New().String(),
+		"sid":   sessionID,
 		"scope": "openid",
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
 	signed, err := token.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, ?)
+	`, sessionID, userID, signed, "refresh-placeholder", accessTokenExpiresAt)
 	assert.NoError(t, err)
 	return signed
 }
@@ -597,6 +606,44 @@ func TestHandleIntrospect_BearerAuth_Admin(t *testing.T) {
 	var resp IntrospectResponse
 	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.False(t, resp.Active)
+}
+
+// TestHandleIntrospect_BearerAuth_DeactivatedSession verifies that an admin
+// bearer token whose backing session has been revoked (logout or admin
+// DELETE /sessions/:id) is rejected. Same class of bug as issue #225:
+// the admin bearer fallback must honor session revocation, matching the
+// check in pkg/middleware/admin_auth.go.
+func TestHandleIntrospect_BearerAuth_DeactivatedSession(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	adminID := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, 'admin')`,
+		adminID, "introadmindeactivated", "introadmindeactivated@example.com", "hash")
+	assert.NoError(t, err)
+
+	bearerJWT := generateBearerJWT(t, adminID)
+
+	// Deactivate the session that generateBearerJWT inserted for this token.
+	_, err = db.GetDB().Exec(
+		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
+		bearerJWT,
+	)
+	assert.NoError(t, err)
+
+	form := url.Values{}
+	form.Set("token", "some-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+bearerJWT)
+	rr := httptest.NewRecorder()
+
+	HandleIntrospect(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code,
+		"admin bearer on a deactivated session MUST be rejected")
+	assert.Contains(t, rr.Body.String(), "invalid_token")
 }
 
 // TestHandleIntrospect_BearerAuth_NonAdmin verifies RFC 7662 §4:

@@ -12,7 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -125,7 +125,7 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Always show success to prevent user enumeration.
 	// Silently skip if we can't find the user or they have no email.
 	cfg := config.Get()
-	reqID := middleware.GetRequestID(r.Context())
+	reqID := reqid.Get(r.Context())
 
 	var usr *user.User
 	var err error
@@ -209,7 +209,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqID := middleware.GetRequestID(r.Context())
+	reqID := reqid.Get(r.Context())
 
 	// Validate passwords match
 	if password != confirmPassword {

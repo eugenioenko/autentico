@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -71,6 +73,22 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 			slog.Warn("admin_auth: deactivated session", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
 			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
+			return
+		}
+
+		// RFC 7009: tokens can be individually revoked via /oauth2/revoke,
+		// independent of session state. sql.ErrNoRows is not an error —
+		// not every flow persists a tokens row, and absence means
+		// "nothing to revoke," not "reject."
+		tkn, err := token.TokenByAccessToken(tokenString)
+		if err != nil && err != sql.ErrNoRows {
+			slog.Warn("admin_auth: token lookup failed", "user_id", claims.UserID, "error", err, "ip", utils.GetClientIP(r))
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token lookup failed")
+			return
+		}
+		if tkn != nil && tkn.RevokedAt != nil {
+			slog.Warn("admin_auth: revoked token", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has been revoked")
 			return
 		}
 

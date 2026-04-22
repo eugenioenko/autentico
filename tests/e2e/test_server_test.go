@@ -20,6 +20,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
@@ -120,7 +121,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc(oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/token", token.HandleToken)
-	mux.HandleFunc(oauth+"/revoke", token.HandleRevoke)
+	mux.HandleFunc(oauth+"/revoke", revoke.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)

@@ -14,7 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
-	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -138,7 +138,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 			RenderVerifyEmail(w, r, "expired", "", params, "This verification link is invalid or has already been used.")
 			return
 		}
-		slog.Error("verify-email: failed to look up token", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("verify-email: failed to look up token", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "expired", "", params, "Something went wrong. Please request a new verification link.")
 		return
 	}
@@ -154,7 +154,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.MarkEmailVerified(userID); err != nil {
-		slog.Error("verify-email: failed to mark email verified", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("verify-email: failed to mark email verified", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "expired", "", params, "Something went wrong. Please request a new verification link.")
 		return
 	}
@@ -162,7 +162,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	// Issue auth code and redirect — user is now logged in
 	authCodeStr, err := authcode.GenerateSecureCode()
 	if err != nil {
-		slog.Error("verify-email: failed to generate auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("verify-email: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
 		return
 	}
@@ -181,7 +181,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
-		slog.Error("verify-email: failed to create auth code", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("verify-email: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
 		return
 	}
@@ -230,21 +230,21 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 
 	rawToken, tokenHash, err := GenerateToken()
 	if err != nil {
-		slog.Error("resend-verification: failed to generate token", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("resend-verification: failed to generate token", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
 		return
 	}
 
 	expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
 	if err := user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt); err != nil {
-		slog.Error("resend-verification: failed to store token", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("resend-verification: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
 		return
 	}
 
 	verifyURL := BuildVerifyURL(rawToken, params)
 	if err := mfa.SendVerificationEmail(usr.Email, verifyURL); err != nil {
-		slog.Error("resend-verification: failed to send email", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		slog.Error("resend-verification: failed to send email", "request_id", reqid.Get(r.Context()), "error", err)
 	}
 
 	RenderVerifyEmail(w, r, "sent", username, params, "")
