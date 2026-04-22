@@ -132,6 +132,26 @@ func TestGetUserFromRequest_Valid(t *testing.T) {
 	assert.NotNil(t, user)
 }
 
+// Regression for https://github.com/eugenioenko/autentico/issues/225:
+// a token whose session has been deactivated (self-service logout or admin
+// revocation) must not be accepted by the account API.
+func TestGetUserFromRequest_DeactivatedSession(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	token, _ := setupAuthenticatedUser(t)
+	_, err := db.GetDB().Exec(
+		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
+		token,
+	)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	_, err = GetUserFromRequest(req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "deactivated")
+}
+
 // --- HandleCreateUser tests ---
 
 func TestHandleCreateUser_InvalidBody(t *testing.T) {

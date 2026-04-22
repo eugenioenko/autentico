@@ -27,12 +27,18 @@ func GetUserFromRequest(r *http.Request) (*User, error) {
 		return nil, fmt.Errorf("invalid token: %v", err)
 	}
 	// Find session by access token
-	session, err := session.SessionByAccessToken(tokenStr)
+	sess, err := session.SessionByAccessToken(tokenStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session: %v", err)
 	}
+	// A revoked session (self-service logout or admin DELETE /sessions/:id)
+	// must invalidate the token across the entire API surface, matching the
+	// behavior of /oauth2/userinfo and the admin middleware.
+	if sess.DeactivatedAt != nil {
+		return nil, fmt.Errorf("session has been deactivated")
+	}
 	// Find user by session.UserID
-	user, err := UserByID(session.UserID)
+	user, err := UserByID(sess.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
 	}
