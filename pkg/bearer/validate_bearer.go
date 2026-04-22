@@ -1,7 +1,6 @@
 package bearer
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 
@@ -68,15 +67,8 @@ func ValidateBearer(r *http.Request) (*Validated, error) {
 	if sess.DeactivatedAt != nil {
 		return nil, fmt.Errorf("session has been deactivated")
 	}
-	// RFC 7009: tokens can be individually revoked via /oauth2/revoke,
-	// independent of session state. A missing row (sql.ErrNoRows) means
-	// the token was never persisted — valid (not every flow persists) and
-	// must not reject.
-	tkn, err := token.TokenByAccessToken(bearerToken)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, fmt.Errorf("token lookup failed: %v", err)
-	}
-	if tkn != nil && tkn.RevokedAt != nil {
+	// TokenByAccessToken filters revoked rows; any error is a rejection.
+	if _, err := token.TokenByAccessToken(bearerToken); err != nil {
 		return nil, fmt.Errorf("token has been revoked")
 	}
 	return &Validated{Token: bearerToken, Claims: claims, Session: sess}, nil

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"database/sql"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -76,18 +75,9 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// RFC 7009: tokens can be individually revoked via /oauth2/revoke,
-		// independent of session state. sql.ErrNoRows is not an error —
-		// not every flow persists a tokens row, and absence means
-		// "nothing to revoke," not "reject."
-		tkn, err := token.TokenByAccessToken(tokenString)
-		if err != nil && err != sql.ErrNoRows {
-			slog.Warn("admin_auth: token lookup failed", "user_id", claims.UserID, "error", err, "ip", utils.GetClientIP(r))
-			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token lookup failed")
-			return
-		}
-		if tkn != nil && tkn.RevokedAt != nil {
-			slog.Warn("admin_auth: revoked token", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
+		// TokenByAccessToken filters revoked rows; any error is a rejection.
+		if _, err := token.TokenByAccessToken(tokenString); err != nil {
+			slog.Warn("admin_auth: token lookup failed or revoked", "user_id", claims.UserID, "error", err, "ip", utils.GetClientIP(r))
 			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has been revoked")
 			return
 		}

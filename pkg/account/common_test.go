@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -42,6 +43,16 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User) {
 		ExpiresAt:    time.Now().Add(time.Hour),
 	}
 	err = session.CreateSession(sess)
+	assert.NoError(t, err)
+
+	// Persist the matching tokens row so bearer.ValidateBearer's
+	// revocation check sees an active row (not sql.ErrNoRows).
+	now := time.Now().UTC()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
+	`, "tok-"+sessionID[:8], usr.ID, tokenString, "refresh-"+sessionID[:8], now.Add(time.Hour), now.Add(time.Hour), now)
 	assert.NoError(t, err)
 
 	return tokenString, usr

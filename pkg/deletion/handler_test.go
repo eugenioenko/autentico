@@ -9,6 +9,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/model"
@@ -47,6 +48,16 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User) {
 		ExpiresAt:    time.Now().Add(time.Hour),
 	}
 	require.NoError(t, session.CreateSession(sess))
+
+	// Persist matching tokens row (active) so the revocation read-layer
+	// filter sees an active record for this bearer.
+	now := time.Now().UTC()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
+	`, "tok-"+sessionID[:8], usr.ID, tokenString, "refresh-"+sessionID[:8], now.Add(time.Hour), now.Add(time.Hour), now)
+	require.NoError(t, err)
 
 	return tokenString, usr
 }

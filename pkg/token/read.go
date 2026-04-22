@@ -7,17 +7,24 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-// TokenByAccessToken returns the token row matching the given access token
-// value. Returns sql.ErrNoRows when no row exists — not every flow persists
-// a tokens row (e.g. some short-lived paths), so callers should treat
-// "not found" as "nothing to check" rather than a rejection.
+// TokenByAccessToken returns the active token row matching the access token.
+// Revoked tokens are filtered at the read layer so callers can't accidentally
+// honor a revoked token.
+//
+// Returns sql.ErrNoRows when no active row exists. A JWT that validated
+// cryptographically but has no matching active row means either (a) the
+// token was revoked via /oauth2/revoke, (b) its tokens row was cleaned up
+// because the refresh token expired (only possible if refresh_token_expiration
+// is misconfigured shorter than access_token_expiration), or (c) the JWT was
+// forged (impossible with an uncompromised signing key). Callers should
+// treat this as a rejection, not a pass.
 func TokenByAccessToken(accessToken string) (*Token, error) {
 	var t Token
 	err := db.GetDB().QueryRow(`
 		SELECT id, user_id, access_token, refresh_token, access_token_type,
 			refresh_token_expires_at, refresh_token_last_used_at,
 			access_token_expires_at, issued_at, scope, grant_type, revoked_at
-		FROM tokens WHERE access_token = ?
+		FROM tokens WHERE access_token = ? AND revoked_at IS NULL
 	`, accessToken).Scan(
 		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken, &t.AccessTokenType,
 		&t.RefreshTokenExpiresAt, &t.RefreshTokenLastUsedAt,

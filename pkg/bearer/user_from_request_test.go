@@ -52,6 +52,13 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 	`, sessionID, userID, signedToken, "refresh-token-placeholder", "", "", "", time.Now(), time.Now().Add(1*time.Hour))
 	assert.NoError(t, err)
 
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid profile email', 'password')
+	`, "tok-"+sessionID[:6], userID, signedToken, "refresh-"+sessionID[:6], accessTokenExpiresAt, accessTokenExpiresAt, time.Now())
+	assert.NoError(t, err)
+
 	return signedToken, userID
 }
 
@@ -121,6 +128,8 @@ func TestUserFromRequest_Valid(t *testing.T) {
 
 // Regression for https://github.com/eugenioenko/autentico/issues/225:
 // a token whose session has been deactivated must not be accepted.
+// SessionByAccessToken filters deactivated rows at the read layer, so the
+// error surfaces as "session not found" rather than a per-field rejection.
 func TestUserFromRequest_DeactivatedSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	token, _ := setupAuthenticatedUser(t)
@@ -134,20 +143,19 @@ func TestUserFromRequest_DeactivatedSession(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+token)
 	_, err = bearer.UserFromRequest(req)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "deactivated")
 }
 
 // A token revoked via /oauth2/revoke (RFC 7009 — sets tokens.revoked_at)
 // must also be rejected. Same class as #225 but on the tokens table.
+// TokenByAccessToken filters revoked rows at the read layer; the caller
+// treats ErrNoRows as a rejection.
 func TestUserFromRequest_RevokedToken(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, userID := setupAuthenticatedUser(t)
-	now := time.Now().UTC()
-	_, err := db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at)
-		VALUES (?, ?, ?, 'refresh', 'Bearer', ?, ?, ?, 'openid', 'password', ?)
-	`, "tok-"+userID[:6], userID, token, now.Add(time.Hour), now.Add(time.Hour), now, now)
+	token, _ := setupAuthenticatedUser(t)
+	_, err := db.GetDB().Exec(
+		`UPDATE tokens SET revoked_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
+		token,
+	)
 	assert.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

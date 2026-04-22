@@ -550,7 +550,8 @@ func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // generateBearerJWT creates a signed JWT for the given userID and inserts a
-// matching active session row so that bearer-auth liveness checks pass.
+// matching active session and active tokens row so that bearer-auth
+// liveness checks pass.
 func generateBearerJWT(t *testing.T, userID string) string {
 	t.Helper()
 	sessionID := xid.New().String()
@@ -574,6 +575,13 @@ func generateBearerJWT(t *testing.T, userID string) string {
 		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, ?)
 	`, sessionID, userID, signed, "refresh-placeholder", accessTokenExpiresAt)
+	assert.NoError(t, err)
+
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
+	`, "tok-"+sessionID[:6], userID, signed, "refresh-"+sessionID[:6], accessTokenExpiresAt, accessTokenExpiresAt, time.Now())
 	assert.NoError(t, err)
 	return signed
 }
