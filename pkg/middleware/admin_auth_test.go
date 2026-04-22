@@ -272,12 +272,20 @@ func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
 	token, err := generateTestAccessToken(userID)
 	assert.NoError(t, err)
 
-	// Create a session for this token so the session check passes
+	// Create a session and tokens row so the liveness checks pass
 	sessionID := xid.New().String()
 	_, err = db.GetDB().Exec(`
 		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
 	`, sessionID, userID, token, "", "", "", "")
+	assert.NoError(t, err)
+
+	now := time.Now().UTC()
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
+	`, "tok-"+sessionID[:6], userID, token, "refresh-"+sessionID[:6], now.Add(time.Hour), now.Add(time.Hour), now)
 	assert.NoError(t, err)
 
 	handlerCalled := false
@@ -435,6 +443,12 @@ func TestAdminAuthMiddleware_CaseInsensitiveBearer(t *testing.T) {
 		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
 	`, sessionID, userID, token, "")
+	now := time.Now().UTC()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
+	`, "tok-"+sessionID[:6], userID, token, "refresh-"+sessionID[:6], now.Add(time.Hour), now.Add(time.Hour), now)
 
 	handlerCalled := false
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

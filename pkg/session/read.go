@@ -94,14 +94,16 @@ func SessionByID(sessionID string) (*Session, error) {
 	return &session, nil
 }
 
+// SessionByAccessToken returns the active session matching the access token.
+// Deactivated sessions are filtered at the read layer so callers can't
+// accidentally honor a revoked session.
 func SessionByAccessToken(accessToken string) (*Session, error) {
 	var session Session
-	query := `
+	row := db.GetDB().QueryRow(`
 		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at
 		FROM sessions
-		WHERE access_token = ?
-	`
-	row := db.GetDB().QueryRow(query, accessToken)
+		WHERE access_token = ? AND deactivated_at IS NULL
+	`, accessToken)
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,
