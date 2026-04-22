@@ -15,7 +15,7 @@ func ListClients() ([]*Client, error) {
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, is_admin_service_account
 		FROM clients WHERE is_active = 1 ORDER BY created_at DESC
 	`
 	rows, err := db.GetDB().Query(query)
@@ -35,7 +35,7 @@ func ListClients() ([]*Client, error) {
 			&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 			&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 			&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-			&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+			&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.IsAdminServiceAccount,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan client: %w", err)
 		}
@@ -58,7 +58,7 @@ func ClientByClientID(clientID string) (*Client, error) {
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, is_admin_service_account
 		FROM clients WHERE client_id = ?
 	`
 	var c Client
@@ -70,7 +70,7 @@ func ClientByClientID(clientID string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.IsAdminServiceAccount,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -95,7 +95,7 @@ func ClientByID(id string) (*Client, error) {
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, is_admin_service_account
 		FROM clients WHERE id = ?
 	`
 	var c Client
@@ -107,7 +107,7 @@ func ClientByID(id string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.IsAdminServiceAccount,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -404,6 +404,156 @@ func TestAdminAuthMiddleware_CaseInsensitiveBearer(t *testing.T) {
 	assert.True(t, handlerCalled)
 }
 
+// generateClientCredentialsTestToken mints a JWT shaped like one issued via the
+// client_credentials grant (RFC 6749 §4.4): sub == azp == client_id, no user.
+func generateClientCredentialsTestToken(clientID string) (string, error) {
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, clientID, "autentico-admin"},
+		"sub":   clientID,
+		"azp":   clientID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "read",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	return accessToken.SignedString(key.GetPrivateKey())
+}
+
+// insertTestClient seeds a client row directly into the test DB.
+func insertTestClient(t *testing.T, clientID, clientType string, isAdminServiceAccount bool) {
+	t.Helper()
+	_, err := db.GetDB().Exec(`
+		INSERT INTO clients (
+			id, client_id, client_secret, client_name, client_type, redirect_uris,
+			post_logout_redirect_uris, grant_types, response_types, scopes,
+			token_endpoint_auth_method, is_active, is_admin_service_account
+		) VALUES (?, ?, '', ?, ?, '[]', '[]', '["client_credentials"]', '["code"]', 'read', 'client_secret_basic', 1, ?)
+	`, xid.New().String(), clientID, "Test "+clientID, clientType, isAdminServiceAccount)
+	assert.NoError(t, err)
+}
+
+// Positive: confidential client with IsAdminServiceAccount=true + client_credentials token → 200
+func TestAdminAuthMiddleware_ServiceAccount_Accepted(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	clientID := "svc-admin-" + xid.New().String()
+	insertTestClient(t, clientID, "confidential", true)
+
+	token, err := generateClientCredentialsTestToken(clientID)
+	assert.NoError(t, err)
+
+	handlerCalled := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "expected 200 for service-account client")
+	assert.True(t, handlerCalled, "handler should be called for service-account client")
+}
+
+// Negative: confidential client WITHOUT the flag → token is treated as user-path
+// and fails because the "user" (a client_id) doesn't exist in users table.
+func TestAdminAuthMiddleware_ServiceAccount_FlagMissing(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	clientID := "svc-noflag-" + xid.New().String()
+	insertTestClient(t, clientID, "confidential", false)
+
+	token, err := generateClientCredentialsTestToken(clientID)
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	// Falls through to user-path: no user with ID=clientID exists → 401 User not found
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	assert.Contains(t, rr.Body.String(), "User not found")
+}
+
+// Negative: client is inactive even though flag is set → rejected (falls through to user-path).
+func TestAdminAuthMiddleware_ServiceAccount_InactiveClient(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	clientID := "svc-inactive-" + xid.New().String()
+	// Insert as active, then deactivate.
+	insertTestClient(t, clientID, "confidential", true)
+	_, err := db.GetDB().Exec(`UPDATE clients SET is_active = 0 WHERE client_id = ?`, clientID)
+	assert.NoError(t, err)
+
+	token, err := generateClientCredentialsTestToken(clientID)
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	assert.NotEqual(t, http.StatusOK, rr.Code, "inactive service-account client must not be accepted")
+}
+
+// Negative: service-account token that lacks autentico-admin in aud → 403 at aud check.
+func TestAdminAuthMiddleware_ServiceAccount_WrongAudience(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	clientID := "svc-wrongaud-" + xid.New().String()
+	insertTestClient(t, clientID, "confidential", true)
+
+	// Mint a token without "autentico-admin" in aud.
+	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
+	accessClaims := jwt.MapClaims{
+		"exp":   accessTokenExpiresAt.Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, clientID},
+		"sub":   clientID,
+		"azp":   clientID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "read",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	token, err := accessToken.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AdminAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Token not issued for admin API")
+}
+
 func TestAdminAuthMiddleware_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
 	userID := xid.New().String()

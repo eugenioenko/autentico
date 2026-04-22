@@ -67,6 +67,32 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		audiences = c.AllowedAudiences
 	}
 
+	// Preserve the existing flag if the caller did not send one — an "update
+	// client name" request must not silently flip or clear the service-account bit.
+	newIsAdminServiceAccount := c.IsAdminServiceAccount
+	if req.IsAdminServiceAccount != nil {
+		newIsAdminServiceAccount = *req.IsAdminServiceAccount
+	}
+
+	// Defense-in-depth: recompute effective grant types + client type for the
+	// resulting row and reject the update if it would leave a flagged client in
+	// an invalid state (public or missing client_credentials).
+	if newIsAdminServiceAccount {
+		effectiveClientType := c.ClientType
+		if effectiveClientType == "" {
+			effectiveClientType = "confidential"
+		}
+		var effectiveGrantTypes []string
+		if req.GrantTypes != nil {
+			effectiveGrantTypes = req.GrantTypes
+		} else {
+			effectiveGrantTypes = c.GetGrantTypes()
+		}
+		if err := validateAdminServiceAccount(effectiveClientType, effectiveGrantTypes); err != nil {
+			return err
+		}
+	}
+
 	query := `
 		UPDATE clients SET
 			client_name = ?,
@@ -85,6 +111,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 			sso_session_idle_timeout = ?,
 			trust_device_enabled = ?,
 			trust_device_expiration = ?,
+			is_admin_service_account = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE client_id = ?`
 	_, err = db.GetDB().Exec(query,
@@ -93,6 +120,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		req.AccessTokenExpiration, req.RefreshTokenExpiration,
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
+		newIsAdminServiceAccount,
 		clientID,
 	)
 	if err != nil {

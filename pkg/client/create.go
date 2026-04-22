@@ -92,16 +92,28 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		audiences = &s
 	}
 
+	isAdminServiceAccount := false
+	if req.IsAdminServiceAccount != nil {
+		isAdminServiceAccount = *req.IsAdminServiceAccount
+	}
+	// Defense-in-depth: the validator already rejects this combination, but guard
+	// here too so a caller that bypasses validation can't plant a public service
+	// account that the admin-auth middleware would refuse at runtime anyway.
+	if isAdminServiceAccount && clientType != "confidential" {
+		return nil, fmt.Errorf("is_admin_service_account requires client_type=confidential")
+	}
+
 	id, _ := authcode.GenerateSecureCode()
 
 	query := `
 		INSERT INTO clients (
-			id, client_id, client_secret, client_name, client_type, redirect_uris, 
-			post_logout_redirect_uris, grant_types, response_types, scopes, 
+			id, client_id, client_secret, client_name, client_type, redirect_uris,
+			post_logout_redirect_uris, grant_types, response_types, scopes,
 			token_endpoint_auth_method, access_token_expiration, refresh_token_expiration,
 			authorization_code_expiration, allowed_audiences, allow_self_signup,
-			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration,
+			is_admin_service_account
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.GetDB().Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
@@ -109,6 +121,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
+		isAdminServiceAccount,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)

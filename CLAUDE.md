@@ -179,6 +179,13 @@ Each feature package in `pkg/` follows a consistent pattern:
 5. Client exchanges code at `/oauth2/token` → access token + id token + refresh token (RS256 JWTs)
 6. Tokens are signed with the RSA key from `AUTENTICO_PRIVATE_KEY` (base64-encoded PEM env var); if unset, an ephemeral key is used (tokens invalidated on restart)
 
+### Admin API Authentication
+
+The admin API (`/admin/api/*`) gates requests with two paths:
+
+1. **User-backed** — the bearer token's `sub` resolves to a user with `role = admin`, the token's `aud` includes `autentico-admin`, and the session tied to the token is active. This is used by the admin UI after a human logs in.
+2. **Service-account** — the bearer token was issued via `client_credentials` to a confidential client that has `is_admin_service_account = true`. The client's secret authenticates the caller; no user or session is required. This is the recommended pattern for headless CI/CD automation. The flag is only settable by an admin via the admin API, and toggling it is logged at WARN with the acting admin's user_id.
+
 ### View Templates
 
 HTML templates in `view/` rendered server-side for all interactive flows:

@@ -7,6 +7,7 @@ import {
   Button,
   Space,
   message,
+  Modal,
   Divider,
   Collapse,
   Switch,
@@ -62,6 +63,7 @@ export default function ClientEditForm({
 }: ClientEditFormProps) {
   const [form] = Form.useForm();
   const updateClient = useUpdateClient();
+  const [modal, modalContextHolder] = Modal.useModal();
 
   useEffect(() => {
     if (client && open) {
@@ -81,14 +83,53 @@ export default function ClientEditForm({
         sso_session_idle_timeout: client.sso_session_idle_timeout,
         trust_device_enabled: client.trust_device_enabled,
         trust_device_expiration: client.trust_device_expiration,
+        is_admin_service_account: client.is_admin_service_account,
       });
     }
   }, [client, open, form]);
+
+  const confirmServiceAccount = () =>
+    new Promise<boolean>((resolve) => {
+      modal.confirm({
+        title: "Enable admin service account?",
+        icon: <ExclamationCircleOutlined />,
+        okText: "Yes, enable",
+        okType: "danger",
+        cancelText: "Cancel",
+        content: (
+          <div>
+            <p>
+              This client's <strong>client_secret</strong> becomes equivalent to
+              admin bearer credentials. Any <code>client_credentials</code>{" "}
+              token it obtains can call every endpoint under{" "}
+              <code>/admin/api</code>.
+            </p>
+            <p>
+              Store the secret in a secret manager and rotate it on leak. Only
+              enable for headless automation that truly needs admin API access.
+            </p>
+          </div>
+        ),
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
 
   const handleSubmit = async (
     values: Omit<ClientUpdateRequest, "scopes"> & { scopes?: string[] },
   ) => {
     if (!client?.client_id) return;
+    // Only prompt when flipping the flag from false → true. Editing an
+    // already-elevated client shouldn't re-prompt on every save.
+    if (
+      values.is_admin_service_account &&
+      !client.is_admin_service_account
+    ) {
+      const confirmed = await confirmServiceAccount();
+      if (!confirmed) {
+        return;
+      }
+    }
     try {
       await updateClient.mutateAsync({
         clientId: client.client_id,
@@ -102,7 +143,9 @@ export default function ClientEditForm({
   };
 
   return (
-    <Drawer
+    <>
+      {modalContextHolder}
+      <Drawer
       title={`Edit Client: ${client?.client_name ?? ""}`}
       open={open}
       onClose={onClose}
@@ -262,6 +305,19 @@ export default function ClientEditForm({
           <Select options={AUTH_METHOD_OPTIONS} />
         </Form.Item>
 
+        <Form.Item
+          name="is_admin_service_account"
+          label="Admin Service Account"
+          valuePropName="checked"
+          tooltip={{
+            title:
+              "When enabled, client_credentials tokens from this client can call the admin API without a user. Requires a confidential client with the client_credentials grant and autentico-admin in Allowed Audiences. The secret becomes equivalent to an admin bearer token.",
+            icon: <ExclamationCircleOutlined />,
+          }}
+        >
+          <Switch />
+        </Form.Item>
+
         <Divider />
 
         <Collapse
@@ -343,5 +399,6 @@ export default function ClientEditForm({
         />
       </Form>
     </Drawer>
+    </>
   );
 }

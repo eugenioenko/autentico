@@ -96,6 +96,66 @@ func TestUpdateClient_ResponseTypes(t *testing.T) {
 	assert.Equal(t, []string{"code", "token"}, updated.GetResponseTypes())
 }
 
+func TestUpdateClient_PreservesAdminServiceAccountFlag(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:            "Svc",
+		RedirectURIs:          []string{"http://localhost/cb"},
+		ClientType:            "confidential",
+		GrantTypes:            []string{"client_credentials"},
+		IsAdminServiceAccount: ptrTrue(),
+	})
+	assert.NoError(t, err)
+
+	// Update a different field — the service-account flag must NOT be cleared.
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
+		ClientName: "Svc Renamed",
+	})
+	assert.NoError(t, err)
+
+	updated, err := ClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+	assert.Equal(t, "Svc Renamed", updated.ClientName)
+	assert.True(t, updated.IsAdminServiceAccount, "flag must survive partial updates")
+}
+
+func TestUpdateClient_CannotFlagPublicClient(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Public",
+		RedirectURIs: []string{"http://localhost/cb"},
+		ClientType:   "public",
+	})
+	assert.NoError(t, err)
+
+	// Try to flip the flag on a public client — must be rejected.
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
+		IsAdminServiceAccount: ptrTrue(),
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "confidential")
+}
+
+func TestUpdateClient_FlagRequiresClientCredentialsGrant(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Svc",
+		RedirectURIs: []string{"http://localhost/cb"},
+		ClientType:   "confidential",
+		GrantTypes:   []string{"authorization_code"},
+	})
+	assert.NoError(t, err)
+
+	err = UpdateClient(created.ClientID, ClientUpdateRequest{
+		IsAdminServiceAccount: ptrTrue(),
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "client_credentials")
+}
+
 func TestUpdateClient_TokenEndpointAuthMethod(t *testing.T) {
 	testutils.WithTestDB(t)
 

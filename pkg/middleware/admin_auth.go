@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -48,6 +49,26 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 			slog.Warn("admin_auth: token not issued for admin API", "aud", claims.Audience, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Token not issued for admin API")
 			return
+		}
+
+		// Service-account path: client_credentials tokens set sub = client_id (no user).
+		// A client flagged is_admin_service_account bypasses the user + session checks
+		// because the client secret itself authenticates the caller. The flag is
+		// only settable by an admin via the admin API (see handler.go).
+		//
+		// azp is extracted from the token; for client_credentials it equals sub.
+		// We reject if: client doesn't exist, isn't active, isn't confidential,
+		// or doesn't have the flag set.
+		azp := jwtutil.ExtractAzp(tokenString)
+		if azp != "" && azp == claims.UserID {
+			cli, cliErr := client.ClientByClientID(azp)
+			if cliErr == nil && cli != nil && cli.IsActive && cli.ClientType == "confidential" && cli.IsAdminServiceAccount {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// Fall through to the user-based check — a user whose sub happens to
+			// match a client_id would not normally occur (user IDs are secure random
+			// codes), but we still allow the user path to run rather than hard-reject.
 		}
 
 		// Get user and check admin role

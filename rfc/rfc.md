@@ -725,6 +725,33 @@ This is analogous to the existing "public endpoints by design" decision for intr
 - E2e: `TestClientCredentials_NoRefreshToken` — response has no refresh_token ✅ Added
 - E2e: `TestClientCredentials_PublicClientRejected` — public client cannot use this grant ✅ Added
 
+**Implementation-defined extension — admin service accounts:**
+
+RFC 6749 §4.4 describes `client_credentials` as a machine-to-machine flow but leaves authorization decisions ("what can this token access?") to the server. Autentico's admin API (`/admin/api/*`) normally requires a user-backed token, which excludes `client_credentials` tokens (they have no user). To support headless CI/CD without a fake admin user, clients can be flagged `is_admin_service_account = true`:
+
+| Property | Requirement |
+|---|---|
+| Flag | `is_admin_service_account` (column on `clients`, added in migration 006) |
+| Gated on | confidential client + `client_credentials` in `grant_types` + `autentico-admin` in audience |
+| Settable by | admin bearer-authenticated requests to `/admin/api/clients` or `/oauth2/register` |
+| Auth equivalence | leaked `client_secret` == leaked admin bearer credential |
+| Observability | `WARN` slog line + audit log row (`detail.is_admin_service_account="true"`) on create/toggle |
+
+This is documented in `docs-web/security/service-accounts.mdx`. The cryptographic strength on the wire is the same as ROPC (plaintext `client_secret` over TLS) until `client_secret_jwt` / `private_key_jwt` is implemented — the gain is operational (no fake admin user) not cryptographic.
+
+**Tests:**
+- Unit: `TestAdminAuthMiddleware_ServiceAccount_Accepted` — service-account client → 200 ✅ Added
+- Unit: `TestAdminAuthMiddleware_ServiceAccount_FlagMissing` — same request without the flag → rejected ✅ Added
+- Unit: `TestAdminAuthMiddleware_ServiceAccount_InactiveClient` — deactivated client rejected ✅ Added
+- Unit: `TestAdminAuthMiddleware_ServiceAccount_WrongAudience` — aud without autentico-admin → 403 ✅ Added
+- Unit: `TestValidateClientCreateRequest_AdminServiceAccount` — validation rules (confidential + client_credentials grant required) ✅ Added
+- Unit: `TestUpdateClient_PreservesAdminServiceAccountFlag` — partial update doesn't clear flag ✅ Added
+- Unit: `TestUpdateClient_CannotFlagPublicClient` — can't flip flag on a public client ✅ Added
+- Unit: `TestUpdateClient_FlagRequiresClientCredentialsGrant` — can't flip flag without client_credentials grant ✅ Added
+- E2e: `TestAdminServiceAccount_FullFlow` — full happy path: create → token → admin API call ✅ Added
+- E2e: `TestAdminServiceAccount_WithoutFlag_Rejected` — regular client with autentico-admin aud but no flag → rejected ✅ Added
+- E2e: `TestAdminServiceAccount_PublicClient_Rejected` — public client with the flag → 400 at create ✅ Added
+
 ---
 
 ## Phase 12 — RFC 6819 §5.2.2.3 / RFC 9700 §4.14.2: Refresh Token Rotation

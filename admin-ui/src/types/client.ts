@@ -11,6 +11,7 @@ export type ClientCreateRequest =
     sso_session_idle_timeout?: string;
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
+    is_admin_service_account?: boolean;
   };
 
 export type ClientUpdateRequest =
@@ -23,6 +24,7 @@ export type ClientUpdateRequest =
     sso_session_idle_timeout?: string;
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
+    is_admin_service_account?: boolean;
   };
 
 export type ClientResponse = components["schemas"]["client.ClientResponse"];
@@ -37,4 +39,5 @@ export type ClientInfoResponse =
     sso_session_idle_timeout?: string;
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
+    is_admin_service_account?: boolean;
   };

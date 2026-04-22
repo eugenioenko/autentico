@@ -80,6 +80,13 @@ export default function ClientDetail({
         <Descriptions.Item label="Auth Method">
           {client.token_endpoint_auth_method}
         </Descriptions.Item>
+        <Descriptions.Item label="Admin Service Account">
+          {client.is_admin_service_account ? (
+            <Tag color="red">Enabled — client_credentials token grants admin API access</Tag>
+          ) : (
+            <Tag>Disabled</Tag>
+          )}
+        </Descriptions.Item>
       </Descriptions>
 
       {(client.access_token_expiration ||

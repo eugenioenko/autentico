@@ -139,6 +139,7 @@ export default defineConfig({
 					label: 'Security',
 					items: [
 						{ label: 'Hardening', link: '/security/overview/' },
+						{ label: 'Admin Service Accounts', link: '/security/service-accounts/' },
 						{ label: 'Incident Response', link: '/security/incident-response/' },
 					],
 				},
