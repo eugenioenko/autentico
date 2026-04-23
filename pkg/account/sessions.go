@@ -10,18 +10,12 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// currentIdpSessionID resolves the "current device" for an account-api request.
-// The IdP cookie is scoped to /oauth2 so /account usually can't see it — fall
-// back to the access token's sessions.idp_session_id linkage.
+// currentIdpSessionID returns the IdP session ID of the browser issuing this
+// account-api request, or "" if no IdP session cookie is present. The cookie
+// is Path=/ so it reaches /account directly — no access-token-to-session
+// fallback needed.
 func currentIdpSessionID(r *http.Request) string {
-	if cookie := idpsession.ReadCookie(r); cookie != "" {
-		return cookie
-	}
-	token := utils.ExtractBearerToken(r.Header.Get("Authorization"))
-	if token == "" {
-		return ""
-	}
-	return idpsession.IdpSessionIDByAccessToken(token)
+	return idpsession.ReadCookie(r)
 }
 
 // HandleListSessions godoc

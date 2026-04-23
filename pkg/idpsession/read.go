@@ -34,20 +34,6 @@ func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	return &session, nil
 }
 
-// IdpSessionIDByAccessToken returns the idp_session_id linked to the OAuth
-// session for the given access token, or "" if the token has no linkage
-// (e.g. ROPC / client_credentials grants).
-func IdpSessionIDByAccessToken(accessToken string) string {
-	var idp *string
-	_ = db.GetDB().QueryRow(
-		`SELECT idp_session_id FROM sessions WHERE access_token = ?`, accessToken,
-	).Scan(&idp)
-	if idp == nil {
-		return ""
-	}
-	return *idp
-}
-
 // DeviceRow is the flat projection of an IdP session used by the account-ui
 // Devices list — one row per browser/device the user is signed in on.
 type DeviceRow struct {

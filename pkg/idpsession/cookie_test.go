@@ -26,7 +26,7 @@ func TestSetCookie(t *testing.T) {
 	cookie := cookies[0]
 	assert.Equal(t, "autentico_idp_session", cookie.Name)
 	assert.Equal(t, "test-session-id", cookie.Value)
-	assert.Equal(t, "/oauth2", cookie.Path)
+	assert.Equal(t, "/", cookie.Path)
 	assert.True(t, cookie.HttpOnly)
 	assert.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 }
@@ -69,5 +69,6 @@ func TestClearCookie(t *testing.T) {
 	cookie := cookies[0]
 	assert.Equal(t, "autentico_idp_session", cookie.Name)
 	assert.Equal(t, "", cookie.Value)
+	assert.Equal(t, "/", cookie.Path)
 	assert.Equal(t, -1, cookie.MaxAge)
 }

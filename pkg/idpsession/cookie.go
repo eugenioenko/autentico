@@ -6,12 +6,18 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 )
 
+// The IdP session cookie is scoped to Path="/" so first-party non-OAuth
+// handlers (most notably /account/api/sessions) can resolve the current device
+// directly from the cookie — matching Google/Auth0/Okta/Keycloak. Any legacy
+// /oauth2-scoped cookie still sitting in a browser ages out naturally.
+const rootCookiePath = "/"
+
 func SetCookie(w http.ResponseWriter, sessionID string) {
 	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
 		Name:     bs.AuthIdpSessionCookieName,
 		Value:    sessionID,
-		Path:     bs.AppOAuthPath,
+		Path:     rootCookiePath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
 		SameSite: http.SameSiteLaxMode,
@@ -31,7 +37,7 @@ func ClearCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     bs.AuthIdpSessionCookieName,
 		Value:    "",
-		Path:     bs.AppOAuthPath,
+		Path:     rootCookiePath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
 		SameSite: http.SameSiteLaxMode,
