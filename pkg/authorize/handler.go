@@ -131,14 +131,15 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
 	maxAgeSecs := parseMaxAge(request.MaxAge)
-	if cfg.AuthSsoSessionIdleTimeout > 0 && request.Prompt != "login" && request.Prompt != "consent" {
+	if request.Prompt != "login" && request.Prompt != "consent" {
 		sessionID := idpsession.ReadCookie(r)
 		if sessionID != "" {
 			session, err := idpsession.IdpSessionByID(sessionID)
 			if err == nil {
 				sessionAge := time.Since(session.CreatedAt)
 				maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second
-				if time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout && !maxAgeExceeded {
+				idleOk := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout
+				if idleOk && !maxAgeExceeded {
 					// Valid IdP session — auto-login
 					_ = idpsession.UpdateLastActivity(session.ID)
 

@@ -160,21 +160,18 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create IdP session if SSO idle timeout is enabled, matching the login flow.
 	var idpSessionID string
-	if config.Get().AuthSsoSessionIdleTimeout > 0 {
-		sessionID, err := authcode.GenerateSecureCode()
-		if err == nil {
-			session := idpsession.IdpSession{
-				ID:        sessionID,
-				UserID:    userID,
-				UserAgent: r.UserAgent(),
-				IPAddress: utils.GetClientIP(r),
-			}
-			if idpsession.CreateIdpSession(session) == nil {
-				idpsession.SetCookie(w, sessionID)
-				idpSessionID = sessionID
-			}
+	sessionID, err := authcode.GenerateSecureCode()
+	if err == nil {
+		session := idpsession.IdpSession{
+			ID:        sessionID,
+			UserID:    userID,
+			UserAgent: r.UserAgent(),
+			IPAddress: utils.GetClientIP(r),
+		}
+		if idpsession.CreateIdpSession(session) == nil {
+			idpsession.SetCookie(w, sessionID)
+			idpSessionID = sessionID
 		}
 	}
 

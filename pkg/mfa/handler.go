@@ -228,21 +228,18 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create IdP session if configured
 	var idpSessionID string
-	if cfg.AuthSsoSessionIdleTimeout > 0 {
-		sessionID, err := authcode.GenerateSecureCode()
-		if err == nil {
-			session := idpsession.IdpSession{
-				ID:        sessionID,
-				UserID:    usr.ID,
-				UserAgent: r.UserAgent(),
-				IPAddress: utils.GetClientIP(r),
-			}
-			if idpsession.CreateIdpSession(session) == nil {
-				idpsession.SetCookie(w, sessionID)
-				idpSessionID = sessionID
-			}
+	sessionID, err := authcode.GenerateSecureCode()
+	if err == nil {
+		session := idpsession.IdpSession{
+			ID:        sessionID,
+			UserID:    usr.ID,
+			UserAgent: r.UserAgent(),
+			IPAddress: utils.GetClientIP(r),
+		}
+		if idpsession.CreateIdpSession(session) == nil {
+			idpsession.SetCookie(w, sessionID)
+			idpSessionID = sessionID
 		}
 	}
 

@@ -255,7 +255,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
 	assert.True(t, found, "IdP session cookie should be set")
 }
 
-func TestHandleVerifyEmail_NoIdpSession_WhenSsoDisabled(t *testing.T) {
+func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoDisabled(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
@@ -290,13 +290,11 @@ func TestHandleVerifyEmail_NoIdpSession_WhenSsoDisabled(t *testing.T) {
 
 	ac, err := authcode.AuthCodeByCode(codeStr)
 	require.NoError(t, err)
-	assert.Empty(t, ac.IdpSessionID, "auth code should NOT have IdpSessionID when SSO is disabled")
+	assert.NotEmpty(t, ac.IdpSessionID, "auth code should have IdpSessionID even when SSO idle timeout is 0")
 
-	// Verify no IdP session cookie was set
-	cookieName := config.GetBootstrap().AuthIdpSessionCookieName
-	for _, c := range rr.Result().Cookies() {
-		assert.NotEqual(t, cookieName, c.Name, "IdP session cookie should not be set")
-	}
+	idpSess, err := idpsession.IdpSessionByID(ac.IdpSessionID)
+	require.NoError(t, err)
+	assert.Equal(t, u.ID, idpSess.UserID)
 }
 
 func TestBuildVerifyURL(t *testing.T) {

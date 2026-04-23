@@ -26,7 +26,7 @@ Sessions have two separate lifetime controls:
 | Setting | Default | Description |
 |---|---|---|
 | `sso_session_max_age` | `720h` | Absolute maximum session duration — the session expires after this regardless of activity |
-| `sso_session_idle_timeout` | `168h` | If the user has no activity for this long, the session expires |
+| `sso_session_idle_timeout` | `4h` | If the user has no activity for this long, the session expires. `0` for no idle expiration |
 
 Both use Go duration format: `24h`, `168h`, `720h`, etc.
 

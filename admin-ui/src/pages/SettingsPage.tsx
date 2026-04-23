@@ -54,7 +54,7 @@ const tip = makeTip({
   mfa_method: "Preferred second-factor authentication method.",
   require_email_verification: "Require users to verify their email address before they can log in. Admins are exempt. Requires SMTP to be configured.",
   email_verification_expiration: "How long a verification link remains valid (e.g. 24h, 48h).",
-  sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable.",
+  sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 for no idle expiration.",
   trust_device_enabled: "Allow users to trust their current device for MFA.",
   trust_device_expiration: "How long a device remains trusted (e.g. 720h).",
   validation_min_username_length: "Minimum length for usernames.",

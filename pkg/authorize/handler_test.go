@@ -228,11 +228,11 @@ func TestHandleAuthorize_AutoLogin_ValidSession(t *testing.T) {
 	assert.Contains(t, location, "state=xyz123")
 }
 
-func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
+func TestHandleAuthorize_AutoLogin_ZeroIdleTimeout_MeansInfinite(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
-		config.Values.AuthSsoSessionIdleTimeout = 0 // disabled
+		config.Values.AuthSsoSessionIdleTimeout = 0 // 0 = infinite (no idle expiration)
 	})
 
 	// Create a user and IdP session
@@ -254,10 +254,10 @@ func TestHandleAuthorize_AutoLogin_Disabled(t *testing.T) {
 
 	HandleAuthorize(rr, req)
 
-	// Should show login form, not redirect
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "form")
-	assert.Contains(t, rr.Body.String(), "username")
+	// 0 = infinite idle timeout, so auto-login should succeed
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
+	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
 func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {

@@ -44,7 +44,7 @@ curl -X PUT https://auth.example.com/oauth2/register/YOUR_CLIENT_ID \
 ```
 
 <Aside type="tip">
-Duration strings use Go's `time.Duration` format: `"15m"`, `"1h"`, `"720h"`, `"30s"`. A value of `"0"` disables the feature (e.g. `sso_session_idle_timeout: "0"` disables IdP sessions for that client).
+Duration strings use Go's `time.Duration` format: `"15m"`, `"1h"`, `"720h"`, `"30s"`. A value of `"0"` means no idle expiration (e.g. `sso_session_idle_timeout: "0"` means sessions for that client never expire from inactivity).
 </Aside>
 
 ---
