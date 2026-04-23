@@ -22,10 +22,11 @@ func TestHandleLoginUser_Success(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
 	// Create user and client
-	_, _ = user.CreateUser("testuser", "password123", "test@example.com")
+	usr, _ := user.CreateUser("testuser", "password123", "test@example.com")
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	form := url.Values{}
@@ -42,8 +43,7 @@ func TestHandleLoginUser_Success(t *testing.T) {
 
 	HandleLoginUser(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "code=")
+	testutils.AssertPostAuthInvariants(t, rr, usr.ID)
 }
 
 func TestHandleLoginUser_MfaTotp(t *testing.T) {

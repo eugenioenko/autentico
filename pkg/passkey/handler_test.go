@@ -617,6 +617,10 @@ func TestNewWebAuthn(t *testing.T) {
 func TestCompleteAuthFlow_Success(t *testing.T) {
 	testutils.WithTestDB(t)
 	withPasskeyConfig(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+	})
 
 	usr, err := user.CreateUser("authflow-user", "password123", "authflow@test.com")
 	require.NoError(t, err)
@@ -635,6 +639,34 @@ func TestCompleteAuthFlow_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, redirectURL, "http://localhost/cb?code=")
 	assert.Contains(t, redirectURL, "state=s1")
+
+	// completeAuthFlow doesn't call http.Redirect, so verify post-auth
+	// invariants (IdP session + cookie + auth code linkage) directly.
+	codeStart := strings.Index(redirectURL, "code=") + len("code=")
+	codeEnd := strings.Index(redirectURL[codeStart:], "&")
+	codeStr := redirectURL[codeStart:]
+	if codeEnd > 0 {
+		codeStr = redirectURL[codeStart : codeStart+codeEnd]
+	}
+	var idpSessionID string
+	err = db.GetDB().QueryRow(`SELECT idp_session_id FROM auth_codes WHERE code = ?`, codeStr).Scan(&idpSessionID)
+	require.NoError(t, err)
+	assert.NotEmpty(t, idpSessionID)
+
+	var dbUserID string
+	err = db.GetDB().QueryRow(`SELECT user_id FROM idp_sessions WHERE id = ?`, idpSessionID).Scan(&dbUserID)
+	require.NoError(t, err)
+	assert.Equal(t, usr.ID, dbUserID)
+
+	var sessionCookie *http.Cookie
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == "autentico_idp_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	require.NotNil(t, sessionCookie)
+	assert.Equal(t, idpSessionID, sessionCookie.Value)
 }
 
 func TestCompleteAuthFlow_InvalidLoginState(t *testing.T) {

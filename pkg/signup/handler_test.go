@@ -14,6 +14,7 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleSignup_DisabledReturns404(t *testing.T) {
@@ -159,7 +160,10 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldEmail = "hidden"
 		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
+
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
 
 	form := url.Values{}
 	form.Set("username", "newuser")
@@ -176,11 +180,9 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	location := rr.Header().Get("Location")
-	assert.Contains(t, location, "http://localhost/callback")
-	assert.Contains(t, location, "code=")
-	assert.Contains(t, location, "state=abc123")
+	usr, err := user.UserByUsername("newuser")
+	require.NoError(t, err)
+	testutils.AssertPostAuthInvariants(t, rr, usr.ID)
 }
 
 func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {

@@ -53,15 +53,21 @@ func TestHandleMfa_GetEnroll(t *testing.T) {
 
 func TestHandleMfa_Post_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+	})
+
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
 	_ = user.SaveTotpSecret(u.ID, secret)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -78,8 +84,7 @@ func TestHandleMfa_Post_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
 
-	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "http://localhost/cb")
+	testutils.AssertPostAuthInvariants(t, rr, u.ID)
 }
 
 func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
