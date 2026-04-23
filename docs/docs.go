@@ -1952,6 +1952,42 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/api/idp-sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Returns all active IdP sessions, optionally filtered by user ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-sessions"
+                ],
+                "summary": "List IdP (device) sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by User ID",
+                        "name": "user_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/idpsession.IdpSessionResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/idp-sessions/{id}": {
             "delete": {
                 "security": [
@@ -3503,16 +3539,16 @@ const docTemplate = `{
                 "active_clients": {
                     "type": "integer"
                 },
-                "active_sessions": {
+                "active_devices": {
+                    "type": "integer"
+                },
+                "active_tokens": {
                     "type": "integer"
                 },
                 "pending_deletion_requests": {
                     "type": "integer"
                 },
                 "recent_logins": {
-                    "type": "integer"
-                },
-                "total_sessions": {
                     "type": "integer"
                 },
                 "total_users": {
@@ -4067,6 +4103,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }

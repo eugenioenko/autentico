@@ -94,13 +94,13 @@ definitions:
     properties:
       active_clients:
         type: integer
-      active_sessions:
+      active_devices:
+        type: integer
+      active_tokens:
         type: integer
       pending_deletion_requests:
         type: integer
       recent_logins:
-        type: integer
-      total_sessions:
         type: integer
       total_users:
         type: integer
@@ -469,6 +469,8 @@ definitions:
       last_activity_at:
         type: string
       user_agent:
+        type: string
+      user_id:
         type: string
     type: object
   introspect.IntrospectRequest:
@@ -2060,6 +2062,28 @@ paths:
       summary: Remove a user from a group
       tags:
       - admin-groups
+  /admin/api/idp-sessions:
+    get:
+      description: Returns all active IdP sessions, optionally filtered by user ID.
+      parameters:
+      - description: Filter by User ID
+        in: query
+        name: user_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/idpsession.IdpSessionResponse'
+            type: array
+      security:
+      - AdminAuth: []
+      summary: List IdP (device) sessions
+      tags:
+      - admin-sessions
   /admin/api/idp-sessions/{id}:
     delete:
       description: Deactivates an IdP session and cascades to all child OAuth sessions
