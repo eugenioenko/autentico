@@ -528,11 +528,13 @@ Authentication is handled automatically: on first visit, users are redirected th
 - **TOTP (Two-Factor Authentication)**: Set up TOTP by scanning a QR code in any authenticator app (Google Authenticator, Authy, 1Password, etc.) and confirming with a 6-digit code; disable TOTP with password confirmation
 - **Passkeys**: Register new passkeys via WebAuthn ceremony, view existing passkeys with creation date, rename or remove any passkey
 
-**Sessions**
+**Sessions (Devices)**
 
-- List all active OAuth sessions with IP address, user agent, last activity timestamp, and creation time
-- Current session is marked with a badge
-- Revoke any other session individually (forces logout on that device)
+- Account UI lists one row per browser/device (IdP session), not per OAuth session — matches the user's mental model of "I'm signed in here"
+- Each row shows IP, user agent, last activity, creation time, and the number of apps currently signed in via SSO on that device
+- Current device is marked with a badge
+- Revoking a device cascade-kills every OAuth session born from it plus their access/refresh tokens — a single button truly logs the user out of every app on that device
+- `/oauth2/logout` follows the same single-device semantics per RP-Initiated Logout 1.0 §2. A dedicated "Sign out everywhere" action would be a separate operation (not currently exposed).
 
 **Trusted Devices**
 

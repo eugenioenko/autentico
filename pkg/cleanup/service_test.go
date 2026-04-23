@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/rs/xid"
@@ -140,6 +141,77 @@ func TestRun_KeepsActiveIdpSessions(t *testing.T) {
 	Run(24 * time.Hour)
 
 	assert.True(t, rowExists(t, "idp_sessions", "id", id), "active session should not be deleted")
+}
+
+func TestRun_DeactivatesIdleIdpSessions(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prev := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prev })
+
+	idle := xid.New().String()
+	fresh := xid.New().String()
+
+	// Idle row: last_activity 2h ago (well beyond 30m idle timeout).
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, last_activity_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		idle, "user-1", "agent", "127.0.0.1", time.Now().Add(-2*time.Hour),
+	)
+	require.NoError(t, err)
+
+	// Fresh row: default last_activity_at = CURRENT_TIMESTAMP.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address)
+		 VALUES (?, ?, ?, ?)`,
+		fresh, "user-1", "agent", "127.0.0.1",
+	)
+	require.NoError(t, err)
+
+	// Large retention so hard-delete pass does NOT remove the just-deactivated row —
+	// we want to observe the intermediate deactivated state.
+	Run(7 * 24 * time.Hour)
+
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, idle,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.NotNil(t, deactivatedAt, "idle session must be deactivated")
+
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, fresh,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.Nil(t, deactivatedAt, "fresh session must remain active")
+}
+
+func TestRun_IdleSweepDisabledWhenIdleTimeoutZero(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prev := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 0
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prev })
+
+	id := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, last_activity_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		id, "user-1", "agent", "127.0.0.1", time.Now().Add(-24*time.Hour),
+	)
+	require.NoError(t, err)
+
+	Run(7 * 24 * time.Hour)
+
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, id,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.Nil(t, deactivatedAt, "idle sweep must be a no-op when idle timeout is zero")
 }
 
 func TestRun_EmptyTablesNoError(t *testing.T) {

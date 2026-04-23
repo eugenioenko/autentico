@@ -485,7 +485,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 | MUST | §2 | POST uses Form Serialization for same params as GET | ✅ Fixed (2026-04-03) — `HandleLogout` parses form params |
 | MUST | §2 | Validate OP was issuer of `id_token_hint` | ✅ Verified + annotated (2026-04-03) — JWT signature verification |
 | MUST | §2 | When both `client_id` and `id_token_hint` present, verify `client_id` matches | ✅ Fixed (2026-04-03) — mismatch aborts redirect |
-| MUST | §2 | If End-User says "yes" to logout, OP MUST log out | ✅ Verified (2026-04-03) — sessions deactivated unconditionally when hint has subject |
+| MUST | §2 | If End-User says "yes" to logout, OP MUST log out | ✅ Verified (2026-04-22) — logout scope is the current End-User session at this OP: the IdP session resolved from the browser cookie is cascade-revoked (idp_session + all child OAuth sessions + their tokens). Other devices the subject has signed in on stay signed in, matching Keycloak/Auth0/Google. |
 | MUST | §2.1 | `end_session_endpoint` in discovery when RP-Initiated Logout is supported | ✅ Pre-existing |
 | MUST | §3 | `post_logout_redirect_uri` must be pre-registered | ✅ Verified + annotated (2026-04-03) — exact match against registered URIs |
 | MUST NOT | §3 | Must NOT redirect if URI doesn't match a registered value | ✅ Verified + annotated (2026-04-03) — falls through to logout page |
@@ -510,7 +510,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 
 **Security Considerations (§6):**
 - [x] §6: Logout requests without a valid `id_token_hint` are a potential DoS vector — OPs should obtain explicit confirmation. Skipped: Autentico is API-first; logout without hint simply clears the IdP cookie and renders a logout page (no destructive side effects without a valid subject claim).
-- [x] §6: End-User may expect complete logout including at the OP — both IdP sessions and OAuth sessions are deactivated when `id_token_hint` provides a subject.
+- [x] §6: End-User may expect complete logout including at the OP — logout is single-device by design (current IdP session + every OAuth session born from it + their tokens are cascade-revoked). A dedicated "Sign out everywhere" action is out of scope for §6; the spec calls out "current End-User session at this OP" as the scope.
 
 **Discovery cross-check:**
 - [x] `end_session_endpoint` present in `/.well-known/openid-configuration` — pre-existing, verified by `TestHandleWellKnownConfig_RequiredFields`

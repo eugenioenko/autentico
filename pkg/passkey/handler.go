@@ -491,6 +491,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 	}
 
 	cfg := config.Get()
+	var idpSessionID string
 	if cfg.AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -502,6 +503,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 			}
 			if idpsession.CreateIdpSession(session) == nil {
 				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
 			}
 		}
 	}
@@ -522,6 +524,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		CodeChallengeMethod: loginState.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 	if err := authcode.CreateAuthCode(ac); err != nil {
 		return "", fmt.Errorf("failed to create authorization code")

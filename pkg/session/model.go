@@ -15,6 +15,7 @@ type Session struct {
 	ExpiresAt      time.Time
 	DeactivatedAt  *time.Time
 	Location       string
+	IdpSessionID   *string
 }
 
 // SessionResponse is the admin-safe representation (no tokens)

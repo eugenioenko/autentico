@@ -118,9 +118,11 @@ func TestHandleLogout_POST_ClearsIdpSessionCookieWithHint(t *testing.T) {
 	assert.Error(t, err, "deactivated IdP session should not be found")
 }
 
-func TestHandleLogout_POST_IdTokenHint_RevokesIdpSessionWithoutCookie(t *testing.T) {
-	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates IdP sessions
-	// even when no browser cookie is present (e.g. server-side POST).
+func TestHandleLogout_POST_NoCookie_DoesNotTouchOtherDevices(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: logout scope is the current End-User session at the OP.
+	// Without the IdP session cookie there is no "current session" to cascade — other
+	// devices belonging to the same subject must stay signed in. id_token_hint is used
+	// for spec validation (client_id match, issuer proof) but is NOT the revocation anchor.
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -152,12 +154,15 @@ func TestHandleLogout_POST_IdTokenHint_RevokesIdpSessionWithoutCookie(t *testing
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	_, err = idpsession.IdpSessionByID(idpSessionID)
-	assert.Error(t, err, "IdP session should be deactivated even when no cookie is sent")
+	// IdP session must survive — the request carried no cookie to identify "this device".
+	idp, err := idpsession.IdpSessionByID(idpSessionID)
+	require.NoError(t, err, "unrelated IdP session must not be deactivated when no cookie is sent")
+	assert.NotNil(t, idp)
 }
 
-func TestHandleLogout_POST_IdTokenHint_DeactivatesSession(t *testing.T) {
-	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates OAuth sessions.
+func TestHandleLogout_POST_WithCookie_CascadesChildSession(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: with the IdP session cookie, the current device's
+	// OAuth sessions (those tied to idp_session_id) are cascade-deactivated.
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -166,17 +171,27 @@ func TestHandleLogout_POST_IdTokenHint_DeactivatesSession(t *testing.T) {
 	`, userID, "logoutuser", "logout@example.com", "hashedpassword")
 	require.NoError(t, err)
 
+	idpSessionID := xid.New().String()
+	err = idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: idpSessionID, UserID: userID, UserAgent: "ua", IPAddress: "127.0.0.1",
+	})
+	require.NoError(t, err)
+
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{
+		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
+		Value: idpSessionID,
+	})
 	rr := httptest.NewRecorder()
 
 	HandleLogout(rr, req)
@@ -186,13 +201,14 @@ func TestHandleLogout_POST_IdTokenHint_DeactivatesSession(t *testing.T) {
 	var deactivatedAt sql.NullTime
 	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
 	require.NoError(t, err)
-	assert.True(t, deactivatedAt.Valid, "session should be deactivated via POST id_token_hint")
+	assert.True(t, deactivatedAt.Valid, "child OAuth session must be cascade-deactivated")
 }
 
 // --- POST RP-Initiated Logout spec compliance tests ---
 
-func TestHandleLogout_POST_WithIdTokenHint_DeactivatesSessions(t *testing.T) {
-	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates sessions.
+func TestHandleLogout_POST_OtherDevicesSurvive(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: logout is single-device. A second IdP session
+	// (another browser, another phone) for the same user must not be revoked.
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -200,17 +216,39 @@ func TestHandleLogout_POST_WithIdTokenHint_DeactivatesSessions(t *testing.T) {
 		userID, "posthintuser", "posthint@example.com", "hash")
 	require.NoError(t, err)
 
+	// Current device
+	currentIdp := xid.New().String()
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: currentIdp, UserID: userID, UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), currentIdp)
+	require.NoError(t, err)
+
+	// Other device (same user) — must survive
+	otherIdp := xid.New().String()
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: otherIdp, UserID: userID, UserAgent: "other-ua", IPAddress: "127.0.0.2",
+	}))
+	otherToken, otherSessionID, err := generateTestAccessToken(userID)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, otherSessionID, userID, otherToken, time.Now(), time.Now().Add(1*time.Hour), otherIdp)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{
+		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
+		Value: currentIdp,
+	})
 	rr := httptest.NewRecorder()
 
 	HandleLogout(rr, req)
@@ -218,10 +256,16 @@ func TestHandleLogout_POST_WithIdTokenHint_DeactivatesSessions(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "signed out")
 
-	var deactivatedAt interface{}
+	// Current device's session cascade-deactivated.
+	var deactivatedAt sql.NullTime
 	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
 	require.NoError(t, err)
-	assert.NotNil(t, deactivatedAt, "session should be deactivated via POST id_token_hint")
+	assert.True(t, deactivatedAt.Valid, "current device session must be deactivated")
+
+	// Other device untouched.
+	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, otherSessionID).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.False(t, deactivatedAt.Valid, "other device session must survive single-device logout")
 }
 
 func TestHandleLogout_POST_WithPostLogoutRedirectURI(t *testing.T) {
@@ -301,18 +345,27 @@ func TestHandleLogout_POST_BasicAuthWithIdTokenHint(t *testing.T) {
 		userID, "basicauthuser", "basicauth@example.com", "hash")
 	require.NoError(t, err)
 
+	idpSessionID := xid.New().String()
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: idpSessionID, UserID: userID, UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
+
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/logout", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth("someclient", "somesecret")
+	req.AddCookie(&http.Cookie{
+		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
+		Value: idpSessionID,
+	})
 	rr := httptest.NewRecorder()
 
 	HandleLogout(rr, req)

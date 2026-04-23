@@ -43,6 +43,8 @@ definitions:
     type: object
   account.SessionResponse:
     properties:
+      active_apps_count:
+        type: integer
       created_at:
         type: string
       id:
@@ -1334,8 +1336,10 @@ paths:
       - account
   /account/api/sessions:
     get:
-      description: Returns all active sessions for the authenticated user, with the
-        current session flagged.
+      description: |-
+        Returns all live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
+        `active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.
+        `is_current` marks the row matching the request's IdP session cookie.
       produces:
       - application/json
       responses:
@@ -1351,15 +1355,16 @@ paths:
             $ref: '#/definitions/model.ApiError'
       security:
       - UserAuth: []
-      summary: List current user's sessions
+      summary: List current user's active devices (IdP sessions)
       tags:
       - account-security
   /account/api/sessions/{id}:
     delete:
-      description: Revokes one of the authenticated user's sessions. Cannot revoke
-        the current session.
+      description: |-
+        Cascade-revokes an IdP session: deactivates the idp_session row, deactivates every child OAuth session, and revokes every child access/refresh token.
+        Revoking the current device also clears the IdP session cookie — the UI is expected to redirect the user through /oauth2/logout.
       parameters:
-      - description: Session ID
+      - description: IdP session ID
         in: path
         name: id
         required: true
@@ -1391,7 +1396,7 @@ paths:
             $ref: '#/definitions/model.ApiError'
       security:
       - UserAuth: []
-      summary: Revoke a session
+      summary: Revoke one of the authenticated user's devices
       tags:
       - account-security
   /account/api/settings:

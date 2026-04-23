@@ -90,7 +90,7 @@ func TestHandleRpInitiatedLogout_ClearsIdpSessionCookie(t *testing.T) {
 	assert.True(t, cleared.MaxAge < 0, "cookie MaxAge should be negative to clear it")
 }
 
-func TestHandleRpInitiatedLogout_WithIdTokenHint_DeactivatesSessions(t *testing.T) {
+func TestHandleRpInitiatedLogout_WithCookie_CascadesCurrentDevice(t *testing.T) {
 	testutils.WithTestDB(t)
 
 	userID := xid.New().String()
@@ -98,27 +98,37 @@ func TestHandleRpInitiatedLogout_WithIdTokenHint_DeactivatesSessions(t *testing.
 		userID, "rphintuser", "rphint@example.com", "hash")
 	require.NoError(t, err)
 
-	// Create an active OAuth session for the user.
+	// IdP session for the current browser.
+	idpSessionID := xid.New().String()
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: idpSessionID, UserID: userID, UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
+
+	// Child OAuth session linked to that IdP session.
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/logout?id_token_hint="+url.QueryEscape(accessToken), nil)
+	req.AddCookie(&http.Cookie{
+		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
+		Value: idpSessionID,
+	})
 	rr := httptest.NewRecorder()
 
 	HandleRpInitiatedLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	// Session should be deactivated.
+	// Child session deactivated via cascade.
 	var deactivatedAt interface{}
 	err = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, sessionID).Scan(&deactivatedAt)
 	require.NoError(t, err)
-	assert.NotNil(t, deactivatedAt, "session should be deactivated")
+	assert.NotNil(t, deactivatedAt, "session should be cascade-deactivated")
 }
 
 func TestHandleRpInitiatedLogout_ValidPostLogoutRedirectURI(t *testing.T) {

@@ -29,13 +29,18 @@ type PasskeyResponse struct {
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 }
 
+// SessionResponse is the account-UI view of an IdP (SSO) session — i.e. one
+// browser/device. ActiveAppsCount is the number of non-deactivated OAuth
+// sessions born from this IdP session (one per app signed in via SSO on this
+// device). IsCurrent marks the row matching the request's IdP session cookie.
 type SessionResponse struct {
-	ID             string     `json:"id"`
-	UserAgent      string     `json:"user_agent"`
-	IPAddress      string     `json:"ip_address"`
-	LastActivityAt *time.Time `json:"last_activity_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	IsCurrent      bool       `json:"is_current"`
+	ID              string    `json:"id"`
+	UserAgent       string    `json:"user_agent"`
+	IPAddress       string    `json:"ip_address"`
+	LastActivityAt  time.Time `json:"last_activity_at"`
+	CreatedAt       time.Time `json:"created_at"`
+	ActiveAppsCount int       `json:"active_apps_count"`
+	IsCurrent       bool      `json:"is_current"`
 }
 
 type DisableMfaRequest struct {

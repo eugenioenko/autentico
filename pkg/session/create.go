@@ -8,9 +8,15 @@ func CreateSession(session Session) error {
 	query := `
 		INSERT INTO sessions (
 			id, user_id, access_token, refresh_token,
-			user_agent, ip_address, location, expires_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+			user_agent, ip_address, location, expires_at, idp_session_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
+	// idp_session_id nullable — left NULL for non-browser grants (ROPC,
+	// client_credentials) and pre-migration rows so cascade queries skip them.
+	var idpSession interface{}
+	if session.IdpSessionID != nil && *session.IdpSessionID != "" {
+		idpSession = *session.IdpSessionID
+	}
 	_, err := db.GetDB().Exec(query,
 		session.ID,
 		session.UserID,
@@ -20,6 +26,7 @@ func CreateSession(session Session) error {
 		session.IPAddress,
 		session.Location,
 		session.ExpiresAt,
+		idpSession,
 	)
 
 	return err

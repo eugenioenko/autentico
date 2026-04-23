@@ -9,7 +9,7 @@ import (
 
 func ListSessions() ([]*Session, error) {
 	query := `
-		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at
+		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions ORDER BY created_at DESC
 	`
 	rows, err := db.GetDB().Query(query)
@@ -22,7 +22,7 @@ func ListSessions() ([]*Session, error) {
 
 func ListSessionsByUser(userID string) ([]*Session, error) {
 	query := `
-		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at
+		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions WHERE user_id = ? ORDER BY created_at DESC
 	`
 	rows, err := db.GetDB().Query(query, userID)
@@ -40,7 +40,7 @@ func scanSessions(rows *sql.Rows) ([]*Session, error) {
 		if err := rows.Scan(
 			&s.ID, &s.UserID, &s.UserAgent, &s.IPAddress,
 			&s.DeviceID, &s.LastActivityAt, &s.Location,
-			&s.CreatedAt, &s.ExpiresAt, &s.DeactivatedAt,
+			&s.CreatedAt, &s.ExpiresAt, &s.DeactivatedAt, &s.IdpSessionID,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan session: %w", err)
 		}
@@ -68,7 +68,7 @@ func DeactivateSessionByID(sessionID string) error {
 func SessionByID(sessionID string) (*Session, error) {
 	var session Session
 	query := `
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at
+		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, sessionID)
@@ -83,6 +83,7 @@ func SessionByID(sessionID string) (*Session, error) {
 		&session.CreatedAt,
 		&session.ExpiresAt,
 		&session.DeactivatedAt,
+		&session.IdpSessionID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -100,7 +101,7 @@ func SessionByID(sessionID string) (*Session, error) {
 func SessionByAccessToken(accessToken string) (*Session, error) {
 	var session Session
 	row := db.GetDB().QueryRow(`
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at
+		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions
 		WHERE access_token = ? AND deactivated_at IS NULL
 	`, accessToken)
@@ -115,6 +116,7 @@ func SessionByAccessToken(accessToken string) (*Session, error) {
 		&session.CreatedAt,
 		&session.ExpiresAt,
 		&session.DeactivatedAt,
+		&session.IdpSessionID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

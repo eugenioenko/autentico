@@ -229,6 +229,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create IdP session if configured
+	var idpSessionID string
 	if cfg.AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -240,6 +241,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			}
 			if idpsession.CreateIdpSession(session) == nil {
 				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
 			}
 		}
 	}
@@ -262,6 +264,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: loginState.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 
 	if err := authcode.CreateAuthCode(ac); err != nil {

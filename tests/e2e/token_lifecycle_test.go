@@ -20,7 +20,9 @@ import (
 
 func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
 	ts := startTestServer(t)
+	prevExp := config.Values.AuthAccessTokenExpiration
 	config.Values.AuthAccessTokenExpiration = 1 * time.Second
+	t.Cleanup(func() { config.Values.AuthAccessTokenExpiration = prevExp })
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
@@ -42,7 +44,9 @@ func TestExpiredAccessToken_UserInfoRejects(t *testing.T) {
 
 func TestExpiredAccessToken_IntrospectRejects(t *testing.T) {
 	ts := startTestServer(t)
+	prevExp := config.Values.AuthAccessTokenExpiration
 	config.Values.AuthAccessTokenExpiration = 1 * time.Second
+	t.Cleanup(func() { config.Values.AuthAccessTokenExpiration = prevExp })
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 	tokens := obtainTokensViaConfidentialClient(t, ts, "user@test.com", "password123")
@@ -261,7 +265,9 @@ func TestRefreshToken_ReplayDetection(t *testing.T) {
 
 func TestRefreshToken_ExpiredRefresh(t *testing.T) {
 	ts := startTestServer(t)
+	prevExp := config.Values.AuthRefreshTokenExpiration
 	config.Values.AuthRefreshTokenExpiration = 1 * time.Second
+	t.Cleanup(func() { config.Values.AuthRefreshTokenExpiration = prevExp })
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
@@ -295,12 +301,33 @@ func TestRefreshToken_InvalidRefreshToken(t *testing.T) {
 }
 
 func TestRefreshToken_AfterLogout(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: single-device logout cascades tokens born from
+	// the current browser session. Using the auth code flow so the IdP session
+	// cookie is in the jar; the logout POST then revokes the refresh token.
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 
+	redirectURI := "http://localhost:3000/callback"
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
 
-	// Logout via POST with id_token_hint to deactivate the session
+	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state-refresh-after-logout")
+	exForm := url.Values{}
+	exForm.Set("grant_type", "authorization_code")
+	exForm.Set("code", code)
+	exForm.Set("redirect_uri", redirectURI)
+	exForm.Set("client_id", "test-client")
+	exForm.Set("code_verifier", testCodeVerifier)
+	exResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", exForm)
+	require.NoError(t, err)
+	exBody, _ := io.ReadAll(exResp.Body)
+	_ = exResp.Body.Close()
+	require.Equal(t, http.StatusOK, exResp.StatusCode, "token exchange failed: %s", string(exBody))
+
+	var tokens token.TokenResponse
+	require.NoError(t, json.Unmarshal(exBody, &tokens))
+
 	logoutForm := url.Values{"id_token_hint": {tokens.AccessToken}}
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(logoutForm.Encode()))
 	require.NoError(t, err)
@@ -311,7 +338,7 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 	defer func() { _ = logoutResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
-	// Attempt refresh — session is deactivated, should be rejected
+	// Refresh must fail: cascade revoked the token.
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
 	form.Set("refresh_token", tokens.RefreshToken)

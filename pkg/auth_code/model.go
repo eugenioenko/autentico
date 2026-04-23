@@ -14,4 +14,5 @@ type AuthCode struct {
 	ExpiresAt           time.Time
 	Used                bool
 	CreatedAt           time.Time
+	IdpSessionID        string
 }

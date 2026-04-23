@@ -2,16 +2,27 @@ package account
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/bearer"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
-	"github.com/eugenioenko/autentico/pkg/session"
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// currentIdpSessionID returns the IdP session ID of the browser issuing this
+// account-api request, or "" if no IdP session cookie is present. The cookie
+// is Path=/ so it reaches /account directly — no access-token-to-session
+// fallback needed.
+func currentIdpSessionID(r *http.Request) string {
+	return idpsession.ReadCookie(r)
+}
+
 // HandleListSessions godoc
-// @Summary List current user's sessions
-// @Description Returns all active sessions for the authenticated user, with the current session flagged.
+// @Summary List current user's active devices (IdP sessions)
+// @Description Returns all live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
+// @Description `active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.
+// @Description `is_current` marks the row matching the request's IdP session cookie.
 // @Tags account-security
 // @Produce json
 // @Security UserAuth
@@ -25,33 +36,32 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authHeader := r.Header.Get("Authorization")
-	currentToken := utils.ExtractBearerToken(authHeader)
+	currentID := currentIdpSessionID(r)
 
-	claims, err := jwtutil.ValidateAccessToken(currentToken)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
+	// Filter idle-expired rows in the query so the list stays consistent with
+	// /authorize's lazy idle check even before pkg/cleanup's sweep flips
+	// deactivated_at.
+	idleCutoff := time.Time{}
+	if idle := config.Get().AuthSsoSessionIdleTimeout; idle > 0 {
+		idleCutoff = time.Now().Add(-idle)
 	}
 
-	sessions, err := session.ListSessionsByUser(usr.ID)
+	devices, err := idpsession.ListActiveDevicesForUser(usr.ID, idleCutoff)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	var response []SessionResponse
-	for _, s := range sessions {
-		if s.DeactivatedAt != nil {
-			continue
-		}
+	response := make([]SessionResponse, 0, len(devices))
+	for _, d := range devices {
 		response = append(response, SessionResponse{
-			ID:             s.ID,
-			UserAgent:      s.UserAgent,
-			IPAddress:      s.IPAddress,
-			LastActivityAt: s.LastActivityAt,
-			CreatedAt:      s.CreatedAt,
-			IsCurrent:      s.ID == claims.SessionID,
+			ID:              d.ID,
+			UserAgent:       d.UserAgent,
+			IPAddress:       d.IPAddress,
+			LastActivityAt:  d.LastActivityAt,
+			CreatedAt:       d.CreatedAt,
+			ActiveAppsCount: d.ActiveAppsCount,
+			IsCurrent:       d.ID == currentID,
 		})
 	}
 
@@ -59,11 +69,12 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleRevokeSession godoc
-// @Summary Revoke a session
-// @Description Revokes one of the authenticated user's sessions. Cannot revoke the current session.
+// @Summary Revoke one of the authenticated user's devices
+// @Description Cascade-revokes an IdP session: deactivates the idp_session row, deactivates every child OAuth session, and revokes every child access/refresh token.
+// @Description Revoking the current device also clears the IdP session cookie — the UI is expected to redirect the user through /oauth2/logout.
 // @Tags account-security
 // @Produce json
-// @Param id path string true "Session ID"
+// @Param id path string true "IdP session ID"
 // @Security UserAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} model.ApiError
@@ -78,35 +89,35 @@ func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := r.PathValue("id")
-	if sessionID == "" {
+	targetID := r.PathValue("id")
+	if targetID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing session ID")
 		return
 	}
 
-	// Fetch session to check ownership
-	s, err := session.SessionByID(sessionID)
+	// Ownership: only the subject of the IdP session can revoke it. No
+	// admin-side bypass here — admin force-logout has its own dedicated endpoint.
+	sess, err := idpsession.IdpSessionByID(targetID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Session not found")
 		return
 	}
-
-	if s.UserID != usr.ID {
+	if sess.UserID != usr.ID {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "You cannot revoke someone else's session")
 		return
 	}
 
-	// Check if it's the current session
-	authHeader := r.Header.Get("Authorization")
-	currentToken := utils.ExtractBearerToken(authHeader)
-	if s.AccessToken == currentToken {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "You cannot revoke your current session from this endpoint. Use logout instead.")
+	if err := idpsession.DeactivateWithCascade(targetID); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	if err := session.DeactivateSessionByID(sessionID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
-		return
+	// If the user revoked the device they're currently using, clear the browser
+	// cookie so /authorize won't try to resurrect an already-deactivated session.
+	// The account UI is expected to redirect to /oauth2/logout after a 200 to
+	// complete the sign-out UX.
+	if currentIdpSessionID(r) == targetID {
+		idpsession.ClearCookie(w)
 	}
 
 	utils.SuccessResponse(w, map[string]string{"message": "Session revoked"}, http.StatusOK)

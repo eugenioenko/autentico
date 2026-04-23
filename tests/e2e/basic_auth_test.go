@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -262,21 +264,42 @@ func TestRefreshToken_AfterRevoke(t *testing.T) {
 }
 
 func TestLogout_InvalidatesRefresh(t *testing.T) {
+	// RP-Initiated Logout 1.0 §2: logout is browser-scoped — the cascade revokes
+	// the refresh token tied to the current IdP session. We log in via the auth
+	// code flow so the cookie jar carries the IdP cookie into /oauth2/logout.
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
+
+	redirectURI := "http://localhost:3000/callback"
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
 
-	tokenResp := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
+	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state-refresh-logout")
+	exForm := url.Values{}
+	exForm.Set("grant_type", "authorization_code")
+	exForm.Set("code", code)
+	exForm.Set("redirect_uri", redirectURI)
+	exForm.Set("client_id", "test-client")
+	exForm.Set("code_verifier", testCodeVerifier)
+	exResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", exForm)
+	require.NoError(t, err)
+	body, _ := io.ReadAll(exResp.Body)
+	_ = exResp.Body.Close()
+	require.Equal(t, http.StatusOK, exResp.StatusCode, "token exchange failed: %s", string(body))
 
-	// Logout
+	var tokenResp token.TokenResponse
+	require.NoError(t, json.Unmarshal(body, &tokenResp))
+
+	// Logout — cookie jar supplies the IdP session cookie automatically.
 	logoutForm := url.Values{}
 	logoutForm.Set("id_token_hint", tokenResp.AccessToken)
-
 	logoutResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/logout", logoutForm)
 	require.NoError(t, err)
 	_ = logoutResp.Body.Close()
 	require.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
-	// Try to refresh — should fail
+	// Refresh must fail: the cascade revoked the token row.
 	refreshForm := url.Values{}
 	refreshForm.Set("grant_type", "refresh_token")
 	refreshForm.Set("refresh_token", tokenResp.RefreshToken)

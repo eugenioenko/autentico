@@ -49,7 +49,9 @@ Sessions are stored in the `sessions` table with the following fields:
 
 ## Logout
 
-The `GET /oauth2/logout` endpoint deactivates the current SSO session, clears the session cookie, and redirects the user. After logout, the next authorization request will require re-authentication.
+The `GET /oauth2/logout` endpoint is scoped to the **current End-User session at this OP** per [OpenID Connect RP-Initiated Logout 1.0 §2](https://openid.net/specs/openid-connect-rpinitiated-1_0.html). It reads the IdP session cookie, cascade-revokes that IdP session plus every OAuth session born from it (and their access/refresh tokens), clears the cookie, and redirects the user. Other devices the same subject is signed in on keep their sessions — matching Keycloak, Auth0, and Google behavior.
+
+A dedicated "Sign out everywhere" action is separate from RP-Initiated Logout.
 
 <Aside type="tip">
 If a user's session is still active when they visit `/oauth2/authorize`, they are logged in silently. This is what makes SSO work across multiple applications registered with the same Autentico instance.

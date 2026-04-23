@@ -12,12 +12,12 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 	query := `
         SELECT code, user_id, client_id, redirect_uri, scope, nonce,
                code_challenge, code_challenge_method,
-               expires_at, used, created_at
+               expires_at, used, created_at, idp_session_id
         FROM auth_codes
         WHERE code = ?;
     `
 	var authCode AuthCode
-	var clientID sql.NullString
+	var clientID, idpSessionID sql.NullString
 	err := db.GetDB().QueryRow(query, code).Scan(
 		&authCode.Code,
 		&authCode.UserID,
@@ -30,6 +30,7 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 		&authCode.ExpiresAt,
 		&authCode.Used,
 		&authCode.CreatedAt,
+		&idpSessionID,
 	)
 
 	if err != nil {
@@ -41,6 +42,9 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
 
 	if clientID.Valid {
 		authCode.ClientID = clientID.String
+	}
+	if idpSessionID.Valid {
+		authCode.IdpSessionID = idpSessionID.String
 	}
 
 	return &authCode, nil
