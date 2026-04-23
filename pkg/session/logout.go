@@ -8,7 +8,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/view"
@@ -153,11 +152,17 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 		}
 	}
 
-	// Determine user and deactivate their sessions if we have a subject.
-	if hints != nil && hints.Subject != "" {
-		query := `UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND deactivated_at IS NULL`
-		_, _ = db.GetDB().Exec(query, hints.Subject)
-		_ = idpsession.DeactivateAllForUser(hints.Subject)
+	// RP-Initiated Logout 1.0 §2: logout scope is the current End-User session at
+	// this OP — not every session the subject has across every device. We resolve
+	// the IdP session from the browser cookie and cascade-revoke only that one,
+	// so other devices stay signed in. Matches Keycloak / Auth0 / Google behavior.
+	// A subject present in id_token_hint without a matching cookie (e.g. cookies
+	// stripped) is a no-op for the DB but still clears the cookie below.
+	if currentIdpSessionID := idpsession.ReadCookie(r); currentIdpSessionID != "" {
+		if err := idpsession.DeactivateWithCascade(currentIdpSessionID); err != nil {
+			slog.Warn("session: cascade revocation during logout failed",
+				"idp_session_id", currentIdpSessionID, "error", err)
+		}
 	}
 
 	// RP-Initiated Logout 1.0 §2: Always clear the IdP session cookie regardless

@@ -16,38 +16,60 @@ import (
 )
 
 func TestLogout_DeactivatesSession(t *testing.T) {
-	// RP-Initiated Logout 1.0 §2: POST with id_token_hint deactivates sessions.
+	// RP-Initiated Logout 1.0 §2: logout is scoped to the current End-User
+	// session at this OP. Logging in through the auth code flow creates an
+	// IdP session (cookie lands in the jar); POSTing /oauth2/logout cascades
+	// the idp_session → child sessions → tokens, and userinfo rejects the
+	// access token.
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 
+	redirectURI := "http://localhost:3000/callback"
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
-	tokens := obtainTokensViaPasswordGrant(t, ts, "user@test.com", "password123")
 
-	// Logout via POST with id_token_hint (spec-compliant)
-	form := url.Values{"id_token_hint": {tokens.AccessToken}}
-	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(form.Encode()))
+	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, "user@test.com", "password123", "state-logout")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", testCodeVerifier)
+	tokResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
 	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	defer func() { _ = tokResp.Body.Close() }()
+	body, _ := io.ReadAll(tokResp.Body)
+	require.Equal(t, http.StatusOK, tokResp.StatusCode, "token exchange failed: %s", string(body))
+	accessToken := extractJSONField(t, body, "access_token")
 
-	logoutResp, err := ts.Client.Do(req)
+	// The IdP session cookie is in the jar (Path=/oauth2). The logout request
+	// to /oauth2/logout will carry it automatically, so cascade fires.
+	logoutForm := url.Values{"id_token_hint": {accessToken}}
+	logoutReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/logout", strings.NewReader(logoutForm.Encode()))
+	require.NoError(t, err)
+	logoutReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	logoutResp, err := ts.Client.Do(logoutReq)
 	require.NoError(t, err)
 	defer func() { _ = logoutResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, logoutResp.StatusCode)
 
-	// Userinfo should reject the deactivated session's token
-	req2, err := http.NewRequest("GET", ts.BaseURL+"/oauth2/userinfo", nil)
+	// Userinfo should reject the cascade-revoked token.
+	uiReq, err := http.NewRequest("GET", ts.BaseURL+"/oauth2/userinfo", nil)
 	require.NoError(t, err)
-	req2.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
-
-	resp, err := ts.Client.Do(req2)
+	uiReq.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, err := ts.Client.Do(uiReq)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
-
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "userinfo should reject after logout")
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "userinfo should reject after logout cascade")
 }
 
 func TestLogout_DeactivatesIdpSession(t *testing.T) {
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
 	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 	redirectURI := "http://localhost:3000/callback"
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
@@ -148,7 +170,9 @@ func TestLogout_InvalidIdTokenHint_ShowsLogoutPage(t *testing.T) {
 
 func TestAutoLogin_ValidIdpSession(t *testing.T) {
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
 	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 	redirectURI := "http://localhost:3000/callback"
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
@@ -184,7 +208,9 @@ func TestAutoLogin_ValidIdpSession(t *testing.T) {
 
 func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
 	config.Values.AuthSsoSessionIdleTimeout = 5 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 	redirectURI := "http://localhost:3000/callback"
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")
@@ -218,7 +244,9 @@ func TestAutoLogin_IdleTimeoutExpired(t *testing.T) {
 
 func TestAutoLogin_DeactivatedIdpSession(t *testing.T) {
 	ts := startTestServer(t)
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
 	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prevIdle })
 	redirectURI := "http://localhost:3000/callback"
 
 	createTestUser(t, "user@test.com", "password123", "user@test.com")

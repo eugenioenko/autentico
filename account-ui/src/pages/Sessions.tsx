@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { IconHistory } from '@tabler/icons-react';
+import { IconDeviceDesktop } from '@tabler/icons-react';
 import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
@@ -11,22 +11,56 @@ interface Session {
   id: string;
   user_agent: string;
   ip_address: string;
-  last_activity_at: string | null;
+  last_activity_at: string;
   created_at: string;
+  active_apps_count: number;
   is_current: boolean;
 }
 
+// Very lightweight UA parse — just enough to turn raw UA strings into a
+// human-readable "Browser on OS" label. Not a full UA-parser; a tiny
+// heuristic keeps the bundle small and doesn't pretend to be exact.
+function describeUserAgent(ua: string): string {
+  if (!ua) return 'Unknown device';
+  let browser = 'Browser';
+  if (/edg\//i.test(ua)) browser = 'Edge';
+  else if (/chrome\//i.test(ua) && !/chromium/i.test(ua)) browser = 'Chrome';
+  else if (/firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/safari\//i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+  else if (/opr\//i.test(ua) || /opera/i.test(ua)) browser = 'Opera';
+  let os = 'Unknown OS';
+  if (/windows nt/i.test(ua)) os = 'Windows';
+  else if (/mac os x/i.test(ua)) os = 'macOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+  else if (/linux/i.test(ua)) os = 'Linux';
+  return `${browser} on ${os}`;
+}
+
 const SessionsPage: React.FC = () => {
-  const { data: sessions, refetch } = useQuery({
+  const { data: sessions, refetch } = useQuery<Session[]>({
     queryKey: ['sessions'],
     queryFn: () => api.get('/sessions').then((res) => res.data.data),
   });
   const [error, setError] = useState('');
 
-  const handleRevoke = async (id: string) => {
+  const handleRevoke = async (s: Session) => {
+    if (s.is_current) {
+      const ok = window.confirm(
+        'Revoking this device will sign you out immediately. Continue?',
+      );
+      if (!ok) return;
+    }
     setError('');
     try {
-      await api.delete(`/sessions/${id}`);
+      await api.delete(`/sessions/${s.id}`);
+      if (s.is_current) {
+        // The backend has cleared the IdP cookie; hand off to RP-initiated
+        // logout so any other server-side cleanup (and a friendly "signed
+        // out" page) runs. Full page navigation is intentional.
+        window.location.assign('/oauth2/logout');
+        return;
+      }
       refetch();
     } catch (err: unknown) {
       setError(extractError(err, 'Failed to revoke session.'));
@@ -34,37 +68,48 @@ const SessionsPage: React.FC = () => {
   };
 
   return (
-    <Card title="Active Sessions" description="Devices where you are currently signed in.">
+    <Card
+      title="Active Sessions"
+      description="Browsers and devices where you are currently signed in."
+    >
       {error && <Alert type="danger" message={error} className="mb-3" />}
       <div className="divide-y divide-theme-fg/10 mt-1">
-        {sessions?.map((s: Session) => (
+        {sessions?.map((s) => (
           <div key={s.id} className="py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
-                <IconHistory size={15} className="text-theme-fg" />
+                <IconDeviceDesktop size={15} className="text-theme-fg" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold">{s.ip_address}</p>
+                  <p className="text-sm font-semibold">{describeUserAgent(s.user_agent)}</p>
                   {s.is_current && (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-theme-accent-bg text-theme-accent-fg">
                       Current
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-theme-muted truncate leading-snug">{s.user_agent}</p>
-                {s.last_activity_at && (
-                  <p className="text-[11px] text-theme-muted mt-0.5">
-                    Active {new Date(s.last_activity_at).toLocaleString()}
-                  </p>
-                )}
+                <p className="text-xs text-theme-muted leading-snug">
+                  {s.ip_address || 'Unknown location'}
+                  {' · '}
+                  Active {new Date(s.last_activity_at).toLocaleString()}
+                </p>
+                <p className="text-[11px] text-theme-muted mt-0.5">
+                  {s.active_apps_count === 0
+                    ? 'No apps signed in'
+                    : s.active_apps_count === 1
+                      ? '1 app signed in'
+                      : `${s.active_apps_count} apps signed in`}
+                </p>
               </div>
             </div>
-            {!s.is_current && (
-              <Button variant="ghost" onClick={() => handleRevoke(s.id)} className="flex-shrink-0 text-xs">
-                Log out
-              </Button>
-            )}
+            <Button
+              variant={s.is_current ? 'ghost' : 'ghost'}
+              onClick={() => handleRevoke(s)}
+              className="flex-shrink-0 text-xs"
+            >
+              {s.is_current ? 'Sign out' : 'Revoke'}
+            </Button>
           </div>
         ))}
         {(!sessions || sessions.length === 0) && (

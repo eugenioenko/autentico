@@ -14,6 +14,24 @@ import (
 func Run(retention time.Duration) {
 	threshold := time.Now().Add(-retention)
 
+	// Deactivate IdP sessions that have been idle longer than the configured
+	// SSO idle timeout so account-ui listings stay consistent with /authorize's
+	// lazy expiry check (pkg/authorize/handler.go). A subsequent pass below
+	// hard-deletes deactivated rows once they exceed the retention window.
+	if idle := config.Get().AuthSsoSessionIdleTimeout; idle > 0 {
+		idleThreshold := time.Now().Add(-idle)
+		res, err := db.GetDB().Exec(
+			`UPDATE idp_sessions
+			    SET deactivated_at = CURRENT_TIMESTAMP
+			  WHERE deactivated_at IS NULL
+			    AND last_activity_at < ?`, idleThreshold)
+		if err != nil {
+			fmt.Printf("[cleanup] error deactivating idle idp_sessions: %v\n", err)
+		} else if n, _ := res.RowsAffected(); n > 0 {
+			fmt.Printf("[cleanup] deactivated %d idle idp_sessions\n", n)
+		}
+	}
+
 	queries := []struct {
 		table string
 		sql   string

@@ -15,6 +15,11 @@ type Session struct {
 	ExpiresAt      time.Time
 	DeactivatedAt  *time.Time
 	Location       string
+	// IdpSessionID links this OAuth session to the IdP (SSO) session that
+	// produced the authorization code. Nullable — empty for non-browser grants
+	// (ROPC, client_credentials). Used by idpsession.DeactivateWithCascade to
+	// revoke every OAuth session born from a single browser login.
+	IdpSessionID *string
 }
 
 // SessionResponse is the admin-safe representation (no tokens)

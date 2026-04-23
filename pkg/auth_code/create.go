@@ -14,9 +14,16 @@ func CreateAuthCode(code AuthCode) error {
 		INSERT INTO auth_codes (
 			code, user_id, client_id, redirect_uri, scope, nonce,
 			code_challenge, code_challenge_method,
-			expires_at, used, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+			expires_at, used, created_at, idp_session_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
+	// idp_session_id is nullable: empty string -> SQL NULL so non-browser grants
+	// (ROPC, client_credentials — none of which call CreateAuthCode today) and
+	// legacy rows never populated by /authorize stay out of cascade queries.
+	var idpSession interface{}
+	if code.IdpSessionID != "" {
+		idpSession = code.IdpSessionID
+	}
 	_, err := db.GetDB().Exec(query,
 		code.Code,
 		code.UserID,
@@ -29,6 +36,7 @@ func CreateAuthCode(code AuthCode) error {
 		code.ExpiresAt,
 		code.Used,
 		code.CreatedAt,
+		idpSession,
 	)
 
 	return err

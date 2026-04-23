@@ -271,6 +271,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, st
 	cfg := config.Get()
 
 	// Create an IdP session if SSO is enabled
+	var idpSessionID string
 	if cfg.AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -282,6 +283,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, st
 			}
 			if idpsession.CreateIdpSession(sess) == nil {
 				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
 			}
 		}
 	}
@@ -302,6 +304,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, st
 		CodeChallengeMethod: state.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 
 	if err := authcode.CreateAuthCode(ac); err != nil {

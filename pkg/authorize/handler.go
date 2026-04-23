@@ -144,6 +144,9 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 					code, err := authcode.GenerateSecureCode()
 					if err == nil {
+						// Carry the IdP session id onto the auth code so /oauth2/token can
+						// stamp it on the resulting sessions row — DeactivateWithCascade
+						// then revokes every OAuth session born from this browser login.
 						ac := authcode.AuthCode{
 							Code:                code,
 							UserID:              session.UserID,
@@ -156,6 +159,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 							ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 							Used:                false,
 							CreatedAt:           session.CreatedAt,
+							IdpSessionID:        session.ID,
 						}
 						if authcode.CreateAuthCode(ac) == nil {
 							// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present

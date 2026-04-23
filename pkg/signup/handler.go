@@ -201,6 +201,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var idpSessionID string
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -212,6 +213,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 			}
 			if idpsession.CreateIdpSession(session) == nil {
 				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
 			}
 		}
 	}
@@ -234,6 +236,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: params.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {

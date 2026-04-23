@@ -99,6 +99,9 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	var codeNonce string
 	var codeScope string
 	codeAuthTime := time.Now()
+	// idpSessionID links the new session/token back to the IdP (SSO) session
+	// that authorized the user at /authorize. Empty for ROPC / client_credentials.
+	var idpSessionID string
 
 	switch request.GrantType {
 	case "authorization_code":
@@ -110,6 +113,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		codeNonce = code.Nonce
 		codeScope = code.Scope
 		codeAuthTime = code.CreatedAt
+		idpSessionID = code.IdpSessionID
 	case "password":
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
@@ -252,6 +256,18 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		// Carry the IdP session id forward so a refreshed session stays linked to
+		// the same browser login. Without this, a refresh would orphan the new
+		// session from the cascade and let a revoked IdP session produce live
+		// tokens at the next refresh.
+		var priorIdp *string
+		_ = db.GetDB().QueryRow(
+			`SELECT idp_session_id FROM sessions WHERE refresh_token = ?`,
+			request.RefreshToken,
+		).Scan(&priorIdp)
+		if priorIdp != nil {
+			idpSessionID = *priorIdp
+		}
 		// RFC 6819 §5.2.2.3 / OAuth 2.1 §6.1: rotate refresh token — revoke old, issue new.
 		// The old token is invalidated so it cannot be reused. If a revoked token is
 		// later presented, UserByRefreshToken detects the replay and revokes all user tokens.
@@ -323,7 +339,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = session.CreateSession(session.Session{
+	sessionRow := session.Session{
 		ID:           authToken.SessionID,
 		UserID:       authToken.UserID,
 		AccessToken:  authToken.AccessToken,
@@ -331,7 +347,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		UserAgent:    r.UserAgent(),
 		IPAddress:    utils.GetClientIP(r),
 		ExpiresAt:    authToken.AccessExpiresAt.UTC(),
-	})
+	}
+	if idpSessionID != "" {
+		sessionRow.IdpSessionID = &idpSessionID
+	}
+	err = session.CreateSession(sessionRow)
 
 	if err != nil {
 		slog.Error("token: failed to create session", "request_id", reqid.Get(r.Context()), "error", err)

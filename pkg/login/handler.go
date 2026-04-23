@@ -218,7 +218,9 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create IdP session if authSsoSessionIdleTimeout is enabled
+	// Create IdP session if authSsoSessionIdleTimeout is enabled. Capture the
+	// id so it can be stamped onto the auth code for cascade-revocation linkage.
+	var idpSessionID string
 	if config.Get().AuthSsoSessionIdleTimeout > 0 {
 		sessionID, err := authcode.GenerateSecureCode()
 		if err == nil {
@@ -230,6 +232,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			}
 			if idpsession.CreateIdpSession(session) == nil {
 				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
 			}
 		}
 	}
@@ -252,6 +255,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: request.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 
 	err = authcode.CreateAuthCode(code)
