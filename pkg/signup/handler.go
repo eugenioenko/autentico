@@ -202,20 +202,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var idpSessionID string
-	sessionID, err := authcode.GenerateSecureCode()
-	if err == nil {
-		session := idpsession.IdpSession{
-			ID:        sessionID,
-			UserID:    usr.ID,
-			UserAgent: r.UserAgent(),
-			IPAddress: utils.GetClientIP(r),
-		}
-		if idpsession.CreateIdpSession(session) == nil {
-			idpsession.SetCookie(w, sessionID)
-			idpSessionID = sessionID
-		}
-	}
+	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {

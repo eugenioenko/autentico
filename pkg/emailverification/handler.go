@@ -160,20 +160,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var idpSessionID string
-	sessionID, err := authcode.GenerateSecureCode()
-	if err == nil {
-		session := idpsession.IdpSession{
-			ID:        sessionID,
-			UserID:    userID,
-			UserAgent: r.UserAgent(),
-			IPAddress: utils.GetClientIP(r),
-		}
-		if idpsession.CreateIdpSession(session) == nil {
-			idpsession.SetCookie(w, sessionID)
-			idpSessionID = sessionID
-		}
-	}
+	idpSessionID := idpsession.FinalizeLogin(w, r, userID)
 
 	// Issue auth code and redirect — user is now logged in
 	authCodeStr, err := authcode.GenerateSecureCode()
