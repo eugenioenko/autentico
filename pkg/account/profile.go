@@ -3,6 +3,7 @@ package account
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/bearer"
@@ -57,6 +58,9 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Username = strings.TrimSpace(req.Username)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+
 	cfg := config.Get()
 
 	if req.Username != "" && !cfg.AllowUsernameChange {
@@ -72,6 +76,7 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if req.Username != "" {
+			req.Username = strings.ToLower(req.Username)
 			req.Email = req.Username
 		}
 	}

@@ -30,13 +30,14 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request.Username = strings.TrimSpace(request.Username)
-	request.Email = strings.TrimSpace(request.Email)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
 	err := ValidateUserCreateRequest(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
 		return
 	}
 	if config.Get().ProfileFieldEmail == "is_username" && request.Email == "" {
+		request.Username = strings.ToLower(request.Username)
 		request.Email = request.Username
 	}
 	response, err := CreateUser(request.Username, request.Password, request.Email)
@@ -101,9 +102,10 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
-	req.Email = strings.TrimSpace(req.Email)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	// In is_username mode, keep username and email in sync
 	if config.Get().ProfileFieldEmail == "is_username" && req.Username != "" {
+		req.Username = strings.ToLower(req.Username)
 		req.Email = req.Username
 	}
 	if err := ValidateUserUpdateRequest(req); err != nil {

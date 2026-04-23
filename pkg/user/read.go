@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -93,7 +94,7 @@ func UserByID(userID string) (*User, error) {
 // Only returns users with is_email_verified = TRUE and no deactivated_at.
 func UserByEmail(email string) (*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE email = ? AND deactivated_at IS NULL AND is_email_verified = TRUE`
-	row := db.GetDB().QueryRow(query, email)
+	row := db.GetDB().QueryRow(query, strings.ToLower(email))
 	u, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -118,7 +119,7 @@ func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.T
 // regardless of email verification status. Used to prevent duplicate email assignment.
 func UserExistsByEmail(email string) bool {
 	var count int
-	_ = db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, email).Scan(&count)
+	_ = db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, strings.ToLower(email)).Scan(&count)
 	return count > 0
 }
 
