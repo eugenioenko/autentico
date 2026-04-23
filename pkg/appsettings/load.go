@@ -16,6 +16,7 @@ var defaults = map[string]string{
 	"authorization_code_expiration":  "10m",
 	"access_token_audience":          "[]",
 	"allow_self_signup":              "false",
+	"sso_enabled":                   "true",
 	"sso_session_idle_timeout":       "4h",
 	"validation_min_username_length": "4",
 	"validation_max_username_length": "64",
@@ -108,6 +109,9 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["allow_self_signup"]; ok {
 		cfg.AuthAllowSelfSignup = parseBool(v, false)
+	}
+	if v, ok := all["sso_enabled"]; ok {
+		cfg.AuthSsoEnabled = parseBool(v, true)
 	}
 	if v, ok := all["sso_session_idle_timeout"]; ok {
 		cfg.AuthSsoSessionIdleTimeoutStr = v

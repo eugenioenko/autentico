@@ -260,6 +260,38 @@ func TestHandleAuthorize_AutoLogin_ZeroIdleTimeout_MeansInfinite(t *testing.T) {
 	assert.Contains(t, rr.Header().Get("Location"), "state=xyz123")
 }
 
+func TestHandleAuthorize_AutoLogin_SsoDisabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoEnabled = false
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+	})
+
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-1', 'testuser', 'test@example.com', 'hashed')`)
+	assert.NoError(t, err)
+
+	session := idpsession.IdpSession{
+		ID:        "idp-sso-off-1",
+		UserID:    "user-1",
+		UserAgent: "test-agent",
+		IPAddress: "127.0.0.1",
+	}
+	err = idpsession.CreateIdpSession(session)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-sso-off-1"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	// sso_enabled=false: should show login form despite valid session
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "form")
+	assert.Contains(t, rr.Body.String(), "username")
+}
+
 func TestHandleAuthorize_AutoLogin_ExpiredSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})

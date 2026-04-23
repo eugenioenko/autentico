@@ -68,6 +68,7 @@ type Config struct {
 	AuthAuthorizationCodeExpirationStr string
 	AuthAccessTokenAudience            []string
 	AuthAllowSelfSignup                bool
+	AuthSsoEnabled                     bool
 	AuthSsoSessionIdleTimeout          time.Duration
 	AuthSsoSessionIdleTimeoutStr       string
 	AuthAccountLockoutMaxAttempts      int
@@ -141,6 +142,7 @@ var defaultConfig = Config{
 	AuthAuthorizationCodeExpirationStr: "10m",
 	AuthAccessTokenAudience:            []string{},
 	AuthAllowSelfSignup:                false,
+	AuthSsoEnabled:                     true,
 	AuthSsoSessionIdleTimeout:          4 * time.Hour,
 	AuthSsoSessionIdleTimeoutStr:       "4h",
 	AuthAccountLockoutMaxAttempts:      5,

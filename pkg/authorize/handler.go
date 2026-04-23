@@ -125,57 +125,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check for valid IdP session (auto-login)
 	// OIDC Core §3.1.2.1: prompt=login requires fresh authentication — skip SSO auto-login
 	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
-	// max_age requires re-authentication if session is older than max_age seconds
 	cfg := config.Get()
-	maxAgeSecs := parseMaxAge(request.MaxAge)
-	if request.Prompt != "login" && request.Prompt != "consent" {
-		sessionID := idpsession.ReadCookie(r)
-		if sessionID != "" {
-			session, err := idpsession.IdpSessionByID(sessionID)
-			if err == nil {
-				sessionAge := time.Since(session.CreatedAt)
-				maxAgeExceeded := maxAgeSecs >= 0 && sessionAge > time.Duration(maxAgeSecs)*time.Second
-				idleOk := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout
-				if idleOk && !maxAgeExceeded {
-					// Valid IdP session — auto-login
-					_ = idpsession.UpdateLastActivity(session.ID)
-
-					code, err := authcode.GenerateSecureCode()
-					if err == nil {
-						// Carry the IdP session id onto the auth code so /oauth2/token can
-						// stamp it on the resulting sessions row — DeactivateWithCascade
-						// then revokes every OAuth session born from this browser login.
-						ac := authcode.AuthCode{
-							Code:                code,
-							UserID:              session.UserID,
-							ClientID:            request.ClientID,
-							RedirectURI:         request.RedirectURI,
-							Scope:               request.Scope,
-							Nonce:               request.Nonce,
-							CodeChallenge:       request.CodeChallenge,
-							CodeChallengeMethod: request.CodeChallengeMethod,
-							ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-							Used:                false,
-							CreatedAt:           session.CreatedAt,
-							IdpSessionID:        session.ID,
-						}
-						if authcode.CreateAuthCode(ac) == nil {
-							// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
-							redirectParams := url.Values{}
-							redirectParams.Set("code", ac.Code)
-							if request.State != "" {
-								redirectParams.Set("state", request.State)
-							}
-							http.Redirect(w, r, request.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
-							return
-						}
-					}
-				}
-			}
-		}
+	if redirectURL := tryAutoLogin(r, cfg, request); redirectURL != "" {
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
 	}
 
 	if request.Prompt == "none" {
@@ -274,6 +229,68 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, stat
 		q.Set("state", state)
 	}
 	http.Redirect(w, r, redirectURI+"?"+q.Encode(), http.StatusFound)
+}
+
+// tryAutoLogin checks for a valid IdP session and returns a redirect URL with
+// an authorization code if SSO auto-login succeeds. Returns "" if auto-login
+// should not or cannot proceed, letting the caller fall through to the login form.
+func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest) string {
+	if !cfg.AuthSsoEnabled || request.Prompt == "login" || request.Prompt == "consent" {
+		return ""
+	}
+
+	sessionID := idpsession.ReadCookie(r)
+	if sessionID == "" {
+		return ""
+	}
+
+	session, err := idpsession.IdpSessionByID(sessionID)
+	if err != nil {
+		return ""
+	}
+
+	withinIdleTimeout := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout
+	if !withinIdleTimeout {
+		return ""
+	}
+
+	maxAgeSecs := parseMaxAge(request.MaxAge)
+	if maxAgeSecs >= 0 && time.Since(session.CreatedAt) > time.Duration(maxAgeSecs)*time.Second {
+		return ""
+	}
+
+	_ = idpsession.UpdateLastActivity(session.ID)
+
+	code, err := authcode.GenerateSecureCode()
+	if err != nil {
+		return ""
+	}
+
+	ac := authcode.AuthCode{
+		Code:                code,
+		UserID:              session.UserID,
+		ClientID:            request.ClientID,
+		RedirectURI:         request.RedirectURI,
+		Scope:               request.Scope,
+		Nonce:               request.Nonce,
+		CodeChallenge:       request.CodeChallenge,
+		CodeChallengeMethod: request.CodeChallengeMethod,
+		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+		Used:                false,
+		CreatedAt:           session.CreatedAt,
+		IdpSessionID:        session.ID,
+	}
+	if err := authcode.CreateAuthCode(ac); err != nil {
+		return ""
+	}
+
+	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
+	redirectParams := url.Values{}
+	redirectParams.Set("code", ac.Code)
+	if request.State != "" {
+		redirectParams.Set("state", request.State)
+	}
+	return request.RedirectURI + "?" + redirectParams.Encode()
 }
 
 // parseMaxAge parses the max_age query parameter as seconds.

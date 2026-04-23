@@ -23,9 +23,10 @@ On a new authorization request:
 
 | Setting | Default | Description |
 |---|---|---|
+| `sso_enabled` | `true` | Enable SSO auto-login. When disabled, users must log in on every request. Device sessions are still tracked |
 | `sso_session_idle_timeout` | `4h` | If the user has no activity for this long, the session expires. `0` for no idle expiration |
 
-Uses Go duration format: `24h`, `168h`, `720h`, etc.
+Uses Go duration format for timeouts: `24h`, `168h`, `720h`, etc.
 
 The idle timeout can be overridden per-client, so different clients can have stricter session requirements. See [Per-Client Overrides](/configuration/per-client-overrides/).
 
