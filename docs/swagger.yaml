@@ -456,6 +456,21 @@ definitions:
       status:
         type: string
     type: object
+  idpsession.IdpSessionResponse:
+    properties:
+      active_apps_count:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      last_activity_at:
+        type: string
+      user_agent:
+        type: string
+    type: object
   introspect.IntrospectRequest:
     properties:
       token:
@@ -2045,6 +2060,30 @@ paths:
       summary: Remove a user from a group
       tags:
       - admin-groups
+  /admin/api/idp-sessions/{id}:
+    delete:
+      description: Deactivates an IdP session and cascades to all child OAuth sessions
+        and tokens.
+      parameters:
+      - description: IdP Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - AdminAuth: []
+      summary: Force sign-out a device (IdP session)
+      tags:
+      - admin-sessions
   /admin/api/sessions:
     get:
       description: Lists all active sessions, optionally filtered by user ID.
@@ -2415,6 +2454,30 @@ paths:
       summary: Get groups for a user
       tags:
       - admin-groups
+  /admin/api/users/{id}/idp-sessions:
+    get:
+      description: Returns all active IdP sessions for a user with active OAuth app
+        counts.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/idpsession.IdpSessionResponse'
+            type: array
+      security:
+      - AdminAuth: []
+      summary: List a user's IdP (device) sessions
+      tags:
+      - admin-sessions
   /admin/api/users/{id}/reactivate:
     post:
       description: Clears the deactivated status, allowing the user to log in again.

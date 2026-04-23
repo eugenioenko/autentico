@@ -38,6 +38,7 @@ func IdpSessionByID(sessionID string) (*IdpSession, error) {
 // Devices list — one row per browser/device the user is signed in on.
 type DeviceRow struct {
 	ID              string
+	UserID          string
 	UserAgent       string
 	IPAddress       string
 	LastActivityAt  time.Time
@@ -51,7 +52,7 @@ type DeviceRow struct {
 // recent activity first.
 func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow, error) {
 	rows, err := db.GetDB().Query(`
-		SELECT s.id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+		SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
 		       (SELECT COUNT(*) FROM sessions
 		          WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
 		  FROM idp_sessions s
@@ -66,11 +67,50 @@ func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow,
 	}
 	defer func() { _ = rows.Close() }()
 
+	return scanDeviceRows(rows)
+}
+
+// ListActiveDevices returns every non-deactivated IdP session, optionally
+// filtered by userID (empty = all users). Ordered by most recent activity first.
+func ListActiveDevices(userID string) ([]DeviceRow, error) {
+	var query string
+	var args []any
+
+	if userID != "" {
+		query = `
+			SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+			       (SELECT COUNT(*) FROM sessions
+			          WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
+			  FROM idp_sessions s
+			 WHERE s.user_id = ?
+			   AND s.deactivated_at IS NULL
+			 ORDER BY s.last_activity_at DESC`
+		args = []any{userID}
+	} else {
+		query = `
+			SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+			       (SELECT COUNT(*) FROM sessions
+			          WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
+			  FROM idp_sessions s
+			 WHERE s.deactivated_at IS NULL
+			 ORDER BY s.last_activity_at DESC`
+	}
+
+	rows, err := db.GetDB().Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list idp sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return scanDeviceRows(rows)
+}
+
+func scanDeviceRows(rows *sql.Rows) ([]DeviceRow, error) {
 	var out []DeviceRow
 	for rows.Next() {
 		var r DeviceRow
 		var userAgent, ipAddress *string
-		if err := rows.Scan(&r.ID, &userAgent, &ipAddress, &r.LastActivityAt, &r.CreatedAt, &r.ActiveAppsCount); err != nil {
+		if err := rows.Scan(&r.ID, &r.UserID, &userAgent, &ipAddress, &r.LastActivityAt, &r.CreatedAt, &r.ActiveAppsCount); err != nil {
 			return nil, fmt.Errorf("failed to scan idp session row: %w", err)
 		}
 		if userAgent != nil {

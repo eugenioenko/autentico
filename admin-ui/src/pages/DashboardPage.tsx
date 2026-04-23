@@ -3,6 +3,7 @@ import {
   UserOutlined,
   AppstoreOutlined,
   DesktopOutlined,
+  KeyOutlined,
   LoginOutlined,
   PlusOutlined,
   CopyOutlined,
@@ -59,10 +60,18 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Active Sessions"
-              value={stats?.active_sessions ?? 0}
-              suffix={`/ ${stats?.total_sessions ?? 0}`}
+              title="Active Devices"
+              value={stats?.active_devices ?? 0}
               prefix={<DesktopOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Active Tokens"
+              value={stats?.active_tokens ?? 0}
+              prefix={<KeyOutlined />}
             />
           </Card>
         </Col>
