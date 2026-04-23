@@ -56,7 +56,7 @@ func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-	email := strings.TrimSpace(r.FormValue("email"))
+	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
 
 	if password != confirmPassword {
 		renderOnboard(w, r, params, "Passwords do not match")

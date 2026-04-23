@@ -40,8 +40,9 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "missing username")
 		return
 	}
-	email := strings.TrimSpace(q.Get("email"))
+	email := strings.ToLower(strings.TrimSpace(q.Get("email")))
 	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
+		username = strings.ToLower(username)
 		email = username
 	}
 

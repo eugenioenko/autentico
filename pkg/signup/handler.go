@@ -96,8 +96,9 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-	email := strings.TrimSpace(r.FormValue("email"))
+	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
 	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
+		username = strings.ToLower(username)
 		email = username
 	}
 
