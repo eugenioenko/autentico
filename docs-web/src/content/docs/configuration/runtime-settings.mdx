@@ -108,10 +108,15 @@ How long a password reset link remains valid. Only sent to users with a verified
 
 ## SSO sessions
 
-### `sso_session_idle_timeout`
-Default: `0`
+### `sso_enabled`
+Default: `true`
 
-IdP session idle timeout. `0` disables IdP sessions entirely. When set (e.g. `8h`), users who return within the timeout window are automatically re-authorized without entering credentials.
+Enable Single Sign-On. When enabled, returning users with an active session are automatically re-authorized without entering credentials. When disabled, users must log in on every authorization request. Device sessions are still tracked regardless of this setting.
+
+### `sso_session_idle_timeout`
+Default: `4h`
+
+IdP session idle timeout. Users who return within the timeout window are automatically re-authorized without entering credentials. `0` means sessions never expire from inactivity (infinite idle timeout).
 
 ---
 

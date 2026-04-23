@@ -270,21 +270,18 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
 	cfg := config.Get()
 
-	// Create an IdP session if SSO is enabled
 	var idpSessionID string
-	if cfg.AuthSsoSessionIdleTimeout > 0 {
-		sessionID, err := authcode.GenerateSecureCode()
-		if err == nil {
-			sess := idpsession.IdpSession{
-				ID:        sessionID,
-				UserID:    usr.ID,
-				UserAgent: r.UserAgent(),
-				IPAddress: utils.GetClientIP(r),
-			}
-			if idpsession.CreateIdpSession(sess) == nil {
-				idpsession.SetCookie(w, sessionID)
-				idpSessionID = sessionID
-			}
+	sessionID, err := authcode.GenerateSecureCode()
+	if err == nil {
+		sess := idpsession.IdpSession{
+			ID:        sessionID,
+			UserID:    usr.ID,
+			UserAgent: r.UserAgent(),
+			IPAddress: utils.GetClientIP(r),
+		}
+		if idpsession.CreateIdpSession(sess) == nil {
+			idpsession.SetCookie(w, sessionID)
+			idpSessionID = sessionID
 		}
 	}
 

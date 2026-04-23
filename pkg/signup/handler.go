@@ -202,19 +202,17 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var idpSessionID string
-	if config.Get().AuthSsoSessionIdleTimeout > 0 {
-		sessionID, err := authcode.GenerateSecureCode()
-		if err == nil {
-			session := idpsession.IdpSession{
-				ID:        sessionID,
-				UserID:    usr.ID,
-				UserAgent: r.UserAgent(),
-				IPAddress: utils.GetClientIP(r),
-			}
-			if idpsession.CreateIdpSession(session) == nil {
-				idpsession.SetCookie(w, sessionID)
-				idpSessionID = sessionID
-			}
+	sessionID, err := authcode.GenerateSecureCode()
+	if err == nil {
+		session := idpsession.IdpSession{
+			ID:        sessionID,
+			UserID:    usr.ID,
+			UserAgent: r.UserAgent(),
+			IPAddress: utils.GetClientIP(r),
+		}
+		if idpsession.CreateIdpSession(session) == nil {
+			idpsession.SetCookie(w, sessionID)
+			idpSessionID = sessionID
 		}
 	}
 

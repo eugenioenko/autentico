@@ -54,7 +54,8 @@ const tip = makeTip({
   mfa_method: "Preferred second-factor authentication method.",
   require_email_verification: "Require users to verify their email address before they can log in. Admins are exempt. Requires SMTP to be configured.",
   email_verification_expiration: "How long a verification link remains valid (e.g. 24h, 48h).",
-  sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 to disable.",
+  sso_enabled: "Enable Single Sign-On. When enabled, returning users with an active session are automatically re-authorized without entering credentials.",
+  sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 for no idle expiration.",
   trust_device_enabled: "Allow users to trust their current device for MFA.",
   trust_device_expiration: "How long a device remains trusted (e.g. 720h).",
   validation_min_username_length: "Minimum length for usernames.",
@@ -371,6 +372,15 @@ export default function SettingsPage() {
                   <Divider />
 
                   <Title level={5}>Session Control</Title>
+                  <Form.Item
+                    label="SSO Enabled"
+                    name="sso_enabled"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    tooltip={{ title: tip("sso_enabled"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Switch />
+                  </Form.Item>
                   <Form.Item
                     label="SSO Session Idle Timeout"
                     name="sso_session_idle_timeout"
