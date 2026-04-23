@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -196,6 +198,105 @@ func TestGenerateToken_UniqueAndHashable(t *testing.T) {
 	assert.NotEqual(t, hash1, hash2)
 	assert.NotEmpty(t, raw1)
 	assert.NotEmpty(t, hash1)
+}
+
+func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
+		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	})
+
+	u, _ := user.CreateUser("ssouser", "password123", "sso@test.com")
+	rawToken, tokenHash, err := GenerateToken()
+	require.NoError(t, err)
+	require.NoError(t, user.SetEmailVerificationToken(u.ID, tokenHash, time.Now().Add(time.Hour)))
+
+	q := url.Values{}
+	q.Set("token", rawToken)
+	q.Set("redirect_uri", "http://localhost/callback")
+	q.Set("state", "sso-state")
+	q.Set("client_id", "test-client")
+	q.Set("scope", "openid")
+	testutils.SetAuthorizeSig(q)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
+	rr := httptest.NewRecorder()
+
+	HandleVerifyEmail(rr, req)
+
+	require.Equal(t, http.StatusFound, rr.Code)
+
+	// Extract the auth code from the redirect and verify IdpSessionID is set
+	loc := rr.Header().Get("Location")
+	locURL, err := url.Parse(loc)
+	require.NoError(t, err)
+	codeStr := locURL.Query().Get("code")
+	require.NotEmpty(t, codeStr)
+
+	ac, err := authcode.AuthCodeByCode(codeStr)
+	require.NoError(t, err)
+	assert.NotEmpty(t, ac.IdpSessionID, "auth code should have IdpSessionID set")
+
+	// Verify the IdP session was actually created in the DB
+	idpSess, err := idpsession.IdpSessionByID(ac.IdpSessionID)
+	require.NoError(t, err)
+	assert.Equal(t, u.ID, idpSess.UserID)
+
+	// Verify the IdP session cookie was set
+	cookieName := config.GetBootstrap().AuthIdpSessionCookieName
+	var found bool
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == cookieName {
+			assert.Equal(t, ac.IdpSessionID, c.Value)
+			found = true
+		}
+	}
+	assert.True(t, found, "IdP session cookie should be set")
+}
+
+func TestHandleVerifyEmail_NoIdpSession_WhenSsoDisabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
+		config.Values.AuthSsoSessionIdleTimeout = 0
+	})
+
+	u, _ := user.CreateUser("nossouser", "password123", "nosso@test.com")
+	rawToken, tokenHash, err := GenerateToken()
+	require.NoError(t, err)
+	require.NoError(t, user.SetEmailVerificationToken(u.ID, tokenHash, time.Now().Add(time.Hour)))
+
+	q := url.Values{}
+	q.Set("token", rawToken)
+	q.Set("redirect_uri", "http://localhost/callback")
+	q.Set("state", "no-sso-state")
+	q.Set("client_id", "test-client")
+	q.Set("scope", "openid")
+	testutils.SetAuthorizeSig(q)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
+	rr := httptest.NewRecorder()
+
+	HandleVerifyEmail(rr, req)
+
+	require.Equal(t, http.StatusFound, rr.Code)
+
+	loc := rr.Header().Get("Location")
+	locURL, err := url.Parse(loc)
+	require.NoError(t, err)
+	codeStr := locURL.Query().Get("code")
+	require.NotEmpty(t, codeStr)
+
+	ac, err := authcode.AuthCodeByCode(codeStr)
+	require.NoError(t, err)
+	assert.Empty(t, ac.IdpSessionID, "auth code should NOT have IdpSessionID when SSO is disabled")
+
+	// Verify no IdP session cookie was set
+	cookieName := config.GetBootstrap().AuthIdpSessionCookieName
+	for _, c := range rr.Result().Cookies() {
+		assert.NotEqual(t, cookieName, c.Name, "IdP session cookie should not be set")
+	}
 }
 
 func TestBuildVerifyURL(t *testing.T) {
