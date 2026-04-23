@@ -21,14 +21,11 @@ On a new authorization request:
 
 ## Session lifetime and idle timeout
 
-Sessions have two separate lifetime controls:
-
 | Setting | Default | Description |
 |---|---|---|
-| `sso_session_max_age` | `720h` | Absolute maximum session duration — the session expires after this regardless of activity |
 | `sso_session_idle_timeout` | `4h` | If the user has no activity for this long, the session expires. `0` for no idle expiration |
 
-Both use Go duration format: `24h`, `168h`, `720h`, etc.
+Uses Go duration format: `24h`, `168h`, `720h`, etc.
 
 The idle timeout can be overridden per-client, so different clients can have stricter session requirements. See [Per-Client Overrides](/configuration/per-client-overrides/).
 
@@ -44,7 +41,7 @@ Sessions are stored in the `sessions` table with the following fields:
 | `ip_address` | Client IP at login time |
 | `last_activity_at` | Updated on each authorization request (used for idle timeout) |
 | `created_at` | Session creation time |
-| `expires_at` | Absolute expiry (`created_at` + `sso_session_max_age`) |
+| `expires_at` | Absolute expiry (not yet enforced — reserved for future `sso_session_max_age` setting) |
 | `deactivated_at` | Set when the session is explicitly logged out |
 
 ## Logout

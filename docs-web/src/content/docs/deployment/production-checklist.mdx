@@ -19,7 +19,7 @@ import { Aside } from '@astrojs/starlight/components';
 - [ ] **`AUTENTICO_APP_URL` is correct** — This value appears in the OIDC discovery document, token `iss` claim, and redirect validation. It must exactly match the URL clients use.
 - [ ] **MFA enabled** (recommended) — `mfa_enabled = true` in settings, with `mfa_method = totp` or `email`. TOTP is preferred.
 - [ ] **Account lockout configured** — `lockout_max_attempts` and `lockout_duration` are set to reasonable values.
-- [ ] **Session lifetimes reviewed** — `sso_session_max_age` and `sso_session_idle_timeout` match your security policy.
+- [ ] **Session lifetimes reviewed** — `sso_session_idle_timeout` matches your security policy.
 - [ ] **Token lifetimes reviewed** — `access_token_expiration` is short (15m default). `refresh_token_expiration` reflects your session policy.
 - [ ] **Self-signup decision made** — `allow_self_signup` is `false` unless you intend to allow open registration.
 - [ ] **SMTP configured** (if using email OTP or email-verified registration) — SMTP settings tested via a login attempt.
