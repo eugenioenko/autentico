@@ -87,13 +87,6 @@ func performAuthCodeFlow(t *testing.T, ts *TestServer, clientID, redirectURI, us
 		"openid profile email", "", testCodeChallenge, "S256")
 }
 
-// performAuthCodeFlowWithScope drives authorize → login → extract code with explicit scope.
-func performAuthCodeFlowWithScope(t *testing.T, ts *TestServer, clientID, redirectURI, username, password, state, scope string) string {
-	t.Helper()
-	return performAuthCodeFlowWithPKCE(t, ts, clientID, redirectURI, username, password, state,
-		scope, "", testCodeChallenge, "S256")
-}
-
 // performAuthCodeFlowWithPKCE drives the full authorize → login → extract code chain
 // with explicit PKCE parameters.
 func performAuthCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID, redirectURI, username, password, state, scope, nonce, codeChallenge, codeChallengeMethod string) string {
