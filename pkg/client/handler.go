@@ -80,13 +80,13 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := ClientByClientID(clientID)
+	c, err := AdminClientByClientID(clientID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
 		return
 	}
 
-	utils.WriteApiResponse(w, client.ToInfoResponse(), http.StatusOK)
+	utils.WriteApiResponse(w, c.ToInfoResponse(), http.StatusOK)
 }
 
 // HandleUpdateClient handles PUT /oauth2/register/{client_id} (RFC 7591) and PUT /admin/api/clients/{client_id}
@@ -141,7 +141,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
-	updated, _ := ClientByClientID(clientID)
+	updated, _ := AdminClientByClientID(clientID)
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
 

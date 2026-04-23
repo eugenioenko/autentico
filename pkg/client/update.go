@@ -9,7 +9,7 @@ import (
 
 func UpdateClient(clientID string, req ClientUpdateRequest) error {
 	// Get existing client to preserve values
-	c, err := ClientByClientID(clientID)
+	c, err := AdminClientByClientID(clientID)
 	if err != nil {
 		return err
 	}

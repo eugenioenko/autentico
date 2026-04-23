@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -13,9 +14,9 @@ func PasskeyChallengeByID(id string) (*PasskeyChallenge, error) {
 	var c PasskeyChallenge
 	query := `
 		SELECT id, user_id, challenge_data, type, login_state, created_at, expires_at, used
-		FROM passkey_challenges WHERE id = ?
+		FROM passkey_challenges WHERE id = ? AND used = 0 AND expires_at > ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetDB().QueryRow(query, id, time.Now().UTC())
 	err := row.Scan(
 		&c.ID,
 		&c.UserID,

@@ -69,7 +69,7 @@ func SessionByID(sessionID string) (*Session, error) {
 	var session Session
 	query := `
 		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
-		FROM sessions WHERE id = ?
+		FROM sessions WHERE id = ? AND deactivated_at IS NULL
 	`
 	row := db.GetDB().QueryRow(query, sessionID)
 	err := row.Scan(

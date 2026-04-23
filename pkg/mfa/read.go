@@ -3,6 +3,7 @@ package mfa
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -11,9 +12,9 @@ func MfaChallengeByID(id string) (*MfaChallenge, error) {
 	var challenge MfaChallenge
 	query := `
 		SELECT id, user_id, method, code, login_state, created_at, expires_at, used, failed_attempts, otp_sent_at
-		FROM mfa_challenges WHERE id = ?
+		FROM mfa_challenges WHERE id = ? AND used = 0 AND expires_at > ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetDB().QueryRow(query, id, time.Now().UTC())
 	err := row.Scan(
 		&challenge.ID,
 		&challenge.UserID,

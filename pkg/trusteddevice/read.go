@@ -3,6 +3,7 @@ package trusteddevice
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -33,9 +34,9 @@ func TrustedDeviceByID(id string) (*TrustedDevice, error) {
 	var d TrustedDevice
 	query := `
 		SELECT id, user_id, device_name, created_at, last_used_at, expires_at
-		FROM trusted_devices WHERE id = ?
+		FROM trusted_devices WHERE id = ? AND expires_at > ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetDB().QueryRow(query, id, time.Now().UTC())
 	err := row.Scan(&d.ID, &d.UserID, &d.DeviceName, &d.CreatedAt, &d.LastUsedAt, &d.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
