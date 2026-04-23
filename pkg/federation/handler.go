@@ -270,20 +270,7 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
 	cfg := config.Get()
 
-	var idpSessionID string
-	sessionID, err := authcode.GenerateSecureCode()
-	if err == nil {
-		sess := idpsession.IdpSession{
-			ID:        sessionID,
-			UserID:    usr.ID,
-			UserAgent: r.UserAgent(),
-			IPAddress: utils.GetClientIP(r),
-		}
-		if idpsession.CreateIdpSession(sess) == nil {
-			idpsession.SetCookie(w, sessionID)
-			idpSessionID = sessionID
-		}
-	}
+	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {

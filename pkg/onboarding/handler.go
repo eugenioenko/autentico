@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -85,18 +84,7 @@ func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	_ = appsettings.SetSetting("onboarded", "true")
 	_ = appsettings.LoadIntoConfig()
 
-	sessionID, err := authcode.GenerateSecureCode()
-	if err == nil {
-		session := idpsession.IdpSession{
-			ID:        sessionID,
-			UserID:    usr.ID,
-			UserAgent: r.UserAgent(),
-			IPAddress: utils.GetClientIP(r),
-		}
-		if idpsession.CreateIdpSession(session) == nil {
-			idpsession.SetCookie(w, sessionID)
-		}
-	}
+	idpsession.FinalizeLogin(w, r, usr.ID)
 
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
