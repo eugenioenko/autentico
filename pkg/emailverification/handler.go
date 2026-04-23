@@ -13,6 +13,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -159,6 +160,24 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create IdP session if SSO idle timeout is enabled, matching the login flow.
+	var idpSessionID string
+	if config.Get().AuthSsoSessionIdleTimeout > 0 {
+		sessionID, err := authcode.GenerateSecureCode()
+		if err == nil {
+			session := idpsession.IdpSession{
+				ID:        sessionID,
+				UserID:    userID,
+				UserAgent: r.UserAgent(),
+				IPAddress: utils.GetClientIP(r),
+			}
+			if idpsession.CreateIdpSession(session) == nil {
+				idpsession.SetCookie(w, sessionID)
+				idpSessionID = sessionID
+			}
+		}
+	}
+
 	// Issue auth code and redirect — user is now logged in
 	authCodeStr, err := authcode.GenerateSecureCode()
 	if err != nil {
@@ -178,6 +197,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: params.CodeChallengeMethod,
 		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
 		Used:                false,
+		IdpSessionID:        idpSessionID,
 	}
 
 	if err = authcode.CreateAuthCode(code); err != nil {
