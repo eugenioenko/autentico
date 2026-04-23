@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -34,12 +35,12 @@ import (
 // Success 200 "WebAuthn registration options"
 func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	username := q.Get("username")
+	username := strings.TrimSpace(q.Get("username"))
 	if username == "" {
 		writeJSONError(w, http.StatusBadRequest, "missing username")
 		return
 	}
-	email := q.Get("email")
+	email := strings.TrimSpace(q.Get("email"))
 	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
 		email = username
 	}
