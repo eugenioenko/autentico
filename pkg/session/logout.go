@@ -152,12 +152,9 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 		}
 	}
 
-	// RP-Initiated Logout 1.0 §2: logout scope is the current End-User session at
-	// this OP — not every session the subject has across every device. We resolve
-	// the IdP session from the browser cookie and cascade-revoke only that one,
-	// so other devices stay signed in. Matches Keycloak / Auth0 / Google behavior.
-	// A subject present in id_token_hint without a matching cookie (e.g. cookies
-	// stripped) is a no-op for the DB but still clears the cookie below.
+	// RP-Initiated Logout 1.0 §2: scope is the End-User's session at this OP —
+	// cascade only the IdP session resolved from the browser cookie, so other
+	// devices stay signed in.
 	if currentIdpSessionID := idpsession.ReadCookie(r); currentIdpSessionID != "" {
 		if err := idpsession.DeactivateWithCascade(currentIdpSessionID); err != nil {
 			slog.Warn("session: cascade revocation during logout failed",

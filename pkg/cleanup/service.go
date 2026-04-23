@@ -14,23 +14,7 @@ import (
 func Run(retention time.Duration) {
 	threshold := time.Now().Add(-retention)
 
-	// Deactivate IdP sessions that have been idle longer than the configured
-	// SSO idle timeout so account-ui listings stay consistent with /authorize's
-	// lazy expiry check (pkg/authorize/handler.go). A subsequent pass below
-	// hard-deletes deactivated rows once they exceed the retention window.
-	if idle := config.Get().AuthSsoSessionIdleTimeout; idle > 0 {
-		idleThreshold := time.Now().Add(-idle)
-		res, err := db.GetDB().Exec(
-			`UPDATE idp_sessions
-			    SET deactivated_at = CURRENT_TIMESTAMP
-			  WHERE deactivated_at IS NULL
-			    AND last_activity_at < ?`, idleThreshold)
-		if err != nil {
-			fmt.Printf("[cleanup] error deactivating idle idp_sessions: %v\n", err)
-		} else if n, _ := res.RowsAffected(); n > 0 {
-			fmt.Printf("[cleanup] deactivated %d idle idp_sessions\n", n)
-		}
-	}
+	deactivateIdleIdpSessions()
 
 	queries := []struct {
 		table string
@@ -71,6 +55,30 @@ func Run(retention time.Duration) {
 				fmt.Printf("[cleanup] deleted %d expired rows from audit_logs\n", n)
 			}
 		}
+	}
+}
+
+// deactivateIdleIdpSessions flips deactivated_at on IdP sessions that have been
+// idle past the configured SSO idle timeout, so /account/api/sessions and
+// /authorize's lazy idle check agree on which browsers are "still signed in".
+// A later pass in Run hard-deletes these rows once they exceed retention.
+func deactivateIdleIdpSessions() {
+	idle := config.Get().AuthSsoSessionIdleTimeout
+	if idle <= 0 {
+		return
+	}
+	idleThreshold := time.Now().Add(-idle)
+	res, err := db.GetDB().Exec(
+		`UPDATE idp_sessions
+		    SET deactivated_at = CURRENT_TIMESTAMP
+		  WHERE deactivated_at IS NULL
+		    AND last_activity_at < ?`, idleThreshold)
+	if err != nil {
+		fmt.Printf("[cleanup] error deactivating idle idp_sessions: %v\n", err)
+		return
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		fmt.Printf("[cleanup] deactivated %d idle idp_sessions\n", n)
 	}
 }
 

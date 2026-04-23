@@ -6,16 +6,13 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // currentIdpSessionID resolves the "current device" for an account-api request.
-// The IdP session cookie is scoped to /oauth2 so /account never sees it —
-// instead we look up the access token's sessions row and read its
-// idp_session_id. Falls back to the cookie if the request somehow carries one
-// (e.g. a server-side caller that ignores path scoping).
+// The IdP cookie is scoped to /oauth2 so /account usually can't see it — fall
+// back to the access token's sessions.idp_session_id linkage.
 func currentIdpSessionID(r *http.Request) string {
 	if cookie := idpsession.ReadCookie(r); cookie != "" {
 		return cookie
@@ -24,14 +21,7 @@ func currentIdpSessionID(r *http.Request) string {
 	if token == "" {
 		return ""
 	}
-	var idp *string
-	_ = db.GetDB().QueryRow(
-		`SELECT idp_session_id FROM sessions WHERE access_token = ?`, token,
-	).Scan(&idp)
-	if idp == nil {
-		return ""
-	}
-	return *idp
+	return idpsession.IdpSessionIDByAccessToken(token)
 }
 
 // HandleListSessions godoc
@@ -54,48 +44,31 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 
 	currentID := currentIdpSessionID(r)
 
-	// Filter idle-expired rows in the query itself so the list stays consistent
-	// with /authorize's lazy idle check (pkg/authorize/handler.go:141), even when
-	// the cleanup sweep hasn't yet flipped deactivated_at. Defence-in-depth with
-	// pkg/cleanup's idle UPDATE.
+	// Filter idle-expired rows in the query so the list stays consistent with
+	// /authorize's lazy idle check even before pkg/cleanup's sweep flips
+	// deactivated_at.
 	idleCutoff := time.Time{}
 	if idle := config.Get().AuthSsoSessionIdleTimeout; idle > 0 {
 		idleCutoff = time.Now().Add(-idle)
 	}
 
-	rows, err := db.GetDB().Query(`
-		SELECT s.id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
-		       (SELECT COUNT(*) FROM sessions
-		          WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
-		  FROM idp_sessions s
-		 WHERE s.user_id = ?
-		   AND s.deactivated_at IS NULL
-		   AND (? = '' OR s.last_activity_at > ?)
-		 ORDER BY s.last_activity_at DESC`,
-		usr.ID, idleCutoff, idleCutoff,
-	)
+	devices, err := idpsession.ListActiveDevicesForUser(usr.ID, idleCutoff)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	defer func() { _ = rows.Close() }()
 
-	response := []SessionResponse{}
-	for rows.Next() {
-		var s SessionResponse
-		var userAgent, ipAddress *string
-		if err := rows.Scan(&s.ID, &userAgent, &ipAddress, &s.LastActivityAt, &s.CreatedAt, &s.ActiveAppsCount); err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
-			return
-		}
-		if userAgent != nil {
-			s.UserAgent = *userAgent
-		}
-		if ipAddress != nil {
-			s.IPAddress = *ipAddress
-		}
-		s.IsCurrent = s.ID == currentID
-		response = append(response, s)
+	response := make([]SessionResponse, 0, len(devices))
+	for _, d := range devices {
+		response = append(response, SessionResponse{
+			ID:              d.ID,
+			UserAgent:       d.UserAgent,
+			IPAddress:       d.IPAddress,
+			LastActivityAt:  d.LastActivityAt,
+			CreatedAt:       d.CreatedAt,
+			ActiveAppsCount: d.ActiveAppsCount,
+			IsCurrent:       d.ID == currentID,
+		})
 	}
 
 	utils.SuccessResponse(w, response, http.StatusOK)

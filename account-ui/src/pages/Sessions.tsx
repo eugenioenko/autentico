@@ -5,7 +5,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
 import Button from '../components/Button';
-import { extractError } from '../lib/utils';
+import { describeUserAgent, extractError, formatActiveAppsCount } from '../lib/utils';
 
 interface Session {
   id: string;
@@ -15,26 +15,6 @@ interface Session {
   created_at: string;
   active_apps_count: number;
   is_current: boolean;
-}
-
-// Very lightweight UA parse — just enough to turn raw UA strings into a
-// human-readable "Browser on OS" label. Not a full UA-parser; a tiny
-// heuristic keeps the bundle small and doesn't pretend to be exact.
-function describeUserAgent(ua: string): string {
-  if (!ua) return 'Unknown device';
-  let browser = 'Browser';
-  if (/edg\//i.test(ua)) browser = 'Edge';
-  else if (/chrome\//i.test(ua) && !/chromium/i.test(ua)) browser = 'Chrome';
-  else if (/firefox\//i.test(ua)) browser = 'Firefox';
-  else if (/safari\//i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
-  else if (/opr\//i.test(ua) || /opera/i.test(ua)) browser = 'Opera';
-  let os = 'Unknown OS';
-  if (/windows nt/i.test(ua)) os = 'Windows';
-  else if (/mac os x/i.test(ua)) os = 'macOS';
-  else if (/android/i.test(ua)) os = 'Android';
-  else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
-  else if (/linux/i.test(ua)) os = 'Linux';
-  return `${browser} on ${os}`;
 }
 
 const SessionsPage: React.FC = () => {
@@ -95,11 +75,7 @@ const SessionsPage: React.FC = () => {
                   Active {new Date(s.last_activity_at).toLocaleString()}
                 </p>
                 <p className="text-[11px] text-theme-muted mt-0.5">
-                  {s.active_apps_count === 0
-                    ? 'No apps signed in'
-                    : s.active_apps_count === 1
-                      ? '1 app signed in'
-                      : `${s.active_apps_count} apps signed in`}
+                  {formatActiveAppsCount(s.active_apps_count)}
                 </p>
               </div>
             </div>
