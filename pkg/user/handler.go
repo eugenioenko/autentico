@@ -29,6 +29,8 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
+	request.Username = strings.TrimSpace(request.Username)
+	request.Email = strings.TrimSpace(request.Email)
 	err := ValidateUserCreateRequest(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
@@ -98,6 +100,8 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
 		return
 	}
+	req.Username = strings.TrimSpace(req.Username)
+	req.Email = strings.TrimSpace(req.Email)
 	// In is_username mode, keep username and email in sync
 	if config.Get().ProfileFieldEmail == "is_username" && req.Username != "" {
 		req.Email = req.Username

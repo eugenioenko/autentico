@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"net/http"
+	"strings"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
@@ -52,10 +53,10 @@ func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := onboardParams{FormAction: "/onboard"}
-	username := r.FormValue("username")
+	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-	email := r.FormValue("email")
+	email := strings.TrimSpace(r.FormValue("email"))
 
 	if password != confirmPassword {
 		renderOnboard(w, r, params, "Passwords do not match")

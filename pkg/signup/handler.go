@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -92,10 +93,10 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := r.FormValue("username")
+	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-	email := r.FormValue("email")
+	email := strings.TrimSpace(r.FormValue("email"))
 	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
 		email = username
 	}
