@@ -10,8 +10,8 @@ import (
 type StatsResponse struct {
 	TotalUsers              int `json:"total_users"`
 	ActiveClients           int `json:"active_clients"`
-	ActiveSessions          int `json:"active_sessions"`
-	TotalSessions           int `json:"total_sessions"`
+	ActiveDevices           int `json:"active_devices"`
+	ActiveTokens            int `json:"active_tokens"`
 	RecentLogins            int `json:"recent_logins"`
 	PendingDeletionRequests int `json:"pending_deletion_requests"`
 }
@@ -36,8 +36,8 @@ func HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	_ = d.QueryRow(`SELECT COUNT(*) FROM users WHERE deactivated_at IS NULL`).Scan(&stats.TotalUsers)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM clients WHERE is_active = TRUE`).Scan(&stats.ActiveClients)
-	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions WHERE deactivated_at IS NULL AND expires_at > CURRENT_TIMESTAMP`).Scan(&stats.ActiveSessions)
-	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&stats.TotalSessions)
+	_ = d.QueryRow(`SELECT COUNT(*) FROM idp_sessions WHERE deactivated_at IS NULL`).Scan(&stats.ActiveDevices)
+	_ = d.QueryRow(`SELECT COUNT(*) FROM tokens WHERE revoked_at IS NULL AND access_token_expires_at > CURRENT_TIMESTAMP`).Scan(&stats.ActiveTokens)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions WHERE created_at > datetime('now', '-24 hours')`).Scan(&stats.RecentLogins)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM deletion_requests`).Scan(&stats.PendingDeletionRequests)
 

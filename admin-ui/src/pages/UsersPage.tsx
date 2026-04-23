@@ -17,6 +17,7 @@ import {
   DeleteOutlined,
   UnlockOutlined,
   TeamOutlined,
+  LaptopOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
@@ -24,6 +25,7 @@ import type { UserResponseExt } from "../types/user";
 import UserCreateForm from "../components/users/UserCreateForm";
 import UserEditForm from "../components/users/UserEditForm";
 import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
+import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
@@ -38,6 +40,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponseExt | null>(null);
   const [groupsUser, setGroupsUser] = useState<UserResponseExt | null>(null);
+  const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(null);
 
   useEffect(() => {
     if ((location.state as { create?: boolean })?.create) {
@@ -143,6 +146,12 @@ export default function UsersPage() {
           <Button
             type="text"
             size="small"
+            icon={<LaptopOutlined />}
+            onClick={() => setSessionsUser(record)}
+          />
+          <Button
+            type="text"
+            size="small"
             icon={<EditOutlined />}
             onClick={() => setEditUser(record)}
           />
@@ -224,6 +233,13 @@ export default function UsersPage() {
         userId={groupsUser?.id ?? null}
         username={groupsUser?.username ?? ""}
         onClose={() => setGroupsUser(null)}
+      />
+
+      <UserSessionsDrawer
+        open={!!sessionsUser}
+        userId={sessionsUser?.id ?? null}
+        username={sessionsUser?.username ?? ""}
+        onClose={() => setSessionsUser(null)}
       />
     </>
   );

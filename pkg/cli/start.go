@@ -30,6 +30,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/health"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
@@ -179,6 +180,9 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("DELETE /admin/api/clients/{client_id}", adminAPI(client.HandleDeleteClient))
 	mux.Handle("GET /admin/api/sessions", adminAPI(session.HandleListSessions))
 	mux.Handle("DELETE /admin/api/sessions/{id}", adminAPI(session.HandleDeactivateSession))
+	mux.Handle("GET /admin/api/idp-sessions", adminAPI(idpsession.HandleListIdpSessions))
+	mux.Handle("GET /admin/api/users/{id}/idp-sessions", adminAPI(idpsession.HandleListUserIdpSessions))
+	mux.Handle("DELETE /admin/api/idp-sessions/{id}", adminAPI(idpsession.HandleForceLogoutIdpSession))
 	mux.Handle("GET /admin/api/federation", adminAPI(federation.HandleListProviders))
 	mux.Handle("POST /admin/api/federation", adminAPI(federation.HandleCreateProvider))
 	mux.Handle("GET /admin/api/federation/{id}", adminAPI(federation.HandleGetProvider))

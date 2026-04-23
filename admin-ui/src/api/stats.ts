@@ -3,8 +3,8 @@ import apiClient from "./client";
 export interface StatsResponse {
   total_users: number;
   active_clients: number;
-  active_sessions: number;
-  total_sessions: number;
+  active_devices: number;
+  active_tokens: number;
   recent_logins: number;
   pending_deletion_requests: number;
 }

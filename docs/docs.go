@@ -1952,6 +1952,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/api/idp-sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Returns all active IdP sessions, optionally filtered by user ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-sessions"
+                ],
+                "summary": "List IdP (device) sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by User ID",
+                        "name": "user_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/idpsession.IdpSessionResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/idp-sessions/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Deactivates an IdP session and cascades to all child OAuth sessions and tokens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-sessions"
+                ],
+                "summary": "Force sign-out a device (IdP session)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IdP Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/sessions": {
             "get": {
                 "security": [
@@ -2535,6 +2608,43 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/group.GroupResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/users/{id}/idp-sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Returns all active IdP sessions for a user with active OAuth app counts.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-sessions"
+                ],
+                "summary": "List a user's IdP (device) sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/idpsession.IdpSessionResponse"
                             }
                         }
                     }
@@ -3429,16 +3539,16 @@ const docTemplate = `{
                 "active_clients": {
                     "type": "integer"
                 },
-                "active_sessions": {
+                "active_devices": {
+                    "type": "integer"
+                },
+                "active_tokens": {
                     "type": "integer"
                 },
                 "pending_deletion_requests": {
                     "type": "integer"
                 },
                 "recent_logins": {
-                    "type": "integer"
-                },
-                "total_sessions": {
                     "type": "integer"
                 },
                 "total_users": {
@@ -3970,6 +4080,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "idpsession.IdpSessionResponse": {
+            "type": "object",
+            "properties": {
+                "active_apps_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "last_activity_at": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
