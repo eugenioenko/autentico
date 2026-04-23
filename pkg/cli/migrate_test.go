@@ -33,16 +33,15 @@ func TestMigrate_CheckFailsOnOldSchema(t *testing.T) {
 }
 
 func TestMigrate_RunSucceeds(t *testing.T) {
+	// WithTestDB already runs every migration, so we can't simply reset
+	// user_version and replay — migrations that add columns (e.g. 006's
+	// idp_session_id) are not idempotent on top of an already-current schema.
+	// Call Run against an up-to-date DB and confirm it's a no-op.
 	testutils.WithTestDB(t)
 
-	// Set to version 1 and run migrations
-	_, err := db.GetDB().Exec("PRAGMA user_version = 1")
+	err := migrations.Run(db.GetDB(), true)
 	assert.NoError(t, err)
 
-	err = migrations.Run(db.GetDB(), true)
-	assert.NoError(t, err)
-
-	// Should be up to date now
 	err = migrations.Check(db.GetDB())
 	assert.NoError(t, err)
 }

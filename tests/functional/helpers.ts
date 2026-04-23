@@ -81,6 +81,26 @@ export async function getJSON<T = unknown>(url: string, bearer?: string): Promis
 }
 
 /**
+ * Like obtainTokenViaAuthCode but also returns the idp_session cookie header set
+ * during login. Useful for tests that need to simulate a browser that keeps the
+ * SSO cookie across subsequent requests — e.g. RP-initiated logout, which is
+ * now scoped to the current IdP session and requires the cookie to cascade.
+ */
+export async function obtainAuthCodeSession(
+  username: string,
+  password: string,
+  scope = 'openid profile email'
+): Promise<{
+  access_token: string;
+  refresh_token: string;
+  id_token: string;
+  token_type: string;
+  idpSessionCookie: string;
+}> {
+  return obtainTokenViaAuthCodeInternal(username, password, scope);
+}
+
+/**
  * Performs the full authorization code flow to obtain tokens.
  * This works with the autentico-admin public client which only supports auth_code + refresh.
  */
@@ -89,6 +109,21 @@ export async function obtainTokenViaAuthCode(
   password: string,
   scope = 'openid profile email'
 ): Promise<{ access_token: string; refresh_token: string; id_token: string; token_type: string }> {
+  const { idpSessionCookie: _unused, ...tokens } = await obtainTokenViaAuthCodeInternal(username, password, scope);
+  return tokens;
+}
+
+async function obtainTokenViaAuthCodeInternal(
+  username: string,
+  password: string,
+  scope: string
+): Promise<{
+  access_token: string;
+  refresh_token: string;
+  id_token: string;
+  token_type: string;
+  idpSessionCookie: string;
+}> {
   // Step 1: GET /authorize — renders login page with CSRF token
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
@@ -150,6 +185,12 @@ export async function obtainTokenViaAuthCode(
   const code = new URL(location).searchParams.get('code');
   if (!code) throw new Error('No code in redirect URL');
 
+  // Capture the idp_session cookie set during login so callers can simulate
+  // browser state across subsequent requests (e.g. /oauth2/logout).
+  const loginCookies = loginResp.headers.getSetCookie();
+  const idpCookieLine = loginCookies.find((c) => c.startsWith('autentico_idp_session='));
+  const idpSessionCookie = idpCookieLine ? idpCookieLine.split(';')[0] : '';
+
   // Step 3: POST /token — exchange code
   const tokenResp = await postForm(`${OAUTH_URL}/token`, {
     grant_type: 'authorization_code',
@@ -164,7 +205,8 @@ export async function obtainTokenViaAuthCode(
     throw new Error(`Token exchange failed (${tokenResp.status}): ${text}`);
   }
 
-  return tokenResp.json();
+  const tokens = await tokenResp.json();
+  return { ...tokens, idpSessionCookie };
 }
 
 /**

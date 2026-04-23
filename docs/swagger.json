@@ -830,14 +830,14 @@
                         "UserAuth": []
                     }
                 ],
-                "description": "Returns all active sessions for the authenticated user, with the current session flagged.",
+                "description": "Returns all live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.\n`active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.\n`is_current` marks the row matching the request's IdP session cookie.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "account-security"
                 ],
-                "summary": "List current user's sessions",
+                "summary": "List current user's active devices (IdP sessions)",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -864,18 +864,18 @@
                         "UserAuth": []
                     }
                 ],
-                "description": "Revokes one of the authenticated user's sessions. Cannot revoke the current session.",
+                "description": "Cascade-revokes an IdP session: deactivates the idp_session row, deactivates every child OAuth session, and revokes every child access/refresh token.\nRevoking the current device also clears the IdP session cookie — the UI is expected to redirect the user through /oauth2/logout.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "account-security"
                 ],
-                "summary": "Revoke a session",
+                "summary": "Revoke one of the authenticated user's devices",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Session ID",
+                        "description": "IdP session ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3344,6 +3344,9 @@
         "account.SessionResponse": {
             "type": "object",
             "properties": {
+                "active_apps_count": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },

@@ -1,18 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_URL, OAUTH_URL, obtainTokenViaROPC, postForm, getResponse, postJSON, obtainTokenViaAuthCode, ADMIN_USERNAME, ADMIN_PASSWORD } from '../helpers';
+import { BASE_URL, OAUTH_URL, obtainTokenViaROPC, postForm, getResponse, postJSON, obtainTokenViaAuthCode, obtainAuthCodeSession, ADMIN_USERNAME, ADMIN_PASSWORD } from '../helpers';
 
 describe('Logout — happy path', () => {
-  it('POST with id_token_hint deactivates session', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+  it('POST with id_token_hint and IdP session cookie cascade-revokes the current device', async () => {
+    // RP-Initiated Logout 1.0 §2: logout scope is the current End-User session at
+    // this OP — so the cookie must travel with the request for the cascade to
+    // fire. An auth-code login yields both tokens and the idp_session cookie.
+    const session = await obtainAuthCodeSession(ADMIN_USERNAME, ADMIN_PASSWORD);
+    expect(session.idpSessionCookie).not.toBe('');
 
-    // Logout via POST
-    const logoutResp = await postForm(`${OAUTH_URL}/logout`, {
-      id_token_hint: tokens.access_token,
+    const logoutResp = await fetch(`${OAUTH_URL}/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: session.idpSessionCookie,
+      },
+      body: new URLSearchParams({ id_token_hint: session.id_token }),
+      redirect: 'manual',
     });
     expect(logoutResp.ok).toBe(true);
 
-    // Token should be dead
-    const userinfo = await getResponse(`${OAUTH_URL}/userinfo`, tokens.access_token);
+    // The cascade should have revoked the OAuth session, so the access token
+    // is rejected at userinfo.
+    const userinfo = await getResponse(`${OAUTH_URL}/userinfo`, session.access_token);
     expect(userinfo.status).toBe(401);
   });
 

@@ -216,9 +216,9 @@ Initialized by `db.InitDB()`. Schema in `pkg/db/db.go`. 11 tables:
 |-------|---------|
 | `users` | Accounts — password hash, TOTP secret, email, lockout fields, soft delete |
 | `tokens` | Access + refresh token pairs, revocation support |
-| `sessions` | OAuth sessions — device info, `last_activity_at`, `deactivated_at` |
-| `auth_codes` | Single-use authorization codes (PKCE, nonce) |
-| `idp_sessions` | SSO browser sessions for idle timeout and auto-login |
+| `sessions` | OAuth sessions — device info, `last_activity_at`, `deactivated_at`, `idp_session_id` (FK into `idp_sessions`, nullable for non-browser grants like ROPC / client_credentials) |
+| `auth_codes` | Single-use authorization codes (PKCE, nonce, `idp_session_id` carried from `/authorize` to `/oauth2/token`) |
+| `idp_sessions` | SSO browser sessions — one row per browser/device; parent of OAuth sessions via `sessions.idp_session_id`. `idpsession.DeactivateWithCascade` revokes the row + every child OAuth session + their tokens in one transaction. |
 | `mfa_challenges` | Pending TOTP/email OTP challenges |
 | `trusted_devices` | Trusted device tokens (MFA bypass) |
 | `passkey_challenges` | Pending WebAuthn ceremony state |
