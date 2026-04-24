@@ -108,7 +108,11 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 	if limit <= 0 || limit > maxLimit {
 		limit = maxLimit
 	}
-	result.Order += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, params.Offset)
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	result.Order += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
 
 	return result
 }
