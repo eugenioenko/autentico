@@ -56,25 +56,6 @@ func scanClient(rows *sql.Rows) (*Client, error) {
 	return &c, nil
 }
 
-func ListClients() ([]*Client, error) {
-	query := `SELECT ` + clientColumns + ` FROM clients WHERE is_active = 1 ORDER BY created_at DESC`
-	rows, err := db.GetDB().Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list clients: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var clients []*Client
-	for rows.Next() {
-		c, err := scanClient(rows)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan client: %w", err)
-		}
-		clients = append(clients, c)
-	}
-	return clients, rows.Err()
-}
-
 func ListClientsWithParams(params api.ListParams) ([]*Client, int, error) {
 	lq := api.BuildListQuery(params, clientListConfig)
 
