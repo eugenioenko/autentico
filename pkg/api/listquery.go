@@ -24,6 +24,7 @@ type ListConfig struct {
 	AllowedFilters map[string]bool
 	DefaultSort    string
 	MaxLimit       int
+	TableAlias     string
 }
 
 func ParseListParams(r *http.Request) ListParams {
@@ -56,6 +57,13 @@ type ListResult struct {
 	Args  []any
 }
 
+func (cfg ListConfig) qualify(col string) string {
+	if cfg.TableAlias != "" {
+		return cfg.TableAlias + "." + col
+	}
+	return col
+}
+
 func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 	var result ListResult
 	var conditions []string
@@ -64,7 +72,7 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 		var searchParts []string
 		pattern := "%" + params.Search + "%"
 		for _, col := range cfg.SearchColumns {
-			searchParts = append(searchParts, fmt.Sprintf("%s LIKE ?", col))
+			searchParts = append(searchParts, fmt.Sprintf("%s LIKE ?", cfg.qualify(col)))
 			result.Args = append(result.Args, pattern)
 		}
 		conditions = append(conditions, "("+strings.Join(searchParts, " OR ")+")")
@@ -72,7 +80,7 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 
 	for col, val := range params.Filters {
 		if cfg.AllowedFilters[col] {
-			conditions = append(conditions, fmt.Sprintf("%s = ?", col))
+			conditions = append(conditions, fmt.Sprintf("%s = ?", cfg.qualify(col)))
 			result.Args = append(result.Args, val)
 		}
 	}
@@ -85,6 +93,7 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 	if params.Sort != "" && cfg.AllowedSort[params.Sort] {
 		sortCol = params.Sort
 	}
+	sortCol = cfg.qualify(sortCol)
 	order := "ASC"
 	if strings.EqualFold(params.Order, "desc") {
 		order = "DESC"

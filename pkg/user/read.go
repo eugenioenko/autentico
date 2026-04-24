@@ -27,6 +27,7 @@ var userListConfig = api.ListConfig{
 	},
 	DefaultSort: "created_at",
 	MaxLimit:    api.DefaultMaxLimit,
+	TableAlias:  "users",
 }
 
 func nullStringToString(ns sql.NullString) string {
@@ -37,11 +38,11 @@ func nullStringToString(ns sql.NullString) string {
 }
 
 const userSelectColumns = `
-	id, username, password, email, role, created_at, updated_at, failed_login_attempts, locked_until,
-	totp_secret, totp_verified, is_email_verified, deactivated_at, registered_at,
-	given_name, family_name, middle_name, nickname, website, gender, birthdate, profile,
-	phone_number, phone_number_verified, picture, locale, zoneinfo,
-	address_street, address_locality, address_region, address_postal_code, address_country
+	users.id, users.username, users.password, users.email, users.role, users.created_at, users.updated_at, users.failed_login_attempts, users.locked_until,
+	users.totp_secret, users.totp_verified, users.is_email_verified, users.deactivated_at, users.registered_at,
+	users.given_name, users.family_name, users.middle_name, users.nickname, users.website, users.gender, users.birthdate, users.profile,
+	users.phone_number, users.phone_number_verified, users.picture, users.locale, users.zoneinfo,
+	users.address_street, users.address_locality, users.address_region, users.address_postal_code, users.address_country
 `
 
 func scanUser(row interface {

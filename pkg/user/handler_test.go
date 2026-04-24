@@ -296,6 +296,26 @@ func TestHandleListUsers_Extra(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "u2")
 }
 
+func TestHandleListUsers_GroupFilter(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("gf-user1", "p1", "gf1@test.com")
+	_, _ = CreateUser("gf-user2", "p2", "gf2@test.com")
+
+	_, err := db.GetDB().Exec(`INSERT INTO groups (id, name, description) VALUES ('g1', 'test-group', 'test')`)
+	assert.NoError(t, err)
+	_, err = db.GetDB().Exec(`INSERT INTO user_groups (user_id, group_id) VALUES (?, 'g1')`, u1.ID)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/users?group=test-group", nil)
+	rr := httptest.NewRecorder()
+	HandleListUsers(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "gf-user1")
+	assert.NotContains(t, rr.Body.String(), "gf-user2")
+}
+
 // --- HandleUnlockUser tests ---
 
 func TestHandleUnlockUser_MissingID(t *testing.T) {
