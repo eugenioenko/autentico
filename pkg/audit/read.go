@@ -19,7 +19,7 @@ var auditListConfig = api.ListConfig{
 		"event": true,
 	},
 	DefaultSort: "created_at",
-	MaxLimit:    200,
+	MaxLimit:    api.DefaultMaxLimit,
 }
 
 func ListAuditLogsWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]AuditLog, int, error) {

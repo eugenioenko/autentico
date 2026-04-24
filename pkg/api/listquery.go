@@ -8,6 +8,7 @@ import (
 )
 
 const DefaultMaxLimit = 100
+const AbsoluteMaxLimit = 1000
 
 type ListParams struct {
 	Sort    string
@@ -124,6 +125,9 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 	maxLimit := cfg.MaxLimit
 	if maxLimit <= 0 {
 		maxLimit = DefaultMaxLimit
+	}
+	if maxLimit > AbsoluteMaxLimit {
+		maxLimit = AbsoluteMaxLimit
 	}
 	limit := params.Limit
 	if limit <= 0 || limit > maxLimit {
