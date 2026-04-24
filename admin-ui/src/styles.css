@@ -19,3 +19,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.ant-table-cell {
+  white-space: nowrap;
+}

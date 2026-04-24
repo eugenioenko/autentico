@@ -3,14 +3,18 @@ import {
   listIdpSessions,
   listUserIdpSessions,
   forceLogoutIdpSession,
+  listIdpSessionSessions,
+  deactivateOAuthSession,
 } from "../api/idpSessions";
+import type { ListParams } from "../api/users";
 
 const IDP_SESSIONS_KEY = ["idp-sessions"] as const;
+const OAUTH_SESSIONS_KEY = ["oauth-sessions"] as const;
 
-export function useIdpSessions(userId?: string) {
+export function useIdpSessions(params?: ListParams) {
   return useQuery({
-    queryKey: userId ? [...IDP_SESSIONS_KEY, userId] : [...IDP_SESSIONS_KEY],
-    queryFn: () => listIdpSessions(userId),
+    queryKey: [...IDP_SESSIONS_KEY, params],
+    queryFn: () => listIdpSessions(params),
   });
 }
 
@@ -27,6 +31,28 @@ export function useForceLogoutIdpSession() {
   return useMutation({
     mutationFn: (id: string) => forceLogoutIdpSession(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: IDP_SESSIONS_KEY });
+    },
+  });
+}
+
+export function useIdpSessionSessions(
+  idpSessionId: string | null,
+  params?: ListParams
+) {
+  return useQuery({
+    queryKey: [...OAUTH_SESSIONS_KEY, idpSessionId, params],
+    queryFn: () => listIdpSessionSessions(idpSessionId!, params),
+    enabled: !!idpSessionId,
+  });
+}
+
+export function useDeactivateOAuthSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deactivateOAuthSession(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: OAUTH_SESSIONS_KEY });
       queryClient.invalidateQueries({ queryKey: IDP_SESSIONS_KEY });
     },
   });

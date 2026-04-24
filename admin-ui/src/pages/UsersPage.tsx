@@ -30,7 +30,6 @@ import UserCreateForm from "../components/users/UserCreateForm";
 import UserEditForm from "../components/users/UserEditForm";
 import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
-import TagOverflow from "../components/TagOverflow";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 
@@ -149,12 +148,19 @@ export default function UsersPage() {
       dataIndex: "username",
       key: "username",
       sorter: true,
+      ellipsis: true,
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
       sorter: true,
+      ellipsis: true,
+      render: (email: string) => (
+        <Typography.Text copyable={{ text: email }} ellipsis>
+          {email}
+        </Typography.Text>
+      ),
     },
     {
       title: "Role",
@@ -224,7 +230,16 @@ export default function UsersPage() {
       key: "groups",
       filters: (groups?.items ?? []).map((g) => ({ text: g.name, value: g.name })),
       filterMultiple: false,
-      render: (_, record) => <TagOverflow items={record.groups} />,
+      width: 80,
+      render: (_, record) => {
+        const count = record.groups?.length ?? 0;
+        if (count === 0) return <Tag>0</Tag>;
+        return (
+          <Tooltip title={record.groups!.join(", ")}>
+            <Tag color="blue">{count}</Tag>
+          </Tooltip>
+        );
+      },
     },
     {
       title: "Created",

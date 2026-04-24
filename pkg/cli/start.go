@@ -182,6 +182,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("DELETE /admin/api/sessions/{id}", adminAPI(session.HandleDeactivateSession))
 	mux.Handle("GET /admin/api/idp-sessions", adminAPI(idpsession.HandleListIdpSessions))
 	mux.Handle("GET /admin/api/users/{id}/idp-sessions", adminAPI(idpsession.HandleListUserIdpSessions))
+	mux.Handle("GET /admin/api/idp-sessions/{id}/sessions", adminAPI(session.HandleListIdpSessionSessions))
 	mux.Handle("DELETE /admin/api/idp-sessions/{id}", adminAPI(idpsession.HandleForceLogoutIdpSession))
 	mux.Handle("GET /admin/api/federation", adminAPI(federation.HandleListProviders))
 	mux.Handle("POST /admin/api/federation", adminAPI(federation.HandleCreateProvider))

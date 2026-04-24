@@ -4,8 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
+
+var oauthSessionListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"created_at": true,
+		"expires_at": true,
+	},
+	SearchColumns:  []string{},
+	AllowedFilters: map[string]bool{},
+	DefaultSort:    "created_at",
+	MaxLimit:       api.DefaultMaxLimit,
+	TableAlias:     "sessions",
+}
 
 func ListSessions() ([]*Session, error) {
 	query := `
@@ -47,6 +60,31 @@ func scanSessions(rows *sql.Rows) ([]*Session, error) {
 		sessions = append(sessions, &s)
 	}
 	return sessions, rows.Err()
+}
+
+func ListOAuthSessionsByIdpSession(idpSessionID string, params api.ListParams) ([]*Session, int, error) {
+	lq := api.BuildListQuery(params, oauthSessionListConfig)
+
+	baseWhere := "WHERE sessions.idp_session_id = ?"
+	baseArgs := []any{idpSessionID}
+	allArgs := append(baseArgs, lq.Args...)
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM sessions " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count sessions: %w", err)
+	}
+
+	query := `SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
+		FROM sessions ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	sessions, err := scanSessions(rows)
+	return sessions, total, err
 }
 
 func DeactivateSessionByID(sessionID string) error {
