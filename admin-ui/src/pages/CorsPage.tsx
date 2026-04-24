@@ -54,7 +54,7 @@ export default function CorsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ maxWidth: 720, flex: 1, overflow: "auto" }}>
       <Title level={3}>CORS (Cross-Origin Resource Sharing)</Title>
       <Paragraph type="secondary">
         Configure which origins are allowed to make cross-origin requests to

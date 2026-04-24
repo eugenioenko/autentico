@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   Typography,
   Table,
@@ -16,12 +17,15 @@ import {
   useAdminCancelDeletionRequest,
 } from "../hooks/useDeletionRequests";
 import type { DeletionRequestResponse } from "../api/deletion";
+import { useTableScrollY } from "../hooks/useTableScrollY";
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleString();
 }
 
 export default function DeletionRequestsPage() {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollY = useTableScrollY(tableContainerRef);
   const { data: requests, isLoading, error } = useDeletionRequests();
   const approve = useApproveDeletionRequest();
   const cancel = useAdminCancelDeletionRequest();
@@ -105,21 +109,29 @@ export default function DeletionRequestsPage() {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        Deletion Requests
-      </Typography.Title>
-      <Typography.Text type="secondary">
-        Review and approve or dismiss pending account deletion requests.
-      </Typography.Text>
-      <Table<DeletionRequestResponse>
-        columns={columns}
-        dataSource={requests ?? []}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{ pageSize: 20 }}
-        locale={{ emptyText: "No pending deletion requests" }}
-      />
-    </Space>
+    <>
+      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+        <div>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            Deletion Requests
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            Review and approve or dismiss pending account deletion requests.
+          </Typography.Text>
+        </div>
+      </Space>
+
+      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
+        <Table<DeletionRequestResponse>
+          columns={columns}
+          dataSource={requests ?? []}
+          rowKey="id"
+          loading={isLoading}
+          scroll={scrollY ? { y: scrollY } : undefined}
+          pagination={{ pageSize: 20 }}
+          locale={{ emptyText: "No pending deletion requests" }}
+        />
+      </div>
+    </>
   );
 }
