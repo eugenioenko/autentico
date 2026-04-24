@@ -101,6 +101,31 @@ func TestBuildListQuery_LimitCapped(t *testing.T) {
 	assert.Contains(t, result.Order, "LIMIT 50")
 }
 
+func TestBuildListQuery_NegativeLimit(t *testing.T) {
+	params := ListParams{Limit: -10}
+	result := BuildListQuery(params, testConfig)
+	assert.Contains(t, result.Order, "LIMIT 50 OFFSET 0")
+}
+
+func TestBuildListQuery_NegativeOffset(t *testing.T) {
+	params := ListParams{Limit: 10, Offset: -5}
+	result := BuildListQuery(params, testConfig)
+	assert.Contains(t, result.Order, "LIMIT 10 OFFSET 0")
+}
+
+func TestBuildListQuery_ZeroLimit(t *testing.T) {
+	params := ListParams{Limit: 0}
+	result := BuildListQuery(params, testConfig)
+	assert.Contains(t, result.Order, "LIMIT 50 OFFSET 0")
+}
+
+func TestParseListParams_NonNumeric(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/items?limit=abc&offset=xyz", nil)
+	params := ParseListParams(req)
+	assert.Equal(t, 0, params.Limit)
+	assert.Equal(t, 0, params.Offset)
+}
+
 func TestBuildListQuery_SearchAndFilter(t *testing.T) {
 	params := ListParams{
 		Search:  "test",
