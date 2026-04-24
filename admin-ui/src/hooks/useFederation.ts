@@ -9,13 +9,14 @@ import type {
   FederationProviderCreateRequest,
   FederationProviderUpdateRequest,
 } from "../types/federation";
+import type { ListParams } from "../api/users";
 
 const FEDERATION_KEY = ["federation"] as const;
 
-export function useFederationProviders() {
+export function useFederationProviders(params?: ListParams) {
   return useQuery({
-    queryKey: FEDERATION_KEY,
-    queryFn: listFederationProviders,
+    queryKey: [...FEDERATION_KEY, params],
+    queryFn: () => listFederationProviders(params),
   });
 }
 

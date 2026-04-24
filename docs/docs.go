@@ -1503,10 +1503,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/federation.ProviderResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-federation_ProviderResponse"
                         }
                     }
                 }
@@ -4499,6 +4496,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/client.ClientInfoResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-federation_ProviderResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/federation.ProviderResponse"
                     }
                 },
                 "total": {

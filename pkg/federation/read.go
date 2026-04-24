@@ -4,16 +4,45 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-func ListFederationProviders() ([]*FederationProvider, error) {
-	rows, err := db.GetDB().Query(
-		`SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
-		 FROM federation_providers ORDER BY sort_order ASC, created_at ASC`,
-	)
+var federationListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"name":       true,
+		"issuer":     true,
+		"client_id":  true,
+		"sort_order": true,
+		"enabled":    true,
+		"created_at": true,
+	},
+	SearchColumns: []string{
+		"name", "issuer", "client_id",
+	},
+	AllowedFilters: map[string]bool{
+		"enabled": true,
+	},
+	DefaultSort: "sort_order",
+	MaxLimit:    200,
+}
+
+func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProvider, int, error) {
+	lq := api.BuildListQuery(params, federationListConfig)
+
+	baseWhere := "WHERE 1=1"
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM federation_providers " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count federation providers: %w", err)
+	}
+
+	query := `SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
+		FROM federation_providers ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, lq.Args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list federation providers: %w", err)
+		return nil, 0, fmt.Errorf("failed to list federation providers: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -21,11 +50,14 @@ func ListFederationProviders() ([]*FederationProvider, error) {
 	for rows.Next() {
 		var p FederationProvider
 		if err := rows.Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan federation provider: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan federation provider: %w", err)
 		}
 		providers = append(providers, &p)
 	}
-	return providers, rows.Err()
+	if providers == nil {
+		providers = []*FederationProvider{}
+	}
+	return providers, total, rows.Err()
 }
 
 // ListEnabledProviderViews returns only enabled providers as template-safe views,

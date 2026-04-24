@@ -33,10 +33,16 @@ func TestHandleFederationProviders(t *testing.T) {
 	rr = httptest.NewRecorder()
 	HandleListProviders(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var list []map[string]any
-	_ = json.Unmarshal(rr.Body.Bytes(), &list)
-	assert.Len(t, list, 1)
-	assert.Equal(t, "p1", list[0]["id"])
+	var listResp struct {
+		Data struct {
+			Items []map[string]any `json:"items"`
+			Total int              `json:"total"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &listResp)
+	assert.Equal(t, 1, listResp.Data.Total)
+	assert.Len(t, listResp.Data.Items, 1)
+	assert.Equal(t, "p1", listResp.Data.Items[0]["id"])
 
 	// Get provider
 	req = httptest.NewRequest(http.MethodGet, "/admin/api/federation/p1", nil)

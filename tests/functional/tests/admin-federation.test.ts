@@ -24,9 +24,9 @@ describe('Admin Federation Providers — happy path', () => {
     expect(resp.ok).toBe(true);
 
     const body = await resp.json();
-    const providers = body.data ?? body;
-    expect(Array.isArray(providers)).toBe(true);
-    const found = providers.find((p: { id: string }) => p.id === providerId);
+    expect(body.data.items).toBeDefined();
+    expect(body.data.total).toBeGreaterThanOrEqual(1);
+    const found = body.data.items.find((p: { id: string }) => p.id === providerId);
     expect(found).toBeTruthy();
   });
 
