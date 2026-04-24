@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -14,24 +16,27 @@ import (
 // @Tags admin-federation
 // @Produce json
 // @Security AdminAuth
-// @Success 200 {array} ProviderResponse
+// @Success 200 {object} model.ListResponse[ProviderResponse]
 // @Router /admin/api/federation [get]
 func HandleListProviders(w http.ResponseWriter, r *http.Request) {
-	providers, err := ListFederationProviders()
+	params := api.ParseListParams(r)
+	params.Filters = api.ParseFilters(r, federationListConfig.AllowedFilters)
+	if params.Order == "" {
+		params.Order = "asc"
+	}
+
+	providers, total, err := ListFederationProvidersWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	var response []ProviderResponse
+	items := make([]ProviderResponse, 0, len(providers))
 	for _, p := range providers {
-		response = append(response, toProviderResponse(*p))
-	}
-	if response == nil {
-		response = []ProviderResponse{}
+		items = append(items, toProviderResponse(*p))
 	}
 
-	utils.WriteApiResponse(w, response, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[ProviderResponse]{Items: items, Total: total})
 }
 
 // HandleCreateProvider godoc

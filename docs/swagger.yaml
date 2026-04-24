@@ -578,6 +578,15 @@ definitions:
       total:
         type: integer
     type: object
+  model.ListResponse-federation_ProviderResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/federation.ProviderResponse'
+        type: array
+      total:
+        type: integer
+    type: object
   model.ListResponse-group_GroupResponse:
     properties:
       items:
@@ -1840,9 +1849,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/federation.ProviderResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-federation_ProviderResponse'
       security:
       - AdminAuth: []
       summary: List federation providers
