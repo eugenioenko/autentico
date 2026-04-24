@@ -112,7 +112,7 @@ func TestHandleLoginUser_InactiveClient(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleLoginUser(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Client is inactive")
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
 }
 
 func TestHandleLoginUser_InvalidScope(t *testing.T) {

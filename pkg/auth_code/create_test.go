@@ -52,7 +52,7 @@ func TestCreateAuthCode_ZeroCreatedAt_DefaultsToNow(t *testing.T) {
 	err := CreateAuthCode(authCode)
 	assert.NoError(t, err)
 
-	result, err := AuthCodeByCode("zero-created-at")
+	result, err := AuthCodeByCodeIncludingUsed("zero-created-at")
 	assert.NoError(t, err)
 	assert.False(t, result.CreatedAt.IsZero(), "CreatedAt must not be zero after insert")
 	assert.True(t, result.CreatedAt.After(before), "CreatedAt must be close to now")

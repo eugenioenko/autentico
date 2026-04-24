@@ -7,7 +7,9 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-func MfaChallengeByID(id string) (*MfaChallenge, error) {
+// MfaChallengeByIDIncludingExpired returns the challenge regardless of used/expired status.
+// Callers must check Used and ExpiresAt to provide distinct error messages to the user.
+func MfaChallengeByIDIncludingExpired(id string) (*MfaChallenge, error) {
 	var challenge MfaChallenge
 	query := `
 		SELECT id, user_id, method, code, login_state, created_at, expires_at, used, failed_attempts, otp_sent_at

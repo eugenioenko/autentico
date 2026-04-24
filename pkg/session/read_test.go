@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSessionByID(t *testing.T) {
+func TestSessionByIDIncludingDeactivated(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "test-user-id")
 
@@ -29,7 +29,7 @@ func TestSessionByID(t *testing.T) {
 	assert.NoError(t, err, "failed to create test session")
 
 	// Test: Retrieve the session by ID
-	retrievedSession, err := SessionByID("test-session-id")
+	retrievedSession, err := SessionByIDIncludingDeactivated("test-session-id")
 	assert.NoError(t, err, "failed to retrieve session by ID")
 	assert.NotNil(t, retrievedSession, "retrieved session is nil")
 
@@ -48,7 +48,7 @@ func TestSessionByID(t *testing.T) {
 func TestSessionByID_NotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	result, err := SessionByID("nonexistent-session")
+	result, err := SessionByIDIncludingDeactivated("nonexistent-session")
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "session not found")
@@ -123,7 +123,7 @@ func TestDeactivateSessionByID(t *testing.T) {
 	err := DeactivateSessionByID("s1")
 	assert.NoError(t, err)
 
-	s, err := SessionByID("s1")
+	s, err := SessionByIDIncludingDeactivated("s1")
 	assert.NoError(t, err)
 	assert.NotNil(t, s.DeactivatedAt)
 }

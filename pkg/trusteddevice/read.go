@@ -29,7 +29,9 @@ func TrustedDevicesByUserID(userID string) ([]*TrustedDevice, error) {
 	return devices, rows.Err()
 }
 
-func TrustedDeviceByID(id string) (*TrustedDevice, error) {
+// TrustedDeviceByIDIncludingExpired returns the device regardless of expiration status.
+// Callers must check ExpiresAt to handle expired devices appropriately.
+func TrustedDeviceByIDIncludingExpired(id string) (*TrustedDevice, error) {
 	var d TrustedDevice
 	query := `
 		SELECT id, user_id, device_name, created_at, last_used_at, expires_at

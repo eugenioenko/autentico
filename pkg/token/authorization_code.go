@@ -21,7 +21,7 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, err
 	}
 
-	code, err := authcode.AuthCodeByCode(request.Code)
+	code, err := authcode.AuthCodeByCodeIncludingUsed(request.Code)
 	if err != nil {
 		slog.Warn("token: authorization code not found", "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("%v", err))

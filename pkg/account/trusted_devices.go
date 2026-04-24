@@ -69,7 +69,7 @@ func HandleRevokeTrustedDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device, err := trusteddevice.TrustedDeviceByID(deviceID)
+	device, err := trusteddevice.TrustedDeviceByIDIncludingExpired(deviceID)
 	if err != nil || device.UserID != usr.ID {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Device not found or not owned by you")
 		return

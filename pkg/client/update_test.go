@@ -65,7 +65,7 @@ func TestUpdateClient_MultipleFields(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	updated, err := ClientByClientID(created.ClientID)
+	updated, err := ClientByClientIDIncludingDisabled(created.ClientID)
 	assert.NoError(t, err)
 	assert.Equal(t, "New Name", updated.ClientName)
 	assert.Equal(t, []string{"http://newhost.com/callback"}, updated.GetRedirectURIs())

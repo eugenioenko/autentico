@@ -9,7 +9,9 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
-func PasskeyChallengeByID(id string) (*PasskeyChallenge, error) {
+// PasskeyChallengeByIDIncludingExpired returns the challenge regardless of used/expired status.
+// Callers must check Used and ExpiresAt to provide distinct error messages to the user.
+func PasskeyChallengeByIDIncludingExpired(id string) (*PasskeyChallenge, error) {
 	var c PasskeyChallenge
 	query := `
 		SELECT id, user_id, challenge_data, type, login_state, created_at, expires_at, used

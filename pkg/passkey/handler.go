@@ -301,7 +301,7 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := PasskeyChallengeByID(challengeID)
+	challenge, err := PasskeyChallengeByIDIncludingExpired(challengeID)
 	if err != nil || challenge.Type != "authentication" {
 		writeJSONError(w, http.StatusBadRequest, "invalid challenge")
 		return
@@ -386,7 +386,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := PasskeyChallengeByID(challengeID)
+	challenge, err := PasskeyChallengeByIDIncludingExpired(challengeID)
 	if err != nil || challenge.Type != "registration" {
 		writeJSONError(w, http.StatusBadRequest, "invalid challenge")
 		return

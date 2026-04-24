@@ -116,7 +116,7 @@ func TestCreatePasskeyCredential_DuplicateID(t *testing.T) {
 
 // --- PasskeyChallengeByID ---
 
-func TestPasskeyChallengeByID(t *testing.T) {
+func TestPasskeyChallengeByIDIncludingExpired(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
@@ -131,7 +131,7 @@ func TestPasskeyChallengeByID(t *testing.T) {
 	}
 	require.NoError(t, CreatePasskeyChallenge(challenge))
 
-	result, err := PasskeyChallengeByID("read-challenge-1")
+	result, err := PasskeyChallengeByIDIncludingExpired("read-challenge-1")
 	assert.NoError(t, err)
 	assert.Equal(t, "read-challenge-1", result.ID)
 	assert.Equal(t, "user-1", result.UserID)
@@ -139,10 +139,31 @@ func TestPasskeyChallengeByID(t *testing.T) {
 	assert.False(t, result.Used)
 }
 
+func TestPasskeyChallengeByIDIncludingExpired_ReturnsExpired(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	challenge := PasskeyChallenge{
+		ID:            "expired-challenge",
+		UserID:        "user-1",
+		ChallengeData: sampleChallengeData(),
+		Type:          "authentication",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(-1 * time.Hour),
+		Used:          false,
+	}
+	require.NoError(t, CreatePasskeyChallenge(challenge))
+
+	result, err := PasskeyChallengeByIDIncludingExpired("expired-challenge")
+	require.NoError(t, err)
+	assert.Equal(t, "expired-challenge", result.ID)
+	assert.True(t, time.Now().After(result.ExpiresAt))
+}
+
 func TestPasskeyChallengeByID_NotFound(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	_, err := PasskeyChallengeByID("nonexistent")
+	_, err := PasskeyChallengeByIDIncludingExpired("nonexistent")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -221,7 +242,7 @@ func TestMarkPasskeyChallengeUsed(t *testing.T) {
 	err := MarkPasskeyChallengeUsed("used-challenge")
 	assert.NoError(t, err)
 
-	result, err := PasskeyChallengeByID("used-challenge")
+	result, err := PasskeyChallengeByIDIncludingExpired("used-challenge")
 	assert.NoError(t, err)
 	assert.True(t, result.Used)
 }

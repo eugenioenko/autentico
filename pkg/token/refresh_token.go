@@ -56,7 +56,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
-	sess, err := session.SessionByID(authToken.SessionID)
+	sess, err := session.SessionByIDIncludingDeactivated(authToken.SessionID)
 	if err != nil {
 		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))

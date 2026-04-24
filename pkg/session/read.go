@@ -65,7 +65,9 @@ func DeactivateSessionByID(sessionID string) error {
 	return nil
 }
 
-func SessionByID(sessionID string) (*Session, error) {
+// SessionByIDIncludingDeactivated returns the session regardless of deactivation status.
+// Callers must check DeactivatedAt to provide distinct error messages to the user.
+func SessionByIDIncludingDeactivated(sessionID string) (*Session, error) {
 	var session Session
 	query := `
 		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id

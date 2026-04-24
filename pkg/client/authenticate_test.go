@@ -232,7 +232,7 @@ func TestAuthenticateClient_InactiveClient(t *testing.T) {
 	// Attempt to authenticate
 	_, err = AuthenticateClient(created.ClientID, "")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "inactive")
+	assert.Contains(t, err.Error(), "invalid client credentials")
 }
 
 func TestAuthenticateClient_ConfidentialMissingSecret(t *testing.T) {

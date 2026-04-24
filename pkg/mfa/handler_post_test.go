@@ -73,7 +73,7 @@ func TestHandleMfaPost_EmailLockoutAfterFiveFailures(t *testing.T) {
 	assert.Contains(t, rr.Header().Get("Location"), "Too+many+failed+attempts")
 
 	// Challenge must be marked used
-	ch, err := MfaChallengeByID("chall1")
+	ch, err := MfaChallengeByIDIncludingExpired("chall1")
 	require.NoError(t, err)
 	assert.True(t, ch.Used)
 }
