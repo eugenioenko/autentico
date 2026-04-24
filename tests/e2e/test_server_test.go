@@ -134,7 +134,6 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 
 	// OAuth2 client registration (admin-protected)
-	mux.Handle("GET "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleAdminListClients)))
 	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
 	mux.Handle("GET "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
 	mux.Handle("PUT "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))

@@ -156,7 +156,6 @@ func RunStart(c *cli.Context) error {
 	mux.HandleFunc(oauth+"/protocol/openid-connect/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)
 	mux.HandleFunc("GET "+oauth+"/logout", session.HandleRpInitiatedLogout)
-	mux.Handle("GET "+oauth+"/register", adminAPI(client.HandleAdminListClients))
 	mux.Handle("POST "+oauth+"/register", adminAPI(client.HandleRegister))
 	mux.Handle("GET "+oauth+"/register/{client_id}", adminAPI(client.HandleGetClient))
 	mux.Handle("PUT "+oauth+"/register/{client_id}", adminAPI(client.HandleUpdateClient))

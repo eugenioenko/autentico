@@ -177,7 +177,7 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleAdminListClients handles GET /admin/api/clients and GET /oauth2/register with search, sort, filter, pagination
+// HandleAdminListClients handles GET /admin/api/clients with search, sort, filter, pagination
 // @Summary List clients with pagination
 // @Description Lists clients with server-side sorting, filtering, search, and pagination.
 // @Tags admin-client
