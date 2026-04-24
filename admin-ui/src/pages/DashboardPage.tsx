@@ -88,7 +88,7 @@ export default function DashboardPage() {
           <Col xs={24} sm={12} lg={6}>
             <Card
               style={{ cursor: "pointer" }}
-              onClick={() => navigate("/deletion-requests")}
+              onClick={() => navigate("/users?tab=deletions")}
             >
               <Statistic
                 title="Pending Deletions"

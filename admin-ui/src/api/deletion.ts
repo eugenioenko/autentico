@@ -5,6 +5,8 @@ const BASE = "/admin/api/deletion-requests";
 export interface DeletionRequestResponse {
   id: string;
   user_id: string;
+  username: string;
+  email: string;
   reason?: string;
   requested_at: string;
 }

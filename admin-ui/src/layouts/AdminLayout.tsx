@@ -15,7 +15,6 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   DownOutlined,
-  DeleteOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
@@ -30,7 +29,6 @@ const menuItems: any[] = [
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
-  { key: "/deletion-requests", icon: <DeleteOutlined />, label: "Deletion Requests" },
   { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
   { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
   { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
