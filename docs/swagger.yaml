@@ -569,6 +569,15 @@ definitions:
       total:
         type: integer
     type: object
+  model.ListResponse-client_ClientInfoResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/client.ClientInfoResponse'
+        type: array
+      total:
+        type: integer
+    type: object
   model.ListResponse-group_GroupResponse:
     properties:
       items:
@@ -1589,23 +1598,51 @@ paths:
       - admin-settings
   /admin/api/clients:
     get:
-      description: Lists all registered clients. Also available at /oauth2/register.
+      description: Lists clients with server-side sorting, filtering, search, and
+        pagination.
+      parameters:
+      - description: Sort field (created_at, client_name, client_id, client_type)
+        in: query
+        name: sort
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Search by client_name or client_id
+        in: query
+        name: search
+        type: string
+      - description: Filter by client type (confidential, public)
+        in: query
+        name: client_type
+        type: string
+      - description: Filter by active status (1, 0)
+        in: query
+        name: is_active
+        type: string
+      - description: Page size (max 200)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/client.ClientInfoResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-client_ClientInfoResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/model.AuthErrorResponse'
       security:
       - AdminAuth: []
-      summary: List all clients
+      summary: List clients with pagination
       tags:
       - admin-client
     post:
@@ -2953,26 +2990,6 @@ paths:
       tags:
       - oauth2
   /oauth2/register:
-    get:
-      description: Lists all registered clients. Also available at /oauth2/register.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/client.ClientInfoResponse'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/model.AuthErrorResponse'
-      security:
-      - AdminAuth: []
-      summary: List all clients
-      tags:
-      - admin-client
     post:
       consumes:
       - application/json

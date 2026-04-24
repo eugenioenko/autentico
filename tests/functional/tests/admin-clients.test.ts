@@ -45,9 +45,9 @@ describe('Admin Clients — happy path', () => {
 
   it('lists clients including created ones', async () => {
     const token = await getAdminToken();
-    const clients = await getJSON<unknown[]>(API, token);
-    expect(Array.isArray(clients)).toBe(true);
-    const names = (clients as { client_name: string }[]).map(c => c.client_name);
+    const resp = await getJSON<{ data: { items: { client_name: string }[]; total: number } }>(API, token);
+    expect(Array.isArray(resp.data.items)).toBe(true);
+    const names = resp.data.items.map(c => c.client_name);
     expect(names).toContain('Functional Confidential');
     expect(names).toContain('Functional Public');
   });

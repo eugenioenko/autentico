@@ -134,7 +134,6 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 
 	// OAuth2 client registration (admin-protected)
-	mux.Handle("GET "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleListClients)))
 	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
 	mux.Handle("GET "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
 	mux.Handle("PUT "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))
@@ -164,7 +163,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("POST /admin/api/users/{id}/deactivate", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleDeactivateUser)))
 	mux.Handle("POST /admin/api/users/{id}/reactivate", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleReactivateUser)))
 	mux.Handle("POST /admin/api/users/{id}/unlock", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleUnlockUser)))
-	mux.Handle("GET /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleListClients)))
+	mux.Handle("GET /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleAdminListClients)))
 	mux.Handle("POST /admin/api/clients", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
 	mux.Handle("GET /admin/api/clients/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
 	mux.Handle("PUT /admin/api/clients/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))

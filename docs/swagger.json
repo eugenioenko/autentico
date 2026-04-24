@@ -1117,22 +1117,63 @@
                         "AdminAuth": []
                     }
                 ],
-                "description": "Lists all registered clients. Also available at /oauth2/register.",
+                "description": "Lists clients with server-side sorting, filtering, search, and pagination.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin-client"
                 ],
-                "summary": "List all clients",
+                "summary": "List clients with pagination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field (created_at, client_name, client_id, client_type)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by client_name or client_id",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by client type (confidential, public)",
+                        "name": "client_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by active status (1, 0)",
+                        "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 200)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/client.ClientInfoResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-client_ClientInfoResponse"
                         }
                     },
                     "500": {
@@ -3241,38 +3282,6 @@
             }
         },
         "/oauth2/register": {
-            "get": {
-                "security": [
-                    {
-                        "AdminAuth": []
-                    }
-                ],
-                "description": "Lists all registered clients. Also available at /oauth2/register.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin-client"
-                ],
-                "summary": "List all clients",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/client.ClientInfoResponse"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/model.AuthErrorResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -4470,6 +4479,20 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/audit.AuditLogResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-client_ClientInfoResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/client.ClientInfoResponse"
                     }
                 },
                 "total": {

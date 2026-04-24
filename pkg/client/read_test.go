@@ -3,6 +3,7 @@ package client
 import (
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +66,7 @@ func TestListClients(t *testing.T) {
 	assert.NoError(t, err)
 
 	// List clients
-	clients, err := ListClients()
+	clients, _, err := ListClientsWithParams(api.ListParams{Limit: 100})
 	assert.NoError(t, err)
 	assert.Len(t, clients, 2)
 }
@@ -158,9 +159,19 @@ func TestListClients_ExcludesInactive(t *testing.T) {
 	err = DeleteClient(created2.ClientID)
 	assert.NoError(t, err)
 
-	// List clients should only return the active one
-	clients, err := ListClients()
+	// List all clients returns both
+	all, total, err := ListClientsWithParams(api.ListParams{Limit: 100})
 	assert.NoError(t, err)
-	assert.Len(t, clients, 1)
-	assert.Equal(t, created1.ClientID, clients[0].ClientID)
+	assert.Len(t, all, 2)
+	assert.Equal(t, 2, total)
+
+	// Filter by is_active=1 returns only the active one
+	active, activeTotal, err := ListClientsWithParams(api.ListParams{
+		Limit:   100,
+		Filters: map[string]string{"is_active": "1"},
+	})
+	assert.NoError(t, err)
+	assert.Len(t, active, 1)
+	assert.Equal(t, 1, activeTotal)
+	assert.Equal(t, created1.ClientID, active[0].ClientID)
 }
