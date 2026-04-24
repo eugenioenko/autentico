@@ -136,15 +136,6 @@ definitions:
       key:
         type: string
     type: object
-  audit.AuditLogListResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/audit.AuditLogResponse'
-        type: array
-      total:
-        type: integer
-    type: object
   audit.AuditLogResponse:
     properties:
       actor_id:
@@ -568,6 +559,15 @@ definitions:
         items:
           $ref: '#/definitions/model.JWK'
         type: array
+    type: object
+  model.ListResponse-audit_AuditLogResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/audit.AuditLogResponse'
+        type: array
+      total:
+        type: integer
     type: object
   model.ListResponse-group_GroupResponse:
     properties:
@@ -1538,17 +1538,36 @@ paths:
       - account-security
   /admin/api/audit-logs:
     get:
-      description: Returns a paginated list of audit events with optional filters.
+      description: Returns a paginated list of audit events with optional filters,
+        search, sorting, and date range.
       parameters:
       - description: Filter by event type
         in: query
         name: event
         type: string
-      - description: Filter by actor user ID
+      - description: Search actor_username, target_id, ip_address, detail
         in: query
-        name: actor_id
+        name: search
         type: string
-      - description: Page size (default 50)
+      - default: created_at
+        description: Sort field (created_at, event)
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Date range start (ISO 8601)
+        in: query
+        name: created_at_from
+        type: string
+      - description: Date range end (ISO 8601)
+        in: query
+        name: created_at_to
+        type: string
+      - description: Page size (default 100, max 200)
         in: query
         name: limit
         type: integer
@@ -1562,7 +1581,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/audit.AuditLogListResponse'
+            $ref: '#/definitions/model.ListResponse-audit_AuditLogResponse'
       security:
       - AdminAuth: []
       summary: List audit log events
@@ -2158,6 +2177,22 @@ paths:
         in: query
         name: offset
         type: integer
+      - description: Filter sessions created after (ISO 8601)
+        in: query
+        name: created_at_from
+        type: string
+      - description: Filter sessions created before (ISO 8601)
+        in: query
+        name: created_at_to
+        type: string
+      - description: Filter sessions active after (ISO 8601)
+        in: query
+        name: last_activity_at_from
+        type: string
+      - description: Filter sessions active before (ISO 8601)
+        in: query
+        name: last_activity_at_to
+        type: string
       produces:
       - application/json
       responses:
@@ -2448,6 +2483,14 @@ paths:
       - description: Filter by group name
         in: query
         name: group
+        type: string
+      - description: Filter users created after (ISO 8601)
+        in: query
+        name: created_at_from
+        type: string
+      - description: Filter users created before (ISO 8601)
+        in: query
+        name: created_at_to
         type: string
       produces:
       - application/json

@@ -51,13 +51,21 @@ func deviceRowsToResponse(devices []DeviceRow) []IdpSessionResponse {
 // @Param search query string false "Search across username, email, and IP address"
 // @Param limit query integer false "Max results per page (1–100)" default(100)
 // @Param offset query integer false "Number of results to skip" default(0)
+// @Param created_at_from query string false "Filter sessions created after (ISO 8601)"
+// @Param created_at_to query string false "Filter sessions created before (ISO 8601)"
+// @Param last_activity_at_from query string false "Filter sessions active after (ISO 8601)"
+// @Param last_activity_at_to query string false "Filter sessions active before (ISO 8601)"
 // @Security AdminAuth
 // @Success 200 {object} model.ListResponse[IdpSessionResponse]
 // @Router /admin/api/idp-sessions [get]
 func HandleListIdpSessions(w http.ResponseWriter, r *http.Request) {
 	params := api.ParseListParams(r)
+	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+		"created_at":       "s.created_at",
+		"last_activity_at": "s.last_activity_at",
+	})
 
-	devices, total, err := ListIdpSessionsWithParams(params)
+	devices, total, err := ListIdpSessionsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return

@@ -7,10 +7,12 @@ import {
   Space,
   Popconfirm,
   Input,
+  Select,
   message,
   Alert,
   Drawer,
   Descriptions,
+  DatePicker,
 } from "antd";
 import {
   LogoutOutlined,
@@ -21,6 +23,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { SorterResult } from "antd/es/table/interface";
+import type { Dayjs } from "dayjs";
 import {
   useIdpSessions,
   useForceLogoutIdpSession,
@@ -362,6 +365,8 @@ export default function SessionsPage() {
     order: "desc",
   });
   const [searchValue, setSearchValue] = useState("");
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [dateField, setDateField] = useState<string>("last_activity_at");
 
   const { data, isLoading, error } = useIdpSessions(listParams);
   const forceLogout = useForceLogoutIdpSession();
@@ -380,6 +385,27 @@ export default function SessionsPage() {
       message.error("Failed to sign out device");
     }
   };
+
+  const handleDateRange = useCallback(
+    (dates: [Dayjs | null, Dayjs | null] | null, field: string) => {
+      setDateRange(dates);
+      setListParams((prev) => {
+        const next: ListParams = { ...prev, offset: 0 };
+        delete next.created_at_from;
+        delete next.created_at_to;
+        delete next.last_activity_at_from;
+        delete next.last_activity_at_to;
+        if (dates && dates[0]) {
+          next[`${field}_from`] = dates[0].startOf("day").toISOString();
+        }
+        if (dates && dates[1]) {
+          next[`${field}_to`] = dates[1].endOf("day").toISOString();
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const handleTableChange = useCallback(
     (
@@ -556,14 +582,33 @@ export default function SessionsPage() {
         <Typography.Title level={4} style={{ margin: 0 }}>
           Sessions
         </Typography.Title>
-        <Input.Search
-          placeholder="Search username, email, IP..."
-          allowClear
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          onSearch={handleSearch}
-          style={{ width: 300 }}
-        />
+        <Space>
+          <Select
+            value={dateField}
+            onChange={(v) => {
+              setDateField(v);
+              if (dateRange) handleDateRange(dateRange, v);
+            }}
+            options={[
+              { label: "Last Active", value: "last_activity_at" },
+              { label: "Signed In", value: "created_at" },
+            ]}
+            style={{ width: 130 }}
+          />
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={(dates) => handleDateRange(dates, dateField)}
+            allowClear
+          />
+          <Input.Search
+            placeholder="Search username, email, IP..."
+            allowClear
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onSearch={handleSearch}
+            style={{ width: 250 }}
+          />
+        </Space>
       </Space>
 
       <div

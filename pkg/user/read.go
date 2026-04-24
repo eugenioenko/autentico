@@ -85,7 +85,7 @@ func ListUsers() ([]*User, error) {
 	return users, rows.Err()
 }
 
-func ListUsersWithParams(params api.ListParams) ([]*User, int, error) {
+func ListUsersWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]*User, int, error) {
 	lq := api.BuildListQuery(params, userListConfig)
 
 	baseWhere := "WHERE users.deactivated_at IS NULL"
@@ -99,15 +99,16 @@ func ListUsersWithParams(params api.ListParams) ([]*User, int, error) {
 		delete(params.Filters, "group")
 	}
 
-	allArgs := append(extraArgs, lq.Args...)
+	allArgs := append(dateArgs, extraArgs...)
+	allArgs = append(allArgs, lq.Args...)
 
 	var total int
-	countQuery := "SELECT COUNT(*) FROM users" + join + " " + baseWhere + lq.Where
+	countQuery := "SELECT COUNT(*) FROM users" + join + " " + baseWhere + dateWhere + lq.Where
 	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %w", err)
 	}
 
-	query := `SELECT` + userSelectColumns + `FROM users` + join + ` ` + baseWhere + lq.Where + lq.Order
+	query := `SELECT` + userSelectColumns + `FROM users` + join + ` ` + baseWhere + dateWhere + lq.Where + lq.Order
 	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)

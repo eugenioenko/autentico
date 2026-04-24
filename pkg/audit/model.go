@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 )
 
@@ -53,7 +54,9 @@ func ActorFromRequest(r *http.Request) Actor {
 	if err != nil {
 		return nil
 	}
-	return SimpleActor{ID: claims.UserID}
+	var username string
+	db.GetDB().QueryRow("SELECT username FROM users WHERE id = ?", claims.UserID).Scan(&username)
+	return SimpleActor{ID: claims.UserID, Username: username}
 }
 
 // Event identifies the type of audit event.
@@ -126,12 +129,6 @@ type AuditLogResponse struct {
 	Detail       string  `json:"detail"`
 	IPAddress    string  `json:"ip_address"`
 	CreatedAt    string  `json:"created_at"`
-}
-
-// AuditLogListResponse wraps a page of audit events with a total count.
-type AuditLogListResponse struct {
-	Data  []AuditLogResponse `json:"data"`
-	Total int                `json:"total"`
 }
 
 func (a *AuditLog) ToResponse() AuditLogResponse {

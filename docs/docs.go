@@ -1046,7 +1046,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Returns a paginated list of audit events with optional filters.",
+                "description": "Returns a paginated list of audit events with optional filters, search, sorting, and date range.",
                 "produces": [
                     "application/json"
                 ],
@@ -1063,13 +1063,39 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by actor user ID",
-                        "name": "actor_id",
+                        "description": "Search actor_username, target_id, ip_address, detail",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort field (created_at, event)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Date range start (ISO 8601)",
+                        "name": "created_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Date range end (ISO 8601)",
+                        "name": "created_at_to",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (default 50)",
+                        "description": "Page size (default 100, max 200)",
                         "name": "limit",
                         "in": "query"
                     },
@@ -1084,7 +1110,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/audit.AuditLogListResponse"
+                            "$ref": "#/definitions/model.ListResponse-audit_AuditLogResponse"
                         }
                     }
                 }
@@ -2032,6 +2058,30 @@ const docTemplate = `{
                         "description": "Number of results to skip",
                         "name": "offset",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter sessions created after (ISO 8601)",
+                        "name": "created_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter sessions created before (ISO 8601)",
+                        "name": "created_at_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter sessions active after (ISO 8601)",
+                        "name": "last_activity_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter sessions active before (ISO 8601)",
+                        "name": "last_activity_at_to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2487,6 +2537,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by group name",
                         "name": "group",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter users created after (ISO 8601)",
+                        "name": "created_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter users created before (ISO 8601)",
+                        "name": "created_at_to",
                         "in": "query"
                     }
                 ],
@@ -3777,20 +3839,6 @@ const docTemplate = `{
                 }
             }
         },
-        "audit.AuditLogListResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/audit.AuditLogResponse"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
         "audit.AuditLogResponse": {
             "type": "object",
             "properties": {
@@ -4418,6 +4466,20 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.JWK"
                     }
+                }
+            }
+        },
+        "model.ListResponse-audit_AuditLogResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/audit.AuditLogResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

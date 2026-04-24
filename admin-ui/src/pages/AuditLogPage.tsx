@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { PAGE_SIZE_OPTIONS } from "../constants/table";
+import { useState, useCallback, useRef } from "react";
 import {
   Typography,
   Table,
@@ -11,14 +10,20 @@ import {
   Button,
   Drawer,
   Descriptions,
+  DatePicker,
 } from "antd";
-import { SearchOutlined, EyeOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { EyeOutlined } from "@ant-design/icons";
+import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SorterResult } from "antd/es/table/interface";
+import type { Dayjs } from "dayjs";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { useSettings } from "../hooks/useSettings";
 import type { AuditLogEntry } from "../types/audit";
+import type { ListParams } from "../api/users";
+import { useTableScrollY } from "../hooks/useTableScrollY";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const EVENT_OPTIONS = [
   { label: "All Events", value: "" },
@@ -92,23 +97,89 @@ function formatEvent(event: string): string {
 }
 
 export default function AuditLogPage() {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollY = useTableScrollY(tableContainerRef);
+
   const { data: settings } = useSettings();
   const auditRetention = settings?.audit_log_retention ?? "0";
   const isDisabled = auditRetention === "0" || auditRetention === "";
 
-  const [eventFilter, setEventFilter] = useState("");
-  const [actorSearch, setActorSearch] = useState("");
-  const [appliedActorId, setAppliedActorId] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
-
-  const { data, isLoading, error } = useAuditLogs({
-    event: eventFilter || undefined,
-    actor_id: appliedActorId || undefined,
-    limit: pageSize,
-    offset: (page - 1) * pageSize,
+  const [listParams, setListParams] = useState<ListParams>({
+    limit: DEFAULT_PAGE_SIZE,
+    offset: 0,
+    sort: "created_at",
+    order: "desc",
   });
+  const [searchValue, setSearchValue] = useState("");
+  const [eventFilter, setEventFilter] = useState("");
+  const [dateRange, setDateRange] = useState<
+    [Dayjs | null, Dayjs | null] | null
+  >(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(
+    null
+  );
+
+  const { data, isLoading, error } = useAuditLogs(listParams);
+
+  const handleTableChange = useCallback(
+    (
+      pagination: TablePaginationConfig,
+      _filters: Record<string, unknown>,
+      sorter:
+        | SorterResult<AuditLogEntry>
+        | SorterResult<AuditLogEntry>[]
+    ) => {
+      const s = Array.isArray(sorter) ? sorter[0] : sorter;
+      setListParams((prev) => ({
+        ...prev,
+        offset:
+          ((pagination.current ?? 1) - 1) *
+          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
+        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
+        sort: s.field ? String(s.field) : prev.sort,
+        order: s.order === "ascend" ? "asc" : "desc",
+      }));
+    },
+    []
+  );
+
+  const handleSearch = useCallback((value: string) => {
+    setListParams((prev) => ({
+      ...prev,
+      search: value || undefined,
+      offset: 0,
+    }));
+  }, []);
+
+  const handleEventFilter = useCallback((value: string) => {
+    setEventFilter(value);
+    setListParams((prev) => ({
+      ...prev,
+      event: value || undefined,
+      offset: 0,
+    }));
+  }, []);
+
+  const handleDateRange = useCallback(
+    (dates: [Dayjs | null, Dayjs | null] | null) => {
+      setDateRange(dates);
+      setListParams((prev) => {
+        const next: ListParams = { ...prev, offset: 0 };
+        if (dates && dates[0]) {
+          next.created_at_from = dates[0].startOf("day").toISOString();
+        } else {
+          delete next.created_at_from;
+        }
+        if (dates && dates[1]) {
+          next.created_at_to = dates[1].endOf("day").toISOString();
+        } else {
+          delete next.created_at_to;
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const columns: ColumnsType<AuditLogEntry> = [
     {
@@ -116,6 +187,13 @@ export default function AuditLogPage() {
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
+      sorter: true,
+      sortOrder:
+        listParams.sort === "created_at"
+          ? listParams.order === "desc"
+            ? "descend"
+            : "ascend"
+          : undefined,
       render: formatDate,
     },
     {
@@ -123,6 +201,13 @@ export default function AuditLogPage() {
       dataIndex: "event",
       key: "event",
       width: 200,
+      sorter: true,
+      sortOrder:
+        listParams.sort === "event"
+          ? listParams.order === "desc"
+            ? "descend"
+            : "ascend"
+          : undefined,
       render: (event: string) => (
         <Tag color={EVENT_COLORS[event] || "default"}>{formatEvent(event)}</Tag>
       ),
@@ -132,14 +217,16 @@ export default function AuditLogPage() {
       dataIndex: "actor_username",
       key: "actor_username",
       width: 160,
-      render: (username: string) => username || <Text type="secondary">—</Text>,
+      render: (username: string) =>
+        username || <Text type="secondary">—</Text>,
     },
     {
       title: "Target",
       key: "target",
       width: 160,
       render: (_: unknown, record: AuditLogEntry) => {
-        if (!record.target_type && !record.target_id) return <Text type="secondary">—</Text>;
+        if (!record.target_type && !record.target_id)
+          return <Text type="secondary">—</Text>;
         return (
           <Text>
             {record.target_type}
@@ -187,70 +274,75 @@ export default function AuditLogPage() {
   if (error) return <Alert type="error" message="Failed to load audit logs" />;
 
   return (
-    <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <div>
-        <Title level={2}>Audit Log</Title>
-        <Text type="secondary">Security events and administrative actions.</Text>
-      </div>
+    <>
+      <Space
+        style={{
+          justifyContent: "space-between",
+          width: "100%",
+          flexShrink: 0,
+        }}
+      >
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          Audit Log
+        </Typography.Title>
+        <Space>
+          <Select
+            style={{ width: 200 }}
+            options={EVENT_OPTIONS}
+            value={eventFilter}
+            onChange={handleEventFilter}
+          />
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={handleDateRange}
+            allowClear
+          />
+          <Input.Search
+            placeholder="Search actor, target, IP..."
+            allowClear
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onSearch={handleSearch}
+            style={{ width: 250 }}
+          />
+        </Space>
+      </Space>
 
       {isDisabled && (
         <Alert
           type="info"
           showIcon
           message="Audit logging is disabled"
-          description="To start recording events, set the audit log retention in Settings > Security & Validation > Audit Log (e.g. 720h for 30 days, or -1 to keep forever)."
+          description='To start recording events, set the audit log retention in Settings > Security & Validation > Audit Log (e.g. 720h for 30 days, or -1 to keep forever).'
+          style={{ marginTop: 16, flexShrink: 0 }}
         />
       )}
 
-      <Space wrap>
-        <Select
-          style={{ width: 220 }}
-          options={EVENT_OPTIONS}
-          value={eventFilter}
-          onChange={(v) => {
-            setEventFilter(v);
-            setPage(1);
+      <div
+        ref={tableContainerRef}
+        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
+      >
+        <Table<AuditLogEntry>
+          columns={columns}
+          dataSource={data?.items ?? []}
+          rowKey="id"
+          loading={isLoading}
+          onChange={handleTableChange}
+          scroll={scrollY ? { y: scrollY } : undefined}
+          pagination={{
+            current:
+              Math.floor(
+                (listParams.offset ?? 0) /
+                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
+              ) + 1,
+            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
+            total: data?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
+            showTotal: (total) => `${total} events`,
           }}
         />
-        <Input
-          placeholder="Filter by user ID"
-          prefix={<SearchOutlined />}
-          style={{ width: 240 }}
-          value={actorSearch}
-          onChange={(e) => setActorSearch(e.target.value)}
-          onPressEnter={() => {
-            setAppliedActorId(actorSearch);
-            setPage(1);
-          }}
-          allowClear
-          onClear={() => {
-            setAppliedActorId("");
-            setPage(1);
-          }}
-        />
-      </Space>
-
-      <Table
-        columns={columns}
-        dataSource={data?.data}
-        rowKey="id"
-        loading={isLoading}
-        size="small"
-        scroll={{ x: "max-content" }}
-        style={{ whiteSpace: "nowrap" }}
-        pagination={{
-          current: page,
-          pageSize,
-          total: data?.total || 0,
-          showSizeChanger: true,
-          pageSizeOptions: PAGE_SIZE_OPTIONS,
-          showTotal: (total) => `${total} events`,
-          onChange: (p, ps) => {
-            setPage(p);
-            setPageSize(ps);
-          },
-        }}
-      />
+      </div>
 
       <Drawer
         title="Event Detail"
@@ -260,28 +352,51 @@ export default function AuditLogPage() {
       >
         {selectedEntry && (
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="ID">{selectedEntry.id}</Descriptions.Item>
+            <Descriptions.Item label="ID">
+              {selectedEntry.id}
+            </Descriptions.Item>
             <Descriptions.Item label="Event">
               <Tag color={EVENT_COLORS[selectedEntry.event] || "default"}>
                 {formatEvent(selectedEntry.event)}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Time">{formatDate(selectedEntry.created_at)}</Descriptions.Item>
-            <Descriptions.Item label="Actor ID">{selectedEntry.actor_id || "—"}</Descriptions.Item>
-            <Descriptions.Item label="Actor Username">{selectedEntry.actor_username || "—"}</Descriptions.Item>
-            <Descriptions.Item label="Target Type">{selectedEntry.target_type || "—"}</Descriptions.Item>
-            <Descriptions.Item label="Target ID">{selectedEntry.target_id || "—"}</Descriptions.Item>
-            <Descriptions.Item label="IP Address">{selectedEntry.ip_address || "—"}</Descriptions.Item>
+            <Descriptions.Item label="Time">
+              {formatDate(selectedEntry.created_at)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Actor ID">
+              {selectedEntry.actor_id || "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Actor Username">
+              {selectedEntry.actor_username || "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Target Type">
+              {selectedEntry.target_type || "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Target ID">
+              {selectedEntry.target_id || "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="IP Address">
+              {selectedEntry.ip_address || "—"}
+            </Descriptions.Item>
             <Descriptions.Item label="Detail">
               {selectedEntry.detail ? (
-                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                  }}
+                >
                   {JSON.stringify(JSON.parse(selectedEntry.detail), null, 2)}
                 </pre>
-              ) : "—"}
+              ) : (
+                "—"
+              )}
             </Descriptions.Item>
           </Descriptions>
         )}
       </Drawer>
-    </Space>
+    </>
   );
 }
