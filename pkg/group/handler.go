@@ -15,6 +15,11 @@ import (
 // @Summary List all groups
 // @Tags admin-groups
 // @Produce json
+// @Param sort query string false "Sort field (name, created_at, updated_at)"
+// @Param order query string false "Sort order (asc, desc)" default(asc)
+// @Param search query string false "Search across name and description"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Security AdminAuth
 // @Success 200 {object} model.ListResponse[GroupResponse]
 // @Router /admin/api/groups [get]

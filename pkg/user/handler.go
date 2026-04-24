@@ -235,8 +235,17 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 // @Summary List all users
 // @Tags admin-users
 // @Produce json
+// @Param sort query string false "Sort field (username, email, created_at, updated_at, role, id, given_name, family_name, middle_name, nickname, phone_number)"
+// @Param order query string false "Sort order (asc, desc)" default(desc)
+// @Param search query string false "Search across username, email, id, given_name, family_name, middle_name, nickname, phone_number"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
+// @Param role query string false "Filter by role (admin, user)"
+// @Param is_email_verified query string false "Filter by email verification (0, 1)"
+// @Param totp_verified query string false "Filter by MFA enrollment (0, 1)"
+// @Param group query string false "Filter by group name"
 // @Security AdminAuth
-// @Success 200 {array} UserResponse
+// @Success 200 {object} model.ListResponse[UserResponse]
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users [get]
 func HandleListUsers(w http.ResponseWriter, r *http.Request) {

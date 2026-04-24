@@ -437,6 +437,8 @@ definitions:
         type: string
       id:
         type: string
+      member_count:
+        type: integer
       name:
         type: string
       updated_at:
@@ -562,6 +564,24 @@ definitions:
         items:
           $ref: '#/definitions/model.JWK'
         type: array
+    type: object
+  model.ListResponse-group_GroupResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/group.GroupResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  model.ListResponse-user_UserResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/user.UserResponse'
+        type: array
+      total:
+        type: integer
     type: object
   model.WellKnownConfigResponse:
     properties:
@@ -1852,15 +1872,37 @@ paths:
       - admin-federation
   /admin/api/groups:
     get:
+      parameters:
+      - description: Sort field (name, created_at, updated_at)
+        in: query
+        name: sort
+        type: string
+      - default: asc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Search across name and description
+        in: query
+        name: search
+        type: string
+      - default: 100
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/group.GroupResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-group_GroupResponse'
       security:
       - AdminAuth: []
       summary: List all groups
@@ -2285,15 +2327,55 @@ paths:
       - admin-settings
   /admin/api/users:
     get:
+      parameters:
+      - description: Sort field (username, email, created_at, updated_at, role, id,
+          given_name, family_name, middle_name, nickname, phone_number)
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Search across username, email, id, given_name, family_name, middle_name,
+          nickname, phone_number
+        in: query
+        name: search
+        type: string
+      - default: 100
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by role (admin, user)
+        in: query
+        name: role
+        type: string
+      - description: Filter by email verification (0, 1)
+        in: query
+        name: is_email_verified
+        type: string
+      - description: Filter by MFA enrollment (0, 1)
+        in: query
+        name: totp_verified
+        type: string
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/user.UserResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-user_UserResponse'
         "500":
           description: Internal Server Error
           schema:

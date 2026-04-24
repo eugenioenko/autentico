@@ -1620,14 +1620,46 @@ const docTemplate = `{
                     "admin-groups"
                 ],
                 "summary": "List all groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field (name, created_at, updated_at)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search across name and description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/group.GroupResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-group_GroupResponse"
                         }
                     }
                 }
@@ -2314,14 +2346,70 @@ const docTemplate = `{
                     "admin-users"
                 ],
                 "summary": "List all users",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field (username, email, created_at, updated_at, role, id, given_name, family_name, middle_name, nickname, phone_number)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search across username, email, id, given_name, family_name, middle_name, nickname, phone_number",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by role (admin, user)",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by email verification (0, 1)",
+                        "name": "is_email_verified",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by MFA enrollment (0, 1)",
+                        "name": "totp_verified",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by group name",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/user.UserResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-user_UserResponse"
                         }
                     },
                     "500": {
@@ -4054,6 +4142,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "member_count": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -4236,6 +4327,34 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.JWK"
                     }
+                }
+            }
+        },
+        "model.ListResponse-group_GroupResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/group.GroupResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-user_UserResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/user.UserResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
