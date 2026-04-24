@@ -226,6 +226,7 @@ export default function SettingsPage() {
   if (error) return <Alert type="error" message="Failed to load settings" />;
 
   return (
+    <div style={{ flex: 1, overflow: "auto" }}>
     <Space direction="vertical" size="large" style={{ display: "flex" }}>
       <div>
         <Title level={2}>System Settings</Title>
@@ -959,5 +960,6 @@ export default function SettingsPage() {
         )}
       </Form>
     </Space>
+    </div>
   );
 }

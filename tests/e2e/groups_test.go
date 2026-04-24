@@ -87,10 +87,10 @@ func TestGroupCRUD(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp3.Body.Close() }()
 	body3, _ := io.ReadAll(resp3.Body)
-	var listResp model.ApiResponse[[]group.GroupResponse]
+	var listResp model.ApiResponse[model.ListResponse[group.GroupResponse]]
 	require.NoError(t, json.Unmarshal(body3, &listResp))
-	assert.Len(t, listResp.Data, 1)
-	assert.Equal(t, "renamed-group", listResp.Data[0].Name)
+	assert.Len(t, listResp.Data.Items, 1)
+	assert.Equal(t, "renamed-group", listResp.Data.Items[0].Name)
 
 	// Delete
 	req, _ = http.NewRequest("DELETE", ts.BaseURL+"/admin/api/groups/"+g.ID, nil)
