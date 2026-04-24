@@ -737,6 +737,10 @@ definitions:
       given_name:
         description: OIDC standard profile claims
         type: string
+      groups:
+        items:
+          type: string
+        type: array
       id:
         type: string
       is_email_verified:

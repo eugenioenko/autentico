@@ -31,6 +31,7 @@ import {
   useRemoveMember,
 } from "../hooks/useGroups";
 import { useUsers } from "../hooks/useUsers";
+import type { UserResponseExt } from "../types/user";
 import type { Group, GroupMember } from "../types/group";
 
 function GroupMembersView({
@@ -77,7 +78,8 @@ function GroupMembersView({
   };
 
   const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
-  const availableUsers = (users ?? []).filter((u) => !memberUserIds.has(u.id));
+  const allUsers = users?.items ?? [];
+  const availableUsers = allUsers.filter((u: UserResponseExt) => !memberUserIds.has(u.id));
 
   const columns: ColumnsType<GroupMember> = [
     { title: "Username", dataIndex: "username", key: "username" },

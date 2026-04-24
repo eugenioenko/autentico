@@ -3,6 +3,7 @@ package group
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -109,6 +110,37 @@ func MembersByGroupID(groupID string) ([]GroupMemberResponse, error) {
 		members = []GroupMemberResponse{}
 	}
 	return members, nil
+}
+
+func GroupNamesByUserIDs(userIDs []string) (map[string][]string, error) {
+	if len(userIDs) == 0 {
+		return map[string][]string{}, nil
+	}
+	placeholders := make([]string, len(userIDs))
+	args := make([]any, len(userIDs))
+	for i, id := range userIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `SELECT ug.user_id, g.name FROM groups g
+		JOIN user_groups ug ON g.id = ug.group_id
+		WHERE ug.user_id IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY g.name`
+	rows, err := db.GetDB().Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get group names: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string][]string)
+	for rows.Next() {
+		var userID, name string
+		if err := rows.Scan(&userID, &name); err != nil {
+			return nil, fmt.Errorf("failed to scan group name: %w", err)
+		}
+		result[userID] = append(result[userID], name)
+	}
+	return result, nil
 }
 
 // GroupNamesByUserID returns just the group name strings for a user.

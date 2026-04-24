@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PAGE_SIZE_OPTIONS } from "../constants/table";
 import {
   Typography,
   Table,
@@ -242,7 +243,7 @@ export default function AuditLogPage() {
           pageSize,
           total: data?.total || 0,
           showSizeChanger: true,
-          pageSizeOptions: ["10", "20", "50"],
+          pageSizeOptions: PAGE_SIZE_OPTIONS,
           showTotal: (total) => `${total} events`,
           onChange: (p, ps) => {
             setPage(p);

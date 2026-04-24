@@ -7,8 +7,34 @@ import type {
 
 const BASE = "/admin/api/users";
 
-export async function listUsers(): Promise<UserResponseExt[]> {
-  const { data } = await apiClient.get<{ data: UserResponseExt[] }>(BASE);
+export interface ListParams {
+  sort?: string;
+  order?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  [key: string]: string | number | undefined;
+}
+
+export interface ListResponse<T> {
+  items: T[];
+  total: number;
+}
+
+export async function listUsers(
+  params?: ListParams
+): Promise<ListResponse<UserResponseExt>> {
+  const query = new URLSearchParams();
+  if (params) {
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== "") {
+        query.set(key, String(val));
+      }
+    }
+  }
+  const qs = query.toString();
+  const url = qs ? `${BASE}?${qs}` : BASE;
+  const { data } = await apiClient.get<{ data: ListResponse<UserResponseExt> }>(url);
   return data.data;
 }
 

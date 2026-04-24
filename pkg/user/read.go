@@ -6,8 +6,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
+
+var userListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"username": true, "email": true, "id": true,
+		"given_name": true, "family_name": true, "middle_name": true,
+		"nickname": true, "phone_number": true,
+		"created_at": true, "updated_at": true, "role": true,
+	},
+	SearchColumns: []string{
+		"username", "email", "id",
+		"given_name", "family_name", "middle_name",
+		"nickname", "phone_number",
+	},
+	AllowedFilters: map[string]bool{
+		"role": true, "is_email_verified": true, "totp_verified": true,
+	},
+	DefaultSort: "created_at",
+	MaxLimit:    api.DefaultMaxLimit,
+}
 
 func nullStringToString(ns sql.NullString) string {
 	if ns.Valid {
@@ -62,6 +82,35 @@ func ListUsers() ([]*User, error) {
 		users = append(users, u)
 	}
 	return users, rows.Err()
+}
+
+func ListUsersWithParams(params api.ListParams) ([]*User, int, error) {
+	lq := api.BuildListQuery(params, userListConfig)
+
+	baseWhere := "WHERE deactivated_at IS NULL"
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM users " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	query := `SELECT` + userSelectColumns + `FROM users ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, lq.Args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
 }
 
 func UserByUsername(username string) (*User, error) {

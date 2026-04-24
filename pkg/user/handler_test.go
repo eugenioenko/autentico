@@ -343,10 +343,16 @@ func TestHandleUserAdmin(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleListUsers(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var listResp model.ApiResponse[[]UserResponse]
+	var listResp struct {
+		Data struct {
+			Items []UserResponse `json:"items"`
+			Total int            `json:"total"`
+		} `json:"data"`
+	}
 	err := json.Unmarshal(rr.Body.Bytes(), &listResp)
 	assert.NoError(t, err)
-	assert.Len(t, listResp.Data, 2)
+	assert.Len(t, listResp.Data.Items, 2)
+	assert.Equal(t, 2, listResp.Data.Total)
 
 	// Get single user
 	u1, _ := UserByUsername("user1")

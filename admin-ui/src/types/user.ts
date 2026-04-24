@@ -44,6 +44,7 @@ export interface UserResponseExt {
   locked_until: string | null;
   is_email_verified: boolean;
   totp_verified: boolean;
+  groups?: string[];
   given_name?: string;
   middle_name?: string;
   family_name?: string;

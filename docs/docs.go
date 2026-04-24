@@ -4487,6 +4487,12 @@ const docTemplate = `{
                     "description": "OIDC standard profile claims",
                     "type": "string"
                 },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "id": {
                     "type": "string"
                 },
