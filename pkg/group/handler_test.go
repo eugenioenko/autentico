@@ -73,9 +73,10 @@ func TestHandleListGroups(t *testing.T) {
 	HandleListGroups(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp model.ApiResponse[[]GroupResponse]
+	var resp model.ApiResponse[model.ListResponse[GroupResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Len(t, resp.Data, 2)
+	assert.Len(t, resp.Data.Items, 2)
+	assert.Equal(t, 2, resp.Data.Total)
 }
 
 // --- HandleGetGroup ---

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Typography,
   Table,
@@ -10,7 +10,8 @@ import {
   Modal,
   Form,
   Input,
-  Select,
+  AutoComplete,
+  Tag,
 } from "antd";
 import {
   PlusOutlined,
@@ -20,7 +21,8 @@ import {
   TeamOutlined,
   ArrowLeftOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SorterResult } from "antd/es/table/interface";
 import {
   useGroups,
   useCreateGroup,
@@ -31,8 +33,10 @@ import {
   useRemoveMember,
 } from "../hooks/useGroups";
 import { useUsers } from "../hooks/useUsers";
-import type { UserResponseExt } from "../types/user";
+import type { ListParams } from "../api/users";
 import type { Group, GroupMember } from "../types/group";
+import { useTableScrollY } from "../hooks/useTableScrollY";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 
 function GroupMembersView({
   group,
@@ -41,12 +45,44 @@ function GroupMembersView({
   group: Group;
   onBack: () => void;
 }) {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollY = useTableScrollY(tableContainerRef);
+
   const { data: members, isLoading } = useGroupMembers(group.id);
-  const { data: users } = useUsers();
   const addMember = useAddMember();
   const removeMember = useRemoveMember();
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [userSearchParams, setUserSearchParams] = useState<ListParams>({
+    limit: 20,
+    offset: 0,
+  });
+  const { data: usersData } = useUsers(userSearchParams);
+
+  const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
+  const userOptions = (usersData?.items ?? [])
+    .filter((u) => !memberUserIds.has(u.id) && !selectedUserIds.includes(u.id))
+    .map((u) => ({
+      value: u.id,
+      label: `${u.username} (${u.email})`,
+    }));
+
+  const handleUserSearch = (value: string) => {
+    setUserSearch(value);
+    setUserSearchParams((prev) => ({
+      ...prev,
+      search: value || undefined,
+      offset: 0,
+    }));
+  };
+
+  const handleSelectUser = (userId: string) => {
+    if (!selectedUserIds.includes(userId)) {
+      setSelectedUserIds((prev) => [...prev, userId]);
+    }
+    setUserSearch("");
+  };
 
   const handleAddSelected = async () => {
     if (selectedUserIds.length === 0) return;
@@ -77,9 +113,10 @@ function GroupMembersView({
     }
   };
 
-  const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
-  const allUsers = users?.items ?? [];
-  const availableUsers = allUsers.filter((u: UserResponseExt) => !memberUserIds.has(u.id));
+  const selectedUsers = selectedUserIds.map((id) => {
+    const user = usersData?.items?.find((u) => u.id === id);
+    return { id, label: user ? user.username : id };
+  });
 
   const columns: ColumnsType<GroupMember> = [
     { title: "Username", dataIndex: "username", key: "username" },
@@ -113,38 +150,37 @@ function GroupMembersView({
   ];
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-      <Space>
-        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-          Back to Groups
-        </Button>
+    <>
+      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+        <Space>
+          <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
+            Back to Groups
+          </Button>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            Members of {group.name}
+          </Typography.Title>
+        </Space>
       </Space>
 
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        Members of {group.name}
-      </Typography.Title>
-
       {group.description && (
-        <Typography.Text type="secondary">{group.description}</Typography.Text>
+        <Typography.Text type="secondary" style={{ display: "block", marginTop: 8, flexShrink: 0 }}>
+          {group.description}
+        </Typography.Text>
       )}
 
-      <div>
+      <div style={{ marginTop: 12, flexShrink: 0 }}>
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
           Add members
         </Typography.Text>
-        <Space.Compact style={{ width: "100%" }}>
-          <Select
-            mode="multiple"
-            style={{ width: "100%" }}
-            placeholder="Select users to add"
-            showSearch
-            optionFilterProp="label"
-            value={selectedUserIds}
-            onChange={setSelectedUserIds}
-            options={availableUsers.map((u) => ({
-              value: u.id,
-              label: `${u.username} (${u.email})`,
-            }))}
+        <Space.Compact style={{ maxWidth: 480 }}>
+          <AutoComplete
+            style={{ width: 320 }}
+            placeholder="Search users to add"
+            options={userOptions}
+            value={userSearch}
+            onSearch={handleUserSearch}
+            onSelect={handleSelectUser}
+            allowClear
           />
           <Button
             type="primary"
@@ -153,29 +189,52 @@ function GroupMembersView({
             loading={adding}
             disabled={selectedUserIds.length === 0}
           >
-            Add
+            Add{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
           </Button>
         </Space.Compact>
+        {selectedUsers.length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+            {selectedUsers.map((u) => (
+              <Tag
+                key={u.id}
+                closable
+                onClose={() => setSelectedUserIds((prev) => prev.filter((id) => id !== u.id))}
+              >
+                {u.label}
+              </Tag>
+            ))}
+          </div>
+        )}
       </div>
 
-      <Typography.Text type="secondary">
-        {(members ?? []).length} member{(members ?? []).length !== 1 ? "s" : ""}
-      </Typography.Text>
-
-      <Table<GroupMember>
-        columns={columns}
-        dataSource={members ?? []}
-        rowKey="user_id"
-        loading={isLoading}
-        pagination={false}
-        size="small"
-      />
-    </Space>
+      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
+        <Table<GroupMember>
+          columns={columns}
+          dataSource={members ?? []}
+          rowKey="user_id"
+          loading={isLoading}
+          scroll={scrollY ? { y: scrollY } : undefined}
+          pagination={false}
+          size="small"
+        />
+      </div>
+    </>
   );
 }
 
 export default function GroupsPage() {
-  const { data: groups, isLoading, error } = useGroups();
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollY = useTableScrollY(tableContainerRef);
+
+  const [listParams, setListParams] = useState<ListParams>({
+    limit: DEFAULT_PAGE_SIZE,
+    offset: 0,
+    sort: "name",
+    order: "asc",
+  });
+  const [searchValue, setSearchValue] = useState("");
+
+  const { data, isLoading, error } = useGroups(listParams);
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
   const deleteGroupMutation = useDeleteGroup();
@@ -219,6 +278,32 @@ export default function GroupsPage() {
     }
   };
 
+  const handleTableChange = useCallback(
+    (
+      pagination: TablePaginationConfig,
+      _filters: Record<string, unknown>,
+      sorter: SorterResult<Group> | SorterResult<Group>[]
+    ) => {
+      const s = Array.isArray(sorter) ? sorter[0] : sorter;
+      setListParams((prev) => ({
+        ...prev,
+        offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
+        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
+        sort: s.field ? String(s.field) : "name",
+        order: s.order === "descend" ? "desc" : "asc",
+      }));
+    },
+    []
+  );
+
+  const handleSearch = useCallback((value: string) => {
+    setListParams((prev) => ({
+      ...prev,
+      search: value || undefined,
+      offset: 0,
+    }));
+  }, []);
+
   if (membersGroup) {
     return (
       <GroupMembersView
@@ -229,7 +314,12 @@ export default function GroupsPage() {
   }
 
   const columns: ColumnsType<Group> = [
-    { title: "Name", dataIndex: "name", key: "name" },
+    {
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
+      sorter: true,
+    },
     {
       title: "Description",
       dataIndex: "description",
@@ -237,17 +327,38 @@ export default function GroupsPage() {
       ellipsis: true,
     },
     {
+      title: "Members",
+      dataIndex: "member_count",
+      key: "member_count",
+      width: 100,
+    },
+    {
       title: "Created",
       dataIndex: "created_at",
       key: "created_at",
+      sorter: true,
       render: (val: string) => new Date(val).toLocaleDateString(),
     },
     {
       title: "Actions",
       key: "actions",
-      width: 150,
+      width: 120,
       render: (_, record) => (
         <Space>
+          <Popconfirm
+            title="Delete this group?"
+            description="All memberships will be removed."
+            onConfirm={() => handleDelete(record.id)}
+            okText="Delete"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
           <Button
             type="text"
             size="small"
@@ -266,20 +377,6 @@ export default function GroupsPage() {
               });
             }}
           />
-          <Popconfirm
-            title="Delete this group?"
-            description="All memberships will be removed."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
         </Space>
       ),
     },
@@ -291,11 +388,19 @@ export default function GroupsPage() {
 
   return (
     <>
-      <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-        <Space style={{ justifyContent: "space-between", width: "100%" }}>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Groups
-          </Typography.Title>
+      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          Groups
+        </Typography.Title>
+        <Space>
+          <Input.Search
+            placeholder="Search groups..."
+            allowClear
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onSearch={handleSearch}
+            style={{ width: 250 }}
+          />
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -304,15 +409,26 @@ export default function GroupsPage() {
             Create Group
           </Button>
         </Space>
+      </Space>
 
+      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
         <Table<Group>
           columns={columns}
-          dataSource={groups ?? []}
+          dataSource={data?.items ?? []}
           rowKey="id"
           loading={isLoading}
-          pagination={false}
+          onChange={handleTableChange}
+          scroll={scrollY ? { y: scrollY } : undefined}
+          pagination={{
+            current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
+            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
+            total: data?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
+            showTotal: (total) => `${total} groups`,
+          }}
         />
-      </Space>
+      </div>
 
       {/* Create Modal */}
       <Modal

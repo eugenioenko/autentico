@@ -222,7 +222,7 @@ export default function UsersPage() {
     {
       title: "Groups",
       key: "groups",
-      filters: (groups ?? []).map((g) => ({ text: g.name, value: g.name })),
+      filters: (groups?.items ?? []).map((g) => ({ text: g.name, value: g.name })),
       filterMultiple: false,
       render: (_, record) => <TagOverflow items={record.groups} />,
     },

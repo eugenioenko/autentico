@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -13,16 +15,27 @@ import (
 // @Summary List all groups
 // @Tags admin-groups
 // @Produce json
+// @Param sort query string false "Sort field (name, created_at, updated_at)"
+// @Param order query string false "Sort order (asc, desc)" default(asc)
+// @Param search query string false "Search across name and description"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Security AdminAuth
-// @Success 200 {array} GroupResponse
+// @Success 200 {object} model.ListResponse[GroupResponse]
 // @Router /admin/api/groups [get]
 func HandleListGroups(w http.ResponseWriter, r *http.Request) {
-	groups, err := ListGroups()
+	params := api.ParseListParams(r)
+	params.Filters = api.ParseFilters(r, groupListConfig.AllowedFilters)
+
+	groups, total, err := ListGroupsWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	utils.SuccessResponse(w, groups, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[GroupResponse]{
+		Items: groups,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleCreateGroup godoc
