@@ -36,7 +36,7 @@ var defaults = map[string]string{
 	"require_email_verification":     "false",
 	"email_verification_expiration":  "24h",
 	"password_reset_expiration":      "1h",
-	"audit_log_retention":            "0",
+	"audit_log_retention":            "720h",
 	"smtp_host":                       "",
 	"smtp_port":                       "587",
 	"smtp_username":                   "",
