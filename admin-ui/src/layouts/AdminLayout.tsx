@@ -88,7 +88,7 @@ export default function AdminLayout() {
   const username = user?.profile?.preferred_username ?? user?.profile?.email ?? "User";
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout style={{ height: "100dvh", overflow: "hidden" }}>
       <ConfigProvider
         theme={{
           components: {
@@ -105,7 +105,7 @@ export default function AdminLayout() {
           },
         }}
       >
-        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: "#141414" }}>
+        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: "#141414", overflow: "auto" }}>
           <div
             style={{
               height: 64,
@@ -148,7 +148,7 @@ export default function AdminLayout() {
           />
         </Sider>
       </ConfigProvider>
-      <Layout>
+      <Layout style={{ overflow: "hidden" }}>
         <Header
           style={{
             padding: "0 24px",
@@ -183,7 +183,10 @@ export default function AdminLayout() {
             padding: 24,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,
-            minHeight: 280,
+            overflow: "hidden",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <Suspense fallback={null}>

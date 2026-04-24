@@ -11,14 +11,15 @@ import {
   deleteUser,
   unlockUser,
 } from "../api/users";
+import type { ListParams } from "../api/users";
 import type { UserCreateRequest, UserUpdateRequest } from "../types/user";
 
 const USERS_KEY = ["users"] as const;
 
-export function useUsers() {
+export function useUsers(params?: ListParams) {
   return useQuery({
-    queryKey: USERS_KEY,
-    queryFn: listUsers,
+    queryKey: [...USERS_KEY, params],
+    queryFn: () => listUsers(params),
   });
 }
 

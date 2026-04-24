@@ -6,8 +6,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
+
+var userListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"username": true, "email": true, "id": true,
+		"given_name": true, "family_name": true, "middle_name": true,
+		"nickname": true, "phone_number": true,
+		"created_at": true, "updated_at": true, "role": true,
+	},
+	SearchColumns: []string{
+		"username", "email", "id",
+		"given_name", "family_name", "middle_name",
+		"nickname", "phone_number",
+	},
+	AllowedFilters: map[string]bool{
+		"role": true, "is_email_verified": true, "totp_verified": true,
+	},
+	DefaultSort: "created_at",
+	MaxLimit:    api.DefaultMaxLimit,
+	TableAlias:  "users",
+}
 
 func nullStringToString(ns sql.NullString) string {
 	if ns.Valid {
@@ -17,11 +38,11 @@ func nullStringToString(ns sql.NullString) string {
 }
 
 const userSelectColumns = `
-	id, username, password, email, role, created_at, updated_at, failed_login_attempts, locked_until,
-	totp_secret, totp_verified, is_email_verified, deactivated_at, registered_at,
-	given_name, family_name, middle_name, nickname, website, gender, birthdate, profile,
-	phone_number, phone_number_verified, picture, locale, zoneinfo,
-	address_street, address_locality, address_region, address_postal_code, address_country
+	users.id, users.username, users.password, users.email, users.role, users.created_at, users.updated_at, users.failed_login_attempts, users.locked_until,
+	users.totp_secret, users.totp_verified, users.is_email_verified, users.deactivated_at, users.registered_at,
+	users.given_name, users.family_name, users.middle_name, users.nickname, users.website, users.gender, users.birthdate, users.profile,
+	users.phone_number, users.phone_number_verified, users.picture, users.locale, users.zoneinfo,
+	users.address_street, users.address_locality, users.address_region, users.address_postal_code, users.address_country
 `
 
 func scanUser(row interface {
@@ -62,6 +83,46 @@ func ListUsers() ([]*User, error) {
 		users = append(users, u)
 	}
 	return users, rows.Err()
+}
+
+func ListUsersWithParams(params api.ListParams) ([]*User, int, error) {
+	lq := api.BuildListQuery(params, userListConfig)
+
+	baseWhere := "WHERE users.deactivated_at IS NULL"
+	join := ""
+	var extraArgs []any
+
+	if groupName, ok := params.Filters["group"]; ok {
+		join = " JOIN user_groups ug ON users.id = ug.user_id JOIN groups g ON ug.group_id = g.id"
+		baseWhere += " AND g.name = ?"
+		extraArgs = append(extraArgs, groupName)
+		delete(params.Filters, "group")
+	}
+
+	allArgs := append(extraArgs, lq.Args...)
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM users" + join + " " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	query := `SELECT` + userSelectColumns + `FROM users` + join + ` ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
 }
 
 func UserByUsername(username string) (*User, error) {

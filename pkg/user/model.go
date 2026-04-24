@@ -57,6 +57,7 @@ type UserResponse struct {
 	LockedUntil         *time.Time `json:"locked_until,omitempty"`
 	IsEmailVerified     bool       `json:"is_email_verified"`
 	TotpVerified        bool       `json:"totp_verified"`
+	Groups              []string   `json:"groups,omitempty"`
 	// OIDC standard profile claims
 	GivenName           string `json:"given_name,omitempty"`
 	FamilyName          string `json:"family_name,omitempty"`

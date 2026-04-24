@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Typography,
@@ -10,29 +10,48 @@ import {
   message,
   Alert,
   Tooltip,
+  Input,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
+  StopOutlined,
   UnlockOutlined,
   TeamOutlined,
   LaptopOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { FilterValue, SorterResult } from "antd/es/table/interface";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
+import { useGroups } from "../hooks/useGroups";
+import type { ListParams } from "../api/users";
 import type { UserResponseExt } from "../types/user";
 import UserCreateForm from "../components/users/UserCreateForm";
 import UserEditForm from "../components/users/UserEditForm";
 import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
+import TagOverflow from "../components/TagOverflow";
+import { useTableScrollY } from "../hooks/useTableScrollY";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
 }
 
 export default function UsersPage() {
-  const { data: users, isLoading, error } = useUsers();
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollY = useTableScrollY(tableContainerRef);
+
+  const [listParams, setListParams] = useState<ListParams>({
+    limit: DEFAULT_PAGE_SIZE,
+    offset: 0,
+    sort: "created_at",
+    order: "desc",
+  });
+  const [searchValue, setSearchValue] = useState("");
+
+  const { data, isLoading, error } = useUsers(listParams);
+  const { data: groups } = useGroups();
   const deleteUser = useDeleteUser();
   const unlockUserMutation = useUnlockUser();
   const location = useLocation();
@@ -40,7 +59,9 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponseExt | null>(null);
   const [groupsUser, setGroupsUser] = useState<UserResponseExt | null>(null);
-  const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(null);
+  const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(
+    null
+  );
 
   useEffect(() => {
     if ((location.state as { create?: boolean })?.create) {
@@ -67,21 +88,84 @@ export default function UsersPage() {
     }
   };
 
+  const handleTableChange = useCallback(
+    (
+      pagination: TablePaginationConfig,
+      filters: Record<string, FilterValue | null>,
+      sorter: SorterResult<UserResponseExt> | SorterResult<UserResponseExt>[]
+    ) => {
+      const s = Array.isArray(sorter) ? sorter[0] : sorter;
+      const newParams: ListParams = {
+        ...listParams,
+        offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
+        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
+        sort: s.field ? String(s.field) : "created_at",
+        order: s.order === "ascend" ? "asc" : "desc",
+      };
+
+      if (filters.role?.length) {
+        newParams.role = filters.role[0] as string;
+      } else {
+        delete newParams.role;
+      }
+
+      if (filters.verified?.length) {
+        newParams.is_email_verified = filters.verified[0] as string;
+      } else {
+        delete newParams.is_email_verified;
+      }
+
+      if (filters.mfa?.length) {
+        newParams.totp_verified = filters.mfa[0] as string;
+      } else {
+        delete newParams.totp_verified;
+      }
+
+      if (filters.groups?.length) {
+        newParams.group = filters.groups[0] as string;
+      } else {
+        delete newParams.group;
+      }
+
+      setListParams(newParams);
+    },
+    [listParams]
+  );
+
+  const handleSearch = useCallback(
+    (value: string) => {
+      setListParams((prev) => ({
+        ...prev,
+        search: value || undefined,
+        offset: 0,
+      }));
+    },
+    []
+  );
+
   const columns: ColumnsType<UserResponseExt> = [
     {
       title: "Username",
       dataIndex: "username",
       key: "username",
+      sorter: true,
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
+      sorter: true,
     },
     {
       title: "Role",
       dataIndex: "role",
       key: "role",
+      sorter: true,
+      filters: [
+        { text: "Admin", value: "admin" },
+        { text: "User", value: "user" },
+      ],
+      filterMultiple: false,
       render: (role: string) => (
         <Tag color={role === "admin" ? "red" : "blue"}>{role}</Tag>
       ),
@@ -90,6 +174,11 @@ export default function UsersPage() {
       title: "MFA",
       dataIndex: "totp_verified",
       key: "mfa",
+      filters: [
+        { text: "Enrolled", value: "1" },
+        { text: "No", value: "0" },
+      ],
+      filterMultiple: false,
       render: (verified: boolean) => (
         <Tag color={verified ? "success" : "default"}>
           {verified ? "Enrolled" : "No"}
@@ -100,6 +189,11 @@ export default function UsersPage() {
       title: "Verified",
       dataIndex: "is_email_verified",
       key: "verified",
+      filters: [
+        { text: "Yes", value: "1" },
+        { text: "No", value: "0" },
+      ],
+      filterMultiple: false,
       render: (verified: boolean) => (
         <Tag color={verified ? "success" : "warning"}>
           {verified ? "Yes" : "No"}
@@ -115,10 +209,10 @@ export default function UsersPage() {
         }
         if (record.failed_login_attempts && record.failed_login_attempts > 0) {
           return (
-            <Tooltip title={`${record.failed_login_attempts} failed attempt(s)`}>
-              <Tag color="gold">
-                {record.failed_login_attempts} failed
-              </Tag>
+            <Tooltip
+              title={`${record.failed_login_attempts} failed attempt(s)`}
+            >
+              <Tag color="gold">{record.failed_login_attempts} failed</Tag>
             </Tooltip>
           );
         }
@@ -126,9 +220,17 @@ export default function UsersPage() {
       },
     },
     {
+      title: "Groups",
+      key: "groups",
+      filters: (groups ?? []).map((g) => ({ text: g.name, value: g.name })),
+      filterMultiple: false,
+      render: (_, record) => <TagOverflow items={record.groups} />,
+    },
+    {
       title: "Created",
       dataIndex: "created_at",
       key: "created_at",
+      sorter: true,
       render: (date: string) =>
         date ? new Date(date).toLocaleDateString() : "-",
     },
@@ -137,6 +239,15 @@ export default function UsersPage() {
       key: "actions",
       render: (_, record) => (
         <Space>
+          <Popconfirm
+            title="Deactivate this user?"
+            description="The user will no longer be able to log in."
+            onConfirm={() => handleDelete(record.id!)}
+            okText="Deactivate"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" size="small" danger icon={<StopOutlined />} />
+          </Popconfirm>
           <Button
             type="text"
             size="small"
@@ -169,20 +280,6 @@ export default function UsersPage() {
               />
             </Popconfirm>
           )}
-          <Popconfirm
-            title="Deactivate this user?"
-            description="The user will no longer be able to log in."
-            onConfirm={() => handleDelete(record.id!)}
-            okText="Deactivate"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
         </Space>
       ),
     },
@@ -194,11 +291,19 @@ export default function UsersPage() {
 
   return (
     <>
-      <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-        <Space style={{ justifyContent: "space-between", width: "100%" }}>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Users
-          </Typography.Title>
+      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          Users
+        </Typography.Title>
+        <Space>
+          <Input.Search
+            placeholder="Search users..."
+            allowClear
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onSearch={handleSearch}
+            style={{ width: 250 }}
+          />
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -207,15 +312,26 @@ export default function UsersPage() {
             Create User
           </Button>
         </Space>
+      </Space>
 
+      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
         <Table<UserResponseExt>
           columns={columns}
-          dataSource={users ?? []}
+          dataSource={data?.items ?? []}
           rowKey="id"
           loading={isLoading}
-          pagination={false}
+          onChange={handleTableChange}
+          scroll={scrollY ? { y: scrollY } : undefined}
+          pagination={{
+            current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
+            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
+            total: data?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
+            showTotal: (total) => `${total} users`,
+          }}
         />
-      </Space>
+      </div>
 
       <UserCreateForm
         open={createOpen}

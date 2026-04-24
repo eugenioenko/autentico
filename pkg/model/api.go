@@ -10,6 +10,11 @@ type ApiResponse[T any] struct {
 	Error *ApiError `json:"error,omitempty"`
 }
 
+type ListResponse[T any] struct {
+	Items []T `json:"items"`
+	Total int `json:"total"`
+}
+
 type AuthErrorResponse struct {
 	Error            string `json:"error,omitempty"`
 	ErrorDescription string `json:"error_description,omitempty"`

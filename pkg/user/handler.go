@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/group"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -237,22 +240,40 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users [get]
 func HandleListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := ListUsers()
+	params := api.ParseListParams(r)
+	params.Filters = api.ParseFilters(r, userListConfig.AllowedFilters)
+	if groupName := r.URL.Query().Get("group"); groupName != "" {
+		params.Filters["group"] = groupName
+	}
+
+	users, total, err := ListUsersWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	var response []UserResponse
+	userIDs := make([]string, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+	groupMap, _ := group.GroupNamesByUserIDs(userIDs)
+
+	var items []UserResponse
 	for _, u := range users {
-		response = append(response, u.ToResponse())
+		resp := u.ToResponse()
+		if names, ok := groupMap[u.ID]; ok {
+			resp.Groups = names
+		}
+		items = append(items, resp)
+	}
+	if items == nil {
+		items = []UserResponse{}
 	}
 
-	if response == nil {
-		response = []UserResponse{}
-	}
-
-	utils.SuccessResponse(w, response, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[UserResponse]{
+		Items: items,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleUnlockUser unlocks a user account after multiple failed login attempts.
