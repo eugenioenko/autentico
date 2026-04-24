@@ -11,13 +11,14 @@ import {
   deleteClient,
 } from "../api/clients";
 import type { ClientCreateRequest, ClientUpdateRequest } from "../types/client";
+import type { ListParams } from "../api/users";
 
 const CLIENTS_KEY = ["clients"] as const;
 
-export function useClients() {
+export function useClients(params?: ListParams) {
   return useQuery({
-    queryKey: CLIENTS_KEY,
-    queryFn: listClients,
+    queryKey: [...CLIENTS_KEY, params],
+    queryFn: () => listClients(params),
   });
 }
 

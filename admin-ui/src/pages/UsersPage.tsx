@@ -34,6 +34,7 @@ import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import CountTooltip from "../components/CountTooltip";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
@@ -255,15 +256,9 @@ export default function UsersPage() {
       filters: (groups?.items ?? []).map((g) => ({ text: g.name, value: g.name })),
       filterMultiple: false,
       width: 80,
-      render: (_, record) => {
-        const count = record.groups?.length ?? 0;
-        if (count === 0) return <Tag>0</Tag>;
-        return (
-          <Tooltip title={record.groups!.join(", ")}>
-            <Tag color="blue">{count}</Tag>
-          </Tooltip>
-        );
-      },
+      render: (_, record) => (
+        <CountTooltip items={record.groups ?? []} />
+      ),
     },
     {
       title: "Created",

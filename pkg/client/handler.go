@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -175,31 +177,42 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleListClients handles GET /oauth2/register (RFC 7591) and GET /admin/api/clients - lists all clients
-// @Summary List all clients
-// @Description Lists all registered clients. Also available at /oauth2/register.
+// HandleAdminListClients handles GET /admin/api/clients and GET /oauth2/register with search, sort, filter, pagination
+// @Summary List clients with pagination
+// @Description Lists clients with server-side sorting, filtering, search, and pagination.
 // @Tags admin-client
 // @Produce json
 // @Security AdminAuth
-// @Success 200 {array} ClientInfoResponse
+// @Param sort query string false "Sort field (created_at, client_name, client_id, client_type)"
+// @Param order query string false "Sort order (asc, desc)"
+// @Param search query string false "Search by client_name or client_id"
+// @Param client_type query string false "Filter by client type (confidential, public)"
+// @Param is_active query string false "Filter by active status (1, 0)"
+// @Param limit query int false "Page size (max 200)"
+// @Param offset query int false "Offset"
+// @Success 200 {object} model.ListResponse[ClientInfoResponse]
 // @Failure 500 {object} model.AuthErrorResponse
-// @Router /oauth2/register [get]
 // @Router /admin/api/clients [get]
-func HandleListClients(w http.ResponseWriter, r *http.Request) {
-	clients, err := ListClients()
+func HandleAdminListClients(w http.ResponseWriter, r *http.Request) {
+	params := api.ParseListParams(r)
+	params.Filters = api.ParseFilters(r, clientListConfig.AllowedFilters)
+	if params.Order == "" {
+		params.Order = "desc"
+	}
+
+	clients, total, err := ListClientsWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	var response []*ClientInfoResponse
+	var items []*ClientInfoResponse
 	for _, c := range clients {
-		response = append(response, c.ToInfoResponse())
+		items = append(items, c.ToInfoResponse())
+	}
+	if items == nil {
+		items = []*ClientInfoResponse{}
 	}
 
-	if response == nil {
-		response = []*ClientInfoResponse{}
-	}
-
-	utils.WriteApiResponse(w, response, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[*ClientInfoResponse]{Items: items, Total: total})
 }

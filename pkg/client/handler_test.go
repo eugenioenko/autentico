@@ -201,17 +201,23 @@ func TestHandleListClients(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/register", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/clients", nil)
 	rr := httptest.NewRecorder()
 
-	HandleListClients(rr, req)
+	HandleAdminListClients(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var response []*ClientInfoResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var body struct {
+		Data struct {
+			Items []*ClientInfoResponse `json:"items"`
+			Total int                   `json:"total"`
+		} `json:"data"`
+	}
+	err = json.Unmarshal(rr.Body.Bytes(), &body)
 	assert.NoError(t, err)
-	assert.Len(t, response, 2)
+	assert.Len(t, body.Data.Items, 2)
+	assert.Equal(t, 2, body.Data.Total)
 }
 
 func TestHandleListClientsEmpty(t *testing.T) {
@@ -221,16 +227,21 @@ func TestHandleListClientsEmpty(t *testing.T) {
 	}
 	defer db.CloseDB()
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/register", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/clients", nil)
 	rr := httptest.NewRecorder()
 
-	HandleListClients(rr, req)
+	HandleAdminListClients(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var response []*ClientInfoResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	var body struct {
+		Data struct {
+			Items []*ClientInfoResponse `json:"items"`
+			Total int                   `json:"total"`
+		} `json:"data"`
+	}
+	err = json.Unmarshal(rr.Body.Bytes(), &body)
 	assert.NoError(t, err)
-	assert.Empty(t, response)
+	assert.Empty(t, body.Data.Items)
 }
 
 func TestHandleRegisterInvalidRedirectURI(t *testing.T) {
