@@ -121,30 +121,30 @@ func TestHandleListIdpSessions(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /admin/api/idp-sessions", HandleListIdpSessions)
 
-	// List all
 	req := httptest.NewRequest("GET", "/admin/api/idp-sessions", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp model.ApiResponse[[]IdpSessionResponse]
+	var resp model.ApiResponse[model.ListResponse[IdpSessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Len(t, resp.Data, 3)
+	assert.Len(t, resp.Data.Items, 3)
+	assert.Equal(t, 3, resp.Data.Total)
 
-	// Filter by user_id
-	req = httptest.NewRequest("GET", "/admin/api/idp-sessions?user_id=user1", nil)
+	// Search by username
+	req = httptest.NewRequest("GET", "/admin/api/idp-sessions?search=user1", nil)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Len(t, resp.Data, 2)
-	for _, s := range resp.Data {
+	assert.Len(t, resp.Data.Items, 2)
+	for _, s := range resp.Data.Items {
 		assert.Equal(t, "user1", s.UserID)
 	}
 }
 
-func TestHandleListIdpSessions_IncludesUserID(t *testing.T) {
+func TestHandleListIdpSessions_IncludesUserInfo(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user1")
 
@@ -158,11 +158,13 @@ func TestHandleListIdpSessions_IncludesUserID(t *testing.T) {
 	mux.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp model.ApiResponse[[]IdpSessionResponse]
+	var resp model.ApiResponse[model.ListResponse[IdpSessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Len(t, resp.Data, 1)
-	assert.Equal(t, id, resp.Data[0].ID)
-	assert.Equal(t, "user1", resp.Data[0].UserID)
+	require.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, id, resp.Data.Items[0].ID)
+	assert.Equal(t, "user1", resp.Data.Items[0].UserID)
+	assert.Equal(t, "user_user1", resp.Data.Items[0].Username)
+	assert.Equal(t, "user1@test.com", resp.Data.Items[0].Email)
 }
 
 func TestHandleForceLogoutIdpSession(t *testing.T) {

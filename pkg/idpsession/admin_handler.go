@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -12,6 +14,8 @@ import (
 type IdpSessionResponse struct {
 	ID              string `json:"id"`
 	UserID          string `json:"user_id"`
+	Username        string `json:"username"`
+	Email           string `json:"email"`
 	UserAgent       string `json:"user_agent"`
 	IPAddress       string `json:"ip_address"`
 	LastActivityAt  string `json:"last_activity_at"`
@@ -25,6 +29,8 @@ func deviceRowsToResponse(devices []DeviceRow) []IdpSessionResponse {
 		response = append(response, IdpSessionResponse{
 			ID:              d.ID,
 			UserID:          d.UserID,
+			Username:        d.Username,
+			Email:           d.Email,
 			UserAgent:       d.UserAgent,
 			IPAddress:       d.IPAddress,
 			LastActivityAt:  d.LastActivityAt.Format(time.RFC3339),
@@ -37,23 +43,30 @@ func deviceRowsToResponse(devices []DeviceRow) []IdpSessionResponse {
 
 // HandleListIdpSessions godoc
 // @Summary List IdP (device) sessions
-// @Description Returns all active IdP sessions, optionally filtered by user ID.
+// @Description Returns all active IdP sessions with server-side sorting, search, and pagination.
 // @Tags admin-sessions
 // @Produce json
-// @Param user_id query string false "Filter by User ID"
+// @Param sort query string false "Sort field (last_activity_at, created_at)"
+// @Param order query string false "Sort order (asc, desc)" default(asc)
+// @Param search query string false "Search across username, email, and IP address"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Security AdminAuth
-// @Success 200 {array} IdpSessionResponse
+// @Success 200 {object} model.ListResponse[IdpSessionResponse]
 // @Router /admin/api/idp-sessions [get]
 func HandleListIdpSessions(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
+	params := api.ParseListParams(r)
 
-	devices, err := ListActiveDevices(userID)
+	devices, total, err := ListIdpSessionsWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	utils.SuccessResponse(w, deviceRowsToResponse(devices), http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[IdpSessionResponse]{
+		Items: deviceRowsToResponse(devices),
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleListUserIdpSessions godoc

@@ -5,8 +5,21 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
+
+var idpSessionListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"last_activity_at": true,
+		"created_at":       true,
+	},
+	SearchColumns:  []string{},
+	AllowedFilters: map[string]bool{},
+	DefaultSort:    "last_activity_at",
+	MaxLimit:       api.DefaultMaxLimit,
+	TableAlias:     "s",
+}
 
 func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	var session IdpSession
@@ -34,11 +47,13 @@ func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	return &session, nil
 }
 
-// DeviceRow is the flat projection of an IdP session used by the account-ui
-// Devices list — one row per browser/device the user is signed in on.
+// DeviceRow is the flat projection of an IdP session — one row per
+// browser/device the user is signed in on.
 type DeviceRow struct {
 	ID              string
 	UserID          string
+	Username        string
+	Email           string
 	UserAgent       string
 	IPAddress       string
 	LastActivityAt  time.Time
@@ -67,7 +82,7 @@ func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow,
 	}
 	defer func() { _ = rows.Close() }()
 
-	return scanDeviceRows(rows)
+	return scanDeviceRows(rows, false)
 }
 
 // ListActiveDevices returns every non-deactivated IdP session, optionally
@@ -102,15 +117,25 @@ func ListActiveDevices(userID string) ([]DeviceRow, error) {
 	}
 	defer func() { _ = rows.Close() }()
 
-	return scanDeviceRows(rows)
+	return scanDeviceRows(rows, false)
 }
 
-func scanDeviceRows(rows *sql.Rows) ([]DeviceRow, error) {
+func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 	var out []DeviceRow
 	for rows.Next() {
 		var r DeviceRow
 		var userAgent, ipAddress *string
-		if err := rows.Scan(&r.ID, &r.UserID, &userAgent, &ipAddress, &r.LastActivityAt, &r.CreatedAt, &r.ActiveAppsCount); err != nil {
+		var err error
+		if withUserInfo {
+			var email *string
+			err = rows.Scan(&r.ID, &r.UserID, &r.Username, &email, &userAgent, &ipAddress, &r.LastActivityAt, &r.CreatedAt, &r.ActiveAppsCount)
+			if email != nil {
+				r.Email = *email
+			}
+		} else {
+			err = rows.Scan(&r.ID, &r.UserID, &userAgent, &ipAddress, &r.LastActivityAt, &r.CreatedAt, &r.ActiveAppsCount)
+		}
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan idp session row: %w", err)
 		}
 		if userAgent != nil {
@@ -122,4 +147,39 @@ func scanDeviceRows(rows *sql.Rows) ([]DeviceRow, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func ListIdpSessionsWithParams(params api.ListParams) ([]DeviceRow, int, error) {
+	var searchWhere string
+	var searchArgs []any
+	if params.Search != "" {
+		pattern := "%" + params.Search + "%"
+		searchWhere = " AND (u.username LIKE ? OR u.email LIKE ? OR s.ip_address LIKE ?)"
+		searchArgs = []any{pattern, pattern, pattern}
+	}
+	params.Search = ""
+
+	lq := api.BuildListQuery(params, idpSessionListConfig)
+
+	baseFrom := "FROM idp_sessions s JOIN users u ON s.user_id = u.id"
+	baseWhere := "WHERE s.deactivated_at IS NULL"
+	allArgs := append(searchArgs, lq.Args...)
+
+	var total int
+	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + searchWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
+	}
+
+	query := `SELECT s.id, s.user_id, u.username, u.email, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
+		` + baseFrom + ` ` + baseWhere + searchWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	devices, err := scanDeviceRows(rows, true)
+	return devices, total, err
 }

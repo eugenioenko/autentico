@@ -464,6 +464,8 @@ definitions:
         type: integer
       created_at:
         type: string
+      email:
+        type: string
       id:
         type: string
       ip_address:
@@ -473,6 +475,8 @@ definitions:
       user_agent:
         type: string
       user_id:
+        type: string
+      username:
         type: string
     type: object
   introspect.IntrospectRequest:
@@ -570,6 +574,24 @@ definitions:
       items:
         items:
           $ref: '#/definitions/group.GroupResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  model.ListResponse-idpsession_IdpSessionResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/idpsession.IdpSessionResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  model.ListResponse-session_SessionResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/session.SessionResponse'
         type: array
       total:
         type: integer
@@ -2110,21 +2132,39 @@ paths:
       - admin-groups
   /admin/api/idp-sessions:
     get:
-      description: Returns all active IdP sessions, optionally filtered by user ID.
+      description: Returns all active IdP sessions with server-side sorting, search,
+        and pagination.
       parameters:
-      - description: Filter by User ID
+      - description: Sort field (last_activity_at, created_at)
         in: query
-        name: user_id
+        name: sort
         type: string
+      - default: asc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Search across username, email, and IP address
+        in: query
+        name: search
+        type: string
+      - default: 100
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/idpsession.IdpSessionResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-idpsession_IdpSessionResponse'
       security:
       - AdminAuth: []
       summary: List IdP (device) sessions
@@ -2152,6 +2192,46 @@ paths:
       security:
       - AdminAuth: []
       summary: Force sign-out a device (IdP session)
+      tags:
+      - admin-sessions
+  /admin/api/idp-sessions/{id}/sessions:
+    get:
+      description: Returns paginated OAuth sessions born from a specific IdP session.
+      parameters:
+      - description: IdP Session ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Sort field (created_at, expires_at)
+        in: query
+        name: sort
+        type: string
+      - default: asc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - default: 100
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ListResponse-session_SessionResponse'
+      security:
+      - AdminAuth: []
+      summary: List child OAuth sessions for an IdP session
       tags:
       - admin-sessions
   /admin/api/sessions:

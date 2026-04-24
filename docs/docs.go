@@ -1991,7 +1991,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Returns all active IdP sessions, optionally filtered by user ID.",
+                "description": "Returns all active IdP sessions with server-side sorting, search, and pagination.",
                 "produces": [
                     "application/json"
                 ],
@@ -2002,8 +2002,35 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by User ID",
-                        "name": "user_id",
+                        "description": "Sort field (last_activity_at, created_at)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search across username, email, and IP address",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
                         "in": "query"
                     }
                 ],
@@ -2011,10 +2038,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/idpsession.IdpSessionResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-idpsession_IdpSessionResponse"
                         }
                     }
                 }
@@ -2052,6 +2076,67 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/idp-sessions/{id}/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Returns paginated OAuth sessions born from a specific IdP session.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-sessions"
+                ],
+                "summary": "List child OAuth sessions for an IdP session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IdP Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort field (created_at, expires_at)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ListResponse-session_SessionResponse"
                         }
                     }
                 }
@@ -4184,6 +4269,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "email": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4197,6 +4285,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -4337,6 +4428,34 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/group.GroupResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-idpsession_IdpSessionResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/idpsession.IdpSessionResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-session_SessionResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/session.SessionResponse"
                     }
                 },
                 "total": {

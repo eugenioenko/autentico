@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -42,6 +44,45 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SuccessResponse(w, response, http.StatusOK)
+}
+
+// HandleListIdpSessionSessions godoc
+// @Summary List child OAuth sessions for an IdP session
+// @Description Returns paginated OAuth sessions born from a specific IdP session.
+// @Tags admin-sessions
+// @Produce json
+// @Param id path string true "IdP Session ID"
+// @Param sort query string false "Sort field (created_at, expires_at)"
+// @Param order query string false "Sort order (asc, desc)" default(asc)
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
+// @Security AdminAuth
+// @Success 200 {object} model.ListResponse[SessionResponse]
+// @Router /admin/api/idp-sessions/{id}/sessions [get]
+func HandleListIdpSessionSessions(w http.ResponseWriter, r *http.Request) {
+	idpSessionID := r.PathValue("id")
+	if idpSessionID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing idp session id")
+		return
+	}
+
+	params := api.ParseListParams(r)
+
+	sessions, total, err := ListOAuthSessionsByIdpSession(idpSessionID, params)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	response := make([]SessionResponse, 0, len(sessions))
+	for _, s := range sessions {
+		response = append(response, s.ToResponse())
+	}
+
+	utils.SuccessResponse(w, model.ListResponse[SessionResponse]{
+		Items: response,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleDeactivateSession godoc

@@ -25,10 +25,10 @@ const { Text } = Typography;
 
 const menuItems: any[] = [
   { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/users", icon: <UserOutlined />, label: "Users" },
   { key: "/groups", icon: <TeamOutlined />, label: "Groups" },
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
+  { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
   { key: "/deletion-requests", icon: <DeleteOutlined />, label: "Deletion Requests" },
   { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
