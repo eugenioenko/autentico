@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -14,15 +16,21 @@ import (
 // @Tags admin-groups
 // @Produce json
 // @Security AdminAuth
-// @Success 200 {array} GroupResponse
+// @Success 200 {object} model.ListResponse[GroupResponse]
 // @Router /admin/api/groups [get]
 func HandleListGroups(w http.ResponseWriter, r *http.Request) {
-	groups, err := ListGroups()
+	params := api.ParseListParams(r)
+	params.Filters = api.ParseFilters(r, groupListConfig.AllowedFilters)
+
+	groups, total, err := ListGroupsWithParams(params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	utils.SuccessResponse(w, groups, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[GroupResponse]{
+		Items: groups,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleCreateGroup godoc

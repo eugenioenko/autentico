@@ -57,7 +57,7 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
   };
 
   const memberGroupIds = new Set((userGroups ?? []).map((g) => g.id));
-  const availableGroups = (allGroups ?? []).filter((g) => !memberGroupIds.has(g.id));
+  const availableGroups = (allGroups?.items ?? []).filter((g) => !memberGroupIds.has(g.id));
 
   const columns: ColumnsType<Group> = [
     { title: "Name", dataIndex: "name", key: "name" },

@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import type { ListParams, ListResponse } from "./users";
 import type {
   Group,
   GroupCreateRequest,
@@ -8,8 +9,20 @@ import type {
 
 const BASE = "/admin/api/groups";
 
-export async function listGroups(): Promise<Group[]> {
-  const { data } = await apiClient.get<{ data: Group[] }>(BASE);
+export async function listGroups(
+  params?: ListParams
+): Promise<ListResponse<Group>> {
+  const query = new URLSearchParams();
+  if (params) {
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== "") {
+        query.set(key, String(val));
+      }
+    }
+  }
+  const qs = query.toString();
+  const url = qs ? `${BASE}?${qs}` : BASE;
+  const { data } = await apiClient.get<{ data: ListResponse<Group> }>(url);
   return data.data;
 }
 

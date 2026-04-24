@@ -5,8 +5,54 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
+
+var groupListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"name": true, "created_at": true, "updated_at": true,
+	},
+	SearchColumns: []string{"name", "description"},
+	AllowedFilters: map[string]bool{},
+	DefaultSort:   "name",
+	MaxLimit:      api.DefaultMaxLimit,
+	TableAlias:    "groups",
+}
+
+func ListGroupsWithParams(params api.ListParams) ([]GroupResponse, int, error) {
+	lq := api.BuildListQuery(params, groupListConfig)
+
+	baseWhere := "WHERE 1=1"
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM groups " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count groups: %w", err)
+	}
+
+	query := `SELECT groups.id, groups.name, groups.description, groups.created_at, groups.updated_at,
+		(SELECT COUNT(*) FROM user_groups WHERE user_groups.group_id = groups.id) AS member_count
+		FROM groups ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, lq.Args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list groups: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var groups []GroupResponse
+	for rows.Next() {
+		var g GroupResponse
+		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt, &g.MemberCount); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan group: %w", err)
+		}
+		groups = append(groups, g)
+	}
+	if groups == nil {
+		groups = []GroupResponse{}
+	}
+	return groups, total, rows.Err()
+}
 
 func ListGroups() ([]GroupResponse, error) {
 	query := `SELECT id, name, description, created_at, updated_at FROM groups ORDER BY name`

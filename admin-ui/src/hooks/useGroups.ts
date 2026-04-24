@@ -8,14 +8,15 @@ import {
   addMember,
   removeMember,
 } from "../api/groups";
+import type { ListParams } from "../api/users";
 import type { GroupCreateRequest, GroupUpdateRequest } from "../types/group";
 
 const GROUPS_KEY = ["groups"] as const;
 
-export function useGroups() {
+export function useGroups(params?: ListParams) {
   return useQuery({
-    queryKey: GROUPS_KEY,
-    queryFn: listGroups,
+    queryKey: [...GROUPS_KEY, params],
+    queryFn: () => listGroups(params),
   });
 }
 
@@ -67,6 +68,7 @@ export function useAddMember() {
       queryClient.invalidateQueries({
         queryKey: ["group-members", variables.groupId],
       });
+      queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
     },
   });
 }
@@ -80,6 +82,7 @@ export function useRemoveMember() {
       queryClient.invalidateQueries({
         queryKey: ["group-members", variables.groupId],
       });
+      queryClient.invalidateQueries({ queryKey: GROUPS_KEY });
     },
   });
 }
