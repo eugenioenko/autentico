@@ -183,20 +183,6 @@ export default function AuditLogPage() {
 
   const columns: ColumnsType<AuditLogEntry> = [
     {
-      title: "Time",
-      dataIndex: "created_at",
-      key: "created_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "created_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
       title: "Event",
       dataIndex: "event",
       key: "event",
@@ -255,6 +241,20 @@ export default function AuditLogPage() {
         ) : (
           <Text type="secondary">—</Text>
         ),
+    },
+    {
+      title: "Time",
+      dataIndex: "created_at",
+      key: "created_at",
+      width: 180,
+      sorter: true,
+      sortOrder:
+        listParams.sort === "created_at"
+          ? listParams.order === "desc"
+            ? "descend"
+            : "ascend"
+          : undefined,
+      render: formatDate,
     },
     {
       title: "",
