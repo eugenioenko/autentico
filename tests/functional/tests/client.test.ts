@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OAUTH_URL, getAdminToken, postJSON, getJSON } from '../helpers';
+import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, getJSON } from '../helpers';
 
 describe('Client registration (admin API)', () => {
   it('creates a confidential client', async () => {
@@ -52,9 +52,13 @@ describe('Client registration (admin API)', () => {
   it('lists registered clients', async () => {
     const token = await getAdminToken();
 
-    const clients = await getJSON<unknown[]>(`${OAUTH_URL}/register`, token);
+    const resp = await getJSON<{ data: { items: unknown[]; total: number } }>(
+      `${BASE_URL}/admin/api/clients`,
+      token
+    );
     // At minimum: autentico-admin, autentico-account, plus the ones we created above
-    expect(clients.length).toBeGreaterThanOrEqual(2);
+    expect(resp.data.items.length).toBeGreaterThanOrEqual(2);
+    expect(resp.data.total).toBeGreaterThanOrEqual(2);
   });
 
   it('rejects registration without auth', async () => {
