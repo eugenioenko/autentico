@@ -1095,13 +1095,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (default 100, max 200)",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Offset (default 0)",
+                        "default": 0,
+                        "description": "Number of results to skip",
                         "name": "offset",
                         "in": "query"
                     }
@@ -1164,13 +1166,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (max 200)",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Offset",
+                        "default": 0,
+                        "description": "Number of results to skip",
                         "name": "offset",
                         "in": "query"
                     }
@@ -1492,6 +1496,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
+                "description": "Lists federation providers with server-side sorting, filtering, search, and pagination.",
                 "produces": [
                     "application/json"
                 ],
@@ -1499,6 +1504,47 @@ const docTemplate = `{
                     "admin-federation"
                 ],
                 "summary": "List federation providers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort field (name, issuer, client_id, sort_order, enabled, created_at)",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc, desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name, issuer, or client_id",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by enabled status (1, 0)",
+                        "name": "enabled",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

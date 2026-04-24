@@ -20,8 +20,8 @@ import (
 // @Param order query string false "Sort order (asc, desc)" default(desc)
 // @Param created_at_from query string false "Date range start (ISO 8601)"
 // @Param created_at_to query string false "Date range end (ISO 8601)"
-// @Param limit query int false "Page size (default 100, max 200)"
-// @Param offset query int false "Offset (default 0)"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Success 200 {object} model.ListResponse[AuditLogResponse]
 // @Router /admin/api/audit-logs [get]
 func HandleListAuditLogs(w http.ResponseWriter, r *http.Request) {

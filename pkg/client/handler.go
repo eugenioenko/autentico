@@ -188,8 +188,8 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 // @Param search query string false "Search by client_name or client_id"
 // @Param client_type query string false "Filter by client type (confidential, public)"
 // @Param is_active query string false "Filter by active status (1, 0)"
-// @Param limit query int false "Page size (max 200)"
-// @Param offset query int false "Offset"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Success 200 {object} model.ListResponse[ClientInfoResponse]
 // @Failure 500 {object} model.AuthErrorResponse
 // @Router /admin/api/clients [get]

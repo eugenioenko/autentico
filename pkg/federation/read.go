@@ -24,7 +24,7 @@ var federationListConfig = api.ListConfig{
 		"enabled": true,
 	},
 	DefaultSort: "sort_order",
-	MaxLimit:    200,
+	MaxLimit:    api.DefaultMaxLimit,
 }
 
 func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProvider, int, error) {

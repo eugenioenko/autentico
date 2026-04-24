@@ -23,7 +23,7 @@ var clientListConfig = api.ListConfig{
 		"is_active":   true,
 	},
 	DefaultSort: "created_at",
-	MaxLimit:    200,
+	MaxLimit:    api.DefaultMaxLimit,
 }
 
 var clientColumns = `id, client_id, client_secret, client_name, client_type, redirect_uris,

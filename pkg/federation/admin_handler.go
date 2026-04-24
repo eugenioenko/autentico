@@ -13,8 +13,15 @@ import (
 
 // HandleListProviders godoc
 // @Summary List federation providers
+// @Description Lists federation providers with server-side sorting, filtering, search, and pagination.
 // @Tags admin-federation
 // @Produce json
+// @Param sort query string false "Sort field (name, issuer, client_id, sort_order, enabled, created_at)"
+// @Param order query string false "Sort order (asc, desc)" default(asc)
+// @Param search query string false "Search by name, issuer, or client_id"
+// @Param enabled query string false "Filter by enabled status (1, 0)"
+// @Param limit query integer false "Max results per page (1–100)" default(100)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Security AdminAuth
 // @Success 200 {object} model.ListResponse[ProviderResponse]
 // @Router /admin/api/federation [get]
