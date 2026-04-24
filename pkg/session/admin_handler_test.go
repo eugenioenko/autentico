@@ -77,7 +77,7 @@ func TestHandleDeactivateSession(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	sess, _ := SessionByID("sess1")
+	sess, _ := SessionByIDIncludingDeactivated("sess1")
 	assert.NotNil(t, sess.DeactivatedAt)
 }
 

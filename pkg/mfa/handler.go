@@ -55,7 +55,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := MfaChallengeByID(challengeID)
+	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
 	if err != nil {
 		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
 		return
@@ -129,7 +129,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := MfaChallengeByID(challengeID)
+	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
 	if err != nil {
 		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
 		return

@@ -3,7 +3,6 @@ package trusteddevice
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 )
@@ -30,13 +29,15 @@ func TrustedDevicesByUserID(userID string) ([]*TrustedDevice, error) {
 	return devices, rows.Err()
 }
 
-func TrustedDeviceByID(id string) (*TrustedDevice, error) {
+// TrustedDeviceByIDIncludingExpired returns the device regardless of expiration status.
+// Callers must check ExpiresAt to handle expired devices appropriately.
+func TrustedDeviceByIDIncludingExpired(id string) (*TrustedDevice, error) {
 	var d TrustedDevice
 	query := `
 		SELECT id, user_id, device_name, created_at, last_used_at, expires_at
-		FROM trusted_devices WHERE id = ? AND expires_at > ?
+		FROM trusted_devices WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id, time.Now().UTC())
+	row := db.GetDB().QueryRow(query, id)
 	err := row.Scan(&d.ID, &d.UserID, &d.DeviceName, &d.CreatedAt, &d.LastUsedAt, &d.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {

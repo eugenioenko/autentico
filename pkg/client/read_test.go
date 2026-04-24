@@ -101,6 +101,43 @@ func TestClientByID_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
+func TestClientByClientID_ExcludesInactive(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Deactivated App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+	})
+	assert.NoError(t, err)
+
+	err = DeleteClient(created.ClientID)
+	assert.NoError(t, err)
+
+	_, err = ClientByClientID(created.ClientID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestClientByID_ExcludesInactive(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	created, err := CreateClient(ClientCreateRequest{
+		ClientName:   "Deactivated App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+	})
+	assert.NoError(t, err)
+
+	c, err := AdminClientByClientID(created.ClientID)
+	assert.NoError(t, err)
+
+	err = DeleteClient(created.ClientID)
+	assert.NoError(t, err)
+
+	_, err = ClientByID(c.ID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
 func TestListClients_ExcludesInactive(t *testing.T) {
 	testutils.WithTestDB(t)
 

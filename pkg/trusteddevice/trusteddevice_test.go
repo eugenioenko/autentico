@@ -41,22 +41,39 @@ func TestCreateTrustedDeviceDuplicateID(t *testing.T) {
 
 // --- TrustedDeviceByID ---
 
-func TestTrustedDeviceByID(t *testing.T) {
+func TestTrustedDeviceByIDIncludingExpired(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-read-1")
 	dev := sampleDevice("dev-read-1", "user-read-1")
 	require.NoError(t, CreateTrustedDevice(dev))
 
-	got, err := TrustedDeviceByID("dev-read-1")
+	got, err := TrustedDeviceByIDIncludingExpired("dev-read-1")
 	require.NoError(t, err)
 	assert.Equal(t, dev.ID, got.ID)
 	assert.Equal(t, dev.UserID, got.UserID)
 	assert.Equal(t, dev.DeviceName, got.DeviceName)
 }
 
+func TestTrustedDeviceByIDIncludingExpired_ReturnsExpired(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-exp-read")
+	dev := TrustedDevice{
+		ID:         "dev-expired-read",
+		UserID:     "user-exp-read",
+		DeviceName: "TestBrowser",
+		ExpiresAt:  time.Now().Add(-1 * time.Hour),
+	}
+	require.NoError(t, CreateTrustedDevice(dev))
+
+	got, err := TrustedDeviceByIDIncludingExpired("dev-expired-read")
+	require.NoError(t, err)
+	assert.Equal(t, "dev-expired-read", got.ID)
+	assert.True(t, time.Now().After(got.ExpiresAt))
+}
+
 func TestTrustedDeviceByIDNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, err := TrustedDeviceByID("does-not-exist")
+	_, err := TrustedDeviceByIDIncludingExpired("does-not-exist")
 	assert.Error(t, err)
 }
 
@@ -71,7 +88,7 @@ func TestUpdateLastUsed(t *testing.T) {
 	err := UpdateLastUsed("dev-update-1")
 	require.NoError(t, err)
 
-	got, err := TrustedDeviceByID("dev-update-1")
+	got, err := TrustedDeviceByIDIncludingExpired("dev-update-1")
 	require.NoError(t, err)
 	assert.Equal(t, "dev-update-1", got.ID)
 }
@@ -191,6 +208,6 @@ func TestDeleteTrustedDevice(t *testing.T) {
 	err := DeleteTrustedDevice("dev-1")
 	assert.NoError(t, err)
 
-	_, err = TrustedDeviceByID("dev-1")
+	_, err = TrustedDeviceByIDIncludingExpired("dev-1")
 	assert.Error(t, err)
 }

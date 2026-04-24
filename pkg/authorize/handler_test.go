@@ -151,7 +151,7 @@ func TestHandleAuthorize_InactiveClient(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Client is inactive")
+	assert.Contains(t, rr.Body.String(), "Unknown client_id")
 }
 
 func TestHandleAuthorize_RedirectURINotAllowed(t *testing.T) {

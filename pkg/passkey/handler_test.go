@@ -241,7 +241,7 @@ func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 	require.NotEmpty(t, challengeID)
 
 	// The challenge must exist in DB, be of type authentication, and not yet used
-	challenge, err := PasskeyChallengeByID(challengeID)
+	challenge, err := PasskeyChallengeByIDIncludingExpired(challengeID)
 	require.NoError(t, err)
 	assert.Equal(t, "authentication", challenge.Type)
 	assert.False(t, challenge.Used)

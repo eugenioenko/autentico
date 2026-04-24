@@ -39,7 +39,7 @@ func IsDeviceTrusted(userID string, r *http.Request) bool {
 	if token == "" {
 		return false
 	}
-	device, err := TrustedDeviceByID(token)
+	device, err := TrustedDeviceByIDIncludingExpired(token)
 	if err != nil {
 		return false
 	}

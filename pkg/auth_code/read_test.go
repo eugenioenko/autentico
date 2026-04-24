@@ -2,6 +2,7 @@ package authcode
 
 import (
 	"testing"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -51,4 +52,35 @@ func TestAuthCodeByCode_WithClientID(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "code-with-client", authCode.Code)
 	assert.Equal(t, "client-123", authCode.ClientID)
+}
+
+func TestAuthCodeByCode_ExcludesExpired(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	expired := time.Now().Add(-1 * time.Hour).UTC().Format("2006-01-02 15:04:05")
+	_, err := db.GetDB().Exec(`
+		INSERT INTO auth_codes (code, user_id, redirect_uri, scope, expires_at, used, created_at)
+		VALUES ('expired-code', 'user-1', 'http://localhost/callback', 'read', ?, FALSE, DATETIME('now'))
+	`, expired)
+	assert.NoError(t, err)
+
+	_, err = AuthCodeByCode("expired-code")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestAuthCodeByCode_ExcludesUsed(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	_, err := db.GetDB().Exec(`
+		INSERT INTO auth_codes (code, user_id, redirect_uri, scope, expires_at, used, created_at)
+		VALUES ('used-code', 'user-1', 'http://localhost/callback', 'read', DATETIME('now', '+1 hour'), TRUE, DATETIME('now'))
+	`)
+	assert.NoError(t, err)
+
+	_, err = AuthCodeByCode("used-code")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }

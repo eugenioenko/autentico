@@ -24,7 +24,7 @@ func TestMarkChallengeUsed(t *testing.T) {
 	err := MarkChallengeUsed("c1")
 	assert.NoError(t, err)
 
-	retrieved, err := MfaChallengeByID("c1")
+	retrieved, err := MfaChallengeByIDIncludingExpired("c1")
 	assert.NoError(t, err)
 	assert.True(t, retrieved.Used)
 }
@@ -45,7 +45,7 @@ func TestUpdateChallengeCode(t *testing.T) {
 	err := UpdateChallengeCode("c1", "new-code")
 	assert.NoError(t, err)
 
-	retrieved, err := MfaChallengeByID("c1")
+	retrieved, err := MfaChallengeByIDIncludingExpired("c1")
 	assert.NoError(t, err)
 	assert.Equal(t, "new-code", retrieved.Code)
 }

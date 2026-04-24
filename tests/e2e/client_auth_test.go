@@ -258,7 +258,7 @@ func TestInactiveClient_Rejected(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "inactive client should be rejected at /authorize: %s", string(body))
-	assert.Contains(t, string(body), "Client is inactive")
+	assert.Contains(t, string(body), "Unknown client_id")
 }
 
 func TestClient_GrantTypeRestriction(t *testing.T) {

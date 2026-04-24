@@ -233,7 +233,7 @@ func HandleAddPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := passkey.PasskeyChallengeByID(challengeID)
+	challenge, err := passkey.PasskeyChallengeByIDIncludingExpired(challengeID)
 	if err != nil || challenge.Type != "account-registration" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid challenge")
 		return

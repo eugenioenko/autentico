@@ -4,19 +4,20 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
-func PasskeyChallengeByID(id string) (*PasskeyChallenge, error) {
+// PasskeyChallengeByIDIncludingExpired returns the challenge regardless of used/expired status.
+// Callers must check Used and ExpiresAt to provide distinct error messages to the user.
+func PasskeyChallengeByIDIncludingExpired(id string) (*PasskeyChallenge, error) {
 	var c PasskeyChallenge
 	query := `
 		SELECT id, user_id, challenge_data, type, login_state, created_at, expires_at, used
-		FROM passkey_challenges WHERE id = ? AND used = 0 AND expires_at > ?
+		FROM passkey_challenges WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id, time.Now().UTC())
+	row := db.GetDB().QueryRow(query, id)
 	err := row.Scan(
 		&c.ID,
 		&c.UserID,
