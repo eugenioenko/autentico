@@ -204,19 +204,27 @@ export default function AuditLogPage() {
       key: "actor_username",
       width: 160,
       render: (username: string) =>
-        username || <Text type="secondary">—</Text>,
+        username ? (
+          <Text copyable={{ text: username }} ellipsis>
+            {username}
+          </Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: "Target",
       key: "target",
-      width: 160,
+      width: 200,
+      ellipsis: true,
       render: (_: unknown, record: AuditLogEntry) => {
         if (!record.target_type && !record.target_id)
           return <Text type="secondary">—</Text>;
+        if (!record.target_id)
+          return <Text>{record.target_type}</Text>;
         return (
-          <Text>
-            {record.target_type}
-            {record.target_id ? `: ${record.target_id.substring(0, 12)}` : ""}
+          <Text copyable={{ text: record.target_id }} ellipsis>
+            {record.target_type}: {record.target_id}
           </Text>
         );
       },
