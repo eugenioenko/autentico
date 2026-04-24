@@ -87,16 +87,27 @@ func ListUsers() ([]*User, error) {
 func ListUsersWithParams(params api.ListParams) ([]*User, int, error) {
 	lq := api.BuildListQuery(params, userListConfig)
 
-	baseWhere := "WHERE deactivated_at IS NULL"
+	baseWhere := "WHERE users.deactivated_at IS NULL"
+	join := ""
+	var extraArgs []any
+
+	if groupName, ok := params.Filters["group"]; ok {
+		join = " JOIN user_groups ug ON users.id = ug.user_id JOIN groups g ON ug.group_id = g.id"
+		baseWhere += " AND g.name = ?"
+		extraArgs = append(extraArgs, groupName)
+		delete(params.Filters, "group")
+	}
+
+	allArgs := append(extraArgs, lq.Args...)
 
 	var total int
-	countQuery := "SELECT COUNT(*) FROM users " + baseWhere + lq.Where
-	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+	countQuery := "SELECT COUNT(*) FROM users" + join + " " + baseWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %w", err)
 	}
 
-	query := `SELECT` + userSelectColumns + `FROM users ` + baseWhere + lq.Where + lq.Order
-	rows, err := db.GetDB().Query(query, lq.Args...)
+	query := `SELECT` + userSelectColumns + `FROM users` + join + ` ` + baseWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}

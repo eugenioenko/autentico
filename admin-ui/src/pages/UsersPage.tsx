@@ -23,6 +23,7 @@ import {
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
+import { useGroups } from "../hooks/useGroups";
 import type { ListParams } from "../api/users";
 import type { UserResponseExt } from "../types/user";
 import UserCreateForm from "../components/users/UserCreateForm";
@@ -50,6 +51,7 @@ export default function UsersPage() {
   const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading, error } = useUsers(listParams);
+  const { data: groups } = useGroups();
   const deleteUser = useDeleteUser();
   const unlockUserMutation = useUnlockUser();
   const location = useLocation();
@@ -117,6 +119,12 @@ export default function UsersPage() {
         newParams.totp_verified = filters.mfa[0] as string;
       } else {
         delete newParams.totp_verified;
+      }
+
+      if (filters.groups?.length) {
+        newParams.group = filters.groups[0] as string;
+      } else {
+        delete newParams.group;
       }
 
       setListParams(newParams);
@@ -214,6 +222,8 @@ export default function UsersPage() {
     {
       title: "Groups",
       key: "groups",
+      filters: (groups ?? []).map((g) => ({ text: g.name, value: g.name })),
+      filterMultiple: false,
       render: (_, record) => <TagOverflow items={record.groups} />,
     },
     {

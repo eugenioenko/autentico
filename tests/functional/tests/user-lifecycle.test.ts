@@ -158,7 +158,7 @@ describe('User Deactivation', () => {
 
     const listResp = await getResponse(API, token);
     const body = await listResp.json();
-    const found = body.data.find((u: { username: string }) => u.username === 'deact-func3');
+    const found = body.data.items.find((u: { username: string }) => u.username === 'deact-func3');
     expect(found).toBeUndefined();
   });
 
@@ -194,7 +194,7 @@ describe('User Reactivation', () => {
     // User should appear in list again
     const listResp = await getResponse(API, token);
     const body = await listResp.json();
-    const found = body.data.find((u: { username: string }) => u.username === 'react-func1');
+    const found = body.data.items.find((u: { username: string }) => u.username === 'react-func1');
     expect(found).toBeTruthy();
   });
 
@@ -254,7 +254,7 @@ describe('User Hard Delete', () => {
 
     // Hard-delete
     const user = await getResponse(API, token).then(r => r.json()).then(body =>
-      body.data.find((u: { username: string }) => u.username === 'hd-func-intr')
+      body.data.items.find((u: { username: string }) => u.username === 'hd-func-intr')
     );
     const delResp = await deleteRequest(`${API}/${user.id}`, token);
     expect(delResp.status).toBe(204);

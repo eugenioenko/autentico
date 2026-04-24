@@ -28,7 +28,7 @@ describe('Admin Users — happy path', () => {
     expect(resp.ok).toBe(true);
 
     const body = await resp.json();
-    const users = body.data;
+    const users = body.data.items;
     expect(Array.isArray(users)).toBe(true);
     const found = users.find((u: { username: string }) => u.username === 'testuser1');
     expect(found).toBeTruthy();

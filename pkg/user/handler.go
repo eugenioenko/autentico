@@ -242,6 +242,9 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	params := api.ParseListParams(r)
 	params.Filters = api.ParseFilters(r, userListConfig.AllowedFilters)
+	if groupName := r.URL.Query().Get("group"); groupName != "" {
+		params.Filters["group"] = groupName
+	}
 
 	users, total, err := ListUsersWithParams(params)
 	if err != nil {
