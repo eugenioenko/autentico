@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { listAuditLogs, type AuditLogFilters } from "../api/audit";
+import { listAuditLogs } from "../api/audit";
+import type { ListParams } from "../api/users";
 
 const AUDIT_KEY = ["audit-logs"] as const;
 
-export function useAuditLogs(filters: AuditLogFilters) {
+export function useAuditLogs(params?: ListParams) {
   return useQuery({
-    queryKey: [...AUDIT_KEY, filters],
-    queryFn: () => listAuditLogs(filters),
+    queryKey: [...AUDIT_KEY, params],
+    queryFn: () => listAuditLogs(params),
   });
 }

@@ -149,7 +149,7 @@ func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 	return out, rows.Err()
 }
 
-func ListIdpSessionsWithParams(params api.ListParams) ([]DeviceRow, int, error) {
+func ListIdpSessionsWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]DeviceRow, int, error) {
 	var searchWhere string
 	var searchArgs []any
 	if params.Search != "" {
@@ -163,17 +163,18 @@ func ListIdpSessionsWithParams(params api.ListParams) ([]DeviceRow, int, error) 
 
 	baseFrom := "FROM idp_sessions s JOIN users u ON s.user_id = u.id"
 	baseWhere := "WHERE s.deactivated_at IS NULL"
-	allArgs := append(searchArgs, lq.Args...)
+	allArgs := append(dateArgs, searchArgs...)
+	allArgs = append(allArgs, lq.Args...)
 
 	var total int
-	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + searchWhere + lq.Where
+	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + dateWhere + searchWhere + lq.Where
 	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
 	}
 
 	query := `SELECT s.id, s.user_id, u.username, u.email, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
 		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
-		` + baseFrom + ` ` + baseWhere + searchWhere + lq.Where + lq.Order
+		` + baseFrom + ` ` + baseWhere + dateWhere + searchWhere + lq.Where + lq.Order
 	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)

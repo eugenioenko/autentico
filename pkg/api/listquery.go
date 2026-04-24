@@ -51,6 +51,27 @@ func ParseFilters(r *http.Request, allowed map[string]bool) map[string]string {
 	return filters
 }
 
+// ParseDateRange reads "{param}_from" and "{param}_to" from the query string
+// for each entry in columns (param prefix → qualified SQL column).
+// Returns a WHERE fragment (with leading " AND ") and bound args.
+func ParseDateRange(r *http.Request, columns map[string]string) (where string, args []any) {
+	var conditions []string
+	for param, col := range columns {
+		if from := r.URL.Query().Get(param + "_from"); from != "" {
+			conditions = append(conditions, col+" >= ?")
+			args = append(args, from)
+		}
+		if to := r.URL.Query().Get(param + "_to"); to != "" {
+			conditions = append(conditions, col+" <= ?")
+			args = append(args, to)
+		}
+	}
+	if len(conditions) > 0 {
+		where = " AND " + strings.Join(conditions, " AND ")
+	}
+	return
+}
+
 type ListResult struct {
 	Where string
 	Order string

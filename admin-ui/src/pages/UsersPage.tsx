@@ -11,6 +11,7 @@ import {
   Alert,
   Tooltip,
   Input,
+  DatePicker,
 } from "antd";
 import {
   PlusOutlined,
@@ -22,6 +23,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
+import type { Dayjs } from "dayjs";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
 import { useGroups } from "../hooks/useGroups";
 import type { ListParams } from "../api/users";
@@ -48,6 +50,7 @@ export default function UsersPage() {
     order: "desc",
   });
   const [searchValue, setSearchValue] = useState("");
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
 
   const { data, isLoading, error } = useUsers(listParams);
   const { data: groups } = useGroups();
@@ -138,6 +141,27 @@ export default function UsersPage() {
         search: value || undefined,
         offset: 0,
       }));
+    },
+    []
+  );
+
+  const handleDateRange = useCallback(
+    (dates: [Dayjs | null, Dayjs | null] | null) => {
+      setDateRange(dates);
+      setListParams((prev) => {
+        const next: ListParams = { ...prev, offset: 0 };
+        if (dates && dates[0]) {
+          next.created_at_from = dates[0].startOf("day").toISOString();
+        } else {
+          delete next.created_at_from;
+        }
+        if (dates && dates[1]) {
+          next.created_at_to = dates[1].endOf("day").toISOString();
+        } else {
+          delete next.created_at_to;
+        }
+        return next;
+      });
     },
     []
   );
@@ -311,6 +335,11 @@ export default function UsersPage() {
           Users
         </Typography.Title>
         <Space>
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={handleDateRange}
+            allowClear
+          />
           <Input.Search
             placeholder="Search users..."
             allowClear

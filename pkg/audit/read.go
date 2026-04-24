@@ -2,44 +2,41 @@ package audit
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-// ListAuditLogs returns a page of audit events matching the given filters,
-// plus the total count of matching rows. Results are ordered newest-first.
-func ListAuditLogs(event, actorID string, limit, offset int) ([]AuditLog, int, error) {
-	var conditions []string
-	var args []interface{}
+var auditListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"created_at": true,
+		"event":      true,
+	},
+	SearchColumns: []string{
+		"actor_username", "target_id", "ip_address", "detail",
+	},
+	AllowedFilters: map[string]bool{
+		"event": true,
+	},
+	DefaultSort: "created_at",
+	MaxLimit:    200,
+}
 
-	if event != "" {
-		conditions = append(conditions, "event = ?")
-		args = append(args, event)
-	}
-	if actorID != "" {
-		conditions = append(conditions, "actor_id = ?")
-		args = append(args, actorID)
-	}
+func ListAuditLogsWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]AuditLog, int, error) {
+	lq := api.BuildListQuery(params, auditListConfig)
 
-	where := ""
-	if len(conditions) > 0 {
-		where = " WHERE " + strings.Join(conditions, " AND ")
-	}
+	baseWhere := "WHERE 1=1"
+	allArgs := append(dateArgs, lq.Args...)
 
-	// Count total matching rows
 	var total int
-	countQuery := "SELECT COUNT(*) FROM audit_logs" + where
-	if err := db.GetDB().QueryRow(countQuery, args...).Scan(&total); err != nil {
+	countQuery := "SELECT COUNT(*) FROM audit_logs " + baseWhere + dateWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count audit logs: %w", err)
 	}
 
-	// Fetch the page
-	query := "SELECT id, event, actor_id, actor_username, target_type, target_id, detail, ip_address, created_at FROM audit_logs" +
-		where + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-	pageArgs := append(args, limit, offset)
-
-	rows, err := db.GetDB().Query(query, pageArgs...)
+	query := `SELECT id, event, actor_id, actor_username, target_type, target_id, detail, ip_address, created_at
+		FROM audit_logs ` + baseWhere + dateWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list audit logs: %w", err)
 	}

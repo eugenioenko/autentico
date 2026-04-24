@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,8 +23,26 @@ type testActor struct {
 	username string
 }
 
-func (a *testActor) GetID() string       { return a.id }
-func (a *testActor) GetUsername() string  { return a.username }
+func (a *testActor) GetID() string      { return a.id }
+func (a *testActor) GetUsername() string { return a.username }
+
+func listParams(sort, order, search string, limit, offset int) api.ListParams {
+	return api.ListParams{
+		Sort:   sort,
+		Order:  order,
+		Search: search,
+		Limit:  limit,
+		Offset: offset,
+	}
+}
+
+func listParamsWithFilter(event string, limit, offset int) api.ListParams {
+	p := api.ListParams{Limit: limit, Offset: offset}
+	if event != "" {
+		p.Filters = map[string]string{"event": event}
+	}
+	return p
+}
 
 func TestLog_Disabled(t *testing.T) {
 	testutils.WithTestDB(t)
@@ -108,17 +128,17 @@ func TestListAuditLogs_Pagination(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	logs, total, err := ListAuditLogs("", "", 2, 0)
+	logs, total, err := ListAuditLogsWithParams(listParams("", "", "", 2, 0), "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 5, total)
 	assert.Len(t, logs, 2)
 
-	logs2, total2, err := ListAuditLogs("", "", 2, 2)
+	logs2, total2, err := ListAuditLogsWithParams(listParams("", "", "", 2, 2), "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 5, total2)
 	assert.Len(t, logs2, 2)
 
-	logs3, _, err := ListAuditLogs("", "", 2, 4)
+	logs3, _, err := ListAuditLogsWithParams(listParams("", "", "", 2, 4), "", nil)
 	require.NoError(t, err)
 	assert.Len(t, logs3, 1)
 }
@@ -139,7 +159,7 @@ func TestListAuditLogs_FilterByEvent(t *testing.T) {
 		"e3", EventLoginSuccess,
 	)
 
-	logs, total, err := ListAuditLogs(string(EventLoginSuccess), "", 50, 0)
+	logs, total, err := ListAuditLogsWithParams(listParamsWithFilter(string(EventLoginSuccess), 50, 0), "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
 	assert.Len(t, logs, 2)
@@ -148,33 +168,109 @@ func TestListAuditLogs_FilterByEvent(t *testing.T) {
 	}
 }
 
-func TestListAuditLogs_FilterByActorID(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	_, _ = db.GetDB().Exec(
-		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '', '')",
-		"a1", EventLoginSuccess, "user-abc",
-	)
-	_, _ = db.GetDB().Exec(
-		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '', '')",
-		"a2", EventLoginSuccess, "user-xyz",
-	)
-
-	logs, total, err := ListAuditLogs("", "user-abc", 50, 0)
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	assert.Len(t, logs, 1)
-	assert.Equal(t, "user-abc", *logs[0].ActorID)
-}
-
 func TestListAuditLogs_Empty(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	logs, total, err := ListAuditLogs("", "", 50, 0)
+	logs, total, err := ListAuditLogsWithParams(listParams("", "", "", 50, 0), "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 	assert.Len(t, logs, 0)
 	assert.NotNil(t, logs, "should return empty slice, not nil")
+}
+
+func TestListAuditLogs_Search(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '10.0.0.1')",
+		"s1", EventLoginSuccess, "alice",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '192.168.1.1')",
+		"s2", EventLoginFailed, "bob",
+	)
+
+	logs, total, err := ListAuditLogsWithParams(listParams("", "", "alice", 50, 0), "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, logs, 1)
+	assert.Equal(t, "alice", logs[0].ActorUsername)
+
+	logs2, total2, err := ListAuditLogsWithParams(listParams("", "", "192.168", 50, 0), "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total2)
+	assert.Len(t, logs2, 1)
+	assert.Equal(t, "bob", logs2[0].ActorUsername)
+}
+
+func TestListAuditLogs_Sort(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"t1", EventLoginSuccess, "2026-01-01T00:00:00Z",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"t2", EventUserCreated, "2026-01-02T00:00:00Z",
+	)
+
+	logs, _, err := ListAuditLogsWithParams(listParams("event", "asc", "", 50, 0), "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, string(EventLoginSuccess), logs[0].Event)
+	assert.Equal(t, string(EventUserCreated), logs[1].Event)
+}
+
+func TestListAuditLogs_DateRange(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"d1", EventLoginSuccess, "2026-01-01T00:00:00Z",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"d2", EventLoginSuccess, "2026-01-15T00:00:00Z",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"d3", EventLoginSuccess, "2026-02-01T00:00:00Z",
+	)
+
+	logs, total, err := ListAuditLogsWithParams(
+		listParams("", "", "", 50, 0),
+		" AND created_at >= ? AND created_at <= ?",
+		[]any{"2026-01-10T00:00:00Z", "2026-01-20T00:00:00Z"},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, logs, 1)
+	assert.Equal(t, "d2", logs[0].ID)
+}
+
+func TestListAuditLogs_FilterByEventAndSearch(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, ?, '', '', '', '')",
+		"b1", EventLoginSuccess, "user-a", "alice",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, ?, '', '', '', '')",
+		"b2", EventLoginFailed, "user-a", "alice",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, ?, '', '', '', '')",
+		"b3", EventLoginSuccess, "user-b", "bob",
+	)
+
+	p := listParamsWithFilter(string(EventLoginSuccess), 50, 0)
+	p.Search = "alice"
+	logs, total, err := ListAuditLogsWithParams(p, "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, logs, 1)
+	assert.Equal(t, "b1", logs[0].ID)
 }
 
 // ---------- Detail ----------
@@ -187,7 +283,6 @@ func TestDetail_Pairs(t *testing.T) {
 }
 
 func TestDetail_OddArgs(t *testing.T) {
-	// Odd number of args — last key is silently dropped
 	d := Detail("key1", "val1", "orphan")
 	assert.Equal(t, "val1", d["key1"])
 	assert.Len(t, d, 1)
@@ -273,7 +368,6 @@ func TestAuditLog_ToResponse_NilActorID(t *testing.T) {
 func TestHandleListAuditLogs_DefaultPagination(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	// Insert 3 logs
 	for i := 0; i < 3; i++ {
 		_, _ = db.GetDB().Exec(
 			"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, '', '', '', '', '')",
@@ -288,15 +382,12 @@ func TestHandleListAuditLogs_DefaultPagination(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var body struct {
-		Data struct {
-			Data  []AuditLogResponse `json:"data"`
-			Total int                `json:"total"`
-		} `json:"data"`
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
 	}
 	err := json.Unmarshal(rr.Body.Bytes(), &body)
 	require.NoError(t, err)
 	assert.Equal(t, 3, body.Data.Total)
-	assert.Len(t, body.Data.Data, 3)
+	assert.Len(t, body.Data.Items, 3)
 }
 
 func TestHandleListAuditLogs_WithFilters(t *testing.T) {
@@ -311,17 +402,14 @@ func TestHandleListAuditLogs_WithFilters(t *testing.T) {
 		"f2", EventLoginFailed, "actor-2",
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/api/audit-logs?event=login_success&actor_id=actor-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/audit-logs?event=login_success", nil)
 	rr := httptest.NewRecorder()
 	HandleListAuditLogs(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var body struct {
-		Data struct {
-			Data  []AuditLogResponse `json:"data"`
-			Total int                `json:"total"`
-		} `json:"data"`
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
 	}
 	err := json.Unmarshal(rr.Body.Bytes(), &body)
 	require.NoError(t, err)
@@ -345,15 +433,12 @@ func TestHandleListAuditLogs_CustomLimitOffset(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var body struct {
-		Data struct {
-			Data  []AuditLogResponse `json:"data"`
-			Total int                `json:"total"`
-		} `json:"data"`
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
 	}
 	err := json.Unmarshal(rr.Body.Bytes(), &body)
 	require.NoError(t, err)
 	assert.Equal(t, 10, body.Data.Total)
-	assert.Len(t, body.Data.Data, 3)
+	assert.Len(t, body.Data.Items, 3)
 }
 
 func TestHandleListAuditLogs_InvalidLimitIgnored(t *testing.T) {
@@ -369,7 +454,6 @@ func TestHandleListAuditLogs_InvalidLimitIgnored(t *testing.T) {
 func TestHandleListAuditLogs_LimitExceedsMax(t *testing.T) {
 	testutils.WithTestDB(t)
 
-	// limit > 200 should be ignored (stays at default 50)
 	req := httptest.NewRequest(http.MethodGet, "/admin/api/audit-logs?limit=999", nil)
 	rr := httptest.NewRecorder()
 	HandleListAuditLogs(rr, req)
@@ -387,15 +471,64 @@ func TestHandleListAuditLogs_EmptyResult(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var body struct {
-		Data struct {
-			Data  []AuditLogResponse `json:"data"`
-			Total int                `json:"total"`
-		} `json:"data"`
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
 	}
 	err := json.Unmarshal(rr.Body.Bytes(), &body)
 	require.NoError(t, err)
 	assert.Equal(t, 0, body.Data.Total)
-	assert.Len(t, body.Data.Data, 0)
+	assert.Len(t, body.Data.Items, 0)
+}
+
+func TestHandleListAuditLogs_DateRange(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"dr1", EventLoginSuccess, "2026-01-01T00:00:00Z",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address, created_at) VALUES (?, ?, '', '', '', '', '', ?)",
+		"dr2", EventLoginSuccess, "2026-06-15T00:00:00Z",
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/audit-logs?created_at_from=2026-06-01T00:00:00Z&created_at_to=2026-07-01T00:00:00Z", nil)
+	rr := httptest.NewRecorder()
+	HandleListAuditLogs(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var body struct {
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
+	}
+	err := json.Unmarshal(rr.Body.Bytes(), &body)
+	require.NoError(t, err)
+	assert.Equal(t, 1, body.Data.Total)
+	assert.Equal(t, "dr2", body.Data.Items[0].ID)
+}
+
+func TestHandleListAuditLogs_Search(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '10.0.0.1')",
+		"sr1", EventLoginSuccess, "charlie",
+	)
+	_, _ = db.GetDB().Exec(
+		"INSERT INTO audit_logs (id, event, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '192.168.1.1')",
+		"sr2", EventLoginFailed, "dave",
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/audit-logs?search=charlie", nil)
+	rr := httptest.NewRecorder()
+	HandleListAuditLogs(rr, req)
+
+	var body struct {
+		Data model.ListResponse[AuditLogResponse] `json:"data"`
+	}
+	err := json.Unmarshal(rr.Body.Bytes(), &body)
+	require.NoError(t, err)
+	assert.Equal(t, 1, body.Data.Total)
+	assert.Equal(t, "charlie", body.Data.Items[0].ActorUsername)
 }
 
 // ---------- Log edge cases ----------
@@ -437,29 +570,4 @@ func TestLog_DBClosed(t *testing.T) {
 
 	// Should not panic, just print an error
 	Log(EventLoginSuccess, &testActor{"u1", "alice"}, TargetUser, "u1", nil, "10.0.0.1")
-}
-
-// ---------- ListAuditLogs with both filters ----------
-
-func TestListAuditLogs_FilterByEventAndActorID(t *testing.T) {
-	testutils.WithTestDB(t)
-
-	_, _ = db.GetDB().Exec(
-		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '', '')",
-		"b1", EventLoginSuccess, "user-a",
-	)
-	_, _ = db.GetDB().Exec(
-		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '', '')",
-		"b2", EventLoginFailed, "user-a",
-	)
-	_, _ = db.GetDB().Exec(
-		"INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address) VALUES (?, ?, ?, '', '', '', '', '')",
-		"b3", EventLoginSuccess, "user-b",
-	)
-
-	logs, total, err := ListAuditLogs(string(EventLoginSuccess), "user-a", 50, 0)
-	require.NoError(t, err)
-	assert.Equal(t, 1, total)
-	assert.Len(t, logs, 1)
-	assert.Equal(t, "b1", logs[0].ID)
 }

@@ -244,6 +244,8 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 // @Param is_email_verified query string false "Filter by email verification (0, 1)"
 // @Param totp_verified query string false "Filter by MFA enrollment (0, 1)"
 // @Param group query string false "Filter by group name"
+// @Param created_at_from query string false "Filter users created after (ISO 8601)"
+// @Param created_at_to query string false "Filter users created before (ISO 8601)"
 // @Security AdminAuth
 // @Success 200 {object} model.ListResponse[UserResponse]
 // @Failure 500 {object} model.ApiError
@@ -254,8 +256,11 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	if groupName := r.URL.Query().Get("group"); groupName != "" {
 		params.Filters["group"] = groupName
 	}
+	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+		"created_at": "users.created_at",
+	})
 
-	users, total, err := ListUsersWithParams(params)
+	users, total, err := ListUsersWithParams(params, dateWhere, dateArgs)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return

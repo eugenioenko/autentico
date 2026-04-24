@@ -9,8 +9,3 @@ export interface AuditLogEntry {
   ip_address: string;
   created_at: string;
 }
-
-export interface AuditLogListResponse {
-  data: AuditLogEntry[];
-  total: number;
-}
