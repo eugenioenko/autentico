@@ -177,7 +177,7 @@ func TestHandleDeleteClient(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 
-	client, err := ClientByClientID(created.ClientID)
+	client, err := ClientByClientIDIncludingDisabled(created.ClientID)
 	assert.NoError(t, err)
 	assert.False(t, client.IsActive)
 }

@@ -127,7 +127,7 @@ func TestClientByID_ExcludesInactive(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	c, err := AdminClientByClientID(created.ClientID)
+	c, err := ClientByClientIDIncludingDisabled(created.ClientID)
 	assert.NoError(t, err)
 
 	err = DeleteClient(created.ClientID)

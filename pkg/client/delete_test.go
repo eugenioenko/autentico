@@ -29,8 +29,8 @@ func TestDeleteClient(t *testing.T) {
 	err = DeleteClient(created.ClientID)
 	assert.NoError(t, err)
 
-	// Verify client is now inactive
-	client, err = ClientByClientID(created.ClientID)
+	// Verify client is now inactive (use admin read to see deactivated clients)
+	client, err = ClientByClientIDIncludingDisabled(created.ClientID)
 	assert.NoError(t, err)
 	assert.False(t, client.IsActive)
 }

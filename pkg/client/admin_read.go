@@ -7,7 +7,9 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
-func AdminClientByClientID(clientID string) (*Client, error) {
+// ClientByClientIDIncludingDisabled returns the client regardless of is_active status.
+// Used by admin endpoints that need to view or modify deactivated clients.
+func ClientByClientIDIncludingDisabled(clientID string) (*Client, error) {
 	query := `
 		SELECT
 			id, client_id, client_secret, client_name, client_type, redirect_uris,
@@ -44,7 +46,9 @@ func AdminClientByClientID(clientID string) (*Client, error) {
 	return &c, nil
 }
 
-func AdminClientByID(id string) (*Client, error) {
+// ClientByIDIncludingDisabled returns the client regardless of is_active status.
+// Used by admin endpoints that need to view or modify deactivated clients.
+func ClientByIDIncludingDisabled(id string) (*Client, error) {
 	query := `
 		SELECT
 			id, client_id, client_secret, client_name, client_type, redirect_uris,

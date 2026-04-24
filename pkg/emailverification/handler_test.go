@@ -234,7 +234,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
 	codeStr := locURL.Query().Get("code")
 	require.NotEmpty(t, codeStr)
 
-	ac, err := authcode.AuthCodeByCode(codeStr)
+	ac, err := authcode.AuthCodeByCodeIncludingUsed(codeStr)
 	require.NoError(t, err)
 	assert.NotEmpty(t, ac.IdpSessionID, "auth code should have IdpSessionID set")
 
@@ -288,7 +288,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoDisabled(t *testing.T) {
 	codeStr := locURL.Query().Get("code")
 	require.NotEmpty(t, codeStr)
 
-	ac, err := authcode.AuthCodeByCode(codeStr)
+	ac, err := authcode.AuthCodeByCodeIncludingUsed(codeStr)
 	require.NoError(t, err)
 	assert.NotEmpty(t, ac.IdpSessionID, "auth code should have IdpSessionID even when SSO idle timeout is 0")
 

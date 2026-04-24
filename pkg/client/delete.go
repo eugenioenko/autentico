@@ -10,7 +10,7 @@ import (
 // DeleteClient performs a soft delete by setting is_active to false
 func DeleteClient(clientID string) error {
 	// First, verify the client exists
-	_, err := AdminClientByClientID(clientID)
+	_, err := ClientByClientIDIncludingDisabled(clientID)
 	if err != nil {
 		return err
 	}

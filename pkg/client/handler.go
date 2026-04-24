@@ -80,7 +80,7 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := AdminClientByClientID(clientID)
+	c, err := ClientByClientIDIncludingDisabled(clientID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
 		return
@@ -141,7 +141,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
-	updated, _ := AdminClientByClientID(clientID)
+	updated, _ := ClientByClientIDIncludingDisabled(clientID)
 	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
 }
 
