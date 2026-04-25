@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "antd";
+import { App, ConfigProvider, theme } from "antd";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 
@@ -20,9 +21,19 @@ const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
 const queryClient = new QueryClient();
 
-export default function AppRoot() {
+function ThemedApp() {
+  const { mode } = useTheme();
   return (
-    <QueryClientProvider client={queryClient}>
+    <ConfigProvider
+      theme={{
+        algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        ...(mode === "dark" && {
+          components: {
+            Layout: { bodyBg: "#0f0f0f" },
+          },
+        }),
+      }}
+    >
       <App>
         <BrowserRouter basename="/admin">
           <AuthProvider>
@@ -46,6 +57,16 @@ export default function AppRoot() {
           </AuthProvider>
         </BrowserRouter>
       </App>
+    </ConfigProvider>
+  );
+}
+
+export default function AppRoot() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

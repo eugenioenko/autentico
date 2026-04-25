@@ -72,6 +72,25 @@ account-ui-build:
 	rm -rf pkg/account/dist
 	cp -r account-ui/dist pkg/account/dist
 
+# Fast build: skip tsc type-checking in UI builds
+fast: admin-ui-build-fast account-ui-build-fast
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
+	@echo ""
+	@echo "Fast build complete. Binary: ./$(APP_NAME)"
+	@echo ""
+
+# Build admin UI (fast, no tsc) and copy to pkg/admin/dist
+admin-ui-build-fast:
+	cd admin-ui && pnpm install && pnpm run build:fast
+	rm -rf pkg/admin/dist
+	cp -r admin-ui/dist pkg/admin/dist
+
+# Build account UI (fast, no tsc) and copy to pkg/account/dist
+account-ui-build-fast:
+	cd account-ui && pnpm install && pnpm run build:fast
+	rm -rf pkg/account/dist
+	cp -r account-ui/dist pkg/account/dist
+
 docker-build:
 	docker build -t autentico:tag .
 

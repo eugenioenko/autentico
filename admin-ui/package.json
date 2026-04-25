@@ -6,27 +6,28 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:fast": "vite build",
     "preview": "vite preview",
     "generate-types": "swagger2openapi ../docs/swagger.json -o /tmp/openapi3.json && openapi-typescript /tmp/openapi3.json -o src/types/api.d.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
-    "@tanstack/react-query": "^5.96.1",
-    "antd": "^5.22.0",
-    "axios": "^1.14.0",
+    "@tanstack/react-query": "^5.100.1",
+    "antd": "^6.3.6",
+    "axios": "^1.15.2",
     "dayjs": "^1.11.20",
     "oidc-client-ts": "^3.5.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^6.28.0"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.14.2"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.0.1",
     "openapi-typescript": "^7.13.0",
     "swagger2openapi": "^7.0.8",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.0"
+    "typescript": "~6.0.3",
+    "vite": "^8.0.10"
   }
 }
