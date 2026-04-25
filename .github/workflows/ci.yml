@@ -49,12 +49,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.23.0
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install pnpm
-        run: npm install -g pnpm
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            admin-ui/pnpm-lock.yaml
+            account-ui/pnpm-lock.yaml
       - name: Build binary (includes admin + account UIs)
         run: make build
       - name: Upload binary
@@ -110,12 +114,14 @@ jobs:
           name: autentico-binary
       - name: Make binary executable
         run: chmod +x autentico
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install pnpm
-        run: npm install -g pnpm
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: tests/functional/pnpm-lock.yaml
       - name: Install dependencies
         working-directory: tests/functional
         run: pnpm install
@@ -138,9 +144,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install pnpm
-        run: npm install -g pnpm
+          node-version: 22
       - name: Install browser test dependencies
         working-directory: tests/browser
         run: npm install
