@@ -10,6 +10,7 @@ import {
   Collapse,
   Switch,
   Typography,
+  Alert,
   App,
 } from "antd";
 import { PlusOutlined, MinusCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
@@ -68,6 +69,7 @@ export default function ClientEditForm({
     if (client && open) {
       form.setFieldsValue({
         client_name: client.client_name,
+        is_active: client.is_active,
         redirect_uris: client.redirect_uris,
         post_logout_redirect_uris: client.post_logout_redirect_uris ?? [],
         grant_types: client.grant_types,
@@ -136,6 +138,30 @@ export default function ClientEditForm({
           tooltip={{ title: tip("client_id"), icon: <ExclamationCircleOutlined /> }}
         >
           <Input value={client?.client_id} disabled />
+        </Form.Item>
+
+        <Form.Item
+          name="is_active"
+          label="Status"
+          valuePropName="checked"
+        >
+          <Switch
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+          />
+        </Form.Item>
+
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.is_active !== cur.is_active}>
+          {() =>
+            !form.getFieldValue("is_active") && (
+              <Alert
+                type="warning"
+                message="This client is disabled and will not be able to authenticate."
+                showIcon
+                style={{ marginBottom: 24 }}
+              />
+            )
+          }
         </Form.Item>
 
         <Form.List name="redirect_uris">
