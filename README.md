@@ -346,7 +346,8 @@ These live in the `settings` database table and are loaded into memory at startu
 | `mfa_method`                     | `totp` \| `email`                                      | `totp`           |
 | `trust_device_enabled`           | Allow users to bypass MFA on trusted devices           | `false`          |
 | `trust_device_expiration`        | Trusted device token lifetime                          | `720h` (30 days) |
-| `sso_session_idle_timeout`       | IdP session idle timeout (`0` = disabled)              | `0`              |
+| `sso_session_idle_timeout`       | IdP session idle timeout (`0` = disabled)              | `4h`             |
+| `sso_session_max_age`            | Absolute max session lifetime (`0` = disabled)         | `720h` (30 days) |
 | `allow_self_signup`              | Allow end users to register their own accounts         | `false`          |
 | `account_lockout_max_attempts`   | Failed logins before account lock                      | `5`              |
 | `account_lockout_duration`       | How long the account stays locked                      | `15m`            |

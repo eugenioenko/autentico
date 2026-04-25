@@ -71,6 +71,8 @@ type Config struct {
 	AuthSsoEnabled                     bool
 	AuthSsoSessionIdleTimeout          time.Duration
 	AuthSsoSessionIdleTimeoutStr       string
+	AuthSsoSessionMaxAge               time.Duration
+	AuthSsoSessionMaxAgeStr            string
 	AuthAccountLockoutMaxAttempts      int
 	AuthAccountLockoutDuration         time.Duration
 	AuthAccountLockoutDurationStr      string
@@ -145,6 +147,8 @@ var defaultConfig = Config{
 	AuthSsoEnabled:                     true,
 	AuthSsoSessionIdleTimeout:          4 * time.Hour,
 	AuthSsoSessionIdleTimeoutStr:       "4h",
+	AuthSsoSessionMaxAge:               30 * 24 * time.Hour,
+	AuthSsoSessionMaxAgeStr:            "720h",
 	AuthAccountLockoutMaxAttempts:      5,
 	AuthAccountLockoutDuration:         15 * time.Minute,
 	AuthAccountLockoutDurationStr:      "15m",

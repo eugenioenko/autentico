@@ -16,6 +16,7 @@ func Run(retention time.Duration) {
 	threshold := time.Now().Add(-retention)
 
 	deactivateIdleIdpSessions()
+	deactivateExpiredMaxAgeIdpSessions()
 
 	queries := []struct {
 		table string
@@ -71,6 +72,21 @@ func deactivateIdleIdpSessions() {
 	}
 	if n > 0 {
 		slog.Info("cleanup: deactivated idle idp_sessions", "count", n)
+	}
+}
+
+func deactivateExpiredMaxAgeIdpSessions() {
+	maxAge := config.Get().AuthSsoSessionMaxAge
+	if maxAge <= 0 {
+		return
+	}
+	n, err := idpsession.DeactivateExpiredMaxAge(maxAge)
+	if err != nil {
+		slog.Error("cleanup: failed to deactivate expired max-age idp_sessions", "error", err)
+		return
+	}
+	if n > 0 {
+		slog.Info("cleanup: deactivated expired max-age idp_sessions", "count", n)
 	}
 }
 

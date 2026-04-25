@@ -25,6 +25,7 @@ On a new authorization request:
 |---|---|---|
 | `sso_enabled` | `true` | Enable SSO auto-login. When disabled, users must log in on every request. Device sessions are still tracked |
 | `sso_session_idle_timeout` | `4h` | If the user has no activity for this long, the session expires. `0` for no idle expiration |
+| `sso_session_max_age` | `720h` | Absolute maximum session lifetime regardless of activity. `0` for no limit |
 
 Uses Go duration format for timeouts: `24h`, `168h`, `720h`, etc.
 
@@ -42,7 +43,7 @@ Sessions are stored in the `sessions` table with the following fields:
 | `ip_address` | Client IP at login time |
 | `last_activity_at` | Updated on each authorization request (used for idle timeout) |
 | `created_at` | Session creation time |
-| `expires_at` | Absolute expiry (not yet enforced — reserved for future `sso_session_max_age` setting) |
+| `expires_at` | Absolute expiry |
 | `deactivated_at` | Set when the session is explicitly logged out |
 
 ## Logout

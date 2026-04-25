@@ -172,7 +172,8 @@ All values are stored as strings. Durations use Go format: `15m`, `1h`, `720h`.
 
 | Setting | Default | Description |
 |---|---|---|
-| `sso_session_idle_timeout` | `0` | IdP session idle timeout. `0` disables. |
+| `sso_session_idle_timeout` | `4h` | IdP session idle timeout. `0` disables. |
+| `sso_session_max_age` | `720h` | Absolute max session lifetime. `0` disables. |
 
 #### Account Security
 

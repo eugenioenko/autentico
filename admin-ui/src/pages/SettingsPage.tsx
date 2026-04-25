@@ -56,6 +56,7 @@ const tip = makeTip({
   email_verification_expiration: "How long a verification link remains valid (e.g. 24h, 48h).",
   sso_enabled: "Enable Single Sign-On. When enabled, returning users with an active session are automatically re-authorized without entering credentials.",
   sso_session_idle_timeout: "Duration of inactivity before SSO session expires (e.g. 30m, 24h). 0 for no idle expiration.",
+  sso_session_max_age: "Absolute maximum lifetime for SSO sessions, regardless of activity (e.g. 720h for 30 days). 0 for no limit.",
   trust_device_enabled: "Allow users to trust their current device for MFA.",
   trust_device_expiration: "How long a device remains trusted (e.g. 720h).",
   validation_min_username_length: "Minimum length for usernames.",
@@ -388,7 +389,14 @@ export default function SettingsPage() {
                     name="sso_session_idle_timeout"
                     tooltip={{ title: tip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="30m" />
+                    <Input placeholder="4h" />
+                  </Form.Item>
+                  <Form.Item
+                    label="SSO Session Max Age"
+                    name="sso_session_max_age"
+                    tooltip={{ title: tip("sso_session_max_age"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="720h" />
                   </Form.Item>
 
                   <Form.Item

@@ -18,6 +18,7 @@ var defaults = map[string]string{
 	"allow_self_signup":              "false",
 	"sso_enabled":                   "true",
 	"sso_session_idle_timeout":       "4h",
+	"sso_session_max_age":            "720h",
 	"validation_min_username_length": "4",
 	"validation_max_username_length": "64",
 	"validation_min_password_length": "6",
@@ -116,6 +117,10 @@ func LoadIntoConfig() error {
 	if v, ok := all["sso_session_idle_timeout"]; ok {
 		cfg.AuthSsoSessionIdleTimeoutStr = v
 		cfg.AuthSsoSessionIdleTimeout = config.ParseDuration(v, 0)
+	}
+	if v, ok := all["sso_session_max_age"]; ok {
+		cfg.AuthSsoSessionMaxAgeStr = v
+		cfg.AuthSsoSessionMaxAge = config.ParseDuration(v, 0)
 	}
 	if v, ok := all["validation_min_username_length"]; ok {
 		if n, err := strconv.Atoi(v); err == nil {

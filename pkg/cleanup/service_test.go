@@ -296,6 +296,81 @@ func TestRun_IdleSweepDisabledWhenIdleTimeoutZero(t *testing.T) {
 	assert.Nil(t, deactivatedAt, "idle sweep must be a no-op when idle timeout is zero")
 }
 
+func TestRun_DeactivatesExpiredMaxAgeIdpSessions(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
+	prevMaxAge := config.Values.AuthSsoSessionMaxAge
+	config.Values.AuthSsoSessionIdleTimeout = 0
+	config.Values.AuthSsoSessionMaxAge = 1 * time.Hour
+	t.Cleanup(func() {
+		config.Values.AuthSsoSessionIdleTimeout = prevIdle
+		config.Values.AuthSsoSessionMaxAge = prevMaxAge
+	})
+
+	expired := xid.New().String()
+	fresh := xid.New().String()
+
+	// Created 2h ago — beyond 1h max age.
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, created_at, last_activity_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		expired, "user-1", "agent", "127.0.0.1",
+		time.Now().Add(-2*time.Hour), time.Now(),
+	)
+	require.NoError(t, err)
+
+	// Created just now — within max age.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address)
+		 VALUES (?, ?, ?, ?)`,
+		fresh, "user-1", "agent", "127.0.0.1",
+	)
+	require.NoError(t, err)
+
+	Run(7 * 24 * time.Hour)
+
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, expired,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.NotNil(t, deactivatedAt, "session past max age must be deactivated")
+
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, fresh,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.Nil(t, deactivatedAt, "fresh session must remain active")
+}
+
+func TestRun_MaxAgeSweepDisabledWhenZero(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prevMaxAge := config.Values.AuthSsoSessionMaxAge
+	config.Values.AuthSsoSessionMaxAge = 0
+	t.Cleanup(func() { config.Values.AuthSsoSessionMaxAge = prevMaxAge })
+
+	id := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		id, "user-1", "agent", "127.0.0.1", time.Now().Add(-90*24*time.Hour),
+	)
+	require.NoError(t, err)
+
+	Run(7 * 24 * time.Hour)
+
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, id,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	assert.Nil(t, deactivatedAt, "max age sweep must be a no-op when max age is zero")
+}
+
 func TestRun_EmptyTablesNoError(t *testing.T) {
 	testutils.WithTestDB(t)
 	// Should not panic or error on empty tables
