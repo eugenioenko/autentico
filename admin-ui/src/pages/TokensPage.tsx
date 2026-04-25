@@ -20,6 +20,7 @@ import type { Dayjs } from "dayjs";
 import { useTokens, useRevokeToken } from "../hooks/useTokens";
 import type { ListParams } from "../api/users";
 import type { AdminTokenResponse } from "../types/token";
+import GrantChips from "../components/GrantChips";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 
@@ -59,7 +60,7 @@ function TokenDetailDrawer({
             {token.email || "—"}
           </Descriptions.Item>
           <Descriptions.Item label="Grant Type">
-            {token.grant_type}
+            <GrantChips grants={[token.grant_type]} />
           </Descriptions.Item>
           <Descriptions.Item label="Scope">
             {token.scope || "—"}
@@ -194,10 +195,11 @@ export default function TokensPage() {
         ),
     },
     {
-      title: "Grant Type",
+      title: "Grant",
       dataIndex: "grant_type",
       key: "grant_type",
-      width: 150,
+      width: 100,
+      render: (grant: string) => <GrantChips grants={[grant]} />,
     },
     {
       title: "Status",
