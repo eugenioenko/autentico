@@ -149,7 +149,7 @@ func TestAuthorize_RendersLoginPage(t *testing.T) {
 
 	doc := string(body)
 	assert.Contains(t, doc, "http://localhost:3000/callback")
-	assert.Contains(t, doc, "<body id=\"autentico\">")
+	assert.Contains(t, doc, "<body>")
 }
 
 func TestAuthorize_InvalidRequest(t *testing.T) {
