@@ -10,26 +10,37 @@ import (
 // RevokeOtherUserAccess revokes all tokens and sessions for a user except
 // those associated with the given access token. Used after password change
 // so the session that initiated the change remains valid.
+//
+// All UPDATEs run inside a single transaction so the three tables never
+// disagree about which sessions are alive.
 func RevokeOtherUserAccess(userID, currentAccessToken string) error {
-	d := db.GetDB()
+	tx, err := db.GetDB().Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	now := time.Now()
 
-	if _, err := d.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`, now, userID, currentAccessToken); err != nil {
+	if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`, now, userID, currentAccessToken); err != nil {
 		return fmt.Errorf("failed to revoke tokens: %v", err)
 	}
 
-	if _, err := d.Exec(`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`, userID, currentAccessToken); err != nil {
+	if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`, now, userID, currentAccessToken); err != nil {
 		return fmt.Errorf("failed to deactivate sessions: %v", err)
 	}
 
 	// Deactivate IdP sessions that have no remaining active OAuth sessions
-	if _, err := d.Exec(`UPDATE idp_sessions SET deactivated_at = CURRENT_TIMESTAMP
+	if _, err := tx.Exec(`UPDATE idp_sessions SET deactivated_at = ?
 		WHERE user_id = ? AND deactivated_at IS NULL
 		AND id NOT IN (SELECT DISTINCT idp_session_id FROM sessions WHERE user_id = ? AND deactivated_at IS NULL AND idp_session_id IS NOT NULL)`,
-		userID, userID); err != nil {
+		now, userID, userID); err != nil {
 		return fmt.Errorf("failed to deactivate idp sessions: %v", err)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
 	return nil
 }
 
