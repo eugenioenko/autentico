@@ -9,6 +9,7 @@ import (
 
 const DefaultMaxLimit = 100
 const AbsoluteMaxLimit = 1000
+const MaxSearchLength = 200
 
 type ListParams struct {
 	Sort    string
@@ -33,10 +34,15 @@ func ParseListParams(r *http.Request) ListParams {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
 
+	search := strings.TrimSpace(q.Get("search"))
+	if len(search) > MaxSearchLength {
+		search = search[:MaxSearchLength]
+	}
+
 	return ListParams{
 		Sort:   q.Get("sort"),
 		Order:  q.Get("order"),
-		Search: strings.TrimSpace(q.Get("search")),
+		Search: search,
 		Limit:  limit,
 		Offset: offset,
 	}
