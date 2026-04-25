@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,7 +68,7 @@ func TestListEndpoints_MaliciousQueryParams(t *testing.T) {
 		{"limit_zero", "limit=0"},
 
 		// Long search truncation (our MaxSearchLength code)
-		{"long_search", "search=" + strings.Repeat("A", 50000)},
+		{"long_search", "search=" + strings.Repeat("A", api.MaxSearchLength+1)},
 
 		// Filter allowlist enforcement (our code)
 		{"sqli_filter_unknown", "password=secret&admin=true"},
@@ -286,7 +287,7 @@ func TestListEndpoints_GroupFilterBypass(t *testing.T) {
 		{"sqli_drop", "x'; DROP TABLE users;--"},
 		{"sqli_subquery", "x' AND 1=(SELECT COUNT(*) FROM users)--"},
 		{"empty", ""},
-		{"long_value", strings.Repeat("G", 10000)},
+		{"long_value", strings.Repeat("G", api.MaxSearchLength+1)},
 		{"null_byte", "group\x00injected"},
 		{"wildcard", "%"},
 	}
@@ -314,7 +315,7 @@ func TestListEndpoints_SessionsUserIDInjection(t *testing.T) {
 		{"sqli_union", "x' UNION SELECT * FROM tokens--"},
 		{"sqli_drop", "'; DROP TABLE sessions;--"},
 		{"sqli_subquery", "' AND 1=(SELECT COUNT(*) FROM users)--"},
-		{"long_id", strings.Repeat("A", 50000)},
+		{"long_id", strings.Repeat("A", api.MaxSearchLength+1)},
 		{"null_byte", "user\x00id"},
 		{"empty", ""},
 		{"wildcard", "%"},
