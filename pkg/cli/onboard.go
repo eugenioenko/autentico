@@ -26,11 +26,7 @@ func RunOnboard(c *cli.Context) error {
 	}
 	defer db.CloseDB()
 
-	if c.Bool("auto-migrate") {
-		if err := migrations.Run(db.GetDB(), true); err != nil {
-			return err
-		}
-	} else if err := migrations.Check(db.GetDB()); err != nil {
+	if err := migrations.Run(db.GetDB(), true); err != nil {
 		return err
 	}
 
