@@ -14,7 +14,6 @@ const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const CorsPage = lazy(() => import("./pages/CorsPage"));
 const FederationPage = lazy(() => import("./pages/FederationPage"));
-const DeletionRequestsPage = lazy(() => import("./pages/DeletionRequestsPage"));
 const GroupsPage = lazy(() => import("./pages/GroupsPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
@@ -38,7 +37,6 @@ export default function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="cors" element={<CorsPage />} />
                 <Route path="federation" element={<FederationPage />} />
-                <Route path="deletion-requests" element={<DeletionRequestsPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
               </Route>
             </Route>
