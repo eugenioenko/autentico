@@ -181,7 +181,7 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 
 	// Revoke all other sessions — a password change invalidates all sessions
 	// except the one that initiated the change.
-	if err := user.RevokeOtherUserAccess(usr.ID, v.Token); err != nil {
+	if err := user.RevokeAllUserAccess(usr.ID, v.Token); err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

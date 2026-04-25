@@ -175,7 +175,7 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 
 	// Invalidate all sessions/tokens after MFA is disabled so that
 	// any compromised session cannot persist silently.
-	_ = user.RevokeAllUserAccess(usr.ID)
+	_ = user.RevokeAllUserAccess(usr.ID, "")
 
 	audit.Log(audit.EventMfaDisabled, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "MFA disabled"}, http.StatusOK)
