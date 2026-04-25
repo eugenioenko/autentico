@@ -13,26 +13,28 @@ import (
 // Run deletes expired records older than the retention threshold from all
 // transient tables. It is safe to call concurrently and is idempotent.
 func Run(retention time.Duration) {
-	threshold := time.Now().Add(-retention)
-
 	deactivateIdleIdpSessions()
 	deactivateExpiredMaxAgeIdpSessions()
+	deleteExpiredTransientRows(time.Now().Add(-retention))
+	deleteExpiredAuditLogs()
+}
 
-	queries := []struct {
-		table string
-		sql   string
-	}{
-		{"auth_codes", `DELETE FROM auth_codes WHERE expires_at < ?`},
-		{"mfa_challenges", `DELETE FROM mfa_challenges WHERE expires_at < ?`},
-		{"passkey_challenges", `DELETE FROM passkey_challenges WHERE expires_at < ?`},
-		{"trusted_devices", `DELETE FROM trusted_devices WHERE expires_at < ?`},
-		{"tokens", `DELETE FROM tokens WHERE refresh_token_expires_at < ?`},
-		{"sessions", `DELETE FROM sessions WHERE expires_at < ?`},
-		{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
-		{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
-	}
+var transientTables = []struct {
+	table string
+	sql   string
+}{
+	{"auth_codes", `DELETE FROM auth_codes WHERE expires_at < ?`},
+	{"mfa_challenges", `DELETE FROM mfa_challenges WHERE expires_at < ?`},
+	{"passkey_challenges", `DELETE FROM passkey_challenges WHERE expires_at < ?`},
+	{"trusted_devices", `DELETE FROM trusted_devices WHERE expires_at < ?`},
+	{"tokens", `DELETE FROM tokens WHERE refresh_token_expires_at < ?`},
+	{"sessions", `DELETE FROM sessions WHERE expires_at < ?`},
+	{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
+	{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
+}
 
-	for _, q := range queries {
+func deleteExpiredTransientRows(threshold time.Time) {
+	for _, q := range transientTables {
 		res, err := db.GetDB().Exec(q.sql, threshold)
 		if err != nil {
 			slog.Error("cleanup: failed to clean table", "table", q.table, "error", err)
@@ -43,20 +45,24 @@ func Run(retention time.Duration) {
 			slog.Info("cleanup: deleted expired rows", "table", q.table, "count", n)
 		}
 	}
+}
 
-	// Audit log cleanup uses its own retention setting.
-	// "0"/empty = disabled, "-1" = keep forever, otherwise parse as duration.
-	auditRetention := config.Get().AuditLogRetentionStr
-	if auditRetention != "" && auditRetention != "0" && auditRetention != "-1" {
-		if d, err := time.ParseDuration(auditRetention); err == nil {
-			auditThreshold := time.Now().Add(-d)
-			res, err := db.GetDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, auditThreshold)
-			if err != nil {
-				slog.Error("cleanup: failed to clean table", "table", "audit_logs", "error", err)
-			} else if n, _ := res.RowsAffected(); n > 0 {
-				slog.Info("cleanup: deleted expired rows", "table", "audit_logs", "count", n)
-			}
-		}
+func deleteExpiredAuditLogs() {
+	retention := config.Get().AuditLogRetentionStr
+	if retention == "" || retention == "0" || retention == "-1" {
+		return
+	}
+	d, err := time.ParseDuration(retention)
+	if err != nil {
+		return
+	}
+	res, err := db.GetDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, time.Now().Add(-d))
+	if err != nil {
+		slog.Error("cleanup: failed to clean table", "table", "audit_logs", "error", err)
+		return
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		slog.Info("cleanup: deleted expired rows", "table", "audit_logs", "count", n)
 	}
 }
 
