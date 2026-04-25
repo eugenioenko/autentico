@@ -1,8 +1,8 @@
 # Autentico — OAuth 2.0 / OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-76.8%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-1250-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-72.7%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-1644-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
@@ -12,7 +12,7 @@ Identity infrastructure is typically complex to operate: a separate database to 
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
-**Correctness is verified through 880+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
+**Correctness is verified through 1600+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
 
 ---
 
