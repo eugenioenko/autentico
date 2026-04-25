@@ -207,20 +207,6 @@ export default function TokensPage() {
       render: statusTag,
     },
     {
-      title: "Issued At",
-      dataIndex: "issued_at",
-      key: "issued_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "issued_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
       title: "Expires",
       dataIndex: "access_token_expires_at",
       key: "access_token_expires_at",
@@ -228,6 +214,20 @@ export default function TokensPage() {
       sorter: true,
       sortOrder:
         listParams.sort === "access_token_expires_at"
+          ? listParams.order === "desc"
+            ? "descend"
+            : "ascend"
+          : undefined,
+      render: formatDate,
+    },
+    {
+      title: "Issued At",
+      dataIndex: "issued_at",
+      key: "issued_at",
+      width: 180,
+      sorter: true,
+      sortOrder:
+        listParams.sort === "issued_at"
           ? listParams.order === "desc"
             ? "descend"
             : "ascend"
