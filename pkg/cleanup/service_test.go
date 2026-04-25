@@ -188,6 +188,88 @@ func TestRun_DeactivatesIdleIdpSessions(t *testing.T) {
 	assert.Nil(t, deactivatedAt, "fresh session must remain active")
 }
 
+func TestRun_DeactivatesIdleIdpSessions_CascadesToChildSessionsAndTokens(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prev := config.Values.AuthSsoSessionIdleTimeout
+	config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
+	t.Cleanup(func() { config.Values.AuthSsoSessionIdleTimeout = prev })
+
+	idleID := xid.New().String()
+
+	// Create an IdP session that is idle (last activity 2h ago, well beyond 30m timeout).
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, last_activity_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		idleID, "user-1", "agent", "127.0.0.1", time.Now().Add(-2*time.Hour),
+	)
+	require.NoError(t, err)
+
+	// Child OAuth sessions linked to the idle IdP session.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		"sess-child-1", "user-1", "at-child-1", "rt-child-1", time.Now().Add(time.Hour), idleID,
+	)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		"sess-child-2", "user-1", "at-child-2", "rt-child-2", time.Now().Add(time.Hour), idleID,
+	)
+	require.NoError(t, err)
+
+	// Tokens for those child sessions.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-child-1", "user-1", "at-child-1", "rt-child-1", "Bearer",
+		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
+		time.Now(), "openid", "authorization_code",
+	)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-child-2", "user-1", "at-child-2", "rt-child-2", "Bearer",
+		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
+		time.Now(), "openid", "authorization_code",
+	)
+	require.NoError(t, err)
+
+	// Large retention so the hard-delete pass doesn't remove the deactivated row.
+	Run(7 * 24 * time.Hour)
+
+	// IdP session must be deactivated.
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, idleID,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	require.NotNil(t, deactivatedAt, "idle IdP session must be deactivated")
+
+	// Child sessions must also be deactivated.
+	for _, sid := range []string{"sess-child-1", "sess-child-2"} {
+		var da *time.Time
+		require.NoError(t, db.GetDB().QueryRow(
+			`SELECT deactivated_at FROM sessions WHERE id = ?`, sid,
+		).Scan(&da))
+		assert.NotNil(t, da, "child session %s must be deactivated after idle cascade", sid)
+	}
+
+	// Child tokens must be revoked.
+	for _, tid := range []string{"tok-child-1", "tok-child-2"} {
+		var ra *time.Time
+		require.NoError(t, db.GetDB().QueryRow(
+			`SELECT revoked_at FROM tokens WHERE id = ?`, tid,
+		).Scan(&ra))
+		assert.NotNil(t, ra, "child token %s must be revoked after idle cascade", tid)
+	}
+}
+
 func TestRun_IdleSweepDisabledWhenIdleTimeoutZero(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 )
 
 // Run deletes expired records older than the retention threshold from all
@@ -68,17 +69,34 @@ func deactivateIdleIdpSessions() {
 		return
 	}
 	idleThreshold := time.Now().Add(-idle)
-	res, err := db.GetDB().Exec(
-		`UPDATE idp_sessions
-		    SET deactivated_at = CURRENT_TIMESTAMP
+	rows, err := db.GetDB().Query(
+		`SELECT id FROM idp_sessions
 		  WHERE deactivated_at IS NULL
 		    AND last_activity_at < ?`, idleThreshold)
 	if err != nil {
-		slog.Error("cleanup: failed to deactivate idle idp_sessions", "error", err)
+		slog.Error("cleanup: failed to query idle idp_sessions", "error", err)
 		return
 	}
-	if n, _ := res.RowsAffected(); n > 0 {
-		slog.Info("cleanup: deactivated idle idp_sessions", "count", n)
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			slog.Error("cleanup: failed to scan idle idp_session id", "error", err)
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	for _, id := range ids {
+		if err := idpsession.DeactivateWithCascade(id); err != nil {
+			slog.Error("cleanup: failed to cascade-deactivate idle idp_session", "id", id, "error", err)
+			continue
+		}
+	}
+	if len(ids) > 0 {
+		slog.Info("cleanup: deactivated idle idp_sessions", "count", len(ids))
 	}
 }
 
