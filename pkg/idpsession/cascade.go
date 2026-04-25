@@ -24,6 +24,22 @@ func DeactivateIdle(timeout time.Duration) (int, error) {
 	return len(ids), nil
 }
 
+// DeactivateExpiredMaxAge finds all active IdP sessions created before
+// time.Now()-maxAge and cascade-deactivates each one. Returns the count.
+func DeactivateExpiredMaxAge(maxAge time.Duration) (int, error) {
+	ids, err := getExpiredMaxAgeSessionIDs(time.Now().Add(-maxAge))
+	if err != nil {
+		return 0, fmt.Errorf("idpsession: %w", err)
+	}
+
+	for _, id := range ids {
+		if err := DeactivateWithCascade(id); err != nil {
+			return 0, fmt.Errorf("idpsession: cascade-deactivate %s: %w", id, err)
+		}
+	}
+	return len(ids), nil
+}
+
 // DeactivateWithCascade deactivates an IdP (SSO) session and every OAuth
 // session + token that was born from it, atomically.
 //

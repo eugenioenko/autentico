@@ -118,6 +118,13 @@ Default: `4h`
 
 IdP session idle timeout. Users who return within the timeout window are automatically re-authorized without entering credentials. `0` means sessions never expire from inactivity (infinite idle timeout).
 
+### `sso_session_max_age`
+Default: `720h`
+
+Absolute maximum lifetime for IdP sessions, regardless of activity. Once a session exceeds this age since creation, the user must re-authenticate. `0` means no maximum age (sessions live indefinitely as long as they remain within the idle timeout). Both `sso_session_idle_timeout` and `sso_session_max_age` must pass for a session to be valid.
+
+The session cookie's `Expires` attribute is set to match this value at login time. Changing the setting does not update cookies already issued — increasing it will not extend existing sessions, and decreasing it relies on the server-side check to reject sessions whose cookie has not yet expired.
+
 ---
 
 ## Account security

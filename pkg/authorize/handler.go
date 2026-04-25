@@ -254,6 +254,11 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest)
 		return ""
 	}
 
+	withinMaxAge := cfg.AuthSsoSessionMaxAge == 0 || time.Since(session.CreatedAt) < cfg.AuthSsoSessionMaxAge
+	if !withinMaxAge {
+		return ""
+	}
+
 	maxAgeSecs := parseMaxAge(request.MaxAge)
 	if maxAgeSecs >= 0 && time.Since(session.CreatedAt) > time.Duration(maxAgeSecs)*time.Second {
 		return ""

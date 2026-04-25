@@ -22,6 +22,7 @@ var durationSettings = map[string][]string{
 	"refresh_token_expiration":      nil,
 	"authorization_code_expiration": nil,
 	"sso_session_idle_timeout":      {"", "0"},
+	"sso_session_max_age":           {"", "0"},
 	"account_lockout_duration":      nil,
 	"trust_device_expiration":       nil,
 	"cleanup_interval":              nil,

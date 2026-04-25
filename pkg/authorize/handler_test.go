@@ -850,3 +850,87 @@ func TestRedirectWithError_ErrorDescriptionEncoded(t *testing.T) {
 	// State value must round-trip correctly through encoding.
 	assert.Equal(t, "my state", parsed.Query().Get("state"), "state must decode back to its original value")
 }
+
+func TestHandleAuthorize_AutoLogin_SessionMaxAge_Expired(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+		config.Values.AuthSsoSessionMaxAge = 1 * time.Hour
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+	})
+
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-ma-1', 'maxageuser', 'ma@test.com', 'hashed')`)
+	require.NoError(t, err)
+
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: "idp-ma-expired", UserID: "user-ma-1", UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
+	// Backdate created_at to 2 hours ago (beyond 1h max age), but keep last_activity recent
+	_, err = db.GetDB().Exec(`UPDATE idp_sessions SET created_at = datetime('now', '-2 hours') WHERE id = 'idp-ma-expired'`)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-ma-expired"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "session past max age must show login form")
+	assert.Contains(t, rr.Body.String(), "form")
+}
+
+func TestHandleAuthorize_AutoLogin_SessionMaxAge_Valid(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 24 * time.Hour
+		config.Values.AuthSsoSessionMaxAge = 24 * time.Hour
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+	})
+
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-ma-2', 'maxageuser2', 'ma2@test.com', 'hashed')`)
+	require.NoError(t, err)
+
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: "idp-ma-valid", UserID: "user-ma-2", UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-ma-valid"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code, "session within max age must auto-login")
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
+}
+
+func TestHandleAuthorize_AutoLogin_SessionMaxAge_ZeroMeansInfinite(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthSsoSessionIdleTimeout = 0
+		config.Values.AuthSsoSessionMaxAge = 0
+		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
+	})
+
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES ('user-ma-3', 'maxageuser3', 'ma3@test.com', 'hashed')`)
+	require.NoError(t, err)
+
+	require.NoError(t, idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID: "idp-ma-infinite", UserID: "user-ma-3", UserAgent: "ua", IPAddress: "127.0.0.1",
+	}))
+	// Backdate to 90 days ago — should still work with 0 (infinite)
+	_, err = db.GetDB().Exec(`UPDATE idp_sessions SET created_at = datetime('now', '-90 days') WHERE id = 'idp-ma-infinite'`)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=xyz&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
+	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-ma-infinite"})
+	rr := httptest.NewRecorder()
+
+	HandleAuthorize(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code, "max age 0 means infinite — should auto-login")
+	assert.Contains(t, rr.Header().Get("Location"), "code=")
+}

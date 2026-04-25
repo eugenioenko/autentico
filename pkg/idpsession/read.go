@@ -149,6 +149,27 @@ func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 	return out, rows.Err()
 }
 
+func getExpiredMaxAgeSessionIDs(createdBefore time.Time) ([]string, error) {
+	rows, err := db.GetDB().Query(
+		`SELECT id FROM idp_sessions
+		  WHERE deactivated_at IS NULL
+		    AND created_at < ?`, createdBefore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query expired max-age idp_sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan expired max-age idp_session id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func getIdleSessionIDs(idleThreshold time.Time) ([]string, error) {
 	rows, err := db.GetDB().Query(
 		`SELECT id FROM idp_sessions
