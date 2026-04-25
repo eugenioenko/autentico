@@ -529,7 +529,7 @@ Keycloak-compatible aliases are available:
 Open /onboard to create the admin account, or use the headless CLI:
 
 ```bash
-./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
+./autentico onboard --username admin --password "$ADMIN_PASSWORD"
 ```
 
 Place behind a reverse proxy (nginx, Caddy) for TLS.

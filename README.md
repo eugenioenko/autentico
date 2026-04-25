@@ -243,7 +243,7 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 ./autentico init
 
 # Create the first admin account (or use the browser at /onboard after starting)
-./autentico onboard --username admin --password yourpassword --email admin@example.com --auto-migrate
+./autentico onboard --username admin --password yourpassword --email admin@example.com
 
 # Start the server
 ./autentico start
@@ -787,7 +787,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 
 ```bash
 ./autentico init --url https://auth.example.com
-./autentico onboard --username admin --password "$ADMIN_PASSWORD" --auto-migrate
+./autentico onboard --username admin --password "$ADMIN_PASSWORD"
 ./autentico start
 ```
 
