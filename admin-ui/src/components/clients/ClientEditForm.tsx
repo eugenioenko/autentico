@@ -10,6 +10,7 @@ import {
   Collapse,
   Switch,
   Typography,
+  Alert,
   App,
 } from "antd";
 import { PlusOutlined, MinusCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
@@ -60,7 +61,7 @@ export default function ClientEditForm({
   client,
   onClose,
 }: ClientEditFormProps) {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateClient = useUpdateClient();
 
@@ -147,18 +148,20 @@ export default function ClientEditForm({
           <Switch
             checkedChildren="Active"
             unCheckedChildren="Inactive"
-            onChange={(checked) => {
-              if (!checked) {
-                modal.confirm({
-                  title: "Deactivate this client?",
-                  content: "The client will no longer be able to authenticate.",
-                  okText: "Deactivate",
-                  okButtonProps: { danger: true },
-                  onCancel: () => form.setFieldValue("is_active", true),
-                });
-              }
-            }}
           />
+        </Form.Item>
+
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.is_active !== cur.is_active}>
+          {() =>
+            !form.getFieldValue("is_active") && (
+              <Alert
+                type="warning"
+                message="This client is disabled and will not be able to authenticate."
+                showIcon
+                style={{ marginBottom: 24 }}
+              />
+            )
+          }
         </Form.Item>
 
         <Form.List name="redirect_uris">
