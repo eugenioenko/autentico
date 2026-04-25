@@ -2,6 +2,7 @@ package idpsession
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 )
@@ -14,14 +15,18 @@ const rootCookiePath = "/"
 
 func SetCookie(w http.ResponseWriter, sessionID string) {
 	bs := config.GetBootstrap()
-	http.SetCookie(w, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     bs.AuthIdpSessionCookieName,
 		Value:    sessionID,
 		Path:     rootCookiePath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
+	if maxAge := config.Get().AuthSsoSessionMaxAge; maxAge > 0 {
+		cookie.Expires = time.Now().Add(maxAge)
+	}
+	http.SetCookie(w, cookie)
 }
 
 func ReadCookie(r *http.Request) string {

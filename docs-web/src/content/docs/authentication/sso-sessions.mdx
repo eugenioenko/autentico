@@ -29,6 +29,8 @@ On a new authorization request:
 
 Uses Go duration format for timeouts: `24h`, `168h`, `720h`, etc.
 
+The session cookie's `Expires` attribute is set to `sso_session_max_age` at login time. Changing this setting does not retroactively update existing cookies — increasing the value will not extend sessions already issued, and decreasing it relies on the server-side check to reject sessions that outlive the new limit.
+
 The idle timeout can be overridden per-client, so different clients can have stricter session requirements. See [Per-Client Overrides](/configuration/per-client-overrides/).
 
 ## Session storage
