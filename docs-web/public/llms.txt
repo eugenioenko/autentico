@@ -269,6 +269,7 @@ Each accepts: `hidden`, `optional`, or `required`. `profile_field_email` also ac
 | `theme_logo_url` | _(empty)_ | Logo URL for login page. |
 | `theme_css_inline` | _(empty)_ | Inline CSS injected into login pages. |
 | `theme_css_file` | _(empty)_ | Path to runtime-loaded CSS file. |
+| `footer_links` | `[]` | JSON array of `{label, url}` links for login/signup footer. |
 
 ### Per-Client Overrides
 

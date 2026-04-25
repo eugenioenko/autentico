@@ -154,6 +154,77 @@ func TestLoginTemplateFederationIconRegression(t *testing.T) {
 	assert.NotContains(t, anchor, "<svg", "federation button must not contain an inline <svg>")
 }
 
+func TestFooterLinksRendering(t *testing.T) {
+	prev := config.Values.FooterLinks
+	t.Cleanup(func() { config.Values.FooterLinks = prev })
+
+	config.Bootstrap.AppOAuthPath = "/oauth2"
+
+	t.Run("renders links when configured", func(t *testing.T) {
+		config.Values.FooterLinks = []config.FooterLink{
+			{Label: "Terms", URL: "https://example.com/terms"},
+			{Label: "Privacy", URL: "https://example.com/privacy"},
+		}
+
+		tmpl, err := ParseTemplate("error")
+		assert.NoError(t, err)
+
+		var buf bytes.Buffer
+		err = tmpl.ExecuteTemplate(&buf, "layout", map[string]any{
+			"ThemeTitle":   "T",
+			"ThemeLogoUrl": "",
+			"Error":        "test",
+		})
+		assert.NoError(t, err)
+		out := buf.String()
+
+		assert.Contains(t, out, `href="https://example.com/terms"`)
+		assert.Contains(t, out, `>Terms</a>`)
+		assert.Contains(t, out, `href="https://example.com/privacy"`)
+		assert.Contains(t, out, `>Privacy</a>`)
+		assert.Contains(t, out, `rel="noopener noreferrer"`)
+	})
+
+	t.Run("empty footer when no links", func(t *testing.T) {
+		config.Values.FooterLinks = nil
+
+		tmpl, err := ParseTemplate("error")
+		assert.NoError(t, err)
+
+		var buf bytes.Buffer
+		err = tmpl.ExecuteTemplate(&buf, "layout", map[string]any{
+			"ThemeTitle":   "T",
+			"ThemeLogoUrl": "",
+			"Error":        "test",
+		})
+		assert.NoError(t, err)
+		out := buf.String()
+
+		assert.Contains(t, out, "<footer></footer>")
+	})
+
+	t.Run("XSS in label is escaped", func(t *testing.T) {
+		config.Values.FooterLinks = []config.FooterLink{
+			{Label: "<script>alert(1)</script>", URL: "https://example.com"},
+		}
+
+		tmpl, err := ParseTemplate("error")
+		assert.NoError(t, err)
+
+		var buf bytes.Buffer
+		err = tmpl.ExecuteTemplate(&buf, "layout", map[string]any{
+			"ThemeTitle":   "T",
+			"ThemeLogoUrl": "",
+			"Error":        "test",
+		})
+		assert.NoError(t, err)
+		out := buf.String()
+
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.Contains(t, out, "&lt;script&gt;")
+	})
+}
+
 func TestThemeCSSHandler(t *testing.T) {
 	prev := config.Values.ThemeCssResolved
 	t.Cleanup(func() { config.Values.ThemeCssResolved = prev })

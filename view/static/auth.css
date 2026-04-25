@@ -102,8 +102,14 @@ button {
 
 /* ── Layout ─────────────────────────────────────────────── */
 
-.auth-page {
+#autentico {
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
+}
+
+.auth-page {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -389,6 +395,25 @@ button {
   border: 1px solid color-mix(in oklab, var(--color-fg) 10%, transparent);
   text-align: center;
   color: var(--color-fg);
+}
+
+footer {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 1rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+footer a {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
 }
 
 #bg-canvas {
