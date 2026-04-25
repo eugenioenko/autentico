@@ -1386,14 +1386,68 @@ const docTemplate = `{
                     "admin-deletion"
                 ],
                 "summary": "List all pending deletion requests",
+                "parameters": [
+                    {
+                        "enum": [
+                            "requested_at",
+                            "username",
+                            "email"
+                        ],
+                        "type": "string",
+                        "default": "requested_at",
+                        "description": "Sort by field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by username, email, or reason",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter: requested at or after (ISO 8601)",
+                        "name": "requested_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter: requested at or before (ISO 8601)",
+                        "name": "requested_at_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Max results per page (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of results to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/deletion.DeletionRequestResponse"
-                            }
+                            "$ref": "#/definitions/model.ListResponse-deletion_DeletionRequestResponse"
                         }
                     },
                     "500": {
@@ -4210,6 +4264,9 @@ const docTemplate = `{
         "deletion.DeletionRequestResponse": {
             "type": "object",
             "properties": {
+                "email": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4220,6 +4277,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -4542,6 +4602,20 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/client.ClientInfoResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ListResponse-deletion_DeletionRequestResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/deletion.DeletionRequestResponse"
                     }
                 },
                 "total": {

@@ -18,6 +18,8 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import ThemeToggle from "../components/ThemeToggle";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -48,6 +50,7 @@ const menuItems: any[] = [
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
+  const { mode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const {
@@ -84,6 +87,7 @@ export default function AdminLayout() {
   ];
 
   const username = user?.profile?.preferred_username ?? user?.profile?.email ?? "User";
+  const siderBg = mode === "dark" ? "#1a1a1a" : "#141414";
 
   return (
     <Layout style={{ height: "100dvh", overflow: "hidden" }}>
@@ -91,8 +95,8 @@ export default function AdminLayout() {
         theme={{
           components: {
             Menu: {
-              darkItemBg: "#141414",
-              darkSubMenuItemBg: "#141414",
+              darkItemBg: siderBg,
+              darkSubMenuItemBg: siderBg,
               darkItemSelectedBg: "rgba(255, 255, 255, 0.1)",
               darkItemSelectedColor: "#ffffff",
               darkItemColor: "rgba(255, 255, 255, 0.55)",
@@ -103,7 +107,7 @@ export default function AdminLayout() {
           },
         }}
       >
-        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: "#141414", overflow: "auto" }}>
+        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: siderBg, overflow: "auto" }}>
           <div
             style={{
               height: 64,
@@ -162,6 +166,7 @@ export default function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <ThemeToggle />
             <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
               <div data-testid="user-menu" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <Avatar
