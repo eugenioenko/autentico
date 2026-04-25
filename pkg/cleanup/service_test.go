@@ -345,6 +345,93 @@ func TestRun_DeactivatesExpiredMaxAgeIdpSessions(t *testing.T) {
 	assert.Nil(t, deactivatedAt, "fresh session must remain active")
 }
 
+func TestRun_DeactivatesExpiredMaxAgeIdpSessions_CascadesToChildSessionsAndTokens(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	prevIdle := config.Values.AuthSsoSessionIdleTimeout
+	prevMaxAge := config.Values.AuthSsoSessionMaxAge
+	config.Values.AuthSsoSessionIdleTimeout = 0
+	config.Values.AuthSsoSessionMaxAge = 1 * time.Hour
+	t.Cleanup(func() {
+		config.Values.AuthSsoSessionIdleTimeout = prevIdle
+		config.Values.AuthSsoSessionMaxAge = prevMaxAge
+	})
+
+	expiredID := xid.New().String()
+
+	// IdP session created 2h ago — beyond 1h max age, but recently active.
+	_, err := db.GetDB().Exec(
+		`INSERT INTO idp_sessions (id, user_id, user_agent, ip_address, created_at, last_activity_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		expiredID, "user-1", "agent", "127.0.0.1",
+		time.Now().Add(-2*time.Hour), time.Now(),
+	)
+	require.NoError(t, err)
+
+	// Child OAuth sessions.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		"sess-ma-1", "user-1", "at-ma-1", "rt-ma-1", time.Now().Add(time.Hour), expiredID,
+	)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		"sess-ma-2", "user-1", "at-ma-2", "rt-ma-2", time.Now().Add(time.Hour), expiredID,
+	)
+	require.NoError(t, err)
+
+	// Tokens for those sessions.
+	_, err = db.GetDB().Exec(
+		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-ma-1", "user-1", "at-ma-1", "rt-ma-1", "Bearer",
+		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
+		time.Now(), "openid", "authorization_code",
+	)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-ma-2", "user-1", "at-ma-2", "rt-ma-2", "Bearer",
+		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
+		time.Now(), "openid", "authorization_code",
+	)
+	require.NoError(t, err)
+
+	Run(7 * 24 * time.Hour)
+
+	// IdP session must be deactivated.
+	var deactivatedAt *time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT deactivated_at FROM idp_sessions WHERE id = ?`, expiredID,
+	).Scan(&deactivatedAt)
+	require.NoError(t, err)
+	require.NotNil(t, deactivatedAt, "session past max age must be deactivated")
+
+	// Child sessions must also be deactivated.
+	for _, sid := range []string{"sess-ma-1", "sess-ma-2"} {
+		var da *time.Time
+		require.NoError(t, db.GetDB().QueryRow(
+			`SELECT deactivated_at FROM sessions WHERE id = ?`, sid,
+		).Scan(&da))
+		assert.NotNil(t, da, "child session %s must be deactivated after max-age cascade", sid)
+	}
+
+	// Child tokens must be revoked.
+	for _, tid := range []string{"tok-ma-1", "tok-ma-2"} {
+		var ra *time.Time
+		require.NoError(t, db.GetDB().QueryRow(
+			`SELECT revoked_at FROM tokens WHERE id = ?`, tid,
+		).Scan(&ra))
+		assert.NotNil(t, ra, "child token %s must be revoked after max-age cascade", tid)
+	}
+}
+
 func TestRun_MaxAgeSweepDisabledWhenZero(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
