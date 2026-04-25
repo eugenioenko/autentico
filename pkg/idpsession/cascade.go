@@ -11,23 +11,9 @@ import (
 // than the given timeout and cascade-deactivates each one (IdP session + child
 // OAuth sessions + tokens). Returns the number of sessions deactivated.
 func DeactivateIdle(timeout time.Duration) (int, error) {
-	idleThreshold := time.Now().Add(-timeout)
-	rows, err := db.GetDB().Query(
-		`SELECT id FROM idp_sessions
-		  WHERE deactivated_at IS NULL
-		    AND last_activity_at < ?`, idleThreshold)
+	ids, err := IdleSessionIDs(time.Now().Add(-timeout))
 	if err != nil {
-		return 0, fmt.Errorf("idpsession: query idle sessions: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return 0, fmt.Errorf("idpsession: scan idle session id: %w", err)
-		}
-		ids = append(ids, id)
+		return 0, fmt.Errorf("idpsession: %w", err)
 	}
 
 	for _, id := range ids {

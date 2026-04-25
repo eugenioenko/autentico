@@ -149,6 +149,29 @@ func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 	return out, rows.Err()
 }
 
+// IdleSessionIDs returns the IDs of all active IdP sessions whose last
+// activity is older than idleThreshold.
+func IdleSessionIDs(idleThreshold time.Time) ([]string, error) {
+	rows, err := db.GetDB().Query(
+		`SELECT id FROM idp_sessions
+		  WHERE deactivated_at IS NULL
+		    AND last_activity_at < ?`, idleThreshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query idle idp_sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan idle idp_session id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func ListIdpSessionsWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]DeviceRow, int, error) {
 	var searchWhere string
 	var searchArgs []any
