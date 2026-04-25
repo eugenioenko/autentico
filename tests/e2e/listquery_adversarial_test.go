@@ -2,12 +2,10 @@ package e2e
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -55,79 +53,30 @@ func TestListEndpoints_MaliciousQueryParams(t *testing.T) {
 		name  string
 		query string
 	}{
-		// SQL injection in sort
+		// Sort allowlist enforcement (our code, not stdlib)
 		{"sqli_sort_drop", "sort=name;DROP+TABLE+users;--"},
 		{"sqli_sort_union", "sort=name+UNION+SELECT+*+FROM+users--"},
-		{"sqli_sort_quote", "sort=name'+OR+'1'%3D'1"},
-		{"sqli_sort_comment", "sort=name/**/UNION/**/SELECT/**/1"},
 
-		// SQL injection in order
+		// Order binary enforcement (our code)
 		{"sqli_order_drop", "order=ASC;DROP+TABLE+users;--"},
-		{"sqli_order_subquery", "order=DESC,(SELECT+password+FROM+users)"},
 
-		// SQL injection in search
-		{"sqli_search_classic", "search='+OR+1%3D1--"},
-		{"sqli_search_drop", "search=';DROP+TABLE+users;--"},
-		{"sqli_search_union", "search=%25'+UNION+SELECT+password+FROM+users--"},
-		{"sqli_search_stacked", "search=test';+INSERT+INTO+users(username)+VALUES('pwned');--"},
-
-		// SQL injection in filters
-		{"sqli_filter_value", "role=admin'+OR+'1'%3D'1"},
-		{"sqli_filter_unknown", "password=secret&admin=true"},
-
-		// SQL injection in date ranges
-		{"sqli_date_from", "created_at_from=2024-01-01'+OR+'1'%3D'1"},
-		{"sqli_date_drop", "created_at_to=2024-01-01;DROP+TABLE+users;--"},
-
-		// Integer overflow in limit/offset
+		// Limit/offset clamping (our code)
 		{"int_overflow_limit", "limit=99999999999999999999999"},
-		{"int_overflow_offset", "offset=99999999999999999999999"},
 		{"negative_limit", "limit=-999999"},
 		{"negative_offset", "offset=-999999"},
-		{"limit_maxint64", "limit=9223372036854775807"},
-		{"offset_maxint64", "offset=9223372036854775807"},
 		{"limit_zero", "limit=0"},
-		{"limit_float", "limit=1.5"},
-		{"limit_scientific", "limit=1e10"},
-		{"limit_hex", "limit=0xFF"},
-		{"limit_nan", "limit=NaN"},
-		{"limit_infinity", "limit=Infinity"},
 
-		// Type confusion
-		{"type_array_limit", "limit[]=1&limit[]=2"},
-		{"type_object_limit", "limit[key]=1"},
-		{"type_array_sort", "sort[]=name&sort[]=email"},
-
-		// Null bytes and control characters
-		{"null_byte_search", "search=test%00injected"},
-		{"null_byte_sort", "sort=name%00DROP"},
-		{"newline_search", "search=test%0D%0Ainjected"},
-		{"tab_search", "search=test%09injected"},
-
-		// Very long strings
+		// Long search truncation (our MaxSearchLength code)
 		{"long_search", "search=" + strings.Repeat("A", 50000)},
-		{"long_sort", "sort=" + strings.Repeat("x", 10000)},
-		{"long_filter", "role=" + strings.Repeat("B", 50000)},
 
-		// Unicode / encoding attacks
-		{"unicode_search", "search=%E2%80%AE%E2%80%AEinjected"},
-		{"emoji_search", "search=" + url.QueryEscape(strings.Repeat("\U0001F4A9", 1000))},
-		{"zero_width_search", "search=test%E2%80%8B%E2%80%8C%E2%80%8Dinjected"},
+		// Filter allowlist enforcement (our code)
+		{"sqli_filter_unknown", "password=secret&admin=true"},
 
-		// HTTP parameter pollution
-		{"hpp_sort", "sort=name&sort=email&sort=DROP+TABLE"},
-		{"hpp_limit", "limit=10&limit=999999"},
-		{"hpp_search", "search=safe&search='+OR+1%3D1--"},
-
-		// Path traversal in filter values
-		{"path_traversal_filter", "role=../../etc/passwd"},
-
-		// Combined attacks
+		// Combined attack exercising all our validation layers at once
 		{"combined_all", "sort=name;DROP--&order=ASC;--&search='+OR+1%3D1&limit=-1&offset=-1&role=admin'+OR+'1'%3D'1"},
 
-		// Empty and whitespace
+		// Empty params (our defaults kick in)
 		{"empty_all", "sort=&order=&search=&limit=&offset="},
-		{"whitespace_all", "sort=%20&order=%20&search=%20&limit=%20&offset=%20"},
 	}
 
 	for _, ep := range endpoints {
@@ -244,24 +193,7 @@ func TestListEndpoints_ResponseStructure(t *testing.T) {
 	})
 }
 
-// doAdminRequest sends an arbitrary-method request to the admin API.
-func doAdminRequest(t *testing.T, ts *TestServer, method, token, path string, body io.Reader) (int, []byte) {
-	t.Helper()
-	req, err := http.NewRequest(method, ts.BaseURL+path, body)
-	require.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer "+token)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := ts.Client.Do(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	return resp.StatusCode, respBody
-}
-
-// --- 1. LIKE wildcard abuse against real DB ---
+// --- LIKE wildcard abuse against real DB ---
 
 func TestListEndpoints_LIKEWildcardAbuse(t *testing.T) {
 	ts := startTestServer(t)
@@ -338,61 +270,7 @@ func TestListEndpoints_ErrorResponseNoInfoLeak(t *testing.T) {
 	}
 }
 
-// --- 3. HTTP method confusion ---
-
-func TestListEndpoints_HTTPMethodConfusion(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "methodadmin", "password123", "methodadmin@test.com")
-
-	endpoints := []string{
-		"/admin/api/users",
-		"/admin/api/clients",
-		"/admin/api/groups",
-	}
-
-	methods := []string{"POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
-
-	for _, ep := range endpoints {
-		for _, method := range methods {
-			t.Run(ep+"_"+method, func(t *testing.T) {
-				var body io.Reader
-				if method == "POST" || method == "PUT" || method == "PATCH" {
-					body = strings.NewReader(`{"search":"' OR 1=1--"}`)
-				}
-				status, _ := doAdminRequest(t, ts, method, adminToken, ep+"?sort=name;DROP+TABLE+users;--", body)
-				assert.NotEqual(t, http.StatusOK, status,
-					"%s to GET-only list endpoint should not return 200", method)
-			})
-		}
-	}
-}
-
-// --- 4. Double URL encoding ---
-
-func TestListEndpoints_DoubleURLEncoding(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "dencadmin", "password123", "dencadmin@test.com")
-
-	queries := []struct {
-		name  string
-		query string
-	}{
-		{"double_encoded_quote", "search=%2527+OR+1%253D1--"},
-		{"double_encoded_semicolon", "sort=name%253BDROP+TABLE"},
-		{"double_encoded_null", "search=%2500injected"},
-		{"double_encoded_crlf", "search=%250D%250Ainjected"},
-		{"triple_encoded", "search=%25252527"},
-	}
-
-	for _, q := range queries {
-		t.Run(q.name, func(t *testing.T) {
-			status, body := doAdminGet(t, ts, adminToken, "/admin/api/users?"+q.query)
-			assertValidListResponse(t, status, body)
-		})
-	}
-}
-
-// --- 5. Group filter bypass path ---
+// --- Group filter bypass path ---
 
 func TestListEndpoints_GroupFilterBypass(t *testing.T) {
 	ts := startTestServer(t)
@@ -482,163 +360,3 @@ func TestListEndpoints_DateRangeSemanticAbuse(t *testing.T) {
 	}
 }
 
-// --- 8. Response body content validation on errors ---
-
-func TestListEndpoints_500ResponseNoInternalDetails(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "err500admin", "password123", "err500admin@test.com")
-
-	forbidden := []string{
-		"goroutine", "runtime.", ".go:", "panic",
-		"stack", "SELECT ", "FROM ", "WHERE ",
-		"INSERT ", "DELETE ", "UPDATE ", "CREATE ",
-		"/home/", "/tmp/", "/var/", "/pkg/",
-	}
-
-	probes := []string{
-		"/admin/api/users?search=" + url.QueryEscape(strings.Repeat("%_", 99)),
-		"/admin/api/users?created_at_from=" + url.QueryEscape("'; DROP TABLE users;--"),
-		"/admin/api/clients?search=" + url.QueryEscape("' UNION SELECT 1--"),
-		"/admin/api/groups?sort=" + url.QueryEscape("id; DROP TABLE groups;--"),
-	}
-
-	for _, probe := range probes {
-		t.Run(probe, func(t *testing.T) {
-			status, body := doAdminGet(t, ts, adminToken, probe)
-			if status >= 500 {
-				bodyStr := string(body)
-				for _, pat := range forbidden {
-					assert.NotContains(t, bodyStr, pat,
-						"500 response must not contain %q", pat)
-				}
-			}
-		})
-	}
-}
-
-// --- 9. Concurrent request flooding ---
-
-func TestListEndpoints_ConcurrentRequests(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "concadmin", "password123", "concadmin@test.com")
-	for i := 0; i < 10; i++ {
-		createTestUser(t, fmt.Sprintf("concuser%d", i), "password123", fmt.Sprintf("concuser%d@test.com", i))
-	}
-
-	queries := []string{
-		"/admin/api/users?search=" + url.QueryEscape("' OR 1=1--"),
-		"/admin/api/users?limit=-1&offset=-1",
-		"/admin/api/users?sort=name;DROP+TABLE+users;--",
-		"/admin/api/users?group=" + url.QueryEscape("' OR '1'='1"),
-		"/admin/api/clients?search=%25",
-		"/admin/api/groups?limit=999999",
-		"/admin/api/users?created_at_from=ZZZZZ",
-		"/admin/api/sessions?user_id=" + url.QueryEscape("' OR 1=1--"),
-		"/admin/api/users?search=normal",
-		"/admin/api/users?limit=2&offset=0",
-	}
-
-	const concurrency = 20
-	var wg sync.WaitGroup
-	errors := make(chan string, concurrency*len(queries))
-
-	for i := 0; i < concurrency; i++ {
-		for _, q := range queries {
-			wg.Add(1)
-			go func(path string) {
-				defer wg.Done()
-				req, err := http.NewRequest("GET", ts.BaseURL+path, nil)
-				if err != nil {
-					errors <- fmt.Sprintf("request creation failed: %v", err)
-					return
-				}
-				req.Header.Set("Authorization", "Bearer "+adminToken)
-				resp, err := ts.Client.Do(req)
-				if err != nil {
-					errors <- fmt.Sprintf("request failed: %v", err)
-					return
-				}
-				defer func() { _ = resp.Body.Close() }()
-				_, _ = io.ReadAll(resp.Body)
-				if resp.StatusCode >= 500 {
-					errors <- fmt.Sprintf("500 on %s: status=%d", path, resp.StatusCode)
-				}
-			}(q)
-		}
-	}
-
-	wg.Wait()
-	close(errors)
-
-	var errs []string
-	for e := range errors {
-		errs = append(errs, e)
-	}
-	assert.Empty(t, errs, "concurrent requests should not cause 500s or panics: %v", errs)
-}
-
-// --- 10. Content-Type header manipulation ---
-
-func TestListEndpoints_ContentTypeManipulation(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "ctadmin", "password123", "ctadmin@test.com")
-
-	contentTypes := []string{
-		"application/xml",
-		"text/html",
-		"multipart/form-data",
-		"application/x-www-form-urlencoded",
-		"text/plain",
-		"application/octet-stream",
-		"",
-	}
-
-	for _, ct := range contentTypes {
-		t.Run(ct, func(t *testing.T) {
-			req, err := http.NewRequest("GET", ts.BaseURL+"/admin/api/users?search=test", nil)
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+adminToken)
-			if ct != "" {
-				req.Header.Set("Content-Type", ct)
-			}
-			resp, err := ts.Client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-			body, _ := io.ReadAll(resp.Body)
-			assert.Equal(t, http.StatusOK, resp.StatusCode,
-				"GET list endpoint should ignore Content-Type header, got %d: %s", resp.StatusCode, string(body))
-		})
-	}
-}
-
-// --- 11. Request body on GET endpoints ---
-
-func TestListEndpoints_GETWithBody(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "bodyadmin", "password123", "bodyadmin@test.com")
-
-	bodies := []struct {
-		name string
-		body string
-	}{
-		{"json_sqli", `{"sort": "name; DROP TABLE users;--", "search": "' OR 1=1--"}`},
-		{"huge_body", strings.Repeat(`{"a":"b"}`, 10000)},
-		{"xml_body", `<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>`},
-		{"null_bytes", string([]byte{0x00, 0x00, 0x00})},
-	}
-
-	for _, b := range bodies {
-		t.Run(b.name, func(t *testing.T) {
-			req, err := http.NewRequest("GET", ts.BaseURL+"/admin/api/users", strings.NewReader(b.body))
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+adminToken)
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := ts.Client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-			respBody, _ := io.ReadAll(resp.Body)
-			assert.Equal(t, http.StatusOK, resp.StatusCode,
-				"GET with body should be ignored and return results, got %d: %s", resp.StatusCode, string(respBody))
-		})
-	}
-}

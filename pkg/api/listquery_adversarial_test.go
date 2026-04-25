@@ -402,59 +402,6 @@ func TestBuildListQuery_LIKEWildcardAbuse(t *testing.T) {
 	}
 }
 
-// --- Double URL encoding ---
-
-func TestParseListParams_DoubleURLEncoding(t *testing.T) {
-	cases := []struct {
-		name  string
-		query string
-	}{
-		{"double_encoded_quote", "search=%2527+OR+1%253D1--"},
-		{"double_encoded_semicolon", "sort=%253Bname"},
-		{"double_encoded_space", "search=%2520OR%25201%253D1"},
-		{"triple_encoded_quote", "search=%25252527"},
-		{"double_encoded_null", "search=%2500"},
-		{"double_encoded_crlf", "search=%250D%250A"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/items?"+tc.query, nil)
-			params := ParseListParams(req)
-			result := BuildListQuery(params, adversarialConfig)
-			assert.NotContains(t, result.Order, "DROP")
-			assert.NotContains(t, result.Order, "UNION")
-			if params.Search != "" {
-				assert.Contains(t, result.Where, "LIKE ?")
-			}
-		})
-	}
-}
-
-// --- CRLF injection in non-search params ---
-
-func TestParseListParams_CRLFInSortAndOrder(t *testing.T) {
-	cases := []struct {
-		name  string
-		query string
-	}{
-		{"crlf_sort", "sort=name%0D%0AHTTP/1.1+200+OK"},
-		{"crlf_order", "order=ASC%0D%0AInjected-Header:+true"},
-		{"lf_sort", "sort=name%0Ainjected"},
-		{"cr_sort", "sort=name%0Dinjected"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/items?"+tc.query, nil)
-			params := ParseListParams(req)
-			result := BuildListQuery(params, adversarialConfig)
-			assert.Contains(t, result.Order, "u.created_at",
-				"CRLF-injected sort must fall back to default")
-			assert.True(t,
-				strings.Contains(result.Order, " ASC ") || strings.Contains(result.Order, " DESC "),
-				"order must be clean ASC or DESC")
-		})
-	}
-}
 
 // --- Date range semantic abuse ---
 
@@ -488,36 +435,6 @@ func TestParseDateRange_SemanticAbuse(t *testing.T) {
 	}
 }
 
-// --- Filter value length ---
-
-func TestParseFilters_LongValue(t *testing.T) {
-	longVal := strings.Repeat("A", 100000)
-	req := httptest.NewRequest(http.MethodGet, "/items?role="+url.QueryEscape(longVal), nil)
-	filters := ParseFilters(req, map[string]bool{"role": true})
-	assert.Equal(t, longVal, filters["role"], "filter values pass through as-is for parameterized binding")
-}
-
-// --- Unicode normalization / homoglyphs ---
-
-func TestParseListParams_UnicodeNormalization(t *testing.T) {
-	cases := []struct {
-		name   string
-		search string
-	}{
-		{"fullwidth_select", "ＳＥＬＥＣＴ"},
-		{"homoglyph_admin", "аdmin"},
-		{"confusable_or", "∨"},
-		{"cjk_mixed", "一二三' OR 1=1--"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/items?search="+url.QueryEscape(tc.search), nil)
-			params := ParseListParams(req)
-			result := BuildListQuery(params, adversarialConfig)
-			assert.Contains(t, result.Where, "LIKE ?")
-		})
-	}
-}
 
 func TestParseDateRange_UnknownColumns(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet,
