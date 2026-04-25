@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, message, Typography } from "antd";
+import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typography, App } from "antd";
 import { useUpdateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProvider, FederationProviderUpdateRequest } from "../../types/federation";
 
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function FederationEditForm({ open, provider, onClose }: Props) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateProvider = useUpdateFederationProvider();
 

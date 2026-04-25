@@ -8,13 +8,13 @@ import {
   Card,
   Space,
   Divider,
-  message,
   Spin,
   Alert,
   Tabs,
   InputNumber,
   Table,
   Tag,
+  App,
 } from "antd";
 import {
   SaveOutlined,
@@ -94,6 +94,7 @@ const tip = makeTip({
 }, "https://autentico.top/configuration/runtime-settings");
 
 export default function SettingsPage() {
+  const { message } = App.useApp();
   const { data: settings, isLoading, error } = useSettings();
   const updateSettings = useUpdateSettings();
   const queryClient = useQueryClient();

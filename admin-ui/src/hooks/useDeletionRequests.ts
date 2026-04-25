@@ -4,13 +4,14 @@ import {
   approveDeletionRequest,
   cancelDeletionRequest,
 } from "../api/deletion";
+import type { ListParams } from "../api/users";
 
 const DELETION_REQUESTS_KEY = ["deletion-requests"] as const;
 
-export function useDeletionRequests() {
+export function useDeletionRequests(params?: ListParams) {
   return useQuery({
-    queryKey: DELETION_REQUESTS_KEY,
-    queryFn: listDeletionRequests,
+    queryKey: [...DELETION_REQUESTS_KEY, params],
+    queryFn: () => listDeletionRequests(params),
   });
 }
 

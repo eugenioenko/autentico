@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Typography,
   Table,
@@ -7,11 +7,13 @@ import {
   Tag,
   Space,
   Popconfirm,
-  message,
   Alert,
   Tooltip,
   Input,
   DatePicker,
+  Badge,
+  Tabs,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -26,12 +28,14 @@ import type { FilterValue, SorterResult } from "antd/es/table/interface";
 import type { Dayjs } from "dayjs";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
 import { useGroups } from "../hooks/useGroups";
+import { useDeletionRequests } from "../hooks/useDeletionRequests";
 import type { ListParams } from "../api/users";
 import type { UserResponseExt } from "../types/user";
 import UserCreateForm from "../components/users/UserCreateForm";
 import UserEditForm from "../components/users/UserEditForm";
 import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
+import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
@@ -41,6 +45,7 @@ function isLocked(record: UserResponseExt): boolean {
 }
 
 export default function UsersPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -55,16 +60,19 @@ export default function UsersPage() {
 
   const { data, isLoading, error } = useUsers(listParams);
   const { data: groups } = useGroups();
+  const { data: deletionRequests } = useDeletionRequests();
   const deleteUser = useDeleteUser();
   const unlockUserMutation = useUnlockUser();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get("tab") ?? "users";
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponseExt | null>(null);
   const [groupsUser, setGroupsUser] = useState<UserResponseExt | null>(null);
-  const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(
-    null
-  );
+  const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(null);
 
   useEffect(() => {
     if ((location.state as { create?: boolean })?.create) {
@@ -166,6 +174,10 @@ export default function UsersPage() {
     },
     []
   );
+
+  const handleTabChange = (key: string) => {
+    navigate(key === "users" ? "/users" : `/users?tab=${key}`, { replace: true });
+  };
 
   const columns: ColumnsType<UserResponseExt> = [
     {
@@ -323,54 +335,82 @@ export default function UsersPage() {
     return <Alert type="error" message="Failed to load users" />;
   }
 
+  const deletionCount = deletionRequests?.total ?? 0;
+
+  const tabItems = [
+    {
+      key: "users",
+      label: "Users",
+    },
+    {
+      key: "deletions",
+      label: (
+        <Badge count={deletionCount} size="small" offset={[8, 0]}>
+          Deletion Requests
+        </Badge>
+      ),
+    },
+  ];
+
   return (
     <>
-      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Users
-        </Typography.Title>
-        <Space>
-          <DatePicker.RangePicker
-            value={dateRange}
-            onChange={handleDateRange}
-            allowClear
-          />
-          <Input.Search
-            placeholder="Search users..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 250 }}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
-          >
-            Create User
-          </Button>
-        </Space>
-      </Space>
+      <Tabs
+        activeKey={activeTab}
+        onChange={handleTabChange}
+        items={tabItems}
+        style={{ flexShrink: 0 }}
+      />
 
-      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
-        <Table<UserResponseExt>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} users`,
-          }}
-        />
-      </div>
+      {activeTab === "users" && (
+        <>
+          <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+            <div />
+            <Space>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={handleDateRange}
+                allowClear
+              />
+              <Input.Search
+                placeholder="Search users..."
+                allowClear
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onSearch={handleSearch}
+                style={{ width: 250 }}
+              />
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateOpen(true)}
+              >
+                Create User
+              </Button>
+            </Space>
+          </Space>
+
+          <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
+            <Table<UserResponseExt>
+              columns={columns}
+              dataSource={data?.items ?? []}
+              rowKey="id"
+              loading={isLoading}
+              onChange={handleTableChange}
+              scroll={scrollY ? { y: scrollY } : undefined}
+              pagination={{
+                current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
+                pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
+                total: data?.total ?? 0,
+                showSizeChanger: true,
+                pageSizeOptions: PAGE_SIZE_OPTIONS,
+                showTotal: (total) => `${total} users`,
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {activeTab === "deletions" && <DeletionRequestsTab />}
 
       <UserCreateForm
         open={createOpen}

@@ -6,9 +6,9 @@ import {
   Tag,
   Space,
   Popconfirm,
-  message,
   Alert,
   Input,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -28,6 +28,7 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 const { Text } = Typography;
 
 export default function FederationPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 

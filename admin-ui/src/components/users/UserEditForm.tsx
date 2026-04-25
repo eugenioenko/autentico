@@ -6,10 +6,10 @@ import {
   Select,
   Button,
   Space,
-  message,
   Switch,
   Divider,
   Typography,
+  App,
 } from "antd";
 import { useUpdateUser } from "../../hooks/useUsers";
 import type { UserResponseExt, UserUpdateRequest } from "../../types/user";
@@ -30,6 +30,7 @@ export default function UserEditForm({
   user,
   onClose,
 }: UserEditFormProps) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateUser = useUpdateUser();
 

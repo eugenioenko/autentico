@@ -1,4 +1,4 @@
-import { Drawer, Form, Input, Select, Button, Space, message } from "antd";
+import { Drawer, Form, Input, Select, Button, Space, App } from "antd";
 import { useCreateUser } from "../../hooks/useUsers";
 import type { UserCreateRequest } from "../../types/user";
 
@@ -16,6 +16,7 @@ export default function UserCreateForm({
   open,
   onClose,
 }: UserCreateFormProps) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const createUser = useCreateUser();
 

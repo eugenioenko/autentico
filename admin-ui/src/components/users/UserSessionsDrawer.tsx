@@ -6,7 +6,7 @@ import {
   Space,
   Popconfirm,
   Typography,
-  message,
+  App,
 } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
@@ -34,6 +34,7 @@ export default function UserSessionsDrawer({
   username,
   onClose,
 }: UserSessionsDrawerProps) {
+  const { message } = App.useApp();
   const { data: sessions, isLoading } = useUserIdpSessions(
     open ? userId : null
   );

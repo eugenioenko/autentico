@@ -7,9 +7,9 @@ import {
   Tag,
   Space,
   Popconfirm,
-  message,
   Alert,
   Input,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -33,6 +33,7 @@ const { Text } = Typography;
 
 
 export default function ClientsPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 

@@ -8,11 +8,11 @@ import {
   Popconfirm,
   Input,
   Select,
-  message,
   Alert,
   Drawer,
   Descriptions,
   DatePicker,
+  App,
 } from "antd";
 import {
   LogoutOutlined,
@@ -111,6 +111,7 @@ function SessionsView({
   idpSession: IdpSessionResponse;
   onBack: () => void;
 }) {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -355,6 +356,7 @@ function IdpSessionDetailDrawer({
 }
 
 export default function SessionsPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 

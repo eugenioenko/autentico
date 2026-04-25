@@ -5,13 +5,13 @@ import {
   Button,
   Space,
   Popconfirm,
-  message,
   Alert,
   Modal,
   Form,
   Input,
   AutoComplete,
   Tag,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -45,6 +45,7 @@ function GroupMembersView({
   group: Group;
   onBack: () => void;
 }) {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -223,6 +224,7 @@ function GroupMembersView({
 }
 
 export default function GroupsPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
