@@ -8,11 +8,11 @@
 
 **Auténtico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
-Identity infrastructure is typically complex to operate: a separate database to provision and back up, a cache tier, a worker queue, multiple services to keep running, and credentials to rotate. Auténtico takes a different approach. The entire IdP — authentication, token issuance, session management, and the admin UI — runs as one Go binary backed by a single SQLite file. You deploy one thing and it works.
+Identity infrastructure is typically complex to operate: a separate database to provision and back up, a cache tier, a worker queue, multiple services to keep running, and credentials to rotate. Auténtico takes a different approach. The entire IdP — authentication, token issuance, session management, and the admin UI — runs as one Go binary backed by a single SQLite file. You deploy one thing and it works. If you have multiple projects, point them all at one instance and centralize your users, sessions, and security in one place.
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
-**Correctness is verified through 1600+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
+**Correctness is verified through 1,600+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
 
 ---
 
