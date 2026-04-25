@@ -197,6 +197,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST /admin/api/groups/{id}/members", adminAPI(group.HandleAddMember))
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", adminAPI(group.HandleRemoveMember))
 	mux.Handle("GET /admin/api/users/{id}/groups", adminAPI(group.HandleGetUserGroups))
+	mux.Handle("GET /admin/api/tokens", adminAPI(token.HandleListTokens))
+	mux.Handle("DELETE /admin/api/tokens/{id}", adminAPI(token.HandleRevokeToken))
 	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))
 	mux.Handle("GET /admin/api/settings", adminAPI(appsettings.HandleGetSettings))
 	mux.Handle("PUT /admin/api/settings", adminAPI(appsettings.HandlePutSettings))

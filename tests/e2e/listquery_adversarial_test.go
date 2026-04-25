@@ -47,6 +47,7 @@ func TestListEndpoints_MaliciousQueryParams(t *testing.T) {
 		"/admin/api/clients",
 		"/admin/api/groups",
 		"/admin/api/sessions",
+		"/admin/api/tokens",
 		"/admin/api/deletion-requests",
 	}
 
@@ -98,6 +99,7 @@ func TestListEndpoints_NoAuth_Rejected(t *testing.T) {
 		"/admin/api/clients",
 		"/admin/api/groups",
 		"/admin/api/sessions",
+		"/admin/api/tokens",
 		"/admin/api/deletion-requests",
 	}
 
@@ -129,6 +131,7 @@ func TestListEndpoints_NonAdminUser_Rejected(t *testing.T) {
 		"/admin/api/clients",
 		"/admin/api/groups",
 		"/admin/api/sessions",
+		"/admin/api/tokens",
 		"/admin/api/deletion-requests",
 	}
 
@@ -253,6 +256,7 @@ func TestListEndpoints_ErrorResponseNoInfoLeak(t *testing.T) {
 		"/admin/api/users",
 		"/admin/api/clients",
 		"/admin/api/groups",
+		"/admin/api/tokens",
 	}
 
 	for _, ep := range endpoints {

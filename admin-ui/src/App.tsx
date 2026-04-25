@@ -17,6 +17,7 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const CorsPage = lazy(() => import("./pages/CorsPage"));
 const FederationPage = lazy(() => import("./pages/FederationPage"));
 const GroupsPage = lazy(() => import("./pages/GroupsPage"));
+const TokensPage = lazy(() => import("./pages/TokensPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ function ThemedApp() {
                   <Route path="users" element={<UsersPage />} />
                   <Route path="groups" element={<GroupsPage />} />
                   <Route path="sessions" element={<SessionsPage />} />
+                  <Route path="tokens" element={<TokensPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="cors" element={<CorsPage />} />
                   <Route path="federation" element={<FederationPage />} />
