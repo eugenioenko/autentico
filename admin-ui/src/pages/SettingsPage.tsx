@@ -151,6 +151,8 @@ export default function SettingsPage() {
   const mfaMethod = Form.useWatch("mfa_method", form);
   const smtpHost = Form.useWatch("smtp_host", form);
   const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
+  const requireEmailVerification = Form.useWatch("require_email_verification", form);
+  const emailVerifyWithoutSmtp = (requireEmailVerification === true || requireEmailVerification === "true") && !smtpHost;
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -297,7 +299,7 @@ export default function SettingsPage() {
           items={[
             {
               key: "1",
-              label: "Authentication",
+              label: "Login & Registration",
               children: (
                 <Card variant="borderless">
                   <Form.Item
@@ -367,7 +369,40 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5}>Multi-Factor Authentication</Title>
+                  <Title level={5}>Email Verification</Title>
+                  <Form.Item
+                    label="Require Email Verification"
+                    name="require_email_verification"
+                    valuePropName="checked"
+                    getValueProps={boolProp}
+                    tooltip={{ title: tip("require_email_verification"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Switch />
+                  </Form.Item>
+                  {emailVerifyWithoutSmtp && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="SMTP not configured"
+                      description="Email verification requires a configured SMTP server. Go to the SMTP tab to set it up."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
+                  <Form.Item
+                    label="Verification Link Expiration"
+                    name="email_verification_expiration"
+                    tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="24h" />
+                  </Form.Item>
+                </Card>
+              ),
+            },
+            {
+              key: "2",
+              label: "MFA & Trusted Devices",
+              children: (
+                <Card variant="borderless">
                   <Form.Item
                     label="Require MFA"
                     name="require_mfa"
@@ -394,34 +429,51 @@ export default function SettingsPage() {
                       type="warning"
                       showIcon
                       message="SMTP not configured"
-                      description="Email OTP requires a configured SMTP server. Go to the SMTP & Tokens tab to set it up, otherwise email MFA will fail at login."
+                      description="Email OTP requires a configured SMTP server. Go to the SMTP tab to set it up, otherwise email MFA will fail at login."
                       style={{ marginBottom: 16 }}
                     />
                   )}
 
                   <Divider />
 
-                  <Title level={5}>Email Verification</Title>
+                  <Title level={5}>Trusted Devices</Title>
                   <Form.Item
-                    label="Require Email Verification"
-                    name="require_email_verification"
+                    label="Trust Device Enabled"
+                    name="trust_device_enabled"
                     valuePropName="checked"
                     getValueProps={boolProp}
-                    tooltip={{ title: tip("require_email_verification"), icon: <ExclamationCircleOutlined /> }}
+                    tooltip={{ title: tip("trust_device_enabled"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Switch />
                   </Form.Item>
+
                   <Form.Item
-                    label="Verification Link Expiration"
-                    name="email_verification_expiration"
-                    tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
+                    label="Trust Device Expiration"
+                    name="trust_device_expiration"
+                    tooltip={{ title: tip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="24h" />
+                    <Input placeholder="720h" />
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5}>Session Control</Title>
+                  <Title level={5}>Passkeys</Title>
+                  <Form.Item
+                    label="Passkey RP Name"
+                    name="passkey_rp_name"
+                    tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input />
+                  </Form.Item>
+                </Card>
+              ),
+            },
+            {
+              key: "3",
+              label: "Sessions & Tokens",
+              children: (
+                <Card variant="borderless">
+                  <Title level={5}>SSO Sessions</Title>
                   <Form.Item
                     label="SSO Enabled"
                     name="sso_enabled"
@@ -446,29 +498,36 @@ export default function SettingsPage() {
                     <Input placeholder="720h" />
                   </Form.Item>
 
-                  <Form.Item
-                    label="Trust Device Enabled"
-                    name="trust_device_enabled"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("trust_device_enabled"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
-                  </Form.Item>
+                  <Divider />
 
+                  <Title level={5}>Token Expiration</Title>
                   <Form.Item
-                    label="Trust Device Expiration"
-                    name="trust_device_expiration"
-                    tooltip={{ title: tip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
+                    label="Access Token"
+                    name="access_token_expiration"
+                    tooltip={{ title: tip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="15m" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Refresh Token"
+                    name="refresh_token_expiration"
+                    tooltip={{ title: tip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="720h" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Auth Code"
+                    name="authorization_code_expiration"
+                    tooltip={{ title: tip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="10m" />
                   </Form.Item>
                 </Card>
               ),
             },
             {
-              key: "2",
-              label: "Security & Validation",
+              key: "4",
+              label: "Security",
               children: (
                 <Card variant="borderless">
                   <Title level={5}>User Validation</Title>
@@ -569,36 +628,10 @@ export default function SettingsPage() {
               ),
             },
             {
-              key: "3",
-              label: "SMTP & Tokens",
+              key: "5",
+              label: "SMTP",
               children: (
                 <Card variant="borderless">
-                  <Title level={5}>Token Expiration</Title>
-                  <Form.Item
-                    label="Access Token"
-                    name="access_token_expiration"
-                    tooltip={{ title: tip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="15m" />
-                  </Form.Item>
-                  <Form.Item
-                    label="Refresh Token"
-                    name="refresh_token_expiration"
-                    tooltip={{ title: tip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="720h" />
-                  </Form.Item>
-                  <Form.Item
-                    label="Auth Code"
-                    name="authorization_code_expiration"
-                    tooltip={{ title: tip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="10m" />
-                  </Form.Item>
-
-                  <Divider />
-
-                  <Title level={5}>SMTP Configuration</Title>
                   <Form.Item
                     label="SMTP Host"
                     name="smtp_host"
@@ -643,7 +676,7 @@ export default function SettingsPage() {
               ),
             },
             {
-              key: "4",
+              key: "6",
               label: "Profile Fields",
               children: (
                 <Card variant="borderless">
@@ -813,7 +846,7 @@ export default function SettingsPage() {
               ),
             },
             {
-              key: "5",
+              key: "7",
               label: "Branding",
               children: (
                 <Card variant="borderless">
@@ -843,13 +876,6 @@ export default function SettingsPage() {
                       style={{ fontFamily: "monospace", fontSize: 13 }}
                     />
                   </Form.Item>
-                  <Form.Item
-                    label="Passkey RP Name"
-                    name="passkey_rp_name"
-                    tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input />
-                  </Form.Item>
                   <Divider />
                   <Form.Item
                     label="Footer Links"
@@ -862,7 +888,7 @@ export default function SettingsPage() {
               ),
             },
             {
-              key: "6",
+              key: "8",
               label: "Backup",
               children: (
                 <Card variant="borderless">
@@ -1009,7 +1035,7 @@ export default function SettingsPage() {
           ]}
         />
 
-        {activeTab !== "6" && (
+        {activeTab !== "8" && (
           <div style={{ marginTop: 24, textAlign: "right" }}>
             <Button
               type="primary"
