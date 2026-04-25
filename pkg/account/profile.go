@@ -145,7 +145,12 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/password [post]
 func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
+	v, err := bearer.ValidateBearer(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+	usr, err := user.UserByID(v.Claims.UserID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
@@ -173,6 +178,14 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+
+	// Revoke all other sessions — a password change invalidates all sessions
+	// except the one that initiated the change.
+	if err := user.RevokeOtherUserAccess(usr.ID, v.Token); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
 	audit.Log(audit.EventPasswordChanged, usr, audit.TargetUser, usr.ID, audit.Detail("source", "self"), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "Password updated successfully"}, http.StatusOK)
 }

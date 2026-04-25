@@ -83,6 +83,26 @@ func startTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to seed other-client: %v", err)
 	}
 
+	// Confidential client with client_credentials grant for oauth2 security tests
+	ccSecret, _ := bcrypt.GenerateFromPassword([]byte("cc-secret"), bcrypt.MinCost)
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('cc-client-id', 'cc-client', 'Client Credentials Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["client_credentials"]', '["code"]', 'profile email', TRUE)
+	`, string(ccSecret))
+	if err != nil {
+		t.Fatalf("Failed to seed cc-client: %v", err)
+	}
+
+	// Second confidential client for cross-client introspect tests
+	otherConfSecret, _ := bcrypt.GenerateFromPassword([]byte("other-conf-secret"), bcrypt.MinCost)
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('other-conf-id', 'other-conf-client', 'Other Confidential Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code"]', 'openid profile email', TRUE)
+	`, string(otherConfSecret))
+	if err != nil {
+		t.Fatalf("Failed to seed other-conf-client: %v", err)
+	}
+
 	key.GetPrivateKey()
 
 	server := httptest.NewUnstartedServer(nil)
@@ -131,6 +151,19 @@ func startTestServer(t *testing.T) *TestServer {
 
 	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
 	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
+	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
+	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
+	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
+	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
+	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
+	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
+	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	mux.HandleFunc("GET /account/api/passkeys", account.HandleListPasskeys)
+	mux.HandleFunc("DELETE /account/api/passkeys/{id}", account.HandleDeletePasskey)
+	mux.HandleFunc("PATCH /account/api/passkeys/{id}", account.HandleRenamePasskey)
+	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
+	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
+	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 
 	mux.Handle("GET /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleListUsers)))
 	mux.Handle("POST /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleCreateUser)))
