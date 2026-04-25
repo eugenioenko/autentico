@@ -8,13 +8,12 @@ import (
 )
 
 // RevokeAllUserAccess revokes all tokens, OAuth sessions, and IdP sessions
-// for a user. If excludeAccessToken is non-empty, the token and session
-// matching that access token are kept alive (used after password change so
-// the initiating session survives). Pass "" to revoke everything.
+// for a user. Pass an access token to keep that session alive (e.g. after
+// password change); omit it to revoke everything.
 //
 // All UPDATEs run inside a single transaction so the three tables never
 // disagree about which sessions are alive.
-func RevokeAllUserAccess(userID, excludeAccessToken string) error {
+func RevokeAllUserAccess(userID string, keepAccessToken ...string) error {
 	tx, err := db.GetDB().Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
@@ -23,14 +22,25 @@ func RevokeAllUserAccess(userID, excludeAccessToken string) error {
 
 	now := time.Now()
 
-	if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`,
-		now, userID, excludeAccessToken); err != nil {
-		return fmt.Errorf("failed to revoke tokens: %v", err)
-	}
-
-	if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`,
-		now, userID, excludeAccessToken); err != nil {
-		return fmt.Errorf("failed to deactivate sessions: %v", err)
+	if len(keepAccessToken) > 0 && keepAccessToken[0] != "" {
+		exclude := keepAccessToken[0]
+		if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`,
+			now, userID, exclude); err != nil {
+			return fmt.Errorf("failed to revoke tokens: %v", err)
+		}
+		if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`,
+			now, userID, exclude); err != nil {
+			return fmt.Errorf("failed to deactivate sessions: %v", err)
+		}
+	} else {
+		if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`,
+			now, userID); err != nil {
+			return fmt.Errorf("failed to revoke tokens: %v", err)
+		}
+		if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL`,
+			now, userID); err != nil {
+			return fmt.Errorf("failed to deactivate sessions: %v", err)
+		}
 	}
 
 	if _, err := tx.Exec(`UPDATE idp_sessions SET deactivated_at = ?
@@ -88,7 +98,7 @@ func DeactivateUser(id string) error {
 		return fmt.Errorf("user not found or already deactivated")
 	}
 
-	return RevokeAllUserAccess(id, "")
+	return RevokeAllUserAccess(id)
 }
 
 // ReactivateUser clears deactivated_at, allowing the user to log in again.
