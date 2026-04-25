@@ -60,7 +60,7 @@ export default function ClientEditForm({
   client,
   onClose,
 }: ClientEditFormProps) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm();
   const updateClient = useUpdateClient();
 
@@ -68,6 +68,7 @@ export default function ClientEditForm({
     if (client && open) {
       form.setFieldsValue({
         client_name: client.client_name,
+        is_active: client.is_active,
         redirect_uris: client.redirect_uris,
         post_logout_redirect_uris: client.post_logout_redirect_uris ?? [],
         grant_types: client.grant_types,
@@ -136,6 +137,28 @@ export default function ClientEditForm({
           tooltip={{ title: tip("client_id"), icon: <ExclamationCircleOutlined /> }}
         >
           <Input value={client?.client_id} disabled />
+        </Form.Item>
+
+        <Form.Item
+          name="is_active"
+          label="Status"
+          valuePropName="checked"
+        >
+          <Switch
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+            onChange={(checked) => {
+              if (!checked) {
+                modal.confirm({
+                  title: "Deactivate this client?",
+                  content: "The client will no longer be able to authenticate.",
+                  okText: "Deactivate",
+                  okButtonProps: { danger: true },
+                  onCancel: () => form.setFieldValue("is_active", true),
+                });
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.List name="redirect_uris">

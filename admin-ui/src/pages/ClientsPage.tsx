@@ -6,20 +6,17 @@ import {
   Button,
   Tag,
   Space,
-  Popconfirm,
   Alert,
   Input,
-  App,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   EyeOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
-import { useClients, useDeleteClient } from "../hooks/useClients";
+import { useClients } from "../hooks/useClients";
 import type { ClientInfoResponse } from "../types/client";
 import type { ListParams } from "../api/users";
 import ClientCreateForm from "../components/clients/ClientCreateForm";
@@ -33,7 +30,6 @@ const { Text } = Typography;
 
 
 export default function ClientsPage() {
-  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -46,7 +42,6 @@ export default function ClientsPage() {
   const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading, error } = useClients(listParams);
-  const deleteClient = useDeleteClient();
   const location = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -60,15 +55,6 @@ export default function ClientsPage() {
   const [editClient, setEditClient] = useState<ClientInfoResponse | null>(null);
   const [detailClient, setDetailClient] =
     useState<ClientInfoResponse | null>(null);
-
-  const handleDelete = async (clientId: string) => {
-    try {
-      await deleteClient.mutateAsync(clientId);
-      message.success("Client deactivated");
-    } catch {
-      message.error("Failed to deactivate client");
-    }
-  };
 
   const handleTableChange = useCallback(
     (
@@ -196,22 +182,6 @@ export default function ClientsPage() {
       key: "actions",
       render: (_, record) => (
         <Space>
-          {record.is_active && (
-            <Popconfirm
-              title="Deactivate this client?"
-              description="The client will no longer be able to authenticate."
-              onConfirm={() => handleDelete(record.client_id!)}
-              okText="Deactivate"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
-          )}
           <Button
             type="text"
             size="small"
