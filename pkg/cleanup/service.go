@@ -2,7 +2,7 @@ package cleanup
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -33,12 +33,12 @@ func Run(retention time.Duration) {
 	for _, q := range queries {
 		res, err := db.GetDB().Exec(q.sql, threshold)
 		if err != nil {
-			fmt.Printf("[cleanup] error cleaning %s: %v\n", q.table, err)
+			slog.Error("cleanup: failed to clean table", "table", q.table, "error", err)
 			continue
 		}
 		n, _ := res.RowsAffected()
 		if n > 0 {
-			fmt.Printf("[cleanup] deleted %d expired rows from %s\n", n, q.table)
+			slog.Info("cleanup: deleted expired rows", "table", q.table, "count", n)
 		}
 	}
 
@@ -50,9 +50,9 @@ func Run(retention time.Duration) {
 			auditThreshold := time.Now().Add(-d)
 			res, err := db.GetDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, auditThreshold)
 			if err != nil {
-				fmt.Printf("[cleanup] error cleaning audit_logs: %v\n", err)
+				slog.Error("cleanup: failed to clean table", "table", "audit_logs", "error", err)
 			} else if n, _ := res.RowsAffected(); n > 0 {
-				fmt.Printf("[cleanup] deleted %d expired rows from audit_logs\n", n)
+				slog.Info("cleanup: deleted expired rows", "table", "audit_logs", "count", n)
 			}
 		}
 	}
@@ -74,11 +74,11 @@ func deactivateIdleIdpSessions() {
 		  WHERE deactivated_at IS NULL
 		    AND last_activity_at < ?`, idleThreshold)
 	if err != nil {
-		fmt.Printf("[cleanup] error deactivating idle idp_sessions: %v\n", err)
+		slog.Error("cleanup: failed to deactivate idle idp_sessions", "error", err)
 		return
 	}
 	if n, _ := res.RowsAffected(); n > 0 {
-		fmt.Printf("[cleanup] deactivated %d idle idp_sessions\n", n)
+		slog.Info("cleanup: deactivated idle idp_sessions", "count", n)
 	}
 }
 
