@@ -7,6 +7,23 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// DeactivateIdle finds all active IdP sessions whose last activity is older
+// than the given timeout and cascade-deactivates each one (IdP session + child
+// OAuth sessions + tokens). Returns the number of sessions deactivated.
+func DeactivateIdle(timeout time.Duration) (int, error) {
+	ids, err := getIdleSessionIDs(time.Now().Add(-timeout))
+	if err != nil {
+		return 0, fmt.Errorf("idpsession: %w", err)
+	}
+
+	for _, id := range ids {
+		if err := DeactivateWithCascade(id); err != nil {
+			return 0, fmt.Errorf("idpsession: cascade-deactivate %s: %w", id, err)
+		}
+	}
+	return len(ids), nil
+}
+
 // DeactivateWithCascade deactivates an IdP (SSO) session and every OAuth
 // session + token that was born from it, atomically.
 //

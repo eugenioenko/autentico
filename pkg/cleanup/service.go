@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 )
 
 // Run deletes expired records older than the retention threshold from all
@@ -58,26 +59,17 @@ func Run(retention time.Duration) {
 	}
 }
 
-// deactivateIdleIdpSessions flips deactivated_at on IdP sessions that have been
-// idle past the configured SSO idle timeout, so /account/api/sessions and
-// /authorize's lazy idle check agree on which browsers are "still signed in".
-// A later pass in Run hard-deletes these rows once they exceed retention.
 func deactivateIdleIdpSessions() {
 	idle := config.Get().AuthSsoSessionIdleTimeout
 	if idle <= 0 {
 		return
 	}
-	idleThreshold := time.Now().Add(-idle)
-	res, err := db.GetDB().Exec(
-		`UPDATE idp_sessions
-		    SET deactivated_at = CURRENT_TIMESTAMP
-		  WHERE deactivated_at IS NULL
-		    AND last_activity_at < ?`, idleThreshold)
+	n, err := idpsession.DeactivateIdle(idle)
 	if err != nil {
 		slog.Error("cleanup: failed to deactivate idle idp_sessions", "error", err)
 		return
 	}
-	if n, _ := res.RowsAffected(); n > 0 {
+	if n > 0 {
 		slog.Info("cleanup: deactivated idle idp_sessions", "count", n)
 	}
 }
