@@ -24,6 +24,7 @@ const (
 	TargetUser     TargetType = "user"
 	TargetClient   TargetType = "client"
 	TargetSession  TargetType = "session"
+	TargetToken      TargetType = "token"
 	TargetSettings   TargetType = "settings"
 	TargetFederation TargetType = "federation"
 )
@@ -92,6 +93,7 @@ const (
 	EventFederationCreated     Event = "federation_created"
 	EventFederationUpdated     Event = "federation_updated"
 	EventFederationDeleted     Event = "federation_deleted"
+	EventTokenRevoked          Event = "token_revoked"
 	EventDeletionApproved      Event = "deletion_approved"
 )
 

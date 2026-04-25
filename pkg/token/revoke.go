@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -16,6 +17,22 @@ func RevokeTokensByUserAndClient(userID, _ string) error {
 		WHERE user_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
 	`, time.Now().UTC(), userID)
 	return err
+}
+
+// RevokeByID sets revoked_at on a single token row by its primary key.
+// Returns an error if the row doesn't exist or is already revoked.
+func RevokeByID(id string) error {
+	res, err := db.GetDB().Exec(`
+		UPDATE tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL
+	`, time.Now().UTC(), id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("token not found or already revoked")
+	}
+	return nil
 }
 
 // RevokeByTokenValue sets revoked_at on any tokens row whose access_token or
