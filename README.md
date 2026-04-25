@@ -914,12 +914,13 @@ The goal is not just high coverage, but **high confidence that every externally 
 
 ### Automated Tests
 
-**1,250 tests** across unit, integration, end-to-end, functional, and browser tests at **76.8% coverage**.
+**1,600+ tests** across unit, integration, end-to-end, security, functional, and browser tests at **72.7% coverage**.
 
-- **Unit and integration tests** (971) — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
-- **End-to-end tests** (131) — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
-- **Functional tests** (142) — black-box HTTP tests (TypeScript/Vitest) against a running server, covering auth flows, parameter tampering rejection, and token lifecycle
-- **Browser tests** (6) — Playwright tests that drive a real browser through authentication flows, verifying the full user-facing experience
+- **Unit and integration tests** — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
+- **End-to-end tests** — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
+- **Security tests** — negative-path test suite derived from public OAuth/OIDC CVEs (Keycloak, Auth0, Okta), RFC 6819 (OAuth Threat Model), and RFC 9700. Covers redirect URI manipulation, auth code replay/reuse, PKCE downgrade, JWT algorithm confusion, refresh token rotation abuse, cross-client token isolation, IDOR on account endpoints, session fixation, SSRF via federation, role escalation, and information disclosure. Each test targets a specific, documented attack pattern — not synthetic fuzzing
+- **Functional tests** — black-box HTTP tests (TypeScript/Vitest) against a running server, covering auth flows, parameter tampering rejection, and token lifecycle
+- **Browser tests** — Playwright tests that drive a real browser through authentication flows, verifying the full user-facing experience
 
 Critical invariants (e.g., "authorization code can only be used once", "refresh token rotation invalidates previous token") are tested explicitly across layers.
 
