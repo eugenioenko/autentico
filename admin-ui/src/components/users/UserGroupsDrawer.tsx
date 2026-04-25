@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drawer, Select, Table, Button, Space, Typography, Popconfirm, message } from "antd";
+import { Drawer, Select, Table, Button, Space, Typography, Popconfirm, App } from "antd";
 import { UserDeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useGroups, useAddMember, useRemoveMember } from "../../hooks/useGroups";
@@ -15,6 +15,7 @@ interface UserGroupsDrawerProps {
 }
 
 export default function UserGroupsDrawer({ open, userId, username, onClose }: UserGroupsDrawerProps) {
+  const { message } = App.useApp();
   const { data: allGroups } = useGroups();
   const addMember = useAddMember();
   const removeMember = useRemoveMember();

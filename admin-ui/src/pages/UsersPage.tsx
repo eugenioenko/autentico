@@ -7,13 +7,13 @@ import {
   Tag,
   Space,
   Popconfirm,
-  message,
   Alert,
   Tooltip,
   Input,
   DatePicker,
   Badge,
   Tabs,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -45,6 +45,7 @@ function isLocked(record: UserResponseExt): boolean {
 }
 
 export default function UsersPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -334,7 +335,7 @@ export default function UsersPage() {
     return <Alert type="error" message="Failed to load users" />;
   }
 
-  const deletionCount = deletionRequests?.length ?? 0;
+  const deletionCount = deletionRequests?.total ?? 0;
 
   const tabItems = [
     {

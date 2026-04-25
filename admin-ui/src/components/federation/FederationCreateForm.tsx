@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, message, Typography } from "antd";
+import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typography, App } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useCreateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProviderCreateRequest } from "../../types/federation";
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function FederationCreateForm({ open, onClose }: Props) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const createProvider = useCreateFederationProvider();
   const [slug, setSlug] = useState("");

@@ -4,21 +4,24 @@ import {
   Table,
   Tag,
   Popconfirm,
-  message,
   Dropdown,
   Drawer,
   Descriptions,
   Input,
+  App,
 } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SorterResult } from "antd/es/table/interface";
 import {
   useDeletionRequests,
   useApproveDeletionRequest,
   useAdminCancelDeletionRequest,
 } from "../../hooks/useDeletionRequests";
 import type { DeletionRequestResponse } from "../../api/deletion";
+import type { ListParams } from "../../api/users";
 import { useTableScrollY } from "../../hooks/useTableScrollY";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/table";
 
 const { Text } = Typography;
 
@@ -27,16 +30,24 @@ function formatDate(date: string): string {
 }
 
 export default function DeletionRequestsTab() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
-  const { data: requests, isLoading } = useDeletionRequests();
+
+  const [listParams, setListParams] = useState<ListParams>({
+    limit: DEFAULT_PAGE_SIZE,
+    offset: 0,
+    sort: "requested_at",
+    order: "asc",
+  });
+  const [searchValue, setSearchValue] = useState("");
+
+  const { data, isLoading } = useDeletionRequests(listParams);
   const approve = useApproveDeletionRequest();
   const cancel = useAdminCancelDeletionRequest();
 
   const [detailRequest, setDetailRequest] =
     useState<DeletionRequestResponse | null>(null);
-  const [searchValue, setSearchValue] = useState("");
-  const [searchFilter, setSearchFilter] = useState("");
 
   const handleApprove = async (id: string) => {
     try {
@@ -57,30 +68,48 @@ export default function DeletionRequestsTab() {
   };
 
   const handleSearch = useCallback((value: string) => {
-    setSearchFilter(value.toLowerCase());
+    setListParams((prev) => ({
+      ...prev,
+      search: value || undefined,
+      offset: 0,
+    }));
   }, []);
 
-  const filtered = (requests ?? []).filter((r) => {
-    if (!searchFilter) return true;
-    return (
-      r.username?.toLowerCase().includes(searchFilter) ||
-      r.email?.toLowerCase().includes(searchFilter) ||
-      r.reason?.toLowerCase().includes(searchFilter)
-    );
-  });
+  const handleTableChange = useCallback(
+    (
+      pagination: TablePaginationConfig,
+      _filters: Record<string, unknown>,
+      sorter:
+        | SorterResult<DeletionRequestResponse>
+        | SorterResult<DeletionRequestResponse>[]
+    ) => {
+      const s = Array.isArray(sorter) ? sorter[0] : sorter;
+      setListParams((prev) => ({
+        ...prev,
+        offset:
+          ((pagination.current ?? 1) - 1) *
+          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
+        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
+        sort: s.field ? String(s.field) : "requested_at",
+        order: s.order === "ascend" ? "asc" : "desc",
+      }));
+    },
+    []
+  );
 
   const columns: ColumnsType<DeletionRequestResponse> = [
     {
       title: "Username",
       dataIndex: "username",
       key: "username",
+      sorter: true,
       ellipsis: true,
-      sorter: (a, b) => (a.username ?? "").localeCompare(b.username ?? ""),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
+      sorter: true,
       ellipsis: true,
       render: (email: string) => (
         <Text copyable={{ text: email }} ellipsis>
@@ -107,9 +136,7 @@ export default function DeletionRequestsTab() {
       title: "Requested",
       dataIndex: "requested_at",
       key: "requested_at",
-      sorter: (a, b) =>
-        new Date(a.requested_at).getTime() -
-        new Date(b.requested_at).getTime(),
+      sorter: true,
       defaultSortOrder: "ascend",
       render: formatDate,
     },
@@ -176,17 +203,26 @@ export default function DeletionRequestsTab() {
         />
       </div>
 
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden" }}
-      >
+      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden" }}>
         <Table<DeletionRequestResponse>
           columns={columns}
-          dataSource={filtered}
+          dataSource={data?.items ?? []}
           rowKey="id"
           loading={isLoading}
+          onChange={handleTableChange}
           scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{ pageSize: 20, showTotal: (total) => `${total} requests` }}
+          pagination={{
+            current:
+              Math.floor(
+                (listParams.offset ?? 0) /
+                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
+              ) + 1,
+            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
+            total: data?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: PAGE_SIZE_OPTIONS,
+            showTotal: (total) => `${total} requests`,
+          }}
           locale={{ emptyText: "No pending deletion requests" }}
         />
       </div>

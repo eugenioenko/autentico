@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Typography, Input, Button, Alert, Space, message, Spin, Card } from "antd";
+import { Typography, Input, Button, Alert, Space, Spin, Card, App } from "antd";
 import { SaveOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 
 const { Title, Paragraph, Text } = Typography;
 
 export default function CorsPage() {
+  const { message } = App.useApp();
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const [origins, setOrigins] = useState<string[]>([]);

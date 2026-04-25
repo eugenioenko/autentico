@@ -198,9 +198,10 @@ func TestHandleListDeletionRequests_Empty(t *testing.T) {
 	HandleListDeletionRequests(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp model.ApiResponse[[]DeletionRequestResponse]
+	var resp model.ApiResponse[model.ListResponse[DeletionRequestResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Empty(t, resp.Data)
+	assert.Empty(t, resp.Data.Items)
+	assert.Equal(t, 0, resp.Data.Total)
 }
 
 func TestHandleListDeletionRequests_WithRequests(t *testing.T) {
@@ -219,9 +220,76 @@ func TestHandleListDeletionRequests_WithRequests(t *testing.T) {
 	HandleListDeletionRequests(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	var resp model.ApiResponse[[]DeletionRequestResponse]
+	var resp model.ApiResponse[model.ListResponse[DeletionRequestResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Len(t, resp.Data, 2)
+	assert.Len(t, resp.Data.Items, 2)
+	assert.Equal(t, 2, resp.Data.Total)
+	assert.NotEmpty(t, resp.Data.Items[0].Username)
+	assert.NotEmpty(t, resp.Data.Items[0].Email)
+}
+
+func TestHandleListDeletionRequests_Search(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr1 := setupTestUserAndSession(t)
+	_, usr2 := setupTestUserAndSession(t)
+
+	_, err := CreateDeletionRequest(usr1.ID, nil)
+	require.NoError(t, err)
+	reason := "cleanup"
+	_, err = CreateDeletionRequest(usr2.ID, &reason)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/admin/api/deletion-requests?search="+usr1.Username, nil)
+	rr := httptest.NewRecorder()
+	HandleListDeletionRequests(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp model.ApiResponse[model.ListResponse[DeletionRequestResponse]]
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, usr1.ID, resp.Data.Items[0].UserID)
+}
+
+func TestHandleListDeletionRequests_SortByUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr1 := setupTestUserAndSession(t)
+	_, usr2 := setupTestUserAndSession(t)
+
+	_, err := CreateDeletionRequest(usr1.ID, nil)
+	require.NoError(t, err)
+	_, err = CreateDeletionRequest(usr2.ID, nil)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/admin/api/deletion-requests?sort=username&order=asc", nil)
+	rr := httptest.NewRecorder()
+	HandleListDeletionRequests(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp model.ApiResponse[model.ListResponse[DeletionRequestResponse]]
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Len(t, resp.Data.Items, 2)
+	assert.True(t, resp.Data.Items[0].Username <= resp.Data.Items[1].Username)
+}
+
+func TestHandleListDeletionRequests_Pagination(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr1 := setupTestUserAndSession(t)
+	_, usr2 := setupTestUserAndSession(t)
+
+	_, err := CreateDeletionRequest(usr1.ID, nil)
+	require.NoError(t, err)
+	_, err = CreateDeletionRequest(usr2.ID, nil)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/admin/api/deletion-requests?limit=1&offset=0", nil)
+	rr := httptest.NewRecorder()
+	HandleListDeletionRequests(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp model.ApiResponse[model.ListResponse[DeletionRequestResponse]]
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, 2, resp.Data.Total)
 }
 
 // --- HandleApproveDeletionRequest ---

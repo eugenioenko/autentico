@@ -6,11 +6,11 @@ import {
   Select,
   Button,
   Space,
-  message,
   Divider,
   Collapse,
   Switch,
   Typography,
+  App,
 } from "antd";
 import { PlusOutlined, MinusCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 
@@ -60,6 +60,7 @@ export default function ClientEditForm({
   client,
   onClose,
 }: ClientEditFormProps) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateClient = useUpdateClient();
 

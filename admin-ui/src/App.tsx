@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { App } from "antd";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
@@ -19,30 +20,32 @@ const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
 const queryClient = new QueryClient();
 
-export default function App() {
+export default function AppRoot() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/admin">
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
-            <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AdminLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="clients" element={<ClientsPage />} />
-                <Route path="users" element={<UsersPage />} />
-                <Route path="groups" element={<GroupsPage />} />
-                <Route path="sessions" element={<SessionsPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="cors" element={<CorsPage />} />
-                <Route path="federation" element={<FederationPage />} />
-                <Route path="audit-log" element={<AuditLogPage />} />
+      <App>
+        <BrowserRouter basename="/admin">
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
+              <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AdminLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="clients" element={<ClientsPage />} />
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="groups" element={<GroupsPage />} />
+                  <Route path="sessions" element={<SessionsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="cors" element={<CorsPage />} />
+                  <Route path="federation" element={<FederationPage />} />
+                  <Route path="audit-log" element={<AuditLogPage />} />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </App>
     </QueryClientProvider>
   );
 }

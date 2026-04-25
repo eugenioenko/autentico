@@ -9,10 +9,10 @@ import {
   Modal,
   Typography,
   Alert,
-  message,
   Divider,
   Collapse,
   Switch,
+  App,
 } from "antd";
 import {
   PlusOutlined,
@@ -66,6 +66,7 @@ export default function ClientCreateForm({
   open,
   onClose,
 }: ClientCreateFormProps) {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const createClient = useCreateClient();
   const [secretModal, setSecretModal] = useState<ClientResponse | null>(null);

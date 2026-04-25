@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -132,25 +134,40 @@ func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 // @Summary List all pending deletion requests
 // @Tags admin-deletion
 // @Produce json
+// @Param sort query string false "Sort by field" Enums(requested_at, username, email) default(requested_at)
+// @Param order query string false "Sort order" Enums(asc, desc) default(asc)
+// @Param search query string false "Search by username, email, or reason"
+// @Param requested_at_from query string false "Filter: requested at or after (ISO 8601)"
+// @Param requested_at_to query string false "Filter: requested at or before (ISO 8601)"
+// @Param limit query int false "Max results per page (1–100)" default(100)
+// @Param offset query int false "Number of results to skip" default(0)
 // @Security AdminAuth
-// @Success 200 {array} DeletionRequestResponse
+// @Success 200 {object} model.ListResponse[DeletionRequestResponse]
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/deletion-requests [get]
-func HandleListDeletionRequests(w http.ResponseWriter, _ *http.Request) {
-	requests, err := ListDeletionRequests()
+func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
+	params := api.ParseListParams(r)
+	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+		"requested_at": "d.requested_at",
+	})
+
+	requests, total, err := ListDeletionRequestsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	var response []DeletionRequestResponse
+	var items []DeletionRequestResponse
 	for _, req := range requests {
-		response = append(response, req.ToResponse())
+		items = append(items, req.ToResponse())
 	}
-	if response == nil {
-		response = []DeletionRequestResponse{}
+	if items == nil {
+		items = []DeletionRequestResponse{}
 	}
-	utils.SuccessResponse(w, response, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[DeletionRequestResponse]{
+		Items: items,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleApproveDeletionRequest godoc

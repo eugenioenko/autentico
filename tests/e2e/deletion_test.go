@@ -111,10 +111,10 @@ func TestDeletion_AdminApprovalFlow(t *testing.T) {
 	respBody, _ = io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "list deletion requests failed: %s", string(respBody))
 
-	var listResp model.ApiResponse[[]deletion.DeletionRequestResponse]
+	var listResp model.ApiResponse[model.ListResponse[deletion.DeletionRequestResponse]]
 	require.NoError(t, json.Unmarshal(respBody, &listResp))
-	require.Len(t, listResp.Data, 1)
-	assert.Equal(t, requestID, listResp.Data[0].ID)
+	require.Len(t, listResp.Data.Items, 1)
+	assert.Equal(t, requestID, listResp.Data.Items[0].ID)
 
 	// 5. Admin approves the request
 	req, err = http.NewRequest("POST", ts.BaseURL+"/admin/api/deletion-requests/"+requestID+"/approve", nil)
@@ -146,9 +146,9 @@ func TestDeletion_AdminApprovalFlow(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ = io.ReadAll(resp.Body)
-	var listRespAfter model.ApiResponse[[]deletion.DeletionRequestResponse]
+	var listRespAfter model.ApiResponse[model.ListResponse[deletion.DeletionRequestResponse]]
 	require.NoError(t, json.Unmarshal(respBody, &listRespAfter))
-	assert.Empty(t, listRespAfter.Data)
+	assert.Empty(t, listRespAfter.Data.Items)
 }
 
 // TestDeletion_SelfServiceFlow: with self-service enabled, user deletes their own account immediately.

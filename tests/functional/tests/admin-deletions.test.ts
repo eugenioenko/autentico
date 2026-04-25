@@ -11,7 +11,9 @@ describe('Admin Deletion Requests — happy path', () => {
 
     const body = await resp.json();
     expect(body.data).toBeTruthy();
-    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.items).toBeTruthy();
+    expect(Array.isArray(body.data.items)).toBe(true);
+    expect(typeof body.data.total).toBe('number');
   });
 
   it('approve flow: create user → user requests deletion → admin approves → user deleted', async () => {
@@ -38,7 +40,7 @@ describe('Admin Deletion Requests — happy path', () => {
     // Admin lists deletion requests
     const listResp = await getResponse(`${ADMIN_API}/deletion-requests`, adminToken);
     const list = await listResp.json();
-    const pending = list.data.find((r: { user_id: string }) => r.user_id === userId);
+    const pending = list.data.items.find((r: { user_id: string }) => r.user_id === userId);
     expect(pending).toBeTruthy();
 
     // Admin approves
@@ -72,7 +74,7 @@ describe('Admin Deletion Requests — happy path', () => {
     // Admin lists and finds the request
     const listResp = await getResponse(`${ADMIN_API}/deletion-requests`, adminToken);
     const list = await listResp.json();
-    const pending = list.data.find((r: { user_id: string }) => r.user_id === userId);
+    const pending = list.data.items.find((r: { user_id: string }) => r.user_id === userId);
     expect(pending).toBeTruthy();
 
     // Admin dismisses
