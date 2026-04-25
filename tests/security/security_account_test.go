@@ -322,3 +322,36 @@ func TestAccount_PasswordChange_Success(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, resp.StatusCode,
 		"old password must not grant new tokens after password change")
 }
+
+// TestAccount_PasswordChange_InvalidatesOtherSessions verifies that changing
+// a password from one session invalidates all other sessions for that user.
+func TestAccount_PasswordChange_InvalidatesOtherSessions(t *testing.T) {
+	ts := startTestServer(t)
+	createTestUser(t, "pwsess", "password123", "pwsess@test.com")
+
+	// Create two independent sessions via ROPC
+	session1 := obtainTokensViaROPC(t, ts, "test-client", "pwsess", "password123")
+	session2 := obtainTokensViaROPC(t, ts, "test-client", "pwsess", "password123")
+
+	// Both sessions should work before password change
+	s1Status, _ := doAccountRequest(t, ts, "GET", session1.AccessToken, "/account/api/profile", "")
+	require.Equal(t, http.StatusOK, s1Status, "session 1 should work before password change")
+	s2Status, _ := doAccountRequest(t, ts, "GET", session2.AccessToken, "/account/api/profile", "")
+	require.Equal(t, http.StatusOK, s2Status, "session 2 should work before password change")
+
+	// Change password using session 1
+	status, _ := doAccountRequest(t, ts, "POST", session1.AccessToken,
+		"/account/api/password",
+		`{"current_password": "password123", "new_password": "ChangedPass789!"}`)
+	require.Equal(t, http.StatusOK, status, "password change should succeed")
+
+	// Session 1 (the one that changed the password) should still work
+	s1After, _ := doAccountRequest(t, ts, "GET", session1.AccessToken, "/account/api/profile", "")
+	assert.Equal(t, http.StatusOK, s1After,
+		"session that changed password should remain valid")
+
+	// Session 2 should be invalidated
+	s2After, _ := doAccountRequest(t, ts, "GET", session2.AccessToken, "/account/api/profile", "")
+	assert.Equal(t, http.StatusUnauthorized, s2After,
+		"other sessions must be invalidated after password change")
+}
