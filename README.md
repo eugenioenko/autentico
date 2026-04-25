@@ -369,6 +369,7 @@ These live in the `settings` database table and are loaded into memory at startu
 | `theme_logo_url`                 | URL to a logo image displayed on login page            | _(empty)_        |
 | `theme_css_inline`               | Inline CSS injected into login page `<style>`          | _(empty)_        |
 | `theme_css_file`                 | Path to a CSS file loaded at runtime                   | _(empty)_        |
+| `footer_links`                   | JSON array of `{label, url}` links for login footer    | `[]`             |
 
 ### Per-Client Overrides
 

@@ -1,5 +1,5 @@
 (function () {
-  const canvas = document.getElementById('bg-canvas');
+  const canvas = document.getElementById('canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 

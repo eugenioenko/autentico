@@ -17,15 +17,15 @@
   <script>try{var t=localStorage.getItem('autentico-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 </head>
 
-<body id="autentico">
-  <canvas id="bg-canvas"></canvas>
+<body>
+  <canvas id="canvas"></canvas>
   <main class="auth-page">
     {{block "content" .}}{{end}}
   </main>
-  <footer></footer>
+  <footer>{{range footerLinks}}<a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}}</a>{{end}}</footer>
   {{block "scripts" .}}{{end}}
 </body>
-<script src="{{authURL "/static/network.js"}}"></script>
+<script src="{{authURL "/static/main.js"}}"></script>
 </html>
 {{end}}
 

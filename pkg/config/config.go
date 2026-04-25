@@ -49,6 +49,12 @@ type BootstrapConfig struct {
 	AntiTimingMaxMs int
 }
 
+// FooterLink is a single admin-configured link shown in the login/signup footer.
+type FooterLink struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
 // ThemeConfig holds theme-related display settings.
 type ThemeConfig struct {
 	CssFile   string `json:"themeCssFile"`
@@ -106,6 +112,7 @@ type Config struct {
 	ValidationMaxPasswordLength        int
 	Theme                              ThemeConfig
 	ThemeCssResolved                   string
+	FooterLinks []FooterLink
 	// When true, users can delete their own account immediately without admin approval.
 	AllowSelfServiceDeletion bool
 	// When false (default), users cannot change their own username via the account portal.

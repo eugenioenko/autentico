@@ -65,6 +65,7 @@ var defaults = map[string]string{
 	"profile_field_profile":          "hidden",
 	"profile_field_locale":           "hidden",
 	"profile_field_address":          "optional",
+	"footer_links":                  "[]",
 	"cors_allowed_origins":           "",
 }
 
@@ -280,6 +281,13 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["profile_field_address"]; ok {
 		cfg.ProfileFieldAddress = v
+	}
+
+	if v, ok := all["footer_links"]; ok {
+		var links []config.FooterLink
+		if err := json.Unmarshal([]byte(v), &links); err == nil {
+			cfg.FooterLinks = links
+		}
 	}
 
 	if v, ok := all["cors_allowed_origins"]; ok {

@@ -21,6 +21,8 @@ import {
   ExclamationCircleOutlined,
   DownloadOutlined,
   UploadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useEffect, useRef, useState } from "react";
@@ -88,11 +90,56 @@ const tip = makeTip({
   profile_field_profile: "Controls the profile field (URL to the user's profile page).",
   profile_field_locale: "Controls the locale field (e.g. en-US).",
   profile_field_address: "Controls all address fields (street, city, region, postal code, country) as a group.",
+  footer_links: "Links shown in the footer of login and signup pages (e.g. Terms of Service, Privacy Policy).",
   theme_title: "Custom title for the login and account pages.",
   theme_logo_url: "URL for the custom logo shown on login and account pages.",
   theme_css_inline: "Custom CSS appended to the login and account pages. Served as an external stylesheet, so admin CSS cannot break out into HTML.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
 }, "https://autentico.top/configuration/runtime-settings");
+
+interface FooterLink {
+  label: string;
+  url: string;
+}
+
+function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
+  const links: FooterLink[] = (() => {
+    try { return JSON.parse(value || "[]"); } catch { return []; }
+  })();
+
+  const update = (next: FooterLink[]) => onChange?.(JSON.stringify(next));
+
+  const handleChange = (index: number, field: keyof FooterLink, v: string) => {
+    const next = [...links];
+    next[index] = { ...next[index], [field]: v };
+    update(next);
+  };
+
+  return (
+    <Space direction="vertical" size="small" style={{ width: "100%" }}>
+      {links.map((link, i) => (
+        <Space key={i} style={{ width: "100%" }}>
+          <Input
+            style={{ width: 160 }}
+            value={link.label}
+            onChange={(e) => handleChange(i, "label", e.target.value)}
+            placeholder="Label"
+          />
+          <Input
+            style={{ width: 320 }}
+            value={link.url}
+            onChange={(e) => handleChange(i, "url", e.target.value)}
+            placeholder="https://..."
+          />
+          <Button icon={<DeleteOutlined />} danger onClick={() => update(links.filter((_, j) => j !== i))} />
+        </Space>
+      ))}
+      <Button type="dashed" icon={<PlusOutlined />} onClick={() => update([...links, { label: "", url: "" }])} style={{ width: "100%" }}>
+        Add Link
+      </Button>
+    </Space>
+  );
+}
 
 export default function SettingsPage() {
   const { message } = App.useApp();
@@ -802,6 +849,14 @@ export default function SettingsPage() {
                     tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input />
+                  </Form.Item>
+                  <Divider />
+                  <Form.Item
+                    label="Footer Links"
+                    name="footer_links"
+                    tooltip={{ title: tip("footer_links"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <FooterLinksEditor />
                   </Form.Item>
                 </Card>
               ),

@@ -24,6 +24,9 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"hasThemeCss": func() bool {
 			return config.Get().ThemeCssResolved != ""
 		},
+		"footerLinks": func() []config.FooterLink {
+			return config.Get().FooterLinks
+		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }

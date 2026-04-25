@@ -385,3 +385,16 @@ Default: _(empty)_
 Path to a CSS file on disk, loaded at runtime. Takes precedence over `theme_css_inline` if both are set.
 
 See [Login Page Theming](/authentication/overview/#login-page-theming) for the available CSS variables.
+
+### `footer_links`
+Default: `[]`
+
+JSON array of links shown in the footer of login and signup pages. Each entry has a `label` and `url`. Links are rendered in order. Empty array means no footer links.
+
+```json
+[
+  {"label": "Terms of Service", "url": "https://example.com/terms"},
+  {"label": "Privacy Policy", "url": "https://example.com/privacy"},
+  {"label": "Help", "url": "https://example.com/help"}
+]
+```
