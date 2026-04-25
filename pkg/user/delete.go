@@ -8,12 +8,23 @@ import (
 )
 
 // RevokeAllUserAccess revokes all tokens, OAuth sessions, and IdP sessions
-// for a user. Pass an access token to keep that session alive (e.g. after
-// password change); omit it to revoke everything.
+// for a user.
+func RevokeAllUserAccess(userID string) error {
+	return revokeUserAccess(userID, "")
+}
+
+// RevokeOtherUserAccess revokes all tokens, OAuth sessions, and IdP sessions
+// for a user except the session identified by keepAccessToken.
+func RevokeOtherUserAccess(userID, keepAccessToken string) error {
+	return revokeUserAccess(userID, keepAccessToken)
+}
+
+// revokeUserAccess is the shared implementation. When excludeToken is empty,
+// everything is revoked; otherwise the matching token/session is kept alive.
 //
 // All UPDATEs run inside a single transaction so the three tables never
 // disagree about which sessions are alive.
-func RevokeAllUserAccess(userID string, keepAccessToken ...string) error {
+func revokeUserAccess(userID, excludeToken string) error {
 	tx, err := db.GetDB().Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
@@ -22,14 +33,13 @@ func RevokeAllUserAccess(userID string, keepAccessToken ...string) error {
 
 	now := time.Now()
 
-	if len(keepAccessToken) > 0 && keepAccessToken[0] != "" {
-		exclude := keepAccessToken[0]
+	if excludeToken != "" {
 		if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`,
-			now, userID, exclude); err != nil {
+			now, userID, excludeToken); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
 		if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`,
-			now, userID, exclude); err != nil {
+			now, userID, excludeToken); err != nil {
 			return fmt.Errorf("failed to deactivate sessions: %v", err)
 		}
 	} else {
