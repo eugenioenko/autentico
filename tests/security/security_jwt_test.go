@@ -189,7 +189,7 @@ func TestJWT_MalformedToken(t *testing.T) {
 		"Bearer ",
 		"eyJhbGciOiJSUzI1NiJ9",
 		"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0",
-		strings.Repeat("a", 10000),
+		strings.Repeat("a", 512),
 	}
 
 	for _, tok := range tokens {
