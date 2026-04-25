@@ -59,44 +59,18 @@ func Run(retention time.Duration) {
 	}
 }
 
-// deactivateIdleIdpSessions flips deactivated_at on IdP sessions that have been
-// idle past the configured SSO idle timeout, so /account/api/sessions and
-// /authorize's lazy idle check agree on which browsers are "still signed in".
-// A later pass in Run hard-deletes these rows once they exceed retention.
 func deactivateIdleIdpSessions() {
 	idle := config.Get().AuthSsoSessionIdleTimeout
 	if idle <= 0 {
 		return
 	}
-	idleThreshold := time.Now().Add(-idle)
-	rows, err := db.GetDB().Query(
-		`SELECT id FROM idp_sessions
-		  WHERE deactivated_at IS NULL
-		    AND last_activity_at < ?`, idleThreshold)
+	n, err := idpsession.DeactivateIdle(idle)
 	if err != nil {
-		slog.Error("cleanup: failed to query idle idp_sessions", "error", err)
+		slog.Error("cleanup: failed to deactivate idle idp_sessions", "error", err)
 		return
 	}
-	defer rows.Close()
-
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			slog.Error("cleanup: failed to scan idle idp_session id", "error", err)
-			continue
-		}
-		ids = append(ids, id)
-	}
-
-	for _, id := range ids {
-		if err := idpsession.DeactivateWithCascade(id); err != nil {
-			slog.Error("cleanup: failed to cascade-deactivate idle idp_session", "id", id, "error", err)
-			continue
-		}
-	}
-	if len(ids) > 0 {
-		slog.Info("cleanup: deactivated idle idp_sessions", "count", len(ids))
+	if n > 0 {
+		slog.Info("cleanup: deactivated idle idp_sessions", "count", n)
 	}
 }
 
