@@ -11,7 +11,7 @@ import (
 // than the given timeout and cascade-deactivates each one (IdP session + child
 // OAuth sessions + tokens). Returns the number of sessions deactivated.
 func DeactivateIdle(timeout time.Duration) (int, error) {
-	ids, err := idleSessionIDs(time.Now().Add(-timeout))
+	ids, err := getIdleSessionIDs(time.Now().Add(-timeout))
 	if err != nil {
 		return 0, fmt.Errorf("idpsession: %w", err)
 	}

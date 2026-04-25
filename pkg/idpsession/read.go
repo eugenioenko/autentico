@@ -149,7 +149,7 @@ func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 	return out, rows.Err()
 }
 
-func idleSessionIDs(idleThreshold time.Time) ([]string, error) {
+func getIdleSessionIDs(idleThreshold time.Time) ([]string, error) {
 	rows, err := db.GetDB().Query(
 		`SELECT id FROM idp_sessions
 		  WHERE deactivated_at IS NULL
