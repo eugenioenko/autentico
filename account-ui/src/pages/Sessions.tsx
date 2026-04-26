@@ -122,13 +122,15 @@ const SessionsPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => handleRevoke(s)}
-                className="flex-shrink-0 text-xs"
-              >
-                {s.is_current ? 'Sign out' : 'Revoke'}
-              </Button>
+              {revokedId !== s.id && (
+                <Button
+                  variant="ghost"
+                  onClick={() => handleRevoke(s)}
+                  className="flex-shrink-0 text-xs"
+                >
+                  {s.is_current ? 'Sign out' : 'Revoke'}
+                </Button>
+              )}
             </div>
           ))}
           {(!sessions || sessions.length === 0) && (
