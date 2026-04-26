@@ -2,7 +2,6 @@
 set -e
 
 BINARY="$(pwd)/autentico"
-TEST_SCRIPT="$(pwd)/stress/load-10s-200vu-nosleep.js"
 RESULTS_FILE="$(pwd)/wal_bench_results.txt"
 DB_DIR="$(pwd)/data"
 DB_FILE="$DB_DIR/bench.db"
@@ -10,21 +9,24 @@ PORT=9999
 BASE_URL="http://localhost:$PORT"
 USERNAME="admin"
 PASSWORD="BenchTest123!"
+DURATION="${1:-30s}"
+VUS="${2:-200}"
 
 > "$RESULTS_FILE"
 
 setup_fresh_db() {
+  local wal_mode="$1"
   rm -rf "$DB_DIR"
   mkdir -p "$DB_DIR"
 
-  # Onboard creates DB, runs migrations, seeds admin client with ROPC
   AUTENTICO_DB_FILE_PATH="$DB_FILE" \
+  AUTENTICO_DB_WAL_MODE="$wal_mode" \
   AUTENTICO_CSRF_SECURE_COOKIE=false \
   AUTENTICO_IDP_SESSION_SECURE=false \
     "$BINARY" onboard --username "$USERNAME" --password "$PASSWORD" --enable-admin-password-grant
 
-  # Start server briefly to configure via admin API
   AUTENTICO_DB_FILE_PATH="$DB_FILE" \
+  AUTENTICO_DB_WAL_MODE="$wal_mode" \
   AUTENTICO_CSRF_SECURE_COOKIE=false \
   AUTENTICO_IDP_SESSION_SECURE=false \
   AUTENTICO_RATE_LIMIT_RPS=0 \
@@ -33,7 +35,6 @@ setup_fresh_db() {
   SERVER_PID=$!
   sleep 2
 
-  # Get admin token via ROPC
   local token_resp
   token_resp=$(curl -sf -X POST "$BASE_URL/oauth2/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
@@ -46,7 +47,6 @@ setup_fresh_db() {
     exit 1
   fi
 
-  # Create public stress-test client
   curl -sf -X POST "$BASE_URL/admin/api/clients" \
     -H "Authorization: Bearer $ADMIN_TOKEN" \
     -H "Content-Type: application/json" \
@@ -61,7 +61,6 @@ setup_fresh_db() {
       "token_endpoint_auth_method": "none"
     }' >/dev/null
 
-  # Disable lockout and SSO idle timeout
   curl -sf -X PUT "$BASE_URL/admin/api/settings" \
     -H "Authorization: Bearer $ADMIN_TOKEN" \
     -H "Content-Type: application/json" \
@@ -79,7 +78,8 @@ run_k6() {
     -e PASSWORD="$PASSWORD" \
     -e CLIENT_ID=stress-test \
     -e REDIRECT_URI=http://localhost:8080/stress/callback \
-    "$TEST_SCRIPT" 2>&1 | grep -E "iterations|login_latency|token_latency|refresh_latency|authorize_latency|introspect_latency|flow_errors|flow_success|http_req_failed"
+    --vus "$VUS" --duration "$DURATION" \
+    stress/load-10s-200vu-nosleep.js 2>&1 | grep -E "iterations|login_latency|token_latency|refresh_latency|authorize_latency|introspect_latency|flow_errors|flow_success|http_req_failed"
 }
 
 cleanup() {
@@ -89,12 +89,13 @@ cleanup() {
 }
 
 run_test() {
-  local label="$1" cores="$2"
+  local label="$1" cores="$2" wal_mode="$3"
 
   echo ""
   echo "=== $label ==="
 
   AUTENTICO_DB_FILE_PATH="$DB_FILE" \
+  AUTENTICO_DB_WAL_MODE="$wal_mode" \
   AUTENTICO_CSRF_SECURE_COOKIE=false \
   AUTENTICO_IDP_SESSION_SECURE=false \
   AUTENTICO_RATE_LIMIT_RPS=0 \
@@ -114,18 +115,32 @@ run_test() {
   cleanup
 }
 
-echo "WAL Mode Benchmark (10s, 200 VU) — $(date)"
-echo "WAL Mode Benchmark (10s, 200 VU) — $(date)" >> "$RESULTS_FILE"
+echo "WAL Benchmark ($DURATION, $VUS VU) — $(date)"
+echo "WAL Benchmark ($DURATION, $VUS VU) — $(date)" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
 
-setup_fresh_db
+# ── No-WAL ──────────────────────────────────────────────────────────────────
+echo ">>> Setting up fresh DB (no WAL)"
+setup_fresh_db false
 
-run_test "WAL: 1 core"    1
-run_test "WAL: 2 cores"   2
-run_test "WAL: 4 cores"   4
-run_test "WAL: 6 cores"   6
-run_test "WAL: 8 cores"   8
-run_test "WAL: unlimited" "$(nproc)"
+run_test "No-WAL: 1 core"    1 false
+run_test "No-WAL: 2 cores"   2 false
+run_test "No-WAL: 4 cores"   4 false
+run_test "No-WAL: 6 cores"   6 false
+run_test "No-WAL: 8 cores"   8 false
+run_test "No-WAL: unlimited" "$(nproc)" false
+
+# ── WAL ─────────────────────────────────────────────────────────────────────
+echo ""
+echo ">>> Setting up fresh DB (WAL)"
+setup_fresh_db true
+
+run_test "WAL: 1 core"    1 true
+run_test "WAL: 2 cores"   2 true
+run_test "WAL: 4 cores"   4 true
+run_test "WAL: 6 cores"   6 true
+run_test "WAL: 8 cores"   8 true
+run_test "WAL: unlimited" "$(nproc)" true
 
 echo ""
 echo "=== ALL DONE ==="

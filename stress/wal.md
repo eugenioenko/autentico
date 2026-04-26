@@ -4,7 +4,7 @@
 
 Autentico uses SQLite with a single-writer connection pool (`MaxOpenConns=1`). This document captures the benchmarks that determined whether enabling WAL (Write-Ahead Logging) mode improves throughput.
 
-All tests: k6 (Docker), 200 and 500 virtual users, 30 seconds, no sleep, full PKCE auth code flow (authorize → login → token → introspect → refresh). Rate limiting and anti-timing delay disabled. 16-core desktop machine, all CPUs available.
+All tests: k6 (local), 200 virtual users, 30 seconds, no sleep, full PKCE auth code flow (authorize → login → token → introspect → refresh). Rate limiting and anti-timing delay disabled. 16-core desktop machine.
 
 ## What WAL Does
 
@@ -17,6 +17,32 @@ PRAGMA journal_mode = WAL;
 ```
 
 No other code changes are needed. The single-connection pool (`MaxOpenConns=1`) is preserved.
+
+## Configuration
+
+```bash
+# Enabled by default. Set to false to use rollback journal (DELETE mode).
+AUTENTICO_DB_WAL_MODE=true
+```
+
+Once WAL is enabled, the journal mode persists in the database file. Setting `AUTENTICO_DB_WAL_MODE=false` actively reverts to DELETE journal mode via `PRAGMA journal_mode = DELETE`.
+
+## Benchmark Results: WAL vs No-WAL (30s, 200 VUs)
+
+| Cores | No-WAL (iter/s) | WAL (iter/s) | Improvement | Login p95 no-WAL | Login p95 WAL |
+|-------|-----------------|--------------|-------------|------------------|---------------|
+| 1 | 13.4 | **16.7** | +25% | 11.47s | 10.18s |
+| 2 | 23.6 | **31.3** | +33% | 5.34s | 4.25s |
+| 4 | 32.2 | **49.8** | +55% | 2.92s | 2.25s |
+| 6 | 33.0 | **54.3** | +65% | 2.51s | 1.55s |
+| 8 | 31.9 | **50.2** | +57% | 2.40s | 1.49s |
+| unlimited | 30.7 | **45.9** | +49% | 2.39s | 1.57s |
+
+Key observations:
+- WAL peaks at 6 cores (~54 iter/s), then drops slightly at 8+ cores
+- Without WAL, throughput plateaus at 4-6 cores (~32 iter/s) and regresses at higher core counts
+- WAL provides +25% at 1 core and up to +65% at 6 cores
+- 0% error rate across all configurations
 
 ## Why Not a Read/Write Pool Split?
 
@@ -32,21 +58,6 @@ An earlier experiment (PR #300) paired WAL with a split connection pool: 1 dedic
 The split pool is 3× slower. The reason: with a single pool, reads and writes naturally serialize. This acts as backpressure — goroutines queue up waiting for the one connection, and by the time they get it, contention on the SQLite writer lock is low. With separate read connections, all 200 goroutines complete their reads simultaneously, then pile up on the single writer connection at once, creating a contention storm.
 
 The single pool's serialization is a feature, not a bug. It aligns Go-level concurrency with SQLite's single-writer architecture.
-
-## Benchmark Results
-
-### 200 VUs (30s)
-
-| Configuration | Iterations | Throughput | Login p95 | Token p95 | Refresh p95 |
-|---|---|---|---|---|---|
-| v1.6.18 release (WAL, single pool) | 3,510 | 113 iter/s | 781ms | 815ms | 985ms |
-| WAL + split pool (4 readers) | 1,306 | 37.5 iter/s | 1,470ms | 1,990ms | 3,440ms |
-
-### 500 VUs (30s)
-
-| Configuration | Iterations | Throughput | Login p95 | Token p95 | Refresh p95 |
-|---|---|---|---|---|---|
-| WAL + split pool (4 readers) | 1,539 | 37.5 iter/s | 3,340ms | 4,560ms | 8,680ms |
 
 ## Block Profile Analysis
 
@@ -76,10 +87,3 @@ With a single connection pool, WAL mode still helps because:
 2. **Crash recovery**: WAL mode provides better crash recovery characteristics — partial writes don't corrupt the main database file.
 
 3. **No write amplification**: Rollback journal mode copies pages to the journal before modifying them (write-ahead of the old data). WAL writes new data to the log and checkpoints lazily. This reduces I/O per write.
-
-## Configuration
-
-```bash
-# No new environment variables needed.
-# WAL mode is enabled automatically at startup.
-```
