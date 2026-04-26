@@ -2,11 +2,13 @@ package account
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -21,13 +23,15 @@ func currentIdpSessionID(r *http.Request) string {
 
 // HandleListSessions godoc
 // @Summary List current user's active devices (IdP sessions)
-// @Description Returns all live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
+// @Description Returns paginated live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
 // @Description `active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.
 // @Description `is_current` marks the row matching the request's IdP session cookie.
 // @Tags account-security
 // @Produce json
+// @Param limit query integer false "Max results per page (1–100)" default(20)
+// @Param offset query integer false "Number of results to skip" default(0)
 // @Security UserAuth
-// @Success 200 {array} SessionResponse
+// @Success 200 {object} model.ListResponse[SessionResponse]
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/sessions [get]
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
@@ -37,25 +41,31 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
 	currentID := currentIdpSessionID(r)
 
-	// Filter idle-expired rows in the query so the list stays consistent with
-	// /authorize's lazy idle check even before pkg/cleanup's sweep flips
-	// deactivated_at.
 	idleCutoff := time.Time{}
 	if idle := config.Get().AuthSsoSessionIdleTimeout; idle > 0 {
 		idleCutoff = time.Now().Add(-idle)
 	}
 
-	devices, err := idpsession.ListActiveDevicesForUser(usr.ID, idleCutoff)
+	devices, total, err := idpsession.ListActiveDevicesForUserPaginated(usr.ID, idleCutoff, limit, offset)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
 
-	response := make([]SessionResponse, 0, len(devices))
+	items := make([]SessionResponse, 0, len(devices))
 	for _, d := range devices {
-		response = append(response, SessionResponse{
+		items = append(items, SessionResponse{
 			ID:              d.ID,
 			UserAgent:       d.UserAgent,
 			IPAddress:       d.IPAddress,
@@ -66,7 +76,10 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	utils.SuccessResponse(w, response, http.StatusOK)
+	utils.SuccessResponse(w, model.ListResponse[SessionResponse]{
+		Items: items,
+		Total: total,
+	}, http.StatusOK)
 }
 
 // HandleRevokeSession godoc

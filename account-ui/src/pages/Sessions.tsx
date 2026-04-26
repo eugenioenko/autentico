@@ -5,6 +5,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
 import Button from '../components/Button';
+import Paginator from '../components/Paginator';
 import { describeUserAgent, extractError, formatActiveAppsCount } from '../lib/utils';
 
 interface Session {
@@ -17,25 +18,35 @@ interface Session {
   is_current: boolean;
 }
 
+interface SessionList {
+  items: Session[];
+  total: number;
+}
+
+const PAGE_SIZE = 10;
+
 const SessionsPage: React.FC = () => {
-  const { data: sessions, refetch } = useQuery<Session[]>({
-    queryKey: ['sessions'],
-    queryFn: () => api.get('/sessions').then((res) => res.data.data),
+  const [offset, setOffset] = useState(0);
+  const { data, refetch } = useQuery<SessionList>({
+    queryKey: ['sessions', offset],
+    queryFn: () =>
+      api.get(`/sessions?limit=${PAGE_SIZE}&offset=${offset}`).then((res) => res.data.data),
   });
+  const sessions = data?.items;
+  const total = data?.total ?? 0;
   const [error, setError] = useState('');
   const [revokingAll, setRevokingAll] = useState(false);
 
   const handleRevokeOthers = async () => {
-    const otherCount = sessions?.filter((s) => !s.is_current).length ?? 0;
-    if (otherCount === 0) return;
     const ok = window.confirm(
-      `Sign out all other sessions? Your current session will stay active.`,
+      'Sign out all other sessions? Your current session will stay active.',
     );
     if (!ok) return;
     setError('');
     setRevokingAll(true);
     try {
       await api.post('/sessions/revoke-others');
+      setOffset(0);
       refetch();
     } catch (err: unknown) {
       setError(extractError(err, 'Failed to revoke other sessions.'));
@@ -55,9 +66,6 @@ const SessionsPage: React.FC = () => {
     try {
       await api.delete(`/sessions/${s.id}`);
       if (s.is_current) {
-        // The backend has cleared the IdP cookie; hand off to RP-initiated
-        // logout so any other server-side cleanup (and a friendly "signed
-        // out" page) runs. Full page navigation is intentional.
         window.location.assign('/oauth2/logout');
         return;
       }
@@ -72,7 +80,7 @@ const SessionsPage: React.FC = () => {
       title="Active Sessions"
       description="Browsers and devices where you are currently signed in."
       action={
-        sessions && sessions.filter((s) => !s.is_current).length > 0 ? (
+        total > 1 ? (
           <Button onClick={handleRevokeOthers} disabled={revokingAll}>
             {revokingAll ? 'Signing out…' : 'Sign out all other sessions'}
           </Button>
@@ -107,7 +115,7 @@ const SessionsPage: React.FC = () => {
               </div>
             </div>
             <Button
-              variant={s.is_current ? 'ghost' : 'ghost'}
+              variant="ghost"
               onClick={() => handleRevoke(s)}
               className="flex-shrink-0 text-xs"
             >
@@ -119,6 +127,7 @@ const SessionsPage: React.FC = () => {
           <p className="text-sm text-theme-muted py-4">No active sessions found.</p>
         )}
       </div>
+      <Paginator offset={offset} limit={PAGE_SIZE} total={total} onPageChange={setOffset} />
     </Card>
   );
 };

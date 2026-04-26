@@ -54,12 +54,12 @@ func TestHandleListSessions_ReturnsIdpSessions(t *testing.T) {
 	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var resp model.ApiResponse[[]SessionResponse]
+	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	assert.Len(t, resp.Data, 2)
+	assert.Len(t, resp.Data.Items, 2)
 
 	byID := map[string]SessionResponse{}
-	for _, s := range resp.Data {
+	for _, s := range resp.Data.Items {
 		byID[s.ID] = s
 	}
 	assert.Equal(t, 2, byID[idpA].ActiveAppsCount, "IdP A should count two linked OAuth sessions")
@@ -89,10 +89,10 @@ func TestHandleListSessions_ExcludesDeactivatedAndOtherUsers(t *testing.T) {
 	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var resp model.ApiResponse[[]SessionResponse]
+	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Len(t, resp.Data, 1)
-	assert.Equal(t, mine, resp.Data[0].ID)
+	require.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, mine, resp.Data.Items[0].ID)
 }
 
 func TestHandleListSessions_MarksCurrentSessionFromCookie(t *testing.T) {
@@ -111,9 +111,9 @@ func TestHandleListSessions_MarksCurrentSessionFromCookie(t *testing.T) {
 	HandleListSessions(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var resp model.ApiResponse[[]SessionResponse]
+	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	for _, s := range resp.Data {
+	for _, s := range resp.Data.Items {
 		if s.ID == current {
 			assert.True(t, s.IsCurrent)
 		}
@@ -143,10 +143,10 @@ func TestHandleListSessions_ExcludesIdleExpired(t *testing.T) {
 	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-	var resp model.ApiResponse[[]SessionResponse]
+	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Len(t, resp.Data, 1)
-	assert.Equal(t, fresh, resp.Data[0].ID, "idle-expired IdP session must be filtered out pre-cleanup")
+	require.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, fresh, resp.Data.Items[0].ID, "idle-expired IdP session must be filtered out pre-cleanup")
 }
 
 func TestHandleListSessions_Unauthorized(t *testing.T) {

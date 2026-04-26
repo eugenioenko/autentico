@@ -210,8 +210,11 @@ func TestAccount_SessionListIsolation(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 
 	var resp struct {
-		Data []struct {
-			ID string `json:"id"`
+		Data struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+			Total int `json:"total"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(body, &resp))

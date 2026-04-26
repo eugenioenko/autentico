@@ -85,6 +85,34 @@ func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow,
 	return scanDeviceRows(rows, false)
 }
 
+// ListActiveDevicesForUserPaginated is like ListActiveDevicesForUser but with
+// limit/offset pagination and a total count.
+func ListActiveDevicesForUserPaginated(userID string, idleCutoff time.Time, limit, offset int) ([]DeviceRow, int, error) {
+	baseWhere := `WHERE s.user_id = ? AND s.deactivated_at IS NULL`
+	args := []any{userID}
+	if !idleCutoff.IsZero() {
+		baseWhere += ` AND s.last_activity_at > ?`
+		args = append(args, idleCutoff)
+	}
+
+	var total int
+	if err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM idp_sessions s `+baseWhere, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
+	}
+
+	query := `SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
+		FROM idp_sessions s ` + baseWhere + ` ORDER BY s.last_activity_at DESC LIMIT ? OFFSET ?`
+	rows, err := db.GetDB().Query(query, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	devices, err := scanDeviceRows(rows, false)
+	return devices, total, err
+}
+
 // ListActiveDevices returns every non-deactivated IdP session, optionally
 // filtered by userID (empty = all users). Ordered by most recent activity first.
 func ListActiveDevices(userID string) ([]DeviceRow, error) {
