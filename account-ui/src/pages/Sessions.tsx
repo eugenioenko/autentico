@@ -29,7 +29,7 @@ const SessionsPage: React.FC = () => {
     const otherCount = sessions?.filter((s) => !s.is_current).length ?? 0;
     if (otherCount === 0) return;
     const ok = window.confirm(
-      `Sign out ${otherCount} other device${otherCount === 1 ? '' : 's'}? Your current session will stay active.`,
+      `Sign out all other sessions? Your current session will stay active.`,
     );
     if (!ok) return;
     setError('');
@@ -74,7 +74,7 @@ const SessionsPage: React.FC = () => {
       action={
         sessions && sessions.filter((s) => !s.is_current).length > 0 ? (
           <Button onClick={handleRevokeOthers} disabled={revokingAll}>
-            {revokingAll ? 'Signing out…' : 'Sign out all other devices'}
+            {revokingAll ? 'Signing out…' : 'Sign out all other sessions'}
           </Button>
         ) : undefined
       }
