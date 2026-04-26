@@ -23,6 +23,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+const mfaChallengeExpiration = 10 * time.Minute
+
 // HandleLoginUser handles user login requests.
 // CSRF-protected form — not included in public API docs.
 //
@@ -204,7 +206,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			UserID:     usr.ID,
 			Method:     method,
 			LoginState: string(stateJSON),
-			ExpiresAt:  time.Now().Add(5 * time.Minute),
+			ExpiresAt:  time.Now().Add(mfaChallengeExpiration),
 		}
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
