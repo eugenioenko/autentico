@@ -19,7 +19,7 @@ func AuthCodeByCode(code string) (*AuthCode, error) {
     `
 	var authCode AuthCode
 	var clientID, idpSessionID sql.NullString
-	err := db.GetDB().QueryRow(query, code, time.Now().UTC()).Scan(
+	err := db.GetReadDB().QueryRow(query, code, time.Now().UTC()).Scan(
 		&authCode.Code,
 		&authCode.UserID,
 		&clientID,
@@ -63,7 +63,7 @@ func AuthCodeByCodeIncludingUsed(code string) (*AuthCode, error) {
     `
 	var authCode AuthCode
 	var clientID, idpSessionID sql.NullString
-	err := db.GetDB().QueryRow(query, code).Scan(
+	err := db.GetReadDB().QueryRow(query, code).Scan(
 		&authCode.Code,
 		&authCode.UserID,
 		&clientID,

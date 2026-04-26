@@ -60,7 +60,7 @@ func DeactivateWithCascade(idpSessionID string) error {
 		return fmt.Errorf("idpsession: empty idp_session_id")
 	}
 
-	tx, err := db.GetDB().Begin()
+	tx, err := db.GetWriteDB().Begin()
 	if err != nil {
 		return fmt.Errorf("idpsession: begin cascade tx: %w", err)
 	}

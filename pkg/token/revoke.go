@@ -11,7 +11,7 @@ import (
 // grant tokens for the given user. Called when auth code reuse is detected per RFC 6749 §4.1.2.
 // clientID is accepted for logging context but the tokens table has no client_id column.
 func RevokeTokensByUserAndClient(userID, _ string) error {
-	_, err := db.GetDB().Exec(`
+	_, err := db.GetWriteDB().Exec(`
 		UPDATE tokens
 		SET revoked_at = ?
 		WHERE user_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
@@ -22,7 +22,7 @@ func RevokeTokensByUserAndClient(userID, _ string) error {
 // RevokeByID sets revoked_at on a single token row by its primary key.
 // Returns an error if the row doesn't exist or is already revoked.
 func RevokeByID(id string) error {
-	res, err := db.GetDB().Exec(`
+	res, err := db.GetWriteDB().Exec(`
 		UPDATE tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL
 	`, time.Now().UTC(), id)
 	if err != nil {
@@ -42,7 +42,7 @@ func RevokeByID(id string) error {
 // A no-op if the token is not found, per §2.2 ("respond with 200 whether the
 // token is valid, invalid, or unknown").
 func RevokeByTokenValue(tokenValue string) error {
-	_, err := db.GetDB().Exec(`
+	_, err := db.GetWriteDB().Exec(`
 		UPDATE tokens
 		SET revoked_at = ?
 		WHERE access_token = ? OR refresh_token = ?

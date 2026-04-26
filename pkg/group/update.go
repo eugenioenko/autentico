@@ -23,7 +23,7 @@ func UpdateGroup(id string, req GroupUpdateRequest) error {
 	}
 
 	query := `UPDATE groups SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-	_, err = db.GetDB().Exec(query, name, description, id)
+	_, err = db.GetWriteDB().Exec(query, name, description, id)
 	if err != nil {
 		return fmt.Errorf("failed to update group: %w", err)
 	}

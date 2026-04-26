@@ -9,12 +9,12 @@ import (
 )
 
 func UpdatePasskeyName(id, name string) error {
-	_, err := db.GetDB().Exec(`UPDATE passkey_credentials SET name = ? WHERE id = ?`, name, id)
+	_, err := db.GetWriteDB().Exec(`UPDATE passkey_credentials SET name = ? WHERE id = ?`, name, id)
 	return err
 }
 
 func MarkPasskeyChallengeUsed(id string) error {
-	_, err := db.GetDB().Exec(`UPDATE passkey_challenges SET used = TRUE WHERE id = ?`, id)
+	_, err := db.GetWriteDB().Exec(`UPDATE passkey_challenges SET used = TRUE WHERE id = ?`, id)
 	return err
 }
 
@@ -24,7 +24,7 @@ func UpdatePasskeyCredential(credentialID string, cred webauthn.Credential) erro
 	if err != nil {
 		return err
 	}
-	_, err = db.GetDB().Exec(
+	_, err = db.GetWriteDB().Exec(
 		`UPDATE passkey_credentials SET credential = ?, last_used_at = ? WHERE id = ?`,
 		string(credJSON), time.Now(), credentialID,
 	)

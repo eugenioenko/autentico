@@ -7,7 +7,7 @@ import (
 )
 
 func UpdateFederationProvider(id string, req FederationProviderRequest) error {
-	_, err := db.GetDB().Exec(
+	_, err := db.GetWriteDB().Exec(
 		`UPDATE federation_providers SET name = ?, issuer = ?, client_id = ?, client_secret = ?, icon_svg = ?, enabled = ?, sort_order = ?
 		 WHERE id = ?`,
 		req.Name, req.Issuer, req.ClientID, req.ClientSecret, req.IconSVG, req.Enabled, req.SortOrder, id,

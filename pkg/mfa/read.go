@@ -15,7 +15,7 @@ func MfaChallengeByIDIncludingExpired(id string) (*MfaChallenge, error) {
 		SELECT id, user_id, method, code, login_state, created_at, expires_at, used, failed_attempts, otp_sent_at
 		FROM mfa_challenges WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetReadDB().QueryRow(query, id)
 	err := row.Scan(
 		&challenge.ID,
 		&challenge.UserID,

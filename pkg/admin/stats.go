@@ -34,7 +34,7 @@ func HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	var stats StatsResponse
 
-	d := db.GetDB()
+	d := db.GetReadDB()
 
 	_ = d.QueryRow(`SELECT COUNT(*) FROM users WHERE deactivated_at IS NULL`).Scan(&stats.TotalUsers)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM clients WHERE is_active = TRUE`).Scan(&stats.ActiveClients)

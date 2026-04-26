@@ -79,10 +79,10 @@ func RunStart(c *cli.Context) error {
 	defer db.CloseDB()
 
 	if !c.Bool("no-auto-migrate") {
-		if err := migrations.Run(db.GetDB(), true); err != nil {
+		if err := migrations.Run(db.GetWriteDB(), true); err != nil {
 			return err
 		}
-	} else if err := migrations.Check(db.GetDB()); err != nil {
+	} else if err := migrations.Check(db.GetWriteDB()); err != nil {
 		return err
 	}
 

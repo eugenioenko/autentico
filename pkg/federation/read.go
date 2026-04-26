@@ -34,13 +34,13 @@ func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProv
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM federation_providers " + baseWhere + lq.Where
-	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+	if err := db.GetReadDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count federation providers: %w", err)
 	}
 
 	query := `SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
 		FROM federation_providers ` + baseWhere + lq.Where + lq.Order
-	rows, err := db.GetDB().Query(query, lq.Args...)
+	rows, err := db.GetReadDB().Query(query, lq.Args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list federation providers: %w", err)
 	}
@@ -65,7 +65,7 @@ func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProv
 // flows into the template — HasIcon tells the template to emit an <img> pointing
 // at the federation icon route, which serves the SVG with image/svg+xml.
 func ListEnabledProviderViews() ([]FederationProviderView, error) {
-	rows, err := db.GetDB().Query(
+	rows, err := db.GetReadDB().Query(
 		`SELECT id, name, icon_svg FROM federation_providers
 		 WHERE enabled = TRUE ORDER BY sort_order ASC, created_at ASC`,
 	)
@@ -92,7 +92,7 @@ func ListEnabledProviderViews() ([]FederationProviderView, error) {
 
 func FederationProviderByID(id string) (*FederationProvider, error) {
 	var p FederationProvider
-	err := db.GetDB().QueryRow(
+	err := db.GetReadDB().QueryRow(
 		`SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
 		 FROM federation_providers WHERE id = ?`, id,
 	).Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt)
@@ -106,7 +106,7 @@ func FederationProviderByID(id string) (*FederationProvider, error) {
 }
 
 func FederatedIdentitiesByUserID(userID string) ([]*FederatedIdentity, error) {
-	rows, err := db.GetDB().Query(
+	rows, err := db.GetReadDB().Query(
 		`SELECT id, provider_id, provider_user_id, user_id, email, created_at
 		 FROM federated_identities WHERE user_id = ?`, userID,
 	)
@@ -128,7 +128,7 @@ func FederatedIdentitiesByUserID(userID string) ([]*FederatedIdentity, error) {
 
 func FederatedIdentityByProviderAndSub(providerID, sub string) (*FederatedIdentity, error) {
 	var fi FederatedIdentity
-	err := db.GetDB().QueryRow(
+	err := db.GetReadDB().QueryRow(
 		`SELECT id, provider_id, provider_user_id, user_id, email, created_at
 		 FROM federated_identities WHERE provider_id = ? AND provider_user_id = ?`,
 		providerID, sub,
