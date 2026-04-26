@@ -109,7 +109,7 @@ export default function AdminLayout() {
           },
         }}
       >
-        <Sider trigger={null} collapsible collapsed={collapsed} style={{ background: siderBg, overflow: "auto" }}>
+        <Sider trigger={null} collapsible collapsed={collapsed} breakpoint="lg" onBreakpoint={setCollapsed} style={{ background: siderBg, overflow: "auto" }}>
           <div
             style={{
               height: 64,
