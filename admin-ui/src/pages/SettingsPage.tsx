@@ -3,9 +3,10 @@ import {
   Form,
   Input,
   Button,
-  Switch,
+  Checkbox,
+  ConfigProvider,
   Select,
-  Card,
+  Tooltip,
   Space,
   Divider,
   Spin,
@@ -28,12 +29,27 @@ import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "../api/client";
+import DurationInput from "../components/DurationInput";
+import RetentionInput from "../components/RetentionInput";
 import { makeTip } from "../lib/tips";
 
 const { Title, Text } = Typography;
 
-// getValueProps for Switch: API sends strings, Switch stores booleans after toggle
 const boolProp = (value: unknown) => ({ checked: value === true || value === "true" });
+
+const tabTheme = {
+  components: {
+    Checkbox: { controlInteractiveSize: 24 },
+  },
+};
+
+function TabContent({ children }: { children: React.ReactNode }) {
+  return (
+    <ConfigProvider theme={tabTheme}>
+      <div style={{ maxWidth: 800, paddingTop: 24 }}>{children}</div>
+    </ConfigProvider>
+  );
+}
 
 interface PreviewRow {
   key: string;
@@ -277,22 +293,18 @@ export default function SettingsPage() {
   if (error) return <Alert type="error" message="Failed to load settings" />;
 
   return (
-    <div style={{ flex: 1, overflow: "auto" }}>
-    <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <div>
-        <Title level={2}>System Settings</Title>
-        <Text type="secondary">
-          Configure global policies and defaults for your identity provider.
-        </Text>
-      </div>
-
+    <div className="settings-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <style>{`.settings-page input, .settings-page .ant-select, .settings-page .ant-input-password { max-width: 400px; }`}</style>
       <Form
         form={form}
         layout="vertical"
         onFinish={onFinish}
         initialValues={settings}
-        style={{ maxWidth: 800 }}
+        style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}
       >
+      <div style={{ flex: 1, overflow: "auto", padding: "0 0 16px" }}>
+      <Space direction="vertical" size="large" style={{ display: "flex" }}>
+      <Title level={2} style={{ marginBottom: 0 }}>System Settings</Title>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -301,7 +313,7 @@ export default function SettingsPage() {
               key: "1",
               label: "Login & Registration",
               children: (
-                <Card variant="borderless">
+                <TabContent>
                   <Form.Item
                     label="Authentication Mode"
                     name="auth_mode"
@@ -327,57 +339,42 @@ export default function SettingsPage() {
                     </Select>
                   </Form.Item>
 
-                  <Form.Item
-                    label="Allow Self Signup"
-                    name="allow_self_signup"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("allow_self_signup"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Form.Item name="allow_self_signup" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Allow Self Signup{' '}
+                      <Tooltip title={tip("allow_self_signup")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
-                  <Form.Item
-                    label="Allow Username Change"
-                    name="allow_username_change"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("allow_username_change"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Form.Item name="allow_username_change" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Allow Username Change{' '}
+                      <Tooltip title={tip("allow_username_change")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
-                  <Form.Item
-                    label="Allow Email Change"
-                    name="allow_email_change"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("allow_email_change"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Form.Item name="allow_email_change" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Allow Email Change{' '}
+                      <Tooltip title={tip("allow_email_change")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
-                  <Form.Item
-                    label="Allow Self-Service Deletion"
-                    name="allow_self_service_deletion"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("allow_self_service_deletion"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Form.Item name="allow_self_service_deletion" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Allow Self-Service Deletion{' '}
+                      <Tooltip title={tip("allow_self_service_deletion")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5}>Email Verification</Title>
-                  <Form.Item
-                    label="Require Email Verification"
-                    name="require_email_verification"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("require_email_verification"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Title level={5} style={{ marginTop: 0 }}>Email Verification</Title>
+                  <Form.Item name="require_email_verification" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Require Email Verification{' '}
+                      <Tooltip title={tip("require_email_verification")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
                   {emailVerifyWithoutSmtp && (
                     <Alert
@@ -393,24 +390,21 @@ export default function SettingsPage() {
                     name="email_verification_expiration"
                     tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="24h" />
+                    <DurationInput />
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "2",
               label: "MFA & Trusted Devices",
               children: (
-                <Card variant="borderless">
-                  <Form.Item
-                    label="Require MFA"
-                    name="require_mfa"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("require_mfa"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                <TabContent>
+                  <Form.Item name="require_mfa" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Require MFA{' '}
+                      <Tooltip title={tip("require_mfa")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
                   <Form.Item
@@ -436,15 +430,12 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5}>Trusted Devices</Title>
-                  <Form.Item
-                    label="Trust Device Enabled"
-                    name="trust_device_enabled"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("trust_device_enabled"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Title level={5} style={{ marginTop: 0 }}>Trusted Devices</Title>
+                  <Form.Item name="trust_device_enabled" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Trust Device Enabled{' '}
+                      <Tooltip title={tip("trust_device_enabled")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
                   <Form.Item
@@ -452,12 +443,12 @@ export default function SettingsPage() {
                     name="trust_device_expiration"
                     tooltip={{ title: tip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="720h" />
+                    <DurationInput />
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5}>Passkeys</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>Passkeys</Title>
                   <Form.Item
                     label="Passkey RP Name"
                     name="passkey_rp_name"
@@ -465,72 +456,69 @@ export default function SettingsPage() {
                   >
                     <Input />
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "3",
               label: "Sessions & Tokens",
               children: (
-                <Card variant="borderless">
-                  <Title level={5}>SSO Sessions</Title>
-                  <Form.Item
-                    label="SSO Enabled"
-                    name="sso_enabled"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("sso_enabled"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                <TabContent>
+                  <Title level={5} style={{ marginTop: 0 }}>SSO Sessions</Title>
+                  <Form.Item name="sso_enabled" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      SSO Enabled{' '}
+                      <Tooltip title={tip("sso_enabled")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
                   <Form.Item
                     label="SSO Session Idle Timeout"
                     name="sso_session_idle_timeout"
                     tooltip={{ title: tip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="4h" />
+                    <DurationInput />
                   </Form.Item>
                   <Form.Item
                     label="SSO Session Max Age"
                     name="sso_session_max_age"
                     tooltip={{ title: tip("sso_session_max_age"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="720h" />
+                    <DurationInput />
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5}>Token Expiration</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>Token Expiration</Title>
                   <Form.Item
                     label="Access Token"
                     name="access_token_expiration"
                     tooltip={{ title: tip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="15m" />
+                    <DurationInput />
                   </Form.Item>
                   <Form.Item
                     label="Refresh Token"
                     name="refresh_token_expiration"
                     tooltip={{ title: tip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="720h" />
+                    <DurationInput />
                   </Form.Item>
                   <Form.Item
                     label="Auth Code"
                     name="authorization_code_expiration"
                     tooltip={{ title: tip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="10m" />
+                    <DurationInput />
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "4",
               label: "Security",
               children: (
-                <Card variant="borderless">
-                  <Title level={5}>User Validation</Title>
+                <TabContent>
+                  <Title level={5} style={{ marginTop: 0 }}>User Validation</Title>
                   <Space size="large">
                     <Form.Item
                       label="Min Username"
@@ -567,7 +555,7 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5}>Account Lockout</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>Account Lockout</Title>
                   <Form.Item
                     label="Max Failed Attempts"
                     name="account_lockout_max_attempts"
@@ -580,20 +568,17 @@ export default function SettingsPage() {
                     name="account_lockout_duration"
                     tooltip={{ title: tip("account_lockout_duration"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="15m" />
+                    <DurationInput />
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5}>PKCE</Title>
-                  <Form.Item
-                    label="Enforce S256 Code Challenge"
-                    name="pkce_enforce_s256"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("pkce_enforce_s256"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Title level={5} style={{ marginTop: 0 }}>PKCE</Title>
+                  <Form.Item name="pkce_enforce_s256" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Enforce S256 Code Challenge{' '}
+                      <Tooltip title={tip("pkce_enforce_s256")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
                   {(pkceEnforced === false || pkceEnforced === "false") && (
                     <Alert
@@ -616,22 +601,22 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5}>Audit Log</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>Audit Log</Title>
                   <Form.Item
                     label="Audit Log Retention"
                     name="audit_log_retention"
                     tooltip={{ title: tip("audit_log_retention"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input placeholder="0 = disabled, -1 = forever, 720h = 30 days" />
+                    <RetentionInput />
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "5",
               label: "SMTP",
               children: (
-                <Card variant="borderless">
+                <TabContent>
                   <Form.Item
                     label="SMTP Host"
                     name="smtp_host"
@@ -672,14 +657,14 @@ export default function SettingsPage() {
                       Send Test Email
                     </Button>
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "6",
               label: "Profile Fields",
               children: (
-                <Card variant="borderless">
+                <TabContent>
                   <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
                     Control which profile fields are shown on the signup form and the
                     self-service account portal. <strong>Hidden</strong> fields are never
@@ -687,14 +672,11 @@ export default function SettingsPage() {
                     <strong>Required</strong> fields must be filled before the account is created.
                   </Text>
 
-                  <Form.Item
-                    label="Show Optional Fields on Signup"
-                    name="signup_show_optional_fields"
-                    valuePropName="checked"
-                    getValueProps={boolProp}
-                    tooltip={{ title: tip("signup_show_optional_fields"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Switch />
+                  <Form.Item name="signup_show_optional_fields" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Show Optional Fields on Signup{' '}
+                      <Tooltip title={tip("signup_show_optional_fields")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
                   </Form.Item>
 
                   <Divider />
@@ -842,14 +824,22 @@ export default function SettingsPage() {
                       <Select.Option value="required">Required</Select.Option>
                     </Select>
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "7",
               label: "Branding",
               children: (
-                <Card variant="borderless">
+                <TabContent>
+                  <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
+                    Customize the appearance of login, signup, and account pages.
+                    Set a page title, upload a logo, and use custom CSS to match your
+                    brand. Footer links let you add Terms of Service, Privacy Policy, or
+                    any other links below the login form. Changes apply to all user-facing
+                    pages served by the identity provider.
+                  </Text>
+
                   <Form.Item
                     label="Page Title"
                     name="theme_title"
@@ -884,17 +874,17 @@ export default function SettingsPage() {
                   >
                     <FooterLinksEditor />
                   </Form.Item>
-                </Card>
+                </TabContent>
               ),
             },
             {
               key: "8",
               label: "Backup",
               children: (
-                <Card variant="borderless">
+                <TabContent>
                   <Space direction="vertical" size="middle" style={{ display: "flex" }}>
                     <div>
-                      <Title level={5} style={{ marginBottom: 4 }}>Export</Title>
+                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Export</Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                         Download all settings as a JSON file.
                       </Text>
@@ -910,7 +900,7 @@ export default function SettingsPage() {
                     <Divider />
 
                     <div>
-                      <Title level={5} style={{ marginBottom: 4 }}>Import</Title>
+                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Import</Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                         Paste a settings JSON file below or upload one. Preview changes before applying.
                       </Text>
@@ -1029,14 +1019,17 @@ export default function SettingsPage() {
                       </>
                     )}
                   </Space>
-                </Card>
+                </TabContent>
               ),
             },
           ]}
         />
 
+    </Space>
+    </div>
+
         {activeTab !== "8" && (
-          <div style={{ marginTop: 24, textAlign: "right" }}>
+          <div style={{ borderTop: "1px solid var(--ant-color-border)", padding: "16px 0", textAlign: "right" }}>
             <Button
               type="primary"
               htmlType="submit"
@@ -1049,7 +1042,6 @@ export default function SettingsPage() {
           </div>
         )}
       </Form>
-    </Space>
     </div>
   );
 }
