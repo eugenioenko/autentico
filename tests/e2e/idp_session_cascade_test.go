@@ -92,13 +92,13 @@ func TestIdpSessionCascade_FullFlow(t *testing.T) {
 	defer func() { _ = listResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, listResp.StatusCode)
 
-	var listBody model.ApiResponse[[]account.SessionResponse]
+	var listBody model.ApiResponse[model.ListResponse[account.SessionResponse]]
 	listBodyBytes, _ := io.ReadAll(listResp.Body)
 	require.NoError(t, json.Unmarshal(listBodyBytes, &listBody))
-	require.Len(t, listBody.Data, 1)
-	assert.Equal(t, idpCookieValue, listBody.Data[0].ID)
-	assert.True(t, listBody.Data[0].IsCurrent, "the only IdP session must be marked current")
-	assert.Equal(t, 1, listBody.Data[0].ActiveAppsCount)
+	require.Len(t, listBody.Data.Items, 1)
+	assert.Equal(t, idpCookieValue, listBody.Data.Items[0].ID)
+	assert.True(t, listBody.Data.Items[0].IsCurrent, "the only IdP session must be marked current")
+	assert.Equal(t, 1, listBody.Data.Items[0].ActiveAppsCount)
 
 	// DELETE the IdP session — cascade should deactivate child OAuth session + tokens.
 	delReq, err := http.NewRequest("DELETE", ts.BaseURL+"/account/api/sessions/"+idpCookieValue, nil)

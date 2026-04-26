@@ -21,6 +21,16 @@ var idpSessionListConfig = api.ListConfig{
 	TableAlias:     "s",
 }
 
+var accountDeviceListConfig = api.ListConfig{
+	AllowedSort: map[string]bool{
+		"last_activity_at": true,
+		"created_at":       true,
+	},
+	DefaultSort: "last_activity_at",
+	MaxLimit:    api.DefaultMaxLimit,
+	TableAlias:  "s",
+}
+
 func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	var session IdpSession
 	query := `
@@ -83,6 +93,42 @@ func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow,
 	defer func() { _ = rows.Close() }()
 
 	return scanDeviceRows(rows, false)
+}
+
+// ListActiveDevicesForUserPaginated is like ListActiveDevicesForUser but with
+// pagination, sorting, and a total count via the standard BuildListQuery pattern.
+func ListActiveDevicesForUserPaginated(userID string, idleCutoff time.Time, params api.ListParams) ([]DeviceRow, int, error) {
+	lq := api.BuildListQuery(params, accountDeviceListConfig)
+
+	baseFrom := "FROM idp_sessions s"
+	baseWhere := "WHERE s.user_id = ? AND s.deactivated_at IS NULL"
+	baseArgs := []any{userID}
+
+	var idleWhere string
+	if !idleCutoff.IsZero() {
+		idleWhere = " AND s.last_activity_at > ?"
+		baseArgs = append(baseArgs, idleCutoff)
+	}
+
+	allArgs := append(baseArgs, lq.Args...)
+
+	var total int
+	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + idleWhere + lq.Where
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
+	}
+
+	query := `SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
+		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
+		` + baseFrom + ` ` + baseWhere + idleWhere + lq.Where + lq.Order
+	rows, err := db.GetDB().Query(query, allArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	devices, err := scanDeviceRows(rows, false)
+	return devices, total, err
 }
 
 // ListActiveDevices returns every non-deactivated IdP session, optionally

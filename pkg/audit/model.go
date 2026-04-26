@@ -93,7 +93,9 @@ const (
 	EventFederationCreated     Event = "federation_created"
 	EventFederationUpdated     Event = "federation_updated"
 	EventFederationDeleted     Event = "federation_deleted"
-	EventTokenRevoked          Event = "token_revoked"
+	EventAllUserSessionsRevoked Event = "all_user_sessions_revoked"
+	EventOtherSessionsRevoked   Event = "other_sessions_revoked"
+	EventTokenRevoked           Event = "token_revoked"
 	EventDeletionApproved      Event = "deletion_approved"
 )
 

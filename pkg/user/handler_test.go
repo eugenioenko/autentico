@@ -350,6 +350,62 @@ func TestHandleUnlockUser_Success(t *testing.T) {
 	assert.Nil(t, lockedUntil)
 }
 
+// --- HandleRevokeUserSessions tests ---
+
+func TestHandleRevokeUserSessions_MissingID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users//revoke-sessions", nil)
+	rr := httptest.NewRecorder()
+	HandleRevokeUserSessions(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Missing user id")
+}
+
+func TestHandleRevokeUserSessions_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	targetUserID := xid.New().String()
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO users (id, username, email, password)
+		VALUES (?, 'revokeuser', 'revoke@test.com', 'pass')
+	`, targetUserID)
+
+	// Create a token and session for this user.
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		VALUES (?, ?, ?, ?, '', '', '', datetime('now'), datetime('now', '+1 hour'))
+	`, "sess-revoke", targetUserID, "at-revoke", "rt-revoke")
+	_, _ = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
+		        datetime('now'), 'openid', 'authorization_code')
+	`, "tok-revoke", targetUserID, "at-revoke", "rt-revoke")
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/"+targetUserID+"/revoke-sessions", nil)
+	req.SetPathValue("id", targetUserID)
+	rr := httptest.NewRecorder()
+	HandleRevokeUserSessions(rr, req)
+
+	assert.Equal(t, http.StatusNoContent, rr.Code)
+
+	// Token should be revoked.
+	var revokedAt *time.Time
+	_ = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE id = ?`, "tok-revoke").Scan(&revokedAt)
+	assert.NotNil(t, revokedAt)
+
+	// Session should be deactivated.
+	var deactivatedAt *time.Time
+	_ = db.GetDB().QueryRow(`SELECT deactivated_at FROM sessions WHERE id = ?`, "sess-revoke").Scan(&deactivatedAt)
+	assert.NotNil(t, deactivatedAt)
+
+	// User should NOT be deactivated.
+	var userDeactivated *time.Time
+	_ = db.GetDB().QueryRow(`SELECT deactivated_at FROM users WHERE id = ?`, targetUserID).Scan(&userDeactivated)
+	assert.Nil(t, userDeactivated, "user account must remain active")
+}
+
 // --- HandleUserAdmin integration tests ---
 
 func TestHandleUserAdmin(t *testing.T) {

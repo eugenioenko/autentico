@@ -564,6 +564,15 @@ definitions:
           $ref: '#/definitions/model.JWK'
         type: array
     type: object
+  model.ListResponse-account_SessionResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/account.SessionResponse'
+        type: array
+      total:
+        type: integer
+    type: object
   model.ListResponse-audit_AuditLogResponse:
     properties:
       items:
@@ -623,6 +632,15 @@ definitions:
       items:
         items:
           $ref: '#/definitions/session.SessionResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  model.ListResponse-token_AdminTokenResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/token.AdminTokenResponse'
         type: array
       total:
         type: integer
@@ -754,6 +772,29 @@ definitions:
       user_agent:
         type: string
       user_id:
+        type: string
+    type: object
+  token.AdminTokenResponse:
+    properties:
+      access_token_expires_at:
+        type: string
+      email:
+        type: string
+      grant_type:
+        type: string
+      id:
+        type: string
+      issued_at:
+        type: string
+      revoked_at:
+        type: string
+      scope:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: string
+      username:
         type: string
     type: object
   token.TokenResponse:
@@ -1431,18 +1472,27 @@ paths:
   /account/api/sessions:
     get:
       description: |-
-        Returns all live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
+        Returns paginated live IdP (SSO) sessions for the authenticated user — one row per browser/device signed in.
         `active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.
         `is_current` marks the row matching the request's IdP session cookie.
+      parameters:
+      - default: 20
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/account.SessionResponse'
-            type: array
+            $ref: '#/definitions/model.ListResponse-account_SessionResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1491,6 +1541,32 @@ paths:
       security:
       - UserAuth: []
       summary: Revoke one of the authenticated user's devices
+      tags:
+      - account-security
+  /account/api/sessions/revoke-others:
+    post:
+      description: Revokes all tokens, OAuth sessions, and IdP sessions for the authenticated
+        user, keeping only the session that issued this request alive.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - UserAuth: []
+      summary: Revoke all sessions except the current one
       tags:
       - account-security
   /account/api/settings:
@@ -2569,6 +2645,77 @@ paths:
       summary: System statistics
       tags:
       - admin-settings
+  /admin/api/tokens:
+    get:
+      description: Returns paginated tokens with user info, sorting, search, and date
+        filtering.
+      parameters:
+      - description: Sort field (issued_at, access_token_expires_at)
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order (asc, desc)
+        in: query
+        name: order
+        type: string
+      - description: Search across username and email
+        in: query
+        name: search
+        type: string
+      - default: 100
+        description: Max results per page (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of results to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Filter tokens issued after (ISO 8601)
+        in: query
+        name: issued_at_from
+        type: string
+      - description: Filter tokens issued before (ISO 8601)
+        in: query
+        name: issued_at_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ListResponse-token_AdminTokenResponse'
+      security:
+      - AdminAuth: []
+      summary: List tokens
+      tags:
+      - admin-tokens
+  /admin/api/tokens/{id}:
+    delete:
+      description: Revokes a token by its ID.
+      parameters:
+      - description: Token ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - AdminAuth: []
+      summary: Revoke a token
+      tags:
+      - admin-tokens
   /admin/api/users:
     get:
       parameters:
@@ -2869,6 +3016,34 @@ paths:
       security:
       - AdminAuth: []
       summary: Reactivate a deactivated user
+      tags:
+      - admin-users
+  /admin/api/users/{id}/revoke-sessions:
+    post:
+      description: Force-revokes all tokens, OAuth sessions, and IdP sessions for
+        the specified user without deactivating the account.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Revoke all sessions for a user
       tags:
       - admin-users
   /admin/api/users/{id}/unlock:

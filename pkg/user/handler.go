@@ -199,6 +199,32 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// HandleRevokeUserSessions godoc
+// @Summary Revoke all sessions for a user
+// @Description Force-revokes all tokens, OAuth sessions, and IdP sessions for the specified user without deactivating the account.
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "User ID"
+// @Security AdminAuth
+// @Success 204
+// @Failure 400 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /admin/api/users/{id}/revoke-sessions [post]
+func HandleRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		return
+	}
+	if err := RevokeAllUserAccess(id); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	admin := audit.ActorFromRequest(r)
+	audit.Log(audit.EventAllUserSessionsRevoked, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // HandleReactivateUser godoc
 // @Summary Reactivate a deactivated user
 // @Description Clears the deactivated status, allowing the user to log in again.

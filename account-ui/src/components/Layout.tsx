@@ -28,8 +28,8 @@ const Layout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) signinRedirect();
-  }, [user, isLoading, signinRedirect]);
+    if (!isLoading && !user) signinRedirect(location.pathname);
+  }, [user, isLoading, signinRedirect, location.pathname]);
 
   if (isLoading || !user) {
     return (

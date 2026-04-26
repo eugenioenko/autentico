@@ -34,8 +34,8 @@ async function listDevicesWithCookie(token: string, cookie: string): Promise<Dev
     },
   });
   expect(resp.status).toBe(200);
-  const body = (await resp.json()) as { data: DeviceRow[] };
-  return body.data;
+  const body = (await resp.json()) as { data: { items: DeviceRow[]; total: number } };
+  return body.data.items;
 }
 
 describe('Account API — device cascade revocation (issue #228)', () => {
