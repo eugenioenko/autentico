@@ -13,8 +13,8 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -247,7 +247,7 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	verifyURL := BuildVerifyURL(rawToken, params)
-	if err := mfa.SendVerificationEmail(usr.Email, verifyURL); err != nil {
+	if err := email.SendVerificationEmail(usr.Email, verifyURL); err != nil {
 		slog.Error("resend-verification: failed to send email", "request_id", reqid.Get(r.Context()), "error", err)
 	}
 

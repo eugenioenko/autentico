@@ -110,6 +110,9 @@ const tip = makeTip({
   theme_title: "Custom title for the login and account pages.",
   theme_logo_url: "URL for the custom logo shown on login and account pages.",
   theme_css_inline: "Custom CSS appended to the login and account pages. Served as an external stylesheet, so admin CSS cannot break out into HTML.",
+  theme_brand_color: "Brand color used for action buttons on login pages and transactional emails. Default: #18181b.",
+  theme_tagline: "Optional tagline shown below the logo on login pages and in emails.",
+  email_footer_text: "Optional text shown in the email footer (e.g. copyright, company address). Supports multiple lines.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
 }, "https://autentico.top/configuration/runtime-settings");
 
@@ -636,14 +639,14 @@ export default function SettingsPage() {
                     name="smtp_username"
                     tooltip={{ title: tip("smtp_username"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input />
+                    <Input autoComplete="off" />
                   </Form.Item>
                   <Form.Item
                     label="SMTP Password"
                     name="smtp_password"
                     tooltip={{ title: tip("smtp_password"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input.Password placeholder="Leave empty to keep current" />
+                    <Input.Password placeholder="Leave empty to keep current" autoComplete="new-password" />
                   </Form.Item>
                   <Form.Item
                     label="SMTP From Address"
@@ -833,11 +836,11 @@ export default function SettingsPage() {
               children: (
                 <TabContent>
                   <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
-                    Customize the appearance of login, signup, and account pages.
-                    Set a page title, upload a logo, and use custom CSS to match your
-                    brand. Footer links let you add Terms of Service, Privacy Policy, or
-                    any other links below the login form. Changes apply to all user-facing
-                    pages served by the identity provider.
+                    Customize the appearance of login, signup, account pages, and
+                    transactional emails. Set a page title, logo, brand color, and
+                    tagline. Use custom CSS to further match your brand. Footer links
+                    appear below the login form and in emails. Changes apply to all
+                    user-facing pages and emails served by the identity provider.
                   </Text>
 
                   <Form.Item
@@ -864,6 +867,31 @@ export default function SettingsPage() {
                       autoSize={{ minRows: 8, maxRows: 24 }}
                       placeholder=":root { --color-primary-bg: #ff7b00; }"
                       style={{ fontFamily: "monospace", fontSize: 13 }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="Brand Color"
+                    name="theme_brand_color"
+                    tooltip={{ title: tip("theme_brand_color"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="#18181b" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Tagline"
+                    name="theme_tagline"
+                    tooltip={{ title: tip("theme_tagline"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="Simple. Safe. Self-hosted." />
+                  </Form.Item>
+                  <Form.Item
+                    label="Email Footer Text"
+                    name="email_footer_text"
+                    tooltip={{ title: tip("email_footer_text"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input.TextArea
+                      rows={3}
+                      autoSize={{ minRows: 2, maxRows: 6 }}
+                      placeholder={"Copyright 2026 Acme Corp.\n123 Main Street, Springfield"}
                     />
                   </Form.Item>
                   <Divider />

@@ -13,6 +13,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
@@ -104,7 +105,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		hashedOTP := utils.HashSHA256(otp)
 		challenge.Code = hashedOTP
 		_ = UpdateChallengeCode(challenge.ID, hashedOTP)
-		if err := SendEmailOTP(usr.Email, otp); err != nil {
+		if err := email.SendEmailOTP(usr.Email, otp); err != nil {
 			slog.Error("mfa: failed to send verification email", "request_id", reqid.Get(r.Context()), "error", err)
 			renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.")
 			return

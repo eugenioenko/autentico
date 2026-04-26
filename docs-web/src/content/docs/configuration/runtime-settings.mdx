@@ -386,10 +386,25 @@ Path to a CSS file on disk, loaded at runtime. Takes precedence over `theme_css_
 
 See [Login Page Theming](/authentication/overview/#login-page-theming) for the available CSS variables.
 
+### `theme_brand_color`
+Default: `#18181b`
+
+Brand color used for action buttons on login pages and in transactional emails (verification, password reset, OTP codes).
+
+### `theme_tagline`
+Default: _(empty)_
+
+Optional tagline displayed below the logo on login pages and in transactional emails.
+
+### `email_footer_text`
+Default: _(empty)_
+
+Optional text shown in the footer of transactional emails (e.g. copyright notice, company address). Supports multiple lines.
+
 ### `footer_links`
 Default: `[]`
 
-JSON array of links shown in the footer of login and signup pages. Each entry has a `label` and `url`. Links are rendered in order. Empty array means no footer links.
+JSON array of links shown in the footer of login and signup pages, and in transactional emails. Each entry has a `label` and `url`. Links are rendered in order. Empty array means no footer links.
 
 ```json
 [

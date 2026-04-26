@@ -47,6 +47,9 @@ var defaults = map[string]string{
 	"theme_logo_url":                  "",
 	"theme_css_inline":                "",
 	"theme_css_file":                  "",
+	"theme_brand_color":               "#18181b",
+	"theme_tagline":                   "",
+	"email_footer_text":               "",
 	"onboarded":                      "false",
 	"allow_self_service_deletion":    "false",
 	"allow_username_change":          "false",
@@ -244,6 +247,16 @@ func LoadIntoConfig() error {
 		if cssBytes, err := os.ReadFile(v); err == nil {
 			cfg.ThemeCssResolved = string(cssBytes)
 		}
+	}
+
+	if v, ok := all["theme_brand_color"]; ok {
+		cfg.Theme.BrandColor = v
+	}
+	if v, ok := all["theme_tagline"]; ok {
+		cfg.Theme.Tagline = v
+	}
+	if v, ok := all["email_footer_text"]; ok {
+		cfg.Theme.EmailFooterText = v
 	}
 
 	if v, ok := all["profile_field_given_name"]; ok {

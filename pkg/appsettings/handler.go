@@ -9,7 +9,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/bearer"
-	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -260,7 +260,7 @@ func HandleTestSmtp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mfa.SendTestEmail(usr.Email); err != nil {
+	if err := email.SendTestEmail(usr.Email); err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", err.Error())
 		return
 	}
