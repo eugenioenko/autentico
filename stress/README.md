@@ -23,6 +23,24 @@ AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./autentico start
 
 > **Do not run with rate limiting disabled in production.**
 
+### 1b. Additional `.env` changes for load testing
+
+If running over plain HTTP (localhost), the CSRF secure cookie flag must be disabled or
+the login POST will fail with 403:
+
+```bash
+AUTENTICO_CSRF_SECURE_COOKIE=false
+```
+
+To get accurate latency numbers without artificial noise, disable the anti-timing delay:
+
+```bash
+AUTENTICO_ANTI_TIMING_MIN_MS=0
+AUTENTICO_ANTI_TIMING_MAX_MS=0
+```
+
+> **Restore both settings after testing.**
+
 ### 2. Configure runtime settings for load testing
 
 Two runtime settings must be adjusted before running multi-VU tests. With defaults, all
