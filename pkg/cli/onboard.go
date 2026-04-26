@@ -20,7 +20,7 @@ func RunOnboard(c *cli.Context) error {
 	config.InitBootstrap()
 	bs := config.GetBootstrap()
 
-	if _, err := db.InitDB(bs.DbFilePath); err != nil {
+	if _, err := db.InitDB(bs.DbFilePath, bs.DbReadPoolSize); err != nil {
 		absPath, _ := filepath.Abs(bs.DbFilePath)
 		return fmt.Errorf("failed to initialize database at %s: %w", absPath, err)
 	}

@@ -17,7 +17,7 @@ func RunMigrate(_ *cli.Context) error {
 	config.InitBootstrap()
 	bs := config.GetBootstrap()
 
-	if _, err := db.InitDB(bs.DbFilePath); err != nil {
+	if _, err := db.InitDB(bs.DbFilePath, bs.DbReadPoolSize); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer db.CloseDB()
