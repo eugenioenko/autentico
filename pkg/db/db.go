@@ -22,6 +22,10 @@ func openDB(dbFilePath string) (*sql.DB, error) {
 	// and ensures PRAGMAs set below apply to every query.
 	database.SetMaxOpenConns(1)
 
+	if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
+		return nil, fmt.Errorf("failed to enable WAL journal mode: %w", err)
+	}
+
 	if _, err = database.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
 		return nil, fmt.Errorf("failed to set SQLite busy timeout: %w", err)
 	}
