@@ -9,6 +9,8 @@ import {
   CopyOutlined,
   CheckOutlined,
   DeleteOutlined,
+  WarningOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -81,6 +83,26 @@ export default function DashboardPage() {
               title="Recent Logins (24h)"
               value={stats?.recent_logins ?? 0}
               prefix={<LoginOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Failed Logins (24h)"
+              value={stats?.failed_logins_24h ?? 0}
+              prefix={<WarningOutlined />}
+              valueStyle={(stats?.failed_logins_24h ?? 0) > 0 ? { color: "#cf1322" } : undefined}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Locked Accounts"
+              value={stats?.locked_accounts ?? 0}
+              prefix={<LockOutlined />}
+              valueStyle={(stats?.locked_accounts ?? 0) > 0 ? { color: "#cf1322" } : undefined}
             />
           </Card>
         </Col>

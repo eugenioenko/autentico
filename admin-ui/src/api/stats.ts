@@ -7,6 +7,8 @@ export interface StatsResponse {
   active_tokens: number;
   recent_logins: number;
   pending_deletion_requests: number;
+  failed_logins_24h: number;
+  locked_accounts: number;
 }
 
 export async function getStats(): Promise<StatsResponse> {
