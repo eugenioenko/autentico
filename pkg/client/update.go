@@ -87,7 +87,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 			trust_device_expiration = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE client_id = ?`
-	_, err = db.GetDB().Exec(query,
+	_, err = db.GetWriteDB().Exec(query,
 		newName, newRedirectURIs, newPostLogoutRedirectURIs, newGrantTypes,
 		newResponseTypes, newScopes, newAuthMethod, newIsActive,
 		req.AccessTokenExpiration, req.RefreshTokenExpiration,

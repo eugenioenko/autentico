@@ -12,7 +12,7 @@ func TrustedDevicesByUserID(userID string) ([]*TrustedDevice, error) {
 		SELECT id, user_id, device_name, created_at, last_used_at, expires_at
 		FROM trusted_devices WHERE user_id = ?
 	`
-	rows, err := db.GetDB().Query(query, userID)
+	rows, err := db.GetReadDB().Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list trusted devices: %w", err)
 	}
@@ -37,7 +37,7 @@ func TrustedDeviceByIDIncludingExpired(id string) (*TrustedDevice, error) {
 		SELECT id, user_id, device_name, created_at, last_used_at, expires_at
 		FROM trusted_devices WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetReadDB().QueryRow(query, id)
 	err := row.Scan(&d.ID, &d.UserID, &d.DeviceName, &d.CreatedAt, &d.LastUsedAt, &d.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -17,7 +17,7 @@ func CreateSession(session Session) error {
 	if session.IdpSessionID != nil && *session.IdpSessionID != "" {
 		idpSession = *session.IdpSessionID
 	}
-	_, err := db.GetDB().Exec(query,
+	_, err := db.GetWriteDB().Exec(query,
 		session.ID,
 		session.UserID,
 		session.AccessToken,

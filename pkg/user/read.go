@@ -68,7 +68,7 @@ func scanUser(row interface {
 
 func ListUsers() ([]*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE deactivated_at IS NULL`
-	rows, err := db.GetDB().Query(query)
+	rows, err := db.GetReadDB().Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
@@ -104,12 +104,12 @@ func ListUsersWithParams(params api.ListParams, dateWhere string, dateArgs []any
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM users" + join + " " + baseWhere + dateWhere + lq.Where
-	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %w", err)
 	}
 
 	query := `SELECT` + userSelectColumns + `FROM users` + join + ` ` + baseWhere + dateWhere + lq.Where + lq.Order
-	rows, err := db.GetDB().Query(query, allArgs...)
+	rows, err := db.GetReadDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}
@@ -128,7 +128,7 @@ func ListUsersWithParams(params api.ListParams, dateWhere string, dateArgs []any
 
 func UserByUsername(username string) (*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE username = ? AND deactivated_at IS NULL`
-	row := db.GetDB().QueryRow(query, username)
+	row := db.GetReadDB().QueryRow(query, username)
 	u, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -141,7 +141,7 @@ func UserByUsername(username string) (*User, error) {
 
 func UserByID(userID string) (*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE id = ? AND deactivated_at IS NULL`
-	row := db.GetDB().QueryRow(query, userID)
+	row := db.GetReadDB().QueryRow(query, userID)
 	u, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -156,7 +156,7 @@ func UserByID(userID string) (*User, error) {
 // Only returns users with is_email_verified = TRUE and no deactivated_at.
 func UserByEmail(email string) (*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE email = ? AND deactivated_at IS NULL AND is_email_verified = TRUE`
-	row := db.GetDB().QueryRow(query, strings.ToLower(email))
+	row := db.GetReadDB().QueryRow(query, strings.ToLower(email))
 	u, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -170,7 +170,7 @@ func UserByEmail(email string) (*User, error) {
 // GetVerificationTokenInfo returns the userID and expiry for a given token hash.
 // Returns sql.ErrNoRows if the token does not exist.
 func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.Time, err error) {
-	err = db.GetDB().QueryRow(
+	err = db.GetReadDB().QueryRow(
 		`SELECT id, email_verification_expires_at FROM users WHERE email_verification_token = ? AND deactivated_at IS NULL`,
 		tokenHash,
 	).Scan(&userID, &expiresAt)
@@ -181,7 +181,7 @@ func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.T
 // regardless of email verification status. Used to prevent duplicate email assignment.
 func UserExistsByEmail(email string) bool {
 	var count int
-	_ = db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, strings.ToLower(email)).Scan(&count)
+	_ = db.GetReadDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, strings.ToLower(email)).Scan(&count)
 	return count > 0
 }
 
@@ -189,7 +189,7 @@ func UserExistsByEmail(email string) bool {
 // Used by introspection and admin operations that need to check deactivated users.
 func UserByIDIncludingDeactivated(userID string) (*User, error) {
 	query := `SELECT` + userSelectColumns + `FROM users WHERE id = ?`
-	row := db.GetDB().QueryRow(query, userID)
+	row := db.GetReadDB().QueryRow(query, userID)
 	u, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -203,6 +203,6 @@ func UserByIDIncludingDeactivated(userID string) (*User, error) {
 // CountUsers returns the total number of users in the database.
 func CountUsers() (int, error) {
 	var count int
-	err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	err := db.GetReadDB().QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
 	return count, err
 }

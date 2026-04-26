@@ -23,7 +23,7 @@ func DeleteClient(clientID string) error {
 	`
 
 	now := time.Now().UTC()
-	result, err := db.GetDB().Exec(query, now, clientID)
+	result, err := db.GetWriteDB().Exec(query, now, clientID)
 	if err != nil {
 		return fmt.Errorf("failed to delete client: %w", err)
 	}

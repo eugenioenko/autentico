@@ -24,7 +24,7 @@ func HandleHealth(w http.ResponseWriter, r *http.Request) {
 	dbStatus := "ok"
 	statusCode := http.StatusOK
 
-	if err := db.GetDB().PingContext(r.Context()); err != nil {
+	if err := db.GetReadDB().PingContext(r.Context()); err != nil {
 		dbStatus = "unavailable"
 		statusCode = http.StatusServiceUnavailable
 	}

@@ -22,7 +22,7 @@ func RunMigrate(_ *cli.Context) error {
 	}
 	defer db.CloseDB()
 
-	database := db.GetDB()
+	database := db.GetWriteDB()
 
 	if err := migrations.Check(database); err == nil {
 		fmt.Println("Already up to date.")

@@ -9,7 +9,7 @@ func CreateMfaChallenge(challenge MfaChallenge) error {
 		INSERT INTO mfa_challenges (id, user_id, method, code, login_state, expires_at, used)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.GetDB().Exec(query,
+	_, err := db.GetWriteDB().Exec(query,
 		challenge.ID,
 		challenge.UserID,
 		challenge.Method,

@@ -9,7 +9,7 @@ import (
 
 func AddMember(groupID, userID string) error {
 	query := `INSERT INTO user_groups (user_id, group_id) VALUES (?, ?)`
-	_, err := db.GetDB().Exec(query, userID, groupID)
+	_, err := db.GetWriteDB().Exec(query, userID, groupID)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return fmt.Errorf("user is already a member of this group")
@@ -23,7 +23,7 @@ func AddMember(groupID, userID string) error {
 }
 
 func RemoveMember(groupID, userID string) error {
-	result, err := db.GetDB().Exec(`DELETE FROM user_groups WHERE user_id = ? AND group_id = ?`, userID, groupID)
+	result, err := db.GetWriteDB().Exec(`DELETE FROM user_groups WHERE user_id = ? AND group_id = ?`, userID, groupID)
 	if err != nil {
 		return fmt.Errorf("failed to remove member: %w", err)
 	}

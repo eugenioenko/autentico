@@ -17,7 +17,7 @@ func PasskeyChallengeByIDIncludingExpired(id string) (*PasskeyChallenge, error) 
 		SELECT id, user_id, challenge_data, type, login_state, created_at, expires_at, used
 		FROM passkey_challenges WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetReadDB().QueryRow(query, id)
 	err := row.Scan(
 		&c.ID,
 		&c.UserID,
@@ -42,7 +42,7 @@ func PasskeyCredentialsByUserID(userID string) ([]PasskeyCredential, error) {
 		SELECT id, user_id, name, credential, created_at, last_used_at
 		FROM passkey_credentials WHERE user_id = ?
 	`
-	rows, err := db.GetDB().Query(query, userID)
+	rows, err := db.GetReadDB().Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list passkey credentials: %w", err)
 	}
@@ -65,7 +65,7 @@ func PasskeyByID(id string) (*PasskeyCredential, error) {
 		SELECT id, user_id, name, credential, created_at, last_used_at
 		FROM passkey_credentials WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, id)
+	row := db.GetReadDB().QueryRow(query, id)
 	if err := row.Scan(&c.ID, &c.UserID, &c.Name, &c.Credential, &c.CreatedAt, &c.LastUsedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("passkey not found")

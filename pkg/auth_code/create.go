@@ -24,7 +24,7 @@ func CreateAuthCode(code AuthCode) error {
 	if code.IdpSessionID != "" {
 		idpSession = code.IdpSessionID
 	}
-	_, err := db.GetDB().Exec(query,
+	_, err := db.GetWriteDB().Exec(query,
 		code.Code,
 		code.UserID,
 		code.ClientID,

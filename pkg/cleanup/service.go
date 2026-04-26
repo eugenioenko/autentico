@@ -35,7 +35,7 @@ var transientTables = []struct {
 
 func deleteExpiredTransientRows(threshold time.Time) {
 	for _, q := range transientTables {
-		res, err := db.GetDB().Exec(q.sql, threshold)
+		res, err := db.GetWriteDB().Exec(q.sql, threshold)
 		if err != nil {
 			slog.Error("cleanup: failed to clean table", "table", q.table, "error", err)
 			continue
@@ -56,7 +56,7 @@ func deleteExpiredAuditLogs() {
 	if err != nil {
 		return
 	}
-	res, err := db.GetDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, time.Now().Add(-d))
+	res, err := db.GetWriteDB().Exec(`DELETE FROM audit_logs WHERE created_at < ?`, time.Now().Add(-d))
 	if err != nil {
 		slog.Error("cleanup: failed to clean table", "table", "audit_logs", "error", err)
 		return

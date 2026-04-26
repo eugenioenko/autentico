@@ -23,7 +23,7 @@ func ClientByClientIDIncludingDisabled(clientID string) (*Client, error) {
 	var c Client
 	var secret sql.NullString
 	var audiences sql.NullString
-	err := db.GetDB().QueryRow(query, clientID).Scan(
+	err := db.GetReadDB().QueryRow(query, clientID).Scan(
 		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
 		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
@@ -62,7 +62,7 @@ func ClientByIDIncludingDisabled(id string) (*Client, error) {
 	var c Client
 	var secret sql.NullString
 	var audiences sql.NullString
-	err := db.GetDB().QueryRow(query, id).Scan(
+	err := db.GetReadDB().QueryRow(query, id).Scan(
 		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
 		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,

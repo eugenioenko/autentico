@@ -25,7 +25,7 @@ func ListSessions() ([]*Session, error) {
 		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions ORDER BY created_at DESC
 	`
-	rows, err := db.GetDB().Query(query)
+	rows, err := db.GetReadDB().Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions: %w", err)
 	}
@@ -38,7 +38,7 @@ func ListSessionsByUser(userID string) ([]*Session, error) {
 		SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions WHERE user_id = ? ORDER BY created_at DESC
 	`
-	rows, err := db.GetDB().Query(query, userID)
+	rows, err := db.GetReadDB().Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions by user: %w", err)
 	}
@@ -71,13 +71,13 @@ func ListOAuthSessionsByIdpSession(idpSessionID string, params api.ListParams) (
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM sessions " + baseWhere + lq.Where
-	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count sessions: %w", err)
 	}
 
 	query := `SELECT id, user_id, user_agent, ip_address, device_id, last_activity_at, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions ` + baseWhere + lq.Where + lq.Order
-	rows, err := db.GetDB().Query(query, allArgs...)
+	rows, err := db.GetReadDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list sessions: %w", err)
 	}
@@ -89,7 +89,7 @@ func ListOAuthSessionsByIdpSession(idpSessionID string, params api.ListParams) (
 
 func DeactivateSessionByID(sessionID string) error {
 	query := `UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ?`
-	result, err := db.GetDB().Exec(query, sessionID)
+	result, err := db.GetWriteDB().Exec(query, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to deactivate session: %w", err)
 	}
@@ -111,7 +111,7 @@ func SessionByIDIncludingDeactivated(sessionID string) (*Session, error) {
 		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions WHERE id = ?
 	`
-	row := db.GetDB().QueryRow(query, sessionID)
+	row := db.GetReadDB().QueryRow(query, sessionID)
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,
@@ -140,7 +140,7 @@ func SessionByIDIncludingDeactivated(sessionID string) (*Session, error) {
 // accidentally honor a revoked session.
 func SessionByAccessToken(accessToken string) (*Session, error) {
 	var session Session
-	row := db.GetDB().QueryRow(`
+	row := db.GetReadDB().QueryRow(`
 		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions
 		WHERE access_token = ? AND deactivated_at IS NULL
