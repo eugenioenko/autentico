@@ -225,7 +225,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Verification")
-	assert.Contains(t, rr.Body.String(), "Enter the verification code")
+	assert.Contains(t, rr.Body.String(), "Enter the code from your")
 }
 
 func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
