@@ -115,6 +115,17 @@ func buildEnvContent(p envParams) string {
 		"# ── SQLite WAL mode ──────────────────────────────────────────────────────────",
 		"# Enable SQLite Write-Ahead Logging for concurrent read throughput. Set false to use rollback journal.",
 		"AUTENTICO_DB_WAL_MODE=true",
+		"",
+		"# ── Performance tuning ───────────────────────────────────────────────────────",
+		"# Maximum number of OS threads Go uses for executing goroutines (GOMAXPROCS).",
+		"# 0 = all available CPUs (Go default). Set to a lower value to reserve CPU",
+		"# for other processes on the same machine (e.g. verifico workers).",
+		"AUTENTICO_MAX_PROCS=0",
+		"#",
+		"# Number of SQLite read connections in the pool. Reads run concurrently via WAL mode.",
+		"# 0 = auto (whichever is smaller: available CPUs or 4, minimum 2).",
+		"# Set explicitly to override (e.g. 8 for read-heavy workloads).",
+		"AUTENTICO_DB_READ_POOL_SIZE=0",
 	}
 
 	return strings.Join(lines, "\n") + "\n"

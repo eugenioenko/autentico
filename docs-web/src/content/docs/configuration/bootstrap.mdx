@@ -79,6 +79,13 @@ Set both to `0` to disable — useful for profiling or when your infrastructure 
 | `AUTENTICO_ANTI_TIMING_MIN_MS` | `50` | Minimum delay in milliseconds. |
 | `AUTENTICO_ANTI_TIMING_MAX_MS` | `150` | Maximum delay in milliseconds. Must be greater than min, otherwise the delay is disabled. |
 
+## Performance tuning
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTENTICO_MAX_PROCS` | `0` | Maximum number of OS threads Go uses for executing goroutines (`GOMAXPROCS`). `0` means all available CPUs (Go default). Set to a lower value to reserve CPU for other processes on the same machine (e.g. verifico workers). |
+| `AUTENTICO_DB_READ_POOL_SIZE` | `0` | Number of SQLite read connections in the pool. Reads run concurrently via WAL mode while writes serialize through a single connection. `0` means auto: whichever is smaller between available CPUs and 4, with a minimum of 2. On a 2-core machine you get 2 readers; on 4+ cores you get 4. Set explicitly to override (e.g. `8` for read-heavy workloads). |
+
 ## Token signing
 
 | Variable | Default | Description |
@@ -124,4 +131,8 @@ AUTENTICO_ANTI_TIMING_MAX_MS=150
 
 # SQLite WAL mode (set to false to use rollback journal)
 AUTENTICO_DB_WAL_MODE=true
+
+# Performance tuning (0 = auto for both)
+AUTENTICO_MAX_PROCS=0
+AUTENTICO_DB_READ_POOL_SIZE=0
 ```

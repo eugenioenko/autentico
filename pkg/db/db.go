@@ -65,7 +65,7 @@ func openPool(dbFilePath string, maxConns int) (*sql.DB, error) {
 	return database, nil
 }
 
-func InitDB(dbFilePath string) (*sql.DB, error) {
+func InitDB(dbFilePath string, readPoolSize int) (*sql.DB, error) {
 	var err error
 
 	writer, err = openPool(dbFilePath, 1)
@@ -73,14 +73,18 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	n := runtime.NumCPU()
-	if n < 4 {
-		n = 4
+	if readPoolSize <= 0 {
+		readPoolSize = min(runtime.GOMAXPROCS(0), 4)
+		if readPoolSize < 2 {
+			readPoolSize = 2
+		}
 	}
-	reader, err = openPool(dbFilePath, n)
+	reader, err = openPool(dbFilePath, readPoolSize)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("SQLite pools: 1 writer, %d readers (WAL mode)", readPoolSize)
 
 	var userVersion int
 	if err = writer.QueryRow("PRAGMA user_version").Scan(&userVersion); err != nil {

@@ -49,6 +49,11 @@ type BootstrapConfig struct {
 	AntiTimingMaxMs int
 	// SQLite WAL (Write-Ahead Logging) mode for improved concurrent read throughput.
 	DbWalMode bool
+	// MaxProcs sets GOMAXPROCS. 0 means use Go's default (all CPUs).
+	MaxProcs int
+	// DbReadPoolSize sets the number of SQLite read connections.
+	// 0 means auto: min(available CPUs, 4), floor 2.
+	DbReadPoolSize int
 }
 
 // FooterLink is a single admin-configured link shown in the login/signup footer.
@@ -302,6 +307,8 @@ func InitBootstrap() {
 		AntiTimingMinMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
 		AntiTimingMaxMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
 		DbWalMode:                      getEnvBool("AUTENTICO_DB_WAL_MODE", true),
+		MaxProcs:                       getEnvInt("AUTENTICO_MAX_PROCS", 0),
+		DbReadPoolSize:                 getEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
 	}
 }
 

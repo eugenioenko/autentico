@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -63,6 +64,11 @@ func RunStart(c *cli.Context) error {
 
 	bs := config.GetBootstrap()
 
+	if bs.MaxProcs > 0 {
+		runtime.GOMAXPROCS(bs.MaxProcs)
+		fmt.Printf("  GOMAXPROCS set to %d\n", bs.MaxProcs)
+	}
+
 	if u, err := url.Parse(bs.AppURL); err == nil {
 		docs.SwaggerInfo.Host = u.Host
 		docs.SwaggerInfo.Schemes = []string{u.Scheme}
@@ -72,7 +78,7 @@ func RunStart(c *cli.Context) error {
 		return err
 	}
 
-	if _, err := db.InitDB(bs.DbFilePath); err != nil {
+	if _, err := db.InitDB(bs.DbFilePath, bs.DbReadPoolSize); err != nil {
 		absPath, _ := filepath.Abs(bs.DbFilePath)
 		return fmt.Errorf("failed to initialize database at %s: %w", absPath, err)
 	}
