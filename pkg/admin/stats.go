@@ -14,6 +14,8 @@ type StatsResponse struct {
 	ActiveTokens            int `json:"active_tokens"`
 	RecentLogins            int `json:"recent_logins"`
 	PendingDeletionRequests int `json:"pending_deletion_requests"`
+	FailedLogins24h         int `json:"failed_logins_24h"`
+	LockedAccounts          int `json:"locked_accounts"`
 }
 
 // HandleStats returns system-wide statistics for the admin dashboard.
@@ -40,6 +42,8 @@ func HandleStats(w http.ResponseWriter, r *http.Request) {
 	_ = d.QueryRow(`SELECT COUNT(*) FROM tokens WHERE revoked_at IS NULL AND access_token_expires_at > CURRENT_TIMESTAMP`).Scan(&stats.ActiveTokens)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM sessions WHERE created_at > datetime('now', '-24 hours')`).Scan(&stats.RecentLogins)
 	_ = d.QueryRow(`SELECT COUNT(*) FROM deletion_requests`).Scan(&stats.PendingDeletionRequests)
+	_ = d.QueryRow(`SELECT COUNT(*) FROM audit_logs WHERE event = 'login_failed' AND created_at > datetime('now', '-24 hours')`).Scan(&stats.FailedLogins24h)
+	_ = d.QueryRow(`SELECT COUNT(*) FROM users WHERE locked_until > CURRENT_TIMESTAMP AND deactivated_at IS NULL`).Scan(&stats.LockedAccounts)
 
 	utils.SuccessResponse(w, stats, http.StatusOK)
 }
