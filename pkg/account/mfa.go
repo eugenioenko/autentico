@@ -10,7 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/eugenioenko/autentico/pkg/verifico"
 )
 
 // HandleGetMfaStatus godoc
@@ -148,7 +148,7 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 
 	// Require password confirmation if the user has a password
 	if usr.Password != "" {
-		if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
+		if err := verifico.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
 			utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
 			return
 		}

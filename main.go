@@ -136,6 +136,51 @@ func main() {
 				Action: appCli.RunOnboard,
 			},
 			{
+				Name:  "verifico",
+				Usage: "Manage verifico bcrypt worker instances",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "init",
+						Usage: "Generate a .env configuration file for a verifico worker",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "secret",
+								Usage:    "Shared secret (must match AUTENTICO_VERIFICO_SECRET on the master)",
+								EnvVars:  []string{"AUTENTICO_VERIFICO_SECRET"},
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:  "url",
+								Usage: "Worker listen URL (e.g. http://0.0.0.0:5050)",
+								Value: "http://0.0.0.0:5050",
+							},
+							&cli.StringFlag{
+								Name:  "output",
+								Usage: "Directory to write the .env file into (default: current directory)",
+								Value: ".",
+							},
+						},
+						Action: appCli.RunVerificoInit,
+					},
+					{
+						Name:  "start",
+						Usage: "Start a verifico bcrypt worker server",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "port",
+								Usage: "Port to listen on (overrides AUTENTICO_VERIFICO_URL)",
+							},
+						},
+						Action: appCli.RunVerificoStart,
+					},
+					{
+						Name:   "test",
+						Usage:  "Test connectivity to all configured verifico workers",
+						Action: appCli.RunVerificoTest,
+					},
+				},
+			},
+			{
 				Name:   "version",
 				Usage:  "Print the version and exit",
 				Action: appCli.RunVersion,

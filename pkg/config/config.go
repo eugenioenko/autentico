@@ -52,6 +52,10 @@ type BootstrapConfig struct {
 	// DbReadPoolSize sets the number of SQLite read connections.
 	// 0 means auto: min(available CPUs, 4), floor 2.
 	DbReadPoolSize int
+	// Verifico worker pool for offloading bcrypt
+	VerificoEnabled bool
+	VerificoWorkers string
+	VerificoSecret  string
 }
 
 // FooterLink is a single admin-configured link shown in the login/signup footer.
@@ -298,13 +302,16 @@ func InitBootstrap() {
 		AuthIdpSessionCookieName:       getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
 		AuthIdpSessionSecureCookie:     getEnvBool("AUTENTICO_IDP_SESSION_SECURE", true),
 		RateLimitRPS:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPS", 5),
-		RateLimitBurst:                 getEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
+		RateLimitBurst:                 GetEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
 		RateLimitRPM:                   getEnvFloat("AUTENTICO_RATE_LIMIT_RPM", 20),
-		RateLimitRPMBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
-		AntiTimingMinMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
-		AntiTimingMaxMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
-		MaxProcs:                       getEnvInt("AUTENTICO_MAX_PROCS", 0),
-		DbReadPoolSize:                 getEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
+		RateLimitRPMBurst:              GetEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
+		AntiTimingMinMs:                GetEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
+		AntiTimingMaxMs:                GetEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
+		MaxProcs:                       GetEnvInt("AUTENTICO_MAX_PROCS", 0),
+		DbReadPoolSize:                 GetEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
+		VerificoEnabled:                getEnvBool("AUTENTICO_VERIFICO_ENABLED", false),
+		VerificoWorkers:                getEnv("AUTENTICO_VERIFICO_WORKERS", ""),
+		VerificoSecret:                 getEnv("AUTENTICO_VERIFICO_SECRET", ""),
 	}
 }
 
@@ -386,8 +393,8 @@ func getEnvFloat(key string, fallback float64) float64 {
 	return f
 }
 
-// getEnvInt parses an int environment variable with a fallback.
-func getEnvInt(key string, fallback int) int {
+// GetEnvInt parses an int environment variable with a fallback.
+func GetEnvInt(key string, fallback int) int {
 	v, ok := os.LookupEnv(key)
 	if !ok {
 		return fallback

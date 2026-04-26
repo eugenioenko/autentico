@@ -132,8 +132,8 @@ func TestGetEnvHelpers(t *testing.T) {
 	assert.Equal(t, 3.5, getEnvFloat("TEST_FLOAT_INVALID", 3.5))
 
 	t.Setenv("TEST_INT", "10")
-	assert.Equal(t, 10, getEnvInt("TEST_INT", 0))
-	assert.Equal(t, 20, getEnvInt("NONEXISTENT", 20))
+	assert.Equal(t, 10, GetEnvInt("TEST_INT", 0))
+	assert.Equal(t, 20, GetEnvInt("NONEXISTENT", 20))
 	t.Setenv("TEST_INT_INVALID", "not-an-int")
-	assert.Equal(t, 30, getEnvInt("TEST_INT_INVALID", 30))
+	assert.Equal(t, 30, GetEnvInt("TEST_INT_INVALID", 30))
 }

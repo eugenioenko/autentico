@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/eugenioenko/autentico/pkg/verifico"
 )
 
 // AuthenticateClient verifies the client credentials
@@ -30,7 +30,7 @@ func AuthenticateClient(clientID, clientSecret string) (*Client, error) {
 		return nil, fmt.Errorf("client secret required for confidential clients")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(client.ClientSecret), []byte(clientSecret))
+	err = verifico.CompareHashAndPassword([]byte(client.ClientSecret), []byte(clientSecret))
 	if err != nil {
 		return nil, fmt.Errorf("invalid client credentials")
 	}
