@@ -98,7 +98,7 @@ func TestRenderBody_OTPEmail(t *testing.T) {
 
 		html := string(body)
 		assert.Contains(t, html, "847291")
-		assert.Contains(t, html, "5 minutes")
+		assert.Contains(t, html, "10 minutes")
 		assert.Contains(t, html, "Do not share")
 	})
 }

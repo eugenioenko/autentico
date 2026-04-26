@@ -88,5 +88,5 @@ func SendEmailOTP(to, code string) error {
 	if err != nil {
 		return fmt.Errorf("failed to render email body: %w", err)
 	}
-	return SendEmail(to, "Your verification code", "Your sign-in verification code — expires in 5 minutes.", body)
+	return SendEmail(to, "Your verification code", "Your sign-in verification code — expires in 10 minutes.", body)
 }
