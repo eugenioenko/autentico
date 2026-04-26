@@ -38,6 +38,7 @@ const SessionsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [revokingAll, setRevokingAll] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<'others' | Session | null>(null);
+  const [revokedId, setRevokedId] = useState<string | null>(null);
 
   const doRevokeOthers = async () => {
     setConfirmTarget(null);
@@ -63,7 +64,11 @@ const SessionsPage: React.FC = () => {
         window.location.assign('/oauth2/logout');
         return;
       }
-      refetch();
+      setRevokedId(s.id);
+      setTimeout(() => {
+        setRevokedId(null);
+        refetch();
+      }, 600);
     } catch (err: unknown) {
       setError(extractError(err, 'Failed to revoke session.'));
     }
@@ -93,7 +98,7 @@ const SessionsPage: React.FC = () => {
         {error && <Alert type="danger" message={error} className="mb-3" />}
         <div className="divide-y divide-theme-fg/10 mt-1">
           {sessions?.map((s) => (
-            <div key={s.id} className="py-4 flex items-center justify-between gap-4">
+            <div key={s.id} className={`py-4 flex items-center justify-between gap-4 transition-colors duration-500 ${revokedId === s.id ? 'bg-theme-success-bg/15' : ''}`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
                   <IconDeviceDesktop size={15} className="text-theme-fg" />
