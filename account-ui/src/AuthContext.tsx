@@ -9,8 +9,8 @@ const REDIRECT_URI = window.location.origin + '/account/callback';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signinRedirect: () => Promise<void>;
-  signinCallback: () => Promise<void>;
+  signinRedirect: (returnPath?: string) => Promise<void>;
+  signinCallback: () => Promise<string | undefined>;
   logout: () => Promise<void>;
 }
 
@@ -80,15 +80,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [userManager]);
 
-  const signinRedirect = useCallback(async () => {
-    if (userManager) await userManager.signinRedirect();
+  const signinRedirect = useCallback(async (returnPath?: string) => {
+    if (userManager) await userManager.signinRedirect({ state: { returnPath: returnPath ?? window.location.pathname } });
   }, [userManager]);
 
-  const signinCallback = useCallback(async () => {
-    if (!userManager) return;
-    await userManager.signinCallback();
-    const u = await userManager.getUser();
-    setUser(u);
+  const signinCallback = useCallback(async (): Promise<string | undefined> => {
+    if (!userManager) return undefined;
+    const u = await userManager.signinCallback();
+    setUser(u ?? null);
+    const state = u?.state as { returnPath?: string } | undefined;
+    return state?.returnPath;
   }, [userManager]);
 
   const logout = useCallback(async () => {

@@ -14,7 +14,7 @@ const Callback: React.FC = () => {
     if (isLoading || called.current) return;
     called.current = true;
     signinCallback()
-      .then(() => navigate('/'))
+      .then((returnPath) => navigate(returnPath || '/'))
       .catch((err) => {
         setError(err instanceof Error ? err.message : 'Authentication failed. Please try again.');
       });
