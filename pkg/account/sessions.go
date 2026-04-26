@@ -7,6 +7,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -121,4 +122,29 @@ func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SuccessResponse(w, map[string]string{"message": "Session revoked"}, http.StatusOK)
+}
+
+// HandleRevokeOtherSessions godoc
+// @Summary Revoke all sessions except the current one
+// @Description Revokes all tokens, OAuth sessions, and IdP sessions for the authenticated user, keeping only the session that issued this request alive.
+// @Tags account-security
+// @Produce json
+// @Security UserAuth
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} model.ApiError
+// @Failure 500 {object} model.ApiError
+// @Router /account/api/sessions/revoke-others [post]
+func HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	v, err := bearer.ValidateBearer(r)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+		return
+	}
+
+	if err := user.RevokeOtherUserAccess(v.Session.UserID, v.Token); err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(w, map[string]string{"message": "All other sessions revoked"}, http.StatusOK)
 }

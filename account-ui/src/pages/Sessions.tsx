@@ -23,6 +23,26 @@ const SessionsPage: React.FC = () => {
     queryFn: () => api.get('/sessions').then((res) => res.data.data),
   });
   const [error, setError] = useState('');
+  const [revokingAll, setRevokingAll] = useState(false);
+
+  const handleRevokeOthers = async () => {
+    const otherCount = sessions?.filter((s) => !s.is_current).length ?? 0;
+    if (otherCount === 0) return;
+    const ok = window.confirm(
+      `Sign out ${otherCount} other device${otherCount === 1 ? '' : 's'}? Your current session will stay active.`,
+    );
+    if (!ok) return;
+    setError('');
+    setRevokingAll(true);
+    try {
+      await api.post('/sessions/revoke-others');
+      refetch();
+    } catch (err: unknown) {
+      setError(extractError(err, 'Failed to revoke other sessions.'));
+    } finally {
+      setRevokingAll(false);
+    }
+  };
 
   const handleRevoke = async (s: Session) => {
     if (s.is_current) {
@@ -53,6 +73,18 @@ const SessionsPage: React.FC = () => {
       description="Browsers and devices where you are currently signed in."
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
+      {sessions && sessions.filter((s) => !s.is_current).length > 0 && (
+        <div className="mb-2">
+          <Button
+            variant="danger"
+            onClick={handleRevokeOthers}
+            disabled={revokingAll}
+            className="text-xs"
+          >
+            {revokingAll ? 'Signing out...' : 'Sign out all other devices'}
+          </Button>
+        </div>
+      )}
       <div className="divide-y divide-theme-fg/10 mt-1">
         {sessions?.map((s) => (
           <div key={s.id} className="py-4 flex items-center justify-between gap-4">

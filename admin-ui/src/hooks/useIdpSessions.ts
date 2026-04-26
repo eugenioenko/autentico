@@ -5,6 +5,7 @@ import {
   forceLogoutIdpSession,
   listIdpSessionSessions,
   deactivateOAuthSession,
+  revokeAllUserSessions,
 } from "../api/idpSessions";
 import type { ListParams } from "../api/users";
 
@@ -54,6 +55,17 @@ export function useDeactivateOAuthSession() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: OAUTH_SESSIONS_KEY });
       queryClient.invalidateQueries({ queryKey: IDP_SESSIONS_KEY });
+    },
+  });
+}
+
+export function useRevokeAllUserSessions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => revokeAllUserSessions(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: IDP_SESSIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: OAUTH_SESSIONS_KEY });
     },
   });
 }

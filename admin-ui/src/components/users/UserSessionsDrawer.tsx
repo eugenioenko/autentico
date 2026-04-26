@@ -13,6 +13,7 @@ import type { ColumnsType } from "antd/es/table";
 import {
   useUserIdpSessions,
   useForceLogoutIdpSession,
+  useRevokeAllUserSessions,
 } from "../../hooks/useIdpSessions";
 import type { IdpSessionResponse } from "../../types/idpSession";
 import { describeUserAgent, formatActiveAppsCount } from "../../lib/utils";
@@ -39,6 +40,17 @@ export default function UserSessionsDrawer({
     open ? userId : null
   );
   const forceLogout = useForceLogoutIdpSession();
+  const revokeAll = useRevokeAllUserSessions();
+
+  const handleRevokeAll = async () => {
+    if (!userId) return;
+    try {
+      await revokeAll.mutateAsync(userId);
+      message.success("All sessions revoked");
+    } catch {
+      message.error("Failed to revoke sessions");
+    }
+  };
 
   const handleForceLogout = async (id: string) => {
     try {
@@ -119,10 +131,28 @@ export default function UserSessionsDrawer({
       width={720}
     >
       <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-        <Typography.Text type="secondary">
-          Active devices where this user is signed in. Force sign-out will
-          revoke all sessions and tokens from the device.
-        </Typography.Text>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography.Text type="secondary">
+            Active devices where this user is signed in.
+          </Typography.Text>
+          <Popconfirm
+            title="Revoke all sessions?"
+            description="This will revoke all tokens, sessions, and sign out every device for this user."
+            onConfirm={handleRevokeAll}
+            okText="Revoke All"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              danger
+              size="small"
+              icon={<LogoutOutlined />}
+              loading={revokeAll.isPending}
+              disabled={!sessions?.length}
+            >
+              Revoke All Sessions
+            </Button>
+          </Popconfirm>
+        </div>
 
         <Table<IdpSessionResponse>
           columns={columns}

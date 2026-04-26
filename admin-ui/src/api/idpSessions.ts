@@ -64,3 +64,7 @@ export async function forceLogoutIdpSession(id: string): Promise<void> {
 export async function deactivateOAuthSession(id: string): Promise<void> {
   await apiClient.delete(`/admin/api/sessions/${id}`);
 }
+
+export async function revokeAllUserSessions(userId: string): Promise<void> {
+  await apiClient.post(`/admin/api/users/${userId}/revoke-sessions`);
+}

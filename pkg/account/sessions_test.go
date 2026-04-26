@@ -279,3 +279,52 @@ func TestHandleRevokeSession_MissingID(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "Missing session ID")
 }
 
+func TestHandleRevokeOtherSessions_RevokesOthersKeepsCurrent(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, usr := setupTestUserAndSession(t)
+
+	// Create two other IdP sessions with child OAuth sessions + tokens.
+	idpOther1 := createIdpSessionFor(t, usr)
+	_ = linkOAuthSessionToIdp(t, usr, idpOther1, "at-other1")
+	_, err := db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
+		        datetime('now'), 'openid', 'authorization_code')`,
+		"tok-other1", usr.ID, "at-other1", "at-other1-refresh",
+	)
+	require.NoError(t, err)
+
+	idpOther2 := createIdpSessionFor(t, usr)
+	_ = linkOAuthSessionToIdp(t, usr, idpOther2, "at-other2")
+	_, err = db.GetDB().Exec(`
+		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
+		        datetime('now'), 'openid', 'authorization_code')`,
+		"tok-other2", usr.ID, "at-other2", "at-other2-refresh",
+	)
+	require.NoError(t, err)
+
+	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, token)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "All other sessions revoked")
+
+	// Other tokens should be revoked.
+	var revoked1, revoked2 *time.Time
+	require.NoError(t, db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE id = ?`, "tok-other1").Scan(&revoked1))
+	require.NoError(t, db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE id = ?`, "tok-other2").Scan(&revoked2))
+	assert.NotNil(t, revoked1)
+	assert.NotNil(t, revoked2)
+
+	// Current session's token should NOT be revoked — verify by re-listing sessions.
+	rr2 := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
+	assert.Equal(t, http.StatusOK, rr2.Code, "current session must remain valid after revoking others")
+}
+
+func TestHandleRevokeOtherSessions_Unauthorized(t *testing.T) {
+	testutils.WithTestDB(t)
+	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, "bad-token")
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
