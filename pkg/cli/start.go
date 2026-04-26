@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -47,6 +49,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
+	"github.com/eugenioenko/autentico/pkg/verifico"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
 	"github.com/eugenioenko/autentico/view"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -96,6 +99,28 @@ func RunStart(c *cli.Context) error {
 
 	// Initialize RSA key (from env var or ephemeral with warning)
 	key.GetPrivateKey()
+
+	// Initialize verifico bcrypt worker pool
+	var vWorkers []string
+	for _, w := range strings.Split(bs.VerificoWorkers, ",") {
+		w = strings.TrimSpace(w)
+		if w != "" {
+			vWorkers = append(vWorkers, w)
+		}
+	}
+	verifico.Init(verifico.Config{
+		Enabled: bs.VerificoEnabled,
+		Workers: vWorkers,
+		Secret:  bs.VerificoSecret,
+	})
+	if bs.VerificoEnabled && len(vWorkers) > 0 {
+		fmt.Printf("  Verifico workers: %v\n", vWorkers)
+	}
+
+	if bs.MaxProcs > 0 {
+		runtime.GOMAXPROCS(bs.MaxProcs)
+		fmt.Printf("  GOMAXPROCS set to %d\n", bs.MaxProcs)
+	}
 
 	// Auto-seed required OAuth2 clients
 	seedAdminClient(false)

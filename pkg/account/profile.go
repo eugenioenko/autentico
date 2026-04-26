@@ -10,7 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/eugenioenko/autentico/pkg/verifico"
 )
 
 // HandleGetProfile godoc
@@ -163,7 +163,7 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify current password
-	if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
+	if err := verifico.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
 		return
 	}

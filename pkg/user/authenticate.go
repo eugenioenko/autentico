@@ -10,6 +10,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/verifico"
 )
 
 // ErrAccountLocked is returned when the account is temporarily locked due to too many failed login attempts.
@@ -49,7 +50,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Burn CPU time so response is indistinguishable from wrong-password
-			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+			_ = verifico.CompareHashAndPassword(dummyHash, []byte(password))
 			return nil, fmt.Errorf("invalid username or password")
 		}
 		return nil, fmt.Errorf("failed to retrieve user: %w", err)
@@ -69,7 +70,7 @@ func AuthenticateUser(username, password string) (*User, error) {
 	}
 
 	// Compare password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	err = verifico.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		// Wrong password — increment failed attempts
 		if maxAttempts > 0 {
