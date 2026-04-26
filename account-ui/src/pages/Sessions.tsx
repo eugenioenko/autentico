@@ -71,20 +71,15 @@ const SessionsPage: React.FC = () => {
     <Card
       title="Active Sessions"
       description="Browsers and devices where you are currently signed in."
+      action={
+        sessions && sessions.filter((s) => !s.is_current).length > 0 ? (
+          <Button onClick={handleRevokeOthers} disabled={revokingAll}>
+            {revokingAll ? 'Signing out…' : 'Sign out all other devices'}
+          </Button>
+        ) : undefined
+      }
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
-      {sessions && sessions.filter((s) => !s.is_current).length > 0 && (
-        <div className="mb-2">
-          <Button
-            variant="danger"
-            onClick={handleRevokeOthers}
-            disabled={revokingAll}
-            className="text-xs"
-          >
-            {revokingAll ? 'Signing out...' : 'Sign out all other devices'}
-          </Button>
-        </div>
-      )}
       <div className="divide-y divide-theme-fg/10 mt-1">
         {sessions?.map((s) => (
           <div key={s.id} className="py-4 flex items-center justify-between gap-4">
