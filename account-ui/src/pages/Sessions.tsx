@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { IconDeviceDesktop } from '@tabler/icons-react';
+import { IconDeviceDesktop, IconCircleCheck } from '@tabler/icons-react';
 import api from '../api';
 import Card from '../components/Card';
 import Alert from '../components/Alert';
@@ -39,6 +39,11 @@ const SessionsPage: React.FC = () => {
   const [revokingAll, setRevokingAll] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<'others' | Session | null>(null);
   const [revokedId, setRevokedId] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    return () => { if (flashTimer.current) clearTimeout(flashTimer.current); };
+  }, []);
 
   const doRevokeOthers = async () => {
     setConfirmTarget(null);
@@ -65,10 +70,10 @@ const SessionsPage: React.FC = () => {
         return;
       }
       setRevokedId(s.id);
-      setTimeout(() => {
+      flashTimer.current = setTimeout(() => {
         setRevokedId(null);
         refetch();
-      }, 600);
+      }, 1200);
     } catch (err: unknown) {
       setError(extractError(err, 'Failed to revoke session.'));
     }
@@ -98,7 +103,7 @@ const SessionsPage: React.FC = () => {
         {error && <Alert type="danger" message={error} className="mb-3" />}
         <div className="divide-y divide-theme-fg/10 mt-1">
           {sessions?.map((s) => (
-            <div key={s.id} className={`py-4 flex items-center justify-between gap-4 transition-colors duration-500 ${revokedId === s.id ? 'bg-theme-success-bg/15' : ''}`}>
+            <div key={s.id} className={`py-4 flex items-center justify-between gap-4 transition-colors duration-1000 ${revokedId === s.id ? 'bg-theme-success-bg/15' : ''}`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
                   <IconDeviceDesktop size={15} className="text-theme-fg" />
@@ -122,7 +127,9 @@ const SessionsPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-              {revokedId !== s.id && (
+              {revokedId === s.id ? (
+                <IconCircleCheck size={28} stroke={1} className="flex-shrink-0 text-theme-success mr-3" />
+              ) : (
                 <Button
                   variant="ghost"
                   onClick={() => handleRevoke(s)}

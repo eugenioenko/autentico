@@ -2,9 +2,9 @@ package account
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -28,7 +28,7 @@ func currentIdpSessionID(r *http.Request) string {
 // @Description `is_current` marks the row matching the request's IdP session cookie.
 // @Tags account-security
 // @Produce json
-// @Param limit query integer false "Max results per page (1–100)" default(20)
+// @Param limit query integer false "Max results per page (1–100)" default(100)
 // @Param offset query integer false "Number of results to skip" default(0)
 // @Security UserAuth
 // @Success 200 {object} model.ListResponse[SessionResponse]
@@ -41,15 +41,10 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	if limit <= 0 || limit > 100 {
-		limit = 20
+	params := api.ParseListParams(r)
+	if params.Order == "" {
+		params.Order = "desc"
 	}
-	if offset < 0 {
-		offset = 0
-	}
-
 	currentID := currentIdpSessionID(r)
 
 	idleCutoff := time.Time{}
@@ -57,7 +52,7 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 		idleCutoff = time.Now().Add(-idle)
 	}
 
-	devices, total, err := idpsession.ListActiveDevicesForUserPaginated(usr.ID, idleCutoff, limit, offset)
+	devices, total, err := idpsession.ListActiveDevicesForUserPaginated(usr.ID, idleCutoff, params)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
