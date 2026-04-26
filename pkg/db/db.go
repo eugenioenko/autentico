@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 
 	_ "modernc.org/sqlite"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 )
 
@@ -22,8 +24,14 @@ func openDB(dbFilePath string) (*sql.DB, error) {
 	// and ensures PRAGMAs set below apply to every query.
 	database.SetMaxOpenConns(1)
 
-	if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
-		return nil, fmt.Errorf("failed to enable WAL journal mode: %w", err)
+	if config.GetBootstrap().DbWalMode {
+		if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
+			slog.Warn("failed to enable WAL journal mode", "error", err)
+		}
+	} else {
+		if _, err = database.Exec("PRAGMA journal_mode = DELETE;"); err != nil {
+			slog.Warn("failed to set DELETE journal mode", "error", err)
+		}
 	}
 
 	if _, err = database.Exec("PRAGMA busy_timeout = 5000;"); err != nil {

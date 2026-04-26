@@ -111,6 +111,10 @@ func buildEnvContent(p envParams) string {
 		"# timing-based user enumeration. Set both to 0 to disable (e.g. for profiling).",
 		"AUTENTICO_ANTI_TIMING_MIN_MS=50",
 		"AUTENTICO_ANTI_TIMING_MAX_MS=150",
+		"",
+		"# ── SQLite WAL mode ──────────────────────────────────────────────────────────",
+		"# Enable SQLite Write-Ahead Logging for concurrent read throughput. Set false to use rollback journal.",
+		"AUTENTICO_DB_WAL_MODE=true",
 	}
 
 	return strings.Join(lines, "\n") + "\n"

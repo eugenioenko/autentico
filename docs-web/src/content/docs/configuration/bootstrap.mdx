@@ -30,6 +30,7 @@ Never commit `.env` to source control. It contains your RSA private key and all 
 | `AUTENTICO_APP_URL` | `http://localhost:9999` | Public base URL of the application. Used as the OIDC issuer (`iss`) and for constructing redirect URIs. Must match the URL clients use to reach the server. |
 | `AUTENTICO_APP_OAUTH_PATH` | `/oauth2` | URL path prefix for all OAuth2 endpoints. Change this only if you need to namespace the endpoints. |
 | `AUTENTICO_DB_FILE_PATH` | `./autentico.db` | Path to the SQLite database file. The directory must exist and be writable. Use an absolute path in production. |
+| `AUTENTICO_DB_WAL_MODE` | `true` | Enable SQLite WAL (Write-Ahead Logging) for improved concurrent read throughput. Once enabled, the journal mode persists in the database file. Set to `false` to use the default rollback journal (DELETE mode). |
 
 ## Cryptographic secrets
 
@@ -120,4 +121,7 @@ AUTENTICO_RATE_LIMIT_RPM_BURST=20
 # Anti-timing delay (set both to 0 to disable for profiling)
 AUTENTICO_ANTI_TIMING_MIN_MS=50
 AUTENTICO_ANTI_TIMING_MAX_MS=150
+
+# SQLite WAL mode (set to false to use rollback journal)
+AUTENTICO_DB_WAL_MODE=true
 ```
