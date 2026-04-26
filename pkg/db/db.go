@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 
 	_ "modernc.org/sqlite"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 )
 
@@ -21,6 +23,16 @@ func openDB(dbFilePath string) (*sql.DB, error) {
 	// SQLite is single-writer; one connection avoids "database is locked" races
 	// and ensures PRAGMAs set below apply to every query.
 	database.SetMaxOpenConns(1)
+
+	if config.GetBootstrap().DbWalMode {
+		if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
+			slog.Warn("failed to enable WAL journal mode", "error", err)
+		}
+	} else {
+		if _, err = database.Exec("PRAGMA journal_mode = DELETE;"); err != nil {
+			slog.Warn("failed to set DELETE journal mode", "error", err)
+		}
+	}
 
 	if _, err = database.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
 		return nil, fmt.Errorf("failed to set SQLite busy timeout: %w", err)

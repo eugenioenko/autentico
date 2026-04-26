@@ -47,6 +47,8 @@ type BootstrapConfig struct {
 	// Both set to 0 disables the delay.
 	AntiTimingMinMs int
 	AntiTimingMaxMs int
+	// SQLite WAL (Write-Ahead Logging) mode for improved concurrent read throughput.
+	DbWalMode bool
 }
 
 // FooterLink is a single admin-configured link shown in the login/signup footer.
@@ -226,6 +228,7 @@ var (
 		RateLimitBurst:                 10,
 		RateLimitRPM:                   20,
 		RateLimitRPMBurst:              20,
+		DbWalMode:                      true,
 	}
 	Values = defaultConfig
 )
@@ -298,6 +301,7 @@ func InitBootstrap() {
 		RateLimitRPMBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
 		AntiTimingMinMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
 		AntiTimingMaxMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
+		DbWalMode:                      getEnvBool("AUTENTICO_DB_WAL_MODE", true),
 	}
 }
 
