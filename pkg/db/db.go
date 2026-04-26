@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"runtime"
 
 	_ "modernc.org/sqlite"
 
@@ -18,9 +19,11 @@ func openDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	// SQLite is single-writer; one connection avoids "database is locked" races
-	// and ensures PRAGMAs set below apply to every query.
-	database.SetMaxOpenConns(1)
+	// WAL mode allows concurrent reads while writes serialize.
+	// Persistent per-database — all connections inherit it.
+	if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
+		return nil, fmt.Errorf("failed to enable WAL journal mode: %w", err)
+	}
 
 	if _, err = database.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
 		return nil, fmt.Errorf("failed to set SQLite busy timeout: %w", err)
@@ -29,6 +32,14 @@ func openDB(dbFilePath string) (*sql.DB, error) {
 	if _, err = database.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, fmt.Errorf("failed to enable SQLite foreign keys: %w", err)
 	}
+
+	// With WAL, multiple connections can read concurrently.
+	// Writes still serialize through SQLite's single-writer lock.
+	n := runtime.NumCPU()
+	if n < 4 {
+		n = 4
+	}
+	database.SetMaxOpenConns(n)
 
 	return database, nil
 }

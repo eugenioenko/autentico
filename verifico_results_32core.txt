@@ -1,0 +1,4 @@
+Verifico K8s Scaling Benchmark — Sun Apr 26 12:49:57 PM PDT 2026
+
+--- Part 1: Vertical Scaling Baseline ---
+=== Vertical: 2 cores ===
