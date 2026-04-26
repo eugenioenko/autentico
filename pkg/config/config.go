@@ -57,10 +57,13 @@ type FooterLink struct {
 
 // ThemeConfig holds theme-related display settings.
 type ThemeConfig struct {
-	CssFile   string `json:"themeCssFile"`
-	CssInline string `json:"themeCssInline"`
-	LogoUrl   string `json:"themeLogoUrl"`
-	Title     string `json:"themeTitle"`
+	CssFile         string `json:"themeCssFile"`
+	CssInline       string `json:"themeCssInline"`
+	LogoUrl         string `json:"themeLogoUrl"`
+	Title           string `json:"themeTitle"`
+	BrandColor      string `json:"themeBrandColor"`
+	Tagline         string `json:"themeTagline"`
+	EmailFooterText string `json:"themeEmailFooterText"`
 }
 
 // Config holds soft settings loaded from the settings DB table. These can be

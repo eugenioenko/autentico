@@ -10,8 +10,8 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -162,7 +162,7 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	resetURL := buildResetURL(rawToken, params)
 	go func() {
-		if err := mfa.SendPasswordResetEmail(usr.Email, resetURL); err != nil {
+		if err := email.SendPasswordResetEmail(usr.Email, resetURL); err != nil {
 			slog.Error("forgot-password: failed to send email", "request_id", reqID, "error", err)
 		}
 	}()

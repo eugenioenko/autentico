@@ -12,9 +12,9 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
-	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -96,10 +96,10 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
-	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
-	if config.Get().ProfileFieldEmail == "is_username" && email == "" {
+	emailAddr := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
+	if config.Get().ProfileFieldEmail == "is_username" && emailAddr == "" {
 		username = strings.ToLower(username)
-		email = username
+		emailAddr = username
 	}
 
 	if password != confirmPassword {
@@ -110,7 +110,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	req := user.UserCreateRequest{
 		Username: username,
 		Password: password,
-		Email:    email,
+		Email:    emailAddr,
 	}
 	if err := user.ValidateUserCreateRequest(req); err != nil {
 		redirectSignupError(w, r, params, err.Error())
@@ -150,7 +150,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	usr, err := user.CreateUser(username, password, email)
+	usr, err := user.CreateUser(username, password, emailAddr)
 	if err != nil {
 		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
 		return
@@ -188,7 +188,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 				CodeChallengeMethod: params.CodeChallengeMethod,
 				AuthorizeSig:        params.AuthorizeSig,
 			})
-			_ = mfa.SendVerificationEmail(usr.Email, verifyURL)
+			_ = email.SendVerificationEmail(usr.Email, verifyURL)
 		}
 		emailverification.RenderVerifyEmail(w, r, "sent", usr.Username, emailverification.OAuthParams{
 			RedirectURI:         params.RedirectURI,

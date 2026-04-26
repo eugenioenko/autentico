@@ -1,4 +1,4 @@
-package mfa
+package email
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
+	"net/url"
+	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 )
@@ -16,11 +18,16 @@ var emailTemplateRaw string
 var emailTemplate = template.Must(template.New("email").Parse(emailTemplateRaw))
 
 type emailData struct {
-	AppName   string
-	AppURL    string
-	Title     string
-	Preheader string
-	Body      template.HTML
+	AppName         string
+	LogoURL         string
+	Tagline         string
+	AccountURL      string
+	Title           string
+	Preheader       string
+	BrandColor      string
+	Body            template.HTML
+	FooterLinks     []config.FooterLink
+	FooterTextLines []string
 }
 
 func buildEmailHTML(title, preheader string, bodyHTML template.HTML) (string, error) {
@@ -32,12 +39,39 @@ func buildEmailHTML(title, preheader string, bodyHTML template.HTML) (string, er
 		appName = "Autentico"
 	}
 
+	logoURL := cfg.Theme.LogoUrl
+	if logoURL == "" {
+		logoURL = bs.AppURL + "/oauth2/static/logo.svg"
+	}
+
+	brandColor := cfg.Theme.BrandColor
+	if brandColor == "" {
+		brandColor = "#18181b"
+	}
+
+	var footerTextLines []string
+	if cfg.Theme.EmailFooterText != "" {
+		footerTextLines = strings.Split(cfg.Theme.EmailFooterText, "\n")
+	}
+
+	var safeLinks []config.FooterLink
+	for _, link := range cfg.FooterLinks {
+		if u, err := url.Parse(link.URL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+			safeLinks = append(safeLinks, link)
+		}
+	}
+
 	data := emailData{
-		AppName:   appName,
-		AppURL:    bs.AppURL + "/account",
-		Title:     title,
-		Preheader: preheader,
-		Body:      bodyHTML,
+		AppName:         appName,
+		LogoURL:         logoURL,
+		Tagline:         cfg.Theme.Tagline,
+		AccountURL:      bs.AppURL + "/account",
+		Title:           title,
+		Preheader:       preheader,
+		BrandColor:      brandColor,
+		Body:            bodyHTML,
+		FooterLinks:     safeLinks,
+		FooterTextLines: footerTextLines,
 	}
 
 	var buf bytes.Buffer
@@ -47,7 +81,7 @@ func buildEmailHTML(title, preheader string, bodyHTML template.HTML) (string, er
 	return buf.String(), nil
 }
 
-func sendEmail(to, subject, preheader string, bodyHTML template.HTML) error {
+func SendEmail(to, subject, preheader string, bodyHTML template.HTML) error {
 	cfg := config.Get()
 	if cfg.SmtpHost == "" {
 		return fmt.Errorf("SMTP is not configured")

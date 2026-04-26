@@ -269,7 +269,10 @@ Each accepts: `hidden`, `optional`, or `required`. `profile_field_email` also ac
 | `theme_logo_url` | _(empty)_ | Logo URL for login page. |
 | `theme_css_inline` | _(empty)_ | Inline CSS injected into login pages. |
 | `theme_css_file` | _(empty)_ | Path to runtime-loaded CSS file. |
-| `footer_links` | `[]` | JSON array of `{label, url}` links for login/signup footer. |
+| `theme_brand_color` | `#18181b` | Brand color for action buttons on login pages and emails. |
+| `theme_tagline` | _(empty)_ | Optional tagline below the logo on login pages and emails. |
+| `email_footer_text` | _(empty)_ | Optional text in email footer (copyright, address). Multi-line. |
+| `footer_links` | `[]` | JSON array of `{label, url}` links for login/signup footer and emails. |
 
 ### Per-Client Overrides
 
