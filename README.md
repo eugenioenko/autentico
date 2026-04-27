@@ -200,15 +200,15 @@ SQLite is an intentional architectural choice. For identity workloads at this sc
 
 When load characteristics genuinely justify migration, the `pkg/db` boundary makes that tractable. Until then, the operational simplicity is worth considerably more than theoretical headroom.
 
-**Observed performance** — full PKCE auth code flow (authorize → login → token → introspect → refresh), measured with k6 on a developer laptop, single process, SQLite backend:
+**Observed performance** — full PKCE auth code flow (authorize → login → token → introspect → refresh), measured with k6 on a developer laptop, single process, SQLite WAL mode, `GOMAXPROCS=8`:
 
 | Concurrency | Error rate | Login p95 | Token p95 | Assessment |
 |-------------|------------|-----------|-----------|------------|
-| 20 VUs | 0% | 86ms | 54ms | Comfortable — imperceptible to users |
-| 100 VUs | 0% | 611ms | 647ms | Supported — fully functional |
-| 500 VUs | 0% | 3.36s | 3.89s | Degraded — users feel the wait |
+| 50 VUs | 0% | 277ms | 208ms | Comfortable — imperceptible to users |
+| 200 VUs | 0% | 1.26s | 1.12s | Sustained load — fully functional |
+| 500 VUs | 0% | 3.65s | 3.13s | Degraded — users feel the wait |
 
-In practice, "100 concurrent logins" corresponds to **10,000–20,000 daily active users** under a typical enterprise login distribution (morning peak, sessions lasting hours). The failure mode at high concurrency is graceful queuing — no errors, just latency — because SQLite's busy timeout absorbs write contention rather than returning errors.
+In practice, "200 concurrent logins" corresponds to **20,000–40,000 daily active users** under a typical enterprise login distribution (morning peak, sessions lasting hours). The failure mode at high concurrency is graceful queuing — no errors, just latency — because SQLite's busy timeout absorbs write contention rather than returning errors.
 
 Other operations (token refresh, introspection, OIDC discovery) are not bottlenecked by bcrypt and remain sub-10ms well beyond these concurrency levels.
 
@@ -991,11 +991,11 @@ Stress tests using [k6](https://k6.io) exercise the full PKCE auth code flow (au
 
 | Concurrency | Error rate | Login p95 | Token p95 | Assessment |
 |-------------|------------|-----------|-----------|------------|
-| 20 VUs | 0% | 86ms | 54ms | Comfortable — imperceptible to users |
-| 100 VUs | 0% | 611ms | 647ms | Supported — fully functional |
-| 500 VUs | 0% | 3.36s | 3.89s | Degraded — users feel the wait |
+| 50 VUs | 0% | 277ms | 208ms | Comfortable — imperceptible to users |
+| 200 VUs | 0% | 1.26s | 1.12s | Sustained load — fully functional |
+| 500 VUs | 0% | 3.65s | 3.13s | Degraded — users feel the wait |
 
-*Measured on a developer laptop, single process, SQLite backend. The bottleneck is bcrypt, not SQLite — real-world traffic is much lighter than all-login load because SSO sessions and refresh tokens eliminate most password checks.*
+*Measured on a developer laptop, single process, SQLite WAL mode, GOMAXPROCS=8. The bottleneck is bcrypt, not SQLite — real-world traffic is much lighter than all-login load because SSO sessions and refresh tokens eliminate most password checks.*
 
 ### Reproducibility
 
