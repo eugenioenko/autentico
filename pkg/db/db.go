@@ -7,8 +7,6 @@ import (
 	"log"
 	"runtime"
 
-	"log/slog"
-
 	_ "modernc.org/sqlite"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -16,8 +14,8 @@ import (
 )
 
 var (
-	writer  *sql.DB
-	reader  *sql.DB
+	writer   *sql.DB
+	reader   *sql.DB
 	pooledDB *DB
 )
 
@@ -64,48 +62,18 @@ func (d *DB) PingContext(ctx context.Context) error {
 	return d.reader.PingContext(ctx)
 }
 
+// dsn builds a SQLite URI with PRAGMAs applied on every new connection.
+func dsn(dbFilePath string) string {
+	return fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)", dbFilePath)
+}
+
 func openPool(dbFilePath string, maxConns int) (*sql.DB, error) {
-	database, err := sql.Open("sqlite", dbFilePath)
+	database, err := sql.Open("sqlite", dsn(dbFilePath))
 	if err != nil {
 		return nil, err
 	}
 
 	database.SetMaxOpenConns(maxConns)
-
-	if config.GetBootstrap().DbWalMode {
-		if _, err = database.Exec("PRAGMA journal_mode = WAL;"); err != nil {
-			slog.Warn("failed to enable WAL journal mode", "error", err)
-		}
-	} else {
-		if _, err = database.Exec("PRAGMA journal_mode = DELETE;"); err != nil {
-			slog.Warn("failed to set DELETE journal mode", "error", err)
-		}
-	}
-
-	if _, err = database.Exec("PRAGMA busy_timeout = 5000;"); err != nil {
-		return nil, fmt.Errorf("failed to set SQLite busy timeout: %w", err)
-	}
-
-	if _, err = database.Exec("PRAGMA foreign_keys = ON;"); err != nil {
-		return nil, fmt.Errorf("failed to enable SQLite foreign keys: %w", err)
-	}
-
-	// Warm up all connections so every pooled conn has PRAGMAs set.
-	conns := make([]*sql.Conn, maxConns)
-	for i := range conns {
-		conn, err := database.Conn(context.Background())
-		if err != nil {
-			break
-		}
-		_, _ = conn.ExecContext(context.Background(), "PRAGMA busy_timeout = 5000;")
-		_, _ = conn.ExecContext(context.Background(), "PRAGMA foreign_keys = ON;")
-		conns[i] = conn
-	}
-	for _, conn := range conns {
-		if conn != nil {
-			_ = conn.Close()
-		}
-	}
 
 	return database, nil
 }
