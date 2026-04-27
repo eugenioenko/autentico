@@ -74,8 +74,8 @@ func TestInitTestDB(t *testing.T) {
 	err = database.Ping()
 	assert.NoError(t, err)
 
-	// Check if GetDB returns the same
-	assert.Equal(t, database, GetDB())
+	// Check if GetWriteDB returns the same underlying writer
+	assert.Equal(t, database, GetWriteDB())
 
 	var v int
 	err = database.QueryRow("PRAGMA user_version").Scan(&v)

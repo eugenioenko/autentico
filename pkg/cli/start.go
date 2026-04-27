@@ -79,10 +79,10 @@ func RunStart(c *cli.Context) error {
 	defer db.CloseDB()
 
 	if !c.Bool("no-auto-migrate") {
-		if err := migrations.Run(db.GetDB(), true); err != nil {
+		if err := migrations.Run(db.GetWriteDB(), true); err != nil {
 			return err
 		}
-	} else if err := migrations.Check(db.GetDB()); err != nil {
+	} else if err := migrations.Check(db.GetWriteDB()); err != nil {
 		return err
 	}
 
@@ -293,6 +293,8 @@ func RunStart(c *cli.Context) error {
 	fmt.Printf("  JWKS:       %s%s/.well-known/jwks.json\n", baseURL, oauth)
 	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)
 	fmt.Printf("  Token:      %s%s/token\n", baseURL, oauth)
+	fmt.Println()
+	fmt.Printf("  SQLite:     1 writer, %d readers (WAL mode)\n", db.ReadPoolSize())
 	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{

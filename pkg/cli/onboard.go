@@ -26,7 +26,7 @@ func RunOnboard(c *cli.Context) error {
 	}
 	defer db.CloseDB()
 
-	if err := migrations.Run(db.GetDB(), true); err != nil {
+	if err := migrations.Run(db.GetWriteDB(), true); err != nil {
 		return err
 	}
 

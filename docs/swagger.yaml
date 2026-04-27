@@ -98,6 +98,10 @@ definitions:
         type: integer
       active_tokens:
         type: integer
+      failed_logins_24h:
+        type: integer
+      locked_accounts:
+        type: integer
       pending_deletion_requests:
         type: integer
       recent_logins:
@@ -1476,7 +1480,7 @@ paths:
         `active_apps_count` is the number of non-deactivated OAuth sessions born from that IdP session.
         `is_current` marks the row matching the request's IdP session cookie.
       parameters:
-      - default: 20
+      - default: 100
         description: Max results per page (1–100)
         in: query
         name: limit

@@ -112,9 +112,12 @@ func buildEnvContent(p envParams) string {
 		"AUTENTICO_ANTI_TIMING_MIN_MS=50",
 		"AUTENTICO_ANTI_TIMING_MAX_MS=150",
 		"",
-		"# ── SQLite WAL mode ──────────────────────────────────────────────────────────",
-		"# Enable SQLite Write-Ahead Logging for concurrent read throughput. Set false to use rollback journal.",
-		"AUTENTICO_DB_WAL_MODE=true",
+		"# ── Performance tuning ───────────────────────────────────────────────────────",
+		"# Number of SQLite read connections in the pool. Reads run concurrently via WAL mode",
+		"# while writes serialize through a single connection.",
+		"# 0 = auto (whichever is smaller: available CPUs or 4, minimum 2).",
+		"# Set explicitly to override (e.g. 8 for read-heavy workloads).",
+		"AUTENTICO_DB_READ_POOL_SIZE=0",
 	}
 
 	return strings.Join(lines, "\n") + "\n"

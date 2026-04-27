@@ -847,7 +847,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 20,
+                        "default": 100,
                         "description": "Max results per page (1–100)",
                         "name": "limit",
                         "in": "query"
@@ -4089,6 +4089,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "active_tokens": {
+                    "type": "integer"
+                },
+                "failed_logins_24h": {
+                    "type": "integer"
+                },
+                "locked_accounts": {
                     "type": "integer"
                 },
                 "pending_deletion_requests": {

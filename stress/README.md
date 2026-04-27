@@ -149,26 +149,27 @@ location, and response body. Use this to diagnose flow failures before running l
 
 ## Capacity characterization
 
-The following results were measured on a developer laptop (single process, SQLite backend)
-running the full PKCE auth code flow including bcrypt password verification, token issuance,
-introspection, and refresh. Results on server hardware will differ.
+The following results were measured on a developer laptop (16 cores, single process, SQLite WAL
+mode with read/write connection pool), 60s sustained load, running the full PKCE auth code flow
+including bcrypt password verification, token issuance, introspection, and refresh.
 
 | Concurrency | Error rate | Login p95 | Token p95 | Assessment |
-|-------------|------------|-----------|-----------|------------|
-| 20 VUs      | 0%         | 86ms      | 54ms      | **Comfortable** — all steps well under 100ms |
-| 100 VUs     | 0%         | 611ms     | 647ms     | **Supported** — noticeable but fully functional |
-| 500 VUs     | 0%         | 3.36s     | 3.89s     | **Degraded** — users feel the wait at login |
+|-------------|-----------|-----------|-----------|------------|
+| 20 VUs      | 0%        | 248ms     | 300ms     | **Comfortable** — imperceptible to users |
+| 100 VUs     | 0%        | 1.19s     | 1.56s     | **Sustained load** — fully functional |
+| 200 VUs     | 0%        | 2.37s     | 2.94s     | **Moderate pressure** — noticeable but acceptable |
+| 500 VUs     | 0%        | 5.76s     | 7.34s     | **Stress ceiling** — degraded experience |
 
-**Bottleneck:** SQLite's single-writer lock. All write operations (login, token exchange,
-refresh) serialize through one connection. The failure mode is graceful — requests queue and
-eventually succeed rather than returning errors. No `SQLITE_BUSY` errors were observed at any
-load level tested.
+**Bottleneck:** SQLite's single-writer connection. All write operations (login, token exchange,
+refresh) serialize through one connection. Reads (authorize, introspect) run concurrently via
+the read pool. The failure mode is graceful — requests queue and eventually succeed rather than
+returning errors. No `SQLITE_BUSY` errors were observed at any load level tested.
 
 **Practical limits:**
-- Up to **~50 concurrent logins**: sub-200ms everywhere, imperceptible to users
-- Up to **100 concurrent logins**: under 700ms p95, all requests succeed — recommended
+- Up to **~50 concurrent logins**: sub-300ms everywhere, imperceptible to users
+- Up to **100 concurrent logins**: under 1.5s p95, all requests succeed — recommended
   production ceiling for a single SQLite-backed instance
-- Beyond **200+ concurrent logins**: login p95 exceeds 1–2 seconds; consider horizontal
+- Beyond **200+ concurrent logins**: login p95 exceeds 2 seconds; consider horizontal
   scaling or reducing bcrypt cost if this load is expected
 
 ## Custom metrics
