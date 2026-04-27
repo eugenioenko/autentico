@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	writer   *sql.DB
-	reader   *sql.DB
-	pooledDB *DB
+	writer       *sql.DB
+	reader       *sql.DB
+	pooledDB     *DB
+	readPoolSize int
 )
 
 // DB routes read operations to the reader pool and write operations to the
@@ -86,12 +87,9 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	readPoolSize := config.GetBootstrap().DbReadPoolSize
+	readPoolSize = config.GetBootstrap().DbReadPoolSize
 	if readPoolSize <= 0 {
 		readPoolSize = min(runtime.GOMAXPROCS(0), 4)
-		if readPoolSize < 2 {
-			readPoolSize = 2
-		}
 	}
 	reader, err = openPool(dbFilePath, readPoolSize)
 	if err != nil {
@@ -99,8 +97,6 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 	}
 
 	pooledDB = &DB{writer: writer, reader: reader}
-
-	log.Printf("SQLite pools: 1 writer, %d readers (WAL mode)", readPoolSize)
 
 	var userVersion int
 	if err = writer.QueryRow("PRAGMA user_version").Scan(&userVersion); err != nil {
@@ -148,6 +144,10 @@ func GetWriteDB() *sql.DB {
 
 func GetReadDB() *sql.DB {
 	return reader
+}
+
+func ReadPoolSize() int {
+	return readPoolSize
 }
 
 func CloseDB() {

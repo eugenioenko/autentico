@@ -48,7 +48,7 @@ type BootstrapConfig struct {
 	AntiTimingMinMs int
 	AntiTimingMaxMs int
 	// DbReadPoolSize sets the number of SQLite read connections.
-	// 0 means auto: min(available CPUs, 4), floor 2.
+	// 0 means auto: min(available CPUs, 4).
 	DbReadPoolSize int
 }
 

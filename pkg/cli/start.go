@@ -294,6 +294,8 @@ func RunStart(c *cli.Context) error {
 	fmt.Printf("  Authorize:  %s%s/authorize\n", baseURL, oauth)
 	fmt.Printf("  Token:      %s%s/token\n", baseURL, oauth)
 	fmt.Println()
+	fmt.Printf("  SQLite:     1 writer, %d readers (WAL mode)\n", db.ReadPoolSize())
+	fmt.Println()
 
 	middlewareList := []func(http.Handler) http.Handler{
 		reqid.Middleware,
