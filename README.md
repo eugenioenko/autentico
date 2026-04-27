@@ -200,7 +200,7 @@ SQLite is an intentional architectural choice. For identity workloads at this sc
 
 When load characteristics genuinely justify migration, the `pkg/db` boundary makes that tractable. Until then, the operational simplicity is worth considerably more than theoretical headroom.
 
-**Observed performance** — full PKCE auth code flow (authorize → login → token → introspect → refresh), 60s sustained load, 16 cores, single process, SQLite WAL mode with read/write connection pool:
+**Observed performance** — full PKCE auth code flow (authorize → login → token → introspect → refresh), 60s sustained load, 8 cores, single process, SQLite WAL mode with read/write connection pool:
 
 | Concurrency | Error rate | Login p95 | Token p95 | Assessment |
 |-------------|-----------|-----------|-----------|------------|
