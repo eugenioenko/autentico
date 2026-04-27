@@ -11,7 +11,7 @@ func CreatePasskeyChallenge(challenge PasskeyChallenge) error {
 		INSERT INTO passkey_challenges (id, user_id, challenge_data, type, login_state, expires_at, used)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.GetWriteDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		challenge.ID,
 		challenge.UserID,
 		challenge.ChallengeData,
@@ -28,7 +28,7 @@ func CreatePasskeyCredential(cred PasskeyCredential) error {
 		INSERT INTO passkey_credentials (id, user_id, name, credential, created_at)
 		VALUES (?, ?, ?, ?, ?)
 	`
-	_, err := db.GetWriteDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		cred.ID,
 		cred.UserID,
 		cred.Name,

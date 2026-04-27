@@ -47,8 +47,8 @@ type BootstrapConfig struct {
 	// Both set to 0 disables the delay.
 	AntiTimingMinMs int
 	AntiTimingMaxMs int
-	// MaxProcs sets GOMAXPROCS. 0 means use Go's default (all CPUs).
-	MaxProcs int
+	// SQLite WAL (Write-Ahead Logging) mode for improved concurrent read throughput.
+	DbWalMode bool
 	// DbReadPoolSize sets the number of SQLite read connections.
 	// 0 means auto: min(available CPUs, 4), floor 2.
 	DbReadPoolSize int
@@ -303,7 +303,7 @@ func InitBootstrap() {
 		RateLimitRPMBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
 		AntiTimingMinMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
 		AntiTimingMaxMs:                getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
-		MaxProcs:                       getEnvInt("AUTENTICO_MAX_PROCS", 0),
+		DbWalMode:                      getEnvBool("AUTENTICO_DB_WAL_MODE", true),
 		DbReadPoolSize:                 getEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
 	}
 }

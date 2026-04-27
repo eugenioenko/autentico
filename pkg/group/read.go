@@ -27,14 +27,14 @@ func ListGroupsWithParams(params api.ListParams) ([]GroupResponse, int, error) {
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM groups " + baseWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count groups: %w", err)
 	}
 
 	query := `SELECT groups.id, groups.name, groups.description, groups.created_at, groups.updated_at,
 		(SELECT COUNT(*) FROM user_groups WHERE user_groups.group_id = groups.id) AS member_count
 		FROM groups ` + baseWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, lq.Args...)
+	rows, err := db.GetDB().Query(query, lq.Args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list groups: %w", err)
 	}
@@ -56,7 +56,7 @@ func ListGroupsWithParams(params api.ListParams) ([]GroupResponse, int, error) {
 
 func ListGroups() ([]GroupResponse, error) {
 	query := `SELECT id, name, description, created_at, updated_at FROM groups ORDER BY name`
-	rows, err := db.GetReadDB().Query(query)
+	rows, err := db.GetDB().Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groups: %w", err)
 	}
@@ -79,7 +79,7 @@ func ListGroups() ([]GroupResponse, error) {
 func GroupByID(id string) (*Group, error) {
 	query := `SELECT id, name, description, created_at, updated_at FROM groups WHERE id = ?`
 	var g Group
-	err := db.GetReadDB().QueryRow(query, id).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt)
+	err := db.GetDB().QueryRow(query, id).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("group not found")
 	}
@@ -92,7 +92,7 @@ func GroupByID(id string) (*Group, error) {
 func GroupByName(name string) (*Group, error) {
 	query := `SELECT id, name, description, created_at, updated_at FROM groups WHERE name = ?`
 	var g Group
-	err := db.GetReadDB().QueryRow(query, name).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt)
+	err := db.GetDB().QueryRow(query, name).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("group not found")
 	}
@@ -108,7 +108,7 @@ func GroupsByUserID(userID string) ([]GroupResponse, error) {
 		JOIN user_groups ug ON g.id = ug.group_id
 		WHERE ug.user_id = ?
 		ORDER BY g.name`
-	rows, err := db.GetReadDB().Query(query, userID)
+	rows, err := db.GetDB().Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get groups for user: %w", err)
 	}
@@ -134,7 +134,7 @@ func MembersByGroupID(groupID string) ([]GroupMemberResponse, error) {
 		JOIN user_groups ug ON u.id = ug.user_id
 		WHERE ug.group_id = ? AND u.deactivated_at IS NULL
 		ORDER BY u.username`
-	rows, err := db.GetReadDB().Query(query, groupID)
+	rows, err := db.GetDB().Query(query, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get members: %w", err)
 	}
@@ -172,7 +172,7 @@ func GroupNamesByUserIDs(userIDs []string) (map[string][]string, error) {
 		JOIN user_groups ug ON g.id = ug.group_id
 		WHERE ug.user_id IN (` + strings.Join(placeholders, ",") + `)
 		ORDER BY g.name`
-	rows, err := db.GetReadDB().Query(query, args...)
+	rows, err := db.GetDB().Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group names: %w", err)
 	}
@@ -196,7 +196,7 @@ func GroupNamesByUserID(userID string) ([]string, error) {
 		JOIN user_groups ug ON g.id = ug.group_id
 		WHERE ug.user_id = ?
 		ORDER BY g.name`
-	rows, err := db.GetReadDB().Query(query, userID)
+	rows, err := db.GetDB().Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group names: %w", err)
 	}

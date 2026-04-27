@@ -63,12 +63,12 @@ func ListClientsWithParams(params api.ListParams) ([]*Client, int, error) {
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM clients " + baseWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, lq.Args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count clients: %w", err)
 	}
 
 	query := `SELECT ` + clientColumns + ` FROM clients ` + baseWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, lq.Args...)
+	rows, err := db.GetDB().Query(query, lq.Args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list clients: %w", err)
 	}
@@ -102,7 +102,7 @@ func ClientByClientID(clientID string) (*Client, error) {
 	var c Client
 	var secret sql.NullString
 	var audiences sql.NullString
-	err := db.GetReadDB().QueryRow(query, clientID).Scan(
+	err := db.GetDB().QueryRow(query, clientID).Scan(
 		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
 		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
@@ -139,7 +139,7 @@ func ClientByID(id string) (*Client, error) {
 	var c Client
 	var secret sql.NullString
 	var audiences sql.NullString
-	err := db.GetReadDB().QueryRow(query, id).Scan(
+	err := db.GetDB().QueryRow(query, id).Scan(
 		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
 		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,

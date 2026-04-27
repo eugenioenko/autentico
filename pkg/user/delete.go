@@ -25,7 +25,7 @@ func RevokeOtherUserAccess(userID, keepAccessToken string) error {
 // All UPDATEs run inside a single transaction so the three tables never
 // disagree about which sessions are alive.
 func revokeUserAccess(userID, excludeToken string) error {
-	tx, err := db.GetWriteDB().Begin()
+	tx, err := db.GetDB().Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
@@ -70,7 +70,7 @@ func revokeUserAccess(userID, excludeToken string) error {
 // Tables with ON DELETE CASCADE (passkey_challenges, passkey_credentials, user_groups)
 // are handled automatically. All others are deleted explicitly before removing the user row.
 func HardDeleteUser(id string) error {
-	d := db.GetWriteDB()
+	d := db.GetDB()
 	tables := []string{
 		"deletion_requests",
 		"tokens",
@@ -96,7 +96,7 @@ func HardDeleteUser(id string) error {
 // and deactivates all sessions/idp_sessions for the user.
 func DeactivateUser(id string) error {
 	// Set deactivated_at on the user
-	result, err := db.GetWriteDB().Exec(`UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ? AND deactivated_at IS NULL`, id)
+	result, err := db.GetDB().Exec(`UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ? AND deactivated_at IS NULL`, id)
 	if err != nil {
 		return fmt.Errorf("failed to deactivate user: %v", err)
 	}
@@ -113,7 +113,7 @@ func DeactivateUser(id string) error {
 
 // ReactivateUser clears deactivated_at, allowing the user to log in again.
 func ReactivateUser(id string) error {
-	result, err := db.GetWriteDB().Exec(`UPDATE users SET deactivated_at = NULL WHERE id = ? AND deactivated_at IS NOT NULL`, id)
+	result, err := db.GetDB().Exec(`UPDATE users SET deactivated_at = NULL WHERE id = ? AND deactivated_at IS NOT NULL`, id)
 	if err != nil {
 		return fmt.Errorf("failed to reactivate user: %v", err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func DeleteGroup(id string) error {
-	result, err := db.GetWriteDB().Exec(`DELETE FROM groups WHERE id = ?`, id)
+	result, err := db.GetDB().Exec(`DELETE FROM groups WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete group: %w", err)
 	}

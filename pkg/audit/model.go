@@ -56,7 +56,7 @@ func ActorFromRequest(r *http.Request) Actor {
 		return nil
 	}
 	var username string
-	_ = db.GetReadDB().QueryRow("SELECT username FROM users WHERE id = ?", claims.UserID).Scan(&username)
+	_ = db.GetDB().QueryRow("SELECT username FROM users WHERE id = ?", claims.UserID).Scan(&username)
 	return SimpleActor{ID: claims.UserID, Username: username}
 }
 

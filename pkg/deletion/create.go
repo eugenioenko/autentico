@@ -18,7 +18,7 @@ func CreateDeletionRequest(userID string, reason *string) (*DeletionRequest, err
 		ns = sql.NullString{String: *reason, Valid: true}
 	}
 
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`INSERT INTO deletion_requests (id, user_id, reason, requested_at) VALUES (?, ?, ?, datetime('now'))`,
 		id, userID, ns,
 	)

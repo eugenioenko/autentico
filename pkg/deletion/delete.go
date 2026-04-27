@@ -8,7 +8,7 @@ import (
 )
 
 func CancelDeletionRequest(id string) error {
-	result, err := db.GetWriteDB().Exec(`DELETE FROM deletion_requests WHERE id = ?`, id)
+	result, err := db.GetDB().Exec(`DELETE FROM deletion_requests WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to cancel deletion request: %w", err)
 	}

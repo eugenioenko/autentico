@@ -13,7 +13,7 @@ func CreateIdpSession(session IdpSession) error {
 			id, user_id, user_agent, ip_address, last_activity_at, created_at
 		) VALUES (?, ?, ?, ?, ?, ?);
 	`
-	_, err := db.GetWriteDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		session.ID,
 		session.UserID,
 		session.UserAgent,

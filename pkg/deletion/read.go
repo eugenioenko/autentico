@@ -47,7 +47,7 @@ func scanDeletionRequest(row interface{ Scan(dest ...any) error }) (*DeletionReq
 }
 
 func DeletionRequestByUserID(userID string) (*DeletionRequest, error) {
-	row := db.GetReadDB().QueryRow(
+	row := db.GetDB().QueryRow(
 		`SELECT d.id, d.user_id, d.reason, d.requested_at, u.username, u.email
 		 FROM deletion_requests d LEFT JOIN users u ON d.user_id = u.id
 		 WHERE d.user_id = ? LIMIT 1`,
@@ -64,7 +64,7 @@ func DeletionRequestByUserID(userID string) (*DeletionRequest, error) {
 }
 
 func DeletionRequestByID(id string) (*DeletionRequest, error) {
-	row := db.GetReadDB().QueryRow(
+	row := db.GetDB().QueryRow(
 		`SELECT d.id, d.user_id, d.reason, d.requested_at, u.username, u.email
 		 FROM deletion_requests d LEFT JOIN users u ON d.user_id = u.id
 		 WHERE d.id = ? LIMIT 1`,
@@ -102,12 +102,12 @@ func ListDeletionRequestsWithParams(params api.ListParams, dateWhere string, dat
 
 	var total int
 	countQuery := "SELECT COUNT(*) " + baseFrom + dateWhere + searchWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count deletion requests: %w", err)
 	}
 
 	query := "SELECT d.id, d.user_id, d.reason, d.requested_at, u.username, u.email " + baseFrom + dateWhere + searchWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, allArgs...)
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list deletion requests: %w", err)
 	}

@@ -11,7 +11,7 @@ func CreateFederationProvider(p FederationProvider) error {
 	if p.ID == "" {
 		return fmt.Errorf("provider id (slug) is required")
 	}
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.Name, p.Issuer, p.ClientID, p.ClientSecret, p.IconSVG, p.Enabled, p.SortOrder,
@@ -24,7 +24,7 @@ func CreateFederationProvider(p FederationProvider) error {
 
 func CreateFederatedIdentity(fi FederatedIdentity) error {
 	fi.ID = xid.New().String()
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`INSERT INTO federated_identities (id, provider_id, provider_user_id, user_id, email)
 		 VALUES (?, ?, ?, ?, ?)`,
 		fi.ID, fi.ProviderID, fi.ProviderUserID, fi.UserID, fi.Email,

@@ -9,6 +9,6 @@ func CreateTrustedDevice(device TrustedDevice) error {
 		INSERT INTO trusted_devices (id, user_id, device_name, expires_at)
 		VALUES (?, ?, ?, ?)
 	`
-	_, err := db.GetWriteDB().Exec(query, device.ID, device.UserID, device.DeviceName, device.ExpiresAt)
+	_, err := db.GetDB().Exec(query, device.ID, device.UserID, device.DeviceName, device.ExpiresAt)
 	return err
 }

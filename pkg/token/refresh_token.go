@@ -82,11 +82,11 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	// token rotation occurred and someone (attacker or legitimate user) is replaying
 	// a stale token. Revoke all tokens for this user as a protective measure.
 	var revokedAt *time.Time
-	err = db.GetReadDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
+	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
 	if err == nil && revokedAt != nil {
 		slog.Warn("token: rotated refresh token replayed — revoking all user tokens",
 			"user_id", authToken.UserID)
-		_, _ = db.GetWriteDB().Exec(
+		_, _ = db.GetDB().Exec(
 			`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`,
 			time.Now().UTC(), authToken.UserID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
@@ -105,7 +105,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	cfg := config.Get()
 	if (cfg.RequireMfa || usr.TotpVerified) && usr.TotpVerified {
 		var storedAccessToken string
-		err := db.GetReadDB().QueryRow(`SELECT access_token FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&storedAccessToken)
+		err := db.GetDB().QueryRow(`SELECT access_token FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&storedAccessToken)
 		if err == nil {
 			acr := extractACR(storedAccessToken)
 			if acr != "2" {

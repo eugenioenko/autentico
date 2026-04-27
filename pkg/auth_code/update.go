@@ -10,6 +10,6 @@ func MarkAuthCodeAsUsed(code string) error {
 		SET used = TRUE
 		WHERE code = ?;
 	`
-	_, err := db.GetWriteDB().Exec(query, code)
+	_, err := db.GetDB().Exec(query, code)
 	return err
 }

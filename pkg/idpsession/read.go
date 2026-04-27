@@ -38,7 +38,7 @@ func IdpSessionByID(sessionID string) (*IdpSession, error) {
 		FROM idp_sessions
 		WHERE id = ? AND deactivated_at IS NULL
 	`
-	row := db.GetReadDB().QueryRow(query, sessionID)
+	row := db.GetDB().QueryRow(query, sessionID)
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,
@@ -76,7 +76,7 @@ type DeviceRow struct {
 // count of non-deactivated OAuth sessions born from each. Ordered by most
 // recent activity first.
 func ListActiveDevicesForUser(userID string, idleCutoff time.Time) ([]DeviceRow, error) {
-	rows, err := db.GetReadDB().Query(`
+	rows, err := db.GetDB().Query(`
 		SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
 		       (SELECT COUNT(*) FROM sessions
 		          WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
@@ -114,14 +114,14 @@ func ListActiveDevicesForUserPaginated(userID string, idleCutoff time.Time, para
 
 	var total int
 	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + idleWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
 	}
 
 	query := `SELECT s.id, s.user_id, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
 		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
 		` + baseFrom + ` ` + baseWhere + idleWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, allArgs...)
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)
 	}
@@ -157,7 +157,7 @@ func ListActiveDevices(userID string) ([]DeviceRow, error) {
 			 ORDER BY s.last_activity_at DESC`
 	}
 
-	rows, err := db.GetReadDB().Query(query, args...)
+	rows, err := db.GetDB().Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list idp sessions: %w", err)
 	}
@@ -196,7 +196,7 @@ func scanDeviceRows(rows *sql.Rows, withUserInfo bool) ([]DeviceRow, error) {
 }
 
 func getExpiredMaxAgeSessionIDs(createdBefore time.Time) ([]string, error) {
-	rows, err := db.GetReadDB().Query(
+	rows, err := db.GetDB().Query(
 		`SELECT id FROM idp_sessions
 		  WHERE deactivated_at IS NULL
 		    AND created_at < ?`, createdBefore)
@@ -217,7 +217,7 @@ func getExpiredMaxAgeSessionIDs(createdBefore time.Time) ([]string, error) {
 }
 
 func getIdleSessionIDs(idleThreshold time.Time) ([]string, error) {
-	rows, err := db.GetReadDB().Query(
+	rows, err := db.GetDB().Query(
 		`SELECT id FROM idp_sessions
 		  WHERE deactivated_at IS NULL
 		    AND last_activity_at < ?`, idleThreshold)
@@ -256,14 +256,14 @@ func ListIdpSessionsWithParams(params api.ListParams, dateWhere string, dateArgs
 
 	var total int
 	countQuery := "SELECT COUNT(*) " + baseFrom + " " + baseWhere + dateWhere + searchWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count idp sessions: %w", err)
 	}
 
 	query := `SELECT s.id, s.user_id, u.username, u.email, s.user_agent, s.ip_address, s.last_activity_at, s.created_at,
 		(SELECT COUNT(*) FROM sessions WHERE idp_session_id = s.id AND deactivated_at IS NULL) AS active_apps_count
 		` + baseFrom + ` ` + baseWhere + dateWhere + searchWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, allArgs...)
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list idp sessions: %w", err)
 	}

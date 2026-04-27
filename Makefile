@@ -137,6 +137,9 @@ stress-debug:
 stress-ceiling:
 	$(K6) run /scripts/ceiling.js
 
+stress-bench:
+	$(K6) run /scripts/load-30s-500vu-nosleep.js
+
 # Start server with rate limiting disabled (for stress testing only — not for production)
 stress-server:
 	AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./$(APP_NAME) start

@@ -24,7 +24,7 @@ func generateToken() (rawToken, tokenHash string, err error) {
 // createResetToken stores a new password reset token in the database.
 func createResetToken(userID, tokenHash string, expiresAt time.Time) error {
 	id := xid.New().String()
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
 		id, userID, tokenHash, expiresAt,
 	)
@@ -33,7 +33,7 @@ func createResetToken(userID, tokenHash string, expiresAt time.Time) error {
 
 // getResetTokenInfo returns the user ID, expiry, and used timestamp for a token hash.
 func getResetTokenInfo(tokenHash string) (userID string, expiresAt time.Time, usedAt *time.Time, err error) {
-	err = db.GetReadDB().QueryRow(
+	err = db.GetDB().QueryRow(
 		`SELECT user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ?`,
 		tokenHash,
 	).Scan(&userID, &expiresAt, &usedAt)
@@ -42,7 +42,7 @@ func getResetTokenInfo(tokenHash string) (userID string, expiresAt time.Time, us
 
 // markTokenUsed sets the used_at timestamp on a token.
 func markTokenUsed(tokenHash string) {
-	_, _ = db.GetWriteDB().Exec(
+	_, _ = db.GetDB().Exec(
 		`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`,
 		tokenHash,
 	)
@@ -51,7 +51,7 @@ func markTokenUsed(tokenHash string) {
 // invalidatePreviousTokens marks all unused tokens for a user as used,
 // so only the latest reset link is valid.
 func invalidatePreviousTokens(userID string) {
-	_, _ = db.GetWriteDB().Exec(
+	_, _ = db.GetDB().Exec(
 		`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL`,
 		userID,
 	)
@@ -59,7 +59,7 @@ func invalidatePreviousTokens(userID string) {
 
 // deactivateUserSessions deactivates all active sessions for a user.
 func deactivateUserSessions(userID string) {
-	_, _ = db.GetWriteDB().Exec(
+	_, _ = db.GetDB().Exec(
 		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND deactivated_at IS NULL`,
 		userID,
 	)

@@ -154,7 +154,7 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			address_country = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
-	_, err = db.GetWriteDB().Exec(query,
+	_, err = db.GetDB().Exec(query,
 		newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
 		newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,
 		newPhoneNumber, newPhoneNumberVerified, newPicture, newLocale, newZoneinfo,
@@ -169,7 +169,7 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 
 // DisableMfa clears the TOTP secret and marks MFA as disabled.
 func DisableMfa(userID string) error {
-	_, err := db.GetWriteDB().Exec(`UPDATE users SET totp_secret = '', totp_verified = FALSE WHERE id = ?`, userID)
+	_, err := db.GetDB().Exec(`UPDATE users SET totp_secret = '', totp_verified = FALSE WHERE id = ?`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to disable MFA: %v", err)
 	}
@@ -180,7 +180,7 @@ func DisableMfa(userID string) error {
 // Used during the setup flow — call SaveTotpSecret after the user confirms the code.
 func StoreTotpSecretPending(userID, secret string) error {
 	query := `UPDATE users SET totp_secret = ?, totp_verified = FALSE WHERE id = ?`
-	_, err := db.GetWriteDB().Exec(query, secret, userID)
+	_, err := db.GetDB().Exec(query, secret, userID)
 	if err != nil {
 		return fmt.Errorf("failed to store pending TOTP secret: %v", err)
 	}
@@ -189,7 +189,7 @@ func StoreTotpSecretPending(userID, secret string) error {
 
 func SaveTotpSecret(userID, secret string) error {
 	query := `UPDATE users SET totp_secret = ?, totp_verified = TRUE, two_factor_enabled = TRUE WHERE id = ?`
-	_, err := db.GetWriteDB().Exec(query, secret, userID)
+	_, err := db.GetDB().Exec(query, secret, userID)
 	if err != nil {
 		return fmt.Errorf("failed to save TOTP secret: %v", err)
 	}
@@ -198,7 +198,7 @@ func SaveTotpSecret(userID, secret string) error {
 
 // SetRegisteredAt marks the user's registration as complete by stamping registered_at.
 func SetRegisteredAt(id string) error {
-	_, err := db.GetWriteDB().Exec(`UPDATE users SET registered_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
+	_, err := db.GetDB().Exec(`UPDATE users SET registered_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to set registered_at: %w", err)
 	}
@@ -207,7 +207,7 @@ func SetRegisteredAt(id string) error {
 
 func UnlockUser(id string) error {
 	query := `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
-	result, err := db.GetWriteDB().Exec(query, id)
+	result, err := db.GetDB().Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to unlock user: %v", err)
 	}
@@ -222,7 +222,7 @@ func UnlockUser(id string) error {
 }
 
 func SetEmailVerificationToken(userID, tokenHash string, expiresAt time.Time) error {
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`UPDATE users SET email_verification_token = ?, email_verification_expires_at = ? WHERE id = ?`,
 		tokenHash, expiresAt, userID,
 	)
@@ -230,7 +230,7 @@ func SetEmailVerificationToken(userID, tokenHash string, expiresAt time.Time) er
 }
 
 func MarkEmailVerified(userID string) error {
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`UPDATE users SET is_email_verified = TRUE, email_verification_token = NULL, email_verification_expires_at = NULL WHERE id = ?`,
 		userID,
 	)

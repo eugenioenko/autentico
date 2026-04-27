@@ -12,7 +12,7 @@ func UpdateLastActivity(sessionID string) error {
 		SET last_activity_at = ?
 		WHERE id = ? AND deactivated_at IS NULL;
 	`
-	_, err := db.GetWriteDB().Exec(query, time.Now().UTC(), sessionID)
+	_, err := db.GetDB().Exec(query, time.Now().UTC(), sessionID)
 	return err
 }
 
@@ -22,7 +22,7 @@ func DeactivateIdpSession(sessionID string) error {
 		SET deactivated_at = ?
 		WHERE id = ? AND deactivated_at IS NULL;
 	`
-	_, err := db.GetWriteDB().Exec(query, time.Now().UTC(), sessionID)
+	_, err := db.GetDB().Exec(query, time.Now().UTC(), sessionID)
 	return err
 }
 
@@ -32,6 +32,6 @@ func DeactivateAllForUser(userID string) error {
 		SET deactivated_at = ?
 		WHERE user_id = ? AND deactivated_at IS NULL;
 	`
-	_, err := db.GetWriteDB().Exec(query, time.Now().UTC(), userID)
+	_, err := db.GetDB().Exec(query, time.Now().UTC(), userID)
 	return err
 }

@@ -14,7 +14,7 @@ func TestInitDB(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	database, err := InitDB(tmpFile.Name(), 0)
+	database, err := InitDB(tmpFile.Name())
 	assert.NoError(t, err)
 	assert.NotNil(t, database)
 
@@ -29,7 +29,7 @@ func TestInitDB_StampsUserVersion(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-	database, err := InitDB(tmpFile.Name(), 0)
+	database, err := InitDB(tmpFile.Name())
 	assert.NoError(t, err)
 
 	var v int
@@ -46,7 +46,7 @@ func TestInitDB_DoesNotResetUserVersion(t *testing.T) {
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// First init stamps v1
-	database, err := InitDB(tmpFile.Name(), 0)
+	database, err := InitDB(tmpFile.Name())
 	assert.NoError(t, err)
 
 	// Simulate a migration having been applied (v2)
@@ -55,7 +55,7 @@ func TestInitDB_DoesNotResetUserVersion(t *testing.T) {
 	CloseDB()
 
 	// Re-open — should not reset user_version back to 1
-	database, err = InitDB(tmpFile.Name(), 0)
+	database, err = InitDB(tmpFile.Name())
 	assert.NoError(t, err)
 
 	var v int
@@ -74,8 +74,8 @@ func TestInitTestDB(t *testing.T) {
 	err = database.Ping()
 	assert.NoError(t, err)
 
-	// Check if GetDB returns the same
-	assert.Equal(t, database, GetDB())
+	// Check if GetWriteDB returns the same underlying writer
+	assert.Equal(t, database, GetWriteDB())
 
 	var v int
 	err = database.QueryRow("PRAGMA user_version").Scan(&v)
@@ -86,7 +86,7 @@ func TestInitTestDB(t *testing.T) {
 }
 
 func TestInitDB_InvalidPath(t *testing.T) {
-	_, err := InitDB("/nonexistent/path/to/db.sqlite", 0)
+	_, err := InitDB("/nonexistent/path/to/db.sqlite")
 	assert.Error(t, err)
 }
 
@@ -96,7 +96,7 @@ func TestCloseDB_Success(t *testing.T) {
 	_ = tmpFile.Close()
 	defer func() { _ = os.Remove(tmpPath) }()
 
-	_, err := InitDB(tmpPath, 0)
+	_, err := InitDB(tmpPath)
 	assert.NoError(t, err)
 
 	CloseDB()
@@ -125,6 +125,6 @@ func TestInitDB_ExistingDir(t *testing.T) {
 	_ = os.Mkdir(dbPath, 0755)
 
 	// InitDB should fail because it can't open a directory as a DB
-	_, err := InitDB(dbPath, 0)
+	_, err := InitDB(dbPath)
 	assert.Error(t, err)
 }

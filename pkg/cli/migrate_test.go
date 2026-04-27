@@ -17,7 +17,7 @@ func TestMigrate_AlreadyUpToDate(t *testing.T) {
 	})
 
 	// After WithTestDB, schema is current — Check should pass
-	err := migrations.Check(db.GetDB())
+	err := migrations.Check(db.GetWriteDB())
 	assert.NoError(t, err)
 }
 
@@ -28,7 +28,7 @@ func TestMigrate_CheckFailsOnOldSchema(t *testing.T) {
 	_, err := db.GetDB().Exec("PRAGMA user_version = 0")
 	assert.NoError(t, err)
 
-	err = migrations.Check(db.GetDB())
+	err = migrations.Check(db.GetWriteDB())
 	assert.Error(t, err)
 }
 
@@ -39,9 +39,9 @@ func TestMigrate_RunSucceeds(t *testing.T) {
 	// Call Run against an up-to-date DB and confirm it's a no-op.
 	testutils.WithTestDB(t)
 
-	err := migrations.Run(db.GetDB(), true)
+	err := migrations.Run(db.GetWriteDB(), true)
 	assert.NoError(t, err)
 
-	err = migrations.Check(db.GetDB())
+	err = migrations.Check(db.GetWriteDB())
 	assert.NoError(t, err)
 }

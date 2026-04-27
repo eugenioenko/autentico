@@ -52,5 +52,7 @@ pkg/account/dist/
 .env
 .env.*
 autentico.db
+autentico.db-shm
+autentico.db-wal
 data/
 scripts/

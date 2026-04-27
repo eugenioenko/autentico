@@ -103,7 +103,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.GetWriteDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
 		string(postLogoutURIs), string(grantTypes), string(responseTypes), scopes,
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,

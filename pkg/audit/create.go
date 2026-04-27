@@ -36,7 +36,7 @@ func Log(event Event, actor Actor, targetType TargetType, targetID string, detai
 	}
 
 	id := xid.New().String()
-	_, err := db.GetWriteDB().Exec(
+	_, err := db.GetDB().Exec(
 		`INSERT INTO audit_logs (id, event, actor_id, actor_username, target_type, target_id, detail, ip_address)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, string(event), actorIDParam, actorUsername, string(targetType), targetID, detailStr, ip,

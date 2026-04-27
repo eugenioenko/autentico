@@ -30,13 +30,13 @@ func ListAuditLogsWithParams(params api.ListParams, dateWhere string, dateArgs [
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM audit_logs " + baseWhere + dateWhere + lq.Where
-	if err := db.GetReadDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
+	if err := db.GetDB().QueryRow(countQuery, allArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count audit logs: %w", err)
 	}
 
 	query := `SELECT id, event, actor_id, actor_username, target_type, target_id, detail, ip_address, created_at
 		FROM audit_logs ` + baseWhere + dateWhere + lq.Where + lq.Order
-	rows, err := db.GetReadDB().Query(query, allArgs...)
+	rows, err := db.GetDB().Query(query, allArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list audit logs: %w", err)
 	}

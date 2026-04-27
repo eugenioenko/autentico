@@ -7,7 +7,7 @@ import (
 )
 
 func DeleteFederationProvider(id string) error {
-	_, err := db.GetWriteDB().Exec(`DELETE FROM federation_providers WHERE id = ?`, id)
+	_, err := db.GetDB().Exec(`DELETE FROM federation_providers WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete federation provider: %w", err)
 	}
@@ -15,7 +15,7 @@ func DeleteFederationProvider(id string) error {
 }
 
 func DeleteFederatedIdentity(id string) error {
-	result, err := db.GetWriteDB().Exec(`DELETE FROM federated_identities WHERE id = ?`, id)
+	result, err := db.GetDB().Exec(`DELETE FROM federated_identities WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete federated identity: %w", err)
 	}

@@ -15,7 +15,7 @@ func CreateToken(token Token) error {
 			issued_at, scope, grant_type, revoked_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
-	_, err := db.GetWriteDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		xid.New().String(),
 		token.UserID,
 		token.AccessToken,

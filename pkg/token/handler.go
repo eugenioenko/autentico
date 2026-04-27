@@ -261,7 +261,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// session from the cascade and let a revoked IdP session produce live
 		// tokens at the next refresh.
 		var priorIdp *string
-		_ = db.GetReadDB().QueryRow(
+		_ = db.GetDB().QueryRow(
 			`SELECT idp_session_id FROM sessions WHERE refresh_token = ?`,
 			request.RefreshToken,
 		).Scan(&priorIdp)
@@ -271,7 +271,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// RFC 6819 §5.2.2.3 / OAuth 2.1 §6.1: rotate refresh token — revoke old, issue new.
 		// The old token is invalidated so it cannot be reused. If a revoked token is
 		// later presented, UserByRefreshToken detects the replay and revokes all user tokens.
-		_, _ = db.GetWriteDB().Exec(
+		_, _ = db.GetDB().Exec(
 			`UPDATE tokens SET revoked_at = ? WHERE refresh_token = ? AND revoked_at IS NULL`,
 			time.Now().UTC(), request.RefreshToken,
 		)
@@ -280,7 +280,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// stored with the original token.
 		var tokenScope string
 		var tokenIssuedAt time.Time
-		_ = db.GetReadDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt)
+		_ = db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt)
 		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
 		// authentication time, not the refresh time.
 		if !tokenIssuedAt.IsZero() {
