@@ -209,7 +209,7 @@ When load characteristics genuinely justify migration, the `pkg/db` boundary mak
 | 200 VUs | 0% | 2.37s | 2.94s | Moderate pressure — noticeable but acceptable |
 | 500 VUs | 0% | 5.76s | 7.34s | Stress ceiling — degraded experience |
 
-In practice, "100 concurrent logins" corresponds to **10,000–20,000 daily active users** under a typical enterprise login distribution (morning peak, sessions lasting hours). The failure mode at high concurrency is graceful queuing — no errors, just latency — because SQLite's busy timeout absorbs write contention rather than returning errors.
+In practice, "200 concurrent logins" corresponds to **20,000–40,000 daily active users** under a typical enterprise login distribution (morning peak, sessions lasting hours). The failure mode at high concurrency is graceful queuing — no errors, just latency — because SQLite's busy timeout absorbs write contention rather than returning errors.
 
 See [`stress/README.md`](stress/README.md) for the full methodology and how to reproduce these numbers.
 
