@@ -138,7 +138,7 @@ stress-ceiling:
 	$(K6) run /scripts/ceiling.js
 
 stress-bench:
-	$(K6) run /scripts/load-30s-500vu-nosleep.js
+	$(K6) run /scripts/load-60s-500vu-nosleep.js
 
 # Start server with rate limiting disabled (for stress testing only — not for production)
 stress-server:
