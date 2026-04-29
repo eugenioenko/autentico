@@ -19,7 +19,7 @@
 
 <body>
   <canvas id="canvas"></canvas>
-  <main class="auth-page">
+  <main class="auth-page"{{if brandColor}} style="--color-primary-bg:{{brandColor}}"{{end}}>
     {{block "content" .}}{{end}}
   </main>
   <footer>{{range footerLinks}}<a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}}</a>{{end}}</footer>

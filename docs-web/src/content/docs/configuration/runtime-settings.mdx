@@ -387,14 +387,14 @@ Path to a CSS file on disk, loaded at runtime. Takes precedence over `theme_css_
 See [Login Page Theming](/authentication/overview/#login-page-theming) for the available CSS variables.
 
 ### `theme_brand_color`
-Default: `#18181b`
+Default: `#ff7b00`
 
-Brand color used for action buttons on login pages and in transactional emails (verification, password reset, OTP codes).
+Brand color used as the primary accent color on all server-rendered pages (login, signup, MFA, onboarding) and in transactional emails (verification, password reset, OTP codes). Overrides the `--color-primary-bg` CSS variable for buttons, checkboxes, and focus rings.
 
 ### `theme_tagline`
 Default: _(empty)_
 
-Optional tagline displayed below the logo on login pages and in transactional emails.
+Optional tagline displayed below the logo and title on the login, signup, and onboarding pages, as well as in transactional emails.
 
 ### `email_footer_text`
 Default: _(empty)_
