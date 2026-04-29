@@ -1,7 +1,10 @@
 {{define "content"}}
 <form class="auth-card" method="POST" action="{{authURL "/signup"}}" data-auth-mode="{{.AuthMode}}" onsubmit="handleSignupSubmit(event)">
-  {{template "logo" .}}
-  <h1 class="auth-title">{{.ThemeTitle}}</h1>
+  <div class="auth-header">
+    {{template "logo" .}}
+    <h1 class="auth-title">{{.ThemeTitle}}</h1>
+    {{if .ThemeTagline}}<p class="auth-tagline">{{.ThemeTagline}}</p>{{end}}
+  </div>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
