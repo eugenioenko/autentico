@@ -136,6 +136,12 @@ body {
 
 /* ── Components ─────────────────────────────────────────── */
 
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .auth-title {
   font-size: 1.875rem;
   line-height: 1.2;

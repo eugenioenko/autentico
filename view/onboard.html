@@ -1,8 +1,10 @@
 {{define "content"}}
 <form class="auth-card" method="POST" action="{{.FormAction}}">
-  {{template "logo" .}}
-  <h1 class="auth-title" data-testid="onboard-title">Autentico Admin Setup</h1>
-  {{if .ThemeTagline}}<p class="auth-tagline">{{.ThemeTagline}}</p>{{end}}
+  <div class="auth-header">
+    {{template "logo" .}}
+    <h1 class="auth-title" data-testid="onboard-title">Autentico Admin Setup</h1>
+    {{if .ThemeTagline}}<p class="auth-tagline">{{.ThemeTagline}}</p>{{end}}
+  </div>
   <p class="auth-text-muted">Create the first administrator account to start using Auténtico.</p>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
