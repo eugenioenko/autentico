@@ -47,7 +47,7 @@ var defaults = map[string]string{
 	"theme_logo_url":                  "",
 	"theme_css_inline":                "",
 	"theme_css_file":                  "",
-	"theme_brand_color":               "#18181b",
+	"theme_brand_color":               "#ff7b00",
 	"theme_tagline":                   "",
 	"email_footer_text":               "",
 	"onboarded":                      "false",
