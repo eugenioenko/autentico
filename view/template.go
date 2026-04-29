@@ -27,6 +27,9 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"footerLinks": func() []config.FooterLink {
 			return config.Get().FooterLinks
 		},
+		"brandColor": func() string {
+			return config.Get().Theme.BrandColor
+		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }
