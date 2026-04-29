@@ -108,6 +108,7 @@ func renderOnboard(w http.ResponseWriter, r *http.Request, params onboardParams,
 		csrf.TemplateTag:    csrf.TemplateField(r),
 		"ThemeTitle":        cfg.Theme.Title,
 		"ThemeLogoUrl":      cfg.Theme.LogoUrl,
+		"ThemeTagline":      cfg.Theme.Tagline,
 	}
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
