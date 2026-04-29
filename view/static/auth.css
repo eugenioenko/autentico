@@ -238,6 +238,28 @@ body {
   scale: 0.98;
 }
 
+.auth-btn.is-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.auth-btn.is-loading::after {
+  content: "";
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: 0.5rem;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
 .auth-btn-secondary {
   width: 100%;
   display: flex;
