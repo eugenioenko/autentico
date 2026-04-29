@@ -142,6 +142,10 @@ body {
   align-items: center;
 }
 
+.auth-header .logo {
+  margin-bottom: 0.75rem;
+}
+
 .auth-title {
   font-size: 1.875rem;
   line-height: 1.2;
