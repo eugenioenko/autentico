@@ -144,6 +144,13 @@ body {
   color: var(--color-fg);
 }
 
+.auth-tagline {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 300;
+  color: var(--color-muted);
+}
+
 .auth-field {
   width: 100%;
   display: flex;

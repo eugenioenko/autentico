@@ -2,6 +2,7 @@
 <form class="auth-card" method="POST" action="{{authURL "/login"}}">
   {{template "logo" .}}
   <h1 class="auth-title">{{.ThemeTitle}}</h1>
+  {{if .ThemeTagline}}<p class="auth-tagline">{{.ThemeTagline}}</p>{{end}}
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />

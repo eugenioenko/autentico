@@ -207,6 +207,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
+		"ThemeTagline":        cfg.Theme.Tagline,
 		"SmtpConfigured":      cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
 	}
