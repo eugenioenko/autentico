@@ -1,6 +1,6 @@
 {{define "layout"}}
 <!DOCTYPE html>
-<html lang="en"{{if brandColor}} style="--color-primary-bg: {{brandColor}}"{{end}}>
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{authURL "/static/auth.css"}}" />
   {{if hasThemeCss}}<link rel="stylesheet" href="{{authURL "/static/theme.css"}}" />{{end}}
+  {{if brandColor}}<style>:root{--color-primary-bg:{{brandColor}}}</style>{{end}}
   {{block "styles" .}}{{end}}
   <script>try{var t=localStorage.getItem('autentico-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 </head>
