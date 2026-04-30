@@ -478,3 +478,19 @@ footer a:hover {
   inset: 0;
   z-index: 0;
 }
+
+.consent-scopes {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.consent-scope-item {
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--color-fg) 4%, transparent);
+  font-size: 0.9rem;
+}

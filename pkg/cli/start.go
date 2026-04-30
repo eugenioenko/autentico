@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/cleanup"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/deletion"
@@ -134,6 +135,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("GET "+oauth+"/authorize", csrfProtected(authorize.HandleAuthorize))
 	mux.Handle("POST "+oauth+"/authorize", http.HandlerFunc(authorize.HandleAuthorize))
 	mux.Handle("POST "+oauth+"/login", rateLimited(csrfProtected(login.HandleLoginUser)))
+	mux.Handle(oauth+"/consent", csrfProtected(consent.HandleConsent))
 	mux.Handle(oauth+"/mfa", rateLimited(csrfProtected(mfa.HandleMfa)))
 	mux.Handle(oauth+"/mfa/", rateLimited(csrfProtected(mfa.HandleMfa)))
 	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimitedFunc(passkey.HandleLoginBegin))

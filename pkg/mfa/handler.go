@@ -12,7 +12,9 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -245,6 +247,22 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
+	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
+	registeredClient, clientErr := client.ClientByClientID(loginState.ClientID)
+	if clientErr == nil && consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
+		consent.RedirectToConsent(w, r, consent.ConsentParams{
+			RedirectURI:         loginState.RedirectURI,
+			State:               loginState.State,
+			ClientID:            loginState.ClientID,
+			Scope:               loginState.Scope,
+			Nonce:               loginState.Nonce,
+			CodeChallenge:       loginState.CodeChallenge,
+			CodeChallengeMethod: loginState.CodeChallengeMethod,
+			Prompt:              loginState.Prompt,
+		})
+		return
+	}
+
 	authorizationCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("mfa: failed to generate authorization code", "request_id", reqid.Get(r.Context()), "error", err)
@@ -306,15 +324,15 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 		return false
 	}
 
+	if err := MarkChallengeUsed(challenge.ID); err != nil {
+		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return true
+	}
 	newChallengeID, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
 		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
-		return true
-	}
-	if err := MarkChallengeUsed(challenge.ID); err != nil {
-		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
 		return true
 	}
 	newChallenge := MfaChallenge{
