@@ -69,6 +69,55 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 
 	cfg := config.Get()
 
+	// Method switching: handle switch_to query parameter
+	if switchTo := r.URL.Query().Get("switch_to"); switchTo != "" {
+		if cfg.MfaMethod == "both" && cfg.SmtpHost != "" {
+			switched := false
+			switch switchTo {
+			case "totp":
+				if challenge.Method != "totp" {
+					usr, err := user.UserByID(challenge.UserID)
+					if err != nil {
+						slog.Error("mfa: failed to get user for method switch", "request_id", reqid.Get(r.Context()), "error", err)
+						redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+						return
+					}
+					if usr.TotpVerified {
+						switched = true
+					}
+				}
+			case "email":
+				if challenge.Method != "email" {
+					switched = true
+				}
+			}
+			if switched {
+				newChallengeID, err := authcode.GenerateSecureCode()
+				if err != nil {
+					slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
+					renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.")
+					return
+				}
+				_ = MarkChallengeUsed(challenge.ID)
+				newChallenge := MfaChallenge{
+					ID:         newChallengeID,
+					UserID:     challenge.UserID,
+					Method:     switchTo,
+					LoginState: challenge.LoginState,
+					ExpiresAt:  challenge.ExpiresAt,
+				}
+				if err := CreateMfaChallenge(newChallenge); err != nil {
+					slog.Error("mfa: failed to create switched challenge", "request_id", reqid.Get(r.Context()), "error", err)
+					redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+					return
+				}
+				mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
+				http.Redirect(w, r, mfaURL, http.StatusFound)
+				return
+			}
+		}
+	}
+
 	if challenge.Method == "totp" {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
@@ -78,6 +127,12 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !usr.TotpVerified {
+			if cfg.MfaMethod != "totp" {
+				slog.Warn("mfa: TOTP challenge for unenrolled user with mfa_method!=totp",
+					"request_id", reqid.Get(r.Context()), "user_id", challenge.UserID, "mfa_method", cfg.MfaMethod)
+				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				return
+			}
 			renderEnrollPage(w, r, challenge, usr, cfg, "")
 			return
 		}
@@ -270,6 +325,14 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		return
 	}
 
+	canSwitch := cfg.MfaMethod == "both" && cfg.SmtpHost != ""
+	userTotpVerified := false
+	if canSwitch {
+		if usr, err := user.UserByID(challenge.UserID); err == nil {
+			userTotpVerified = usr.TotpVerified
+		}
+	}
+
 	data := map[string]any{
 		"ChallengeID":        challenge.ID,
 		"Method":             challenge.Method,
@@ -279,6 +342,8 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
 		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
 		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
+		"CanSwitch":          canSwitch,
+		"UserTotpVerified":   userTotpVerified,
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {

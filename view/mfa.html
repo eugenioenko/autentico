@@ -21,5 +21,16 @@
   </div>
   {{end}}
   <button class="auth-btn" type="submit">Verify</button>
+  {{if .CanSwitch}}
+  <div class="auth-link" style="margin-top:12px;">
+    {{if eq .Method "email"}}
+      {{if .UserTotpVerified}}
+      <a href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=totp">Use authenticator app instead</a>
+      {{end}}
+    {{else}}
+      <a href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=email">Use email instead</a>
+    {{end}}
+  </div>
+  {{end}}
 </form>
 {{end}}
