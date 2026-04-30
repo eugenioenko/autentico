@@ -324,15 +324,15 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 		return false
 	}
 
-	if err := MarkChallengeUsed(challenge.ID); err != nil {
-		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return true
-	}
 	newChallengeID, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
 		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
+		return true
+	}
+	if err := MarkChallengeUsed(challenge.ID); err != nil {
+		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
 		return true
 	}
 	newChallenge := MfaChallenge{
