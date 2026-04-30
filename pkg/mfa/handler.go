@@ -334,6 +334,7 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 	return true
 }
 
+
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil {
