@@ -69,6 +69,10 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 
 	cfg := config.Get()
 
+	if handleMethodSwitch(w, r, challenge, cfg) {
+		return
+	}
+
 	if challenge.Method == "totp" {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
@@ -78,6 +82,12 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !usr.TotpVerified {
+			if cfg.MfaMethod != "totp" {
+				slog.Warn("mfa: TOTP challenge for unenrolled user with mfa_method!=totp",
+					"request_id", reqid.Get(r.Context()), "user_id", challenge.UserID, "mfa_method", cfg.MfaMethod)
+				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				return
+			}
 			renderEnrollPage(w, r, challenge, usr, cfg, "")
 			return
 		}
@@ -90,16 +100,16 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 			redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
 			return
 		}
+		isResend := challenge.OtpSentAt != nil
 		const otpCooldown = 60 * time.Second
-		if challenge.OtpSentAt != nil && time.Since(*challenge.OtpSentAt) < otpCooldown {
-			// OTP was sent recently — render the page without sending a new one
-			renderVerifyPage(w, r, challenge, cfg, "")
+		if isResend && time.Since(*challenge.OtpSentAt) < otpCooldown {
+			renderVerifyPage(w, r, challenge, cfg, "", "Code was already sent. Please check your email.")
 			return
 		}
 		otp, err := GenerateEmailOTP()
 		if err != nil {
 			slog.Error("mfa: failed to generate email OTP", "request_id", reqid.Get(r.Context()), "error", err)
-			renderVerifyPage(w, r, challenge, cfg, "Failed to generate verification code. Please try again.")
+			renderVerifyPage(w, r, challenge, cfg, "Failed to generate verification code. Please try again.", "")
 			return
 		}
 		hashedOTP := utils.HashSHA256(otp)
@@ -107,12 +117,16 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		_ = UpdateChallengeCode(challenge.ID, hashedOTP)
 		if err := email.SendEmailOTP(usr.Email, otp); err != nil {
 			slog.Error("mfa: failed to send verification email", "request_id", reqid.Get(r.Context()), "error", err)
-			renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.")
+			renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.", "")
+			return
+		}
+		if isResend {
+			renderVerifyPage(w, r, challenge, cfg, "", "A new code has been sent to your email")
 			return
 		}
 	}
 
-	renderVerifyPage(w, r, challenge, cfg, "")
+	renderVerifyPage(w, r, challenge, cfg, "", "")
 }
 
 func handleMfaPost(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +189,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			if !ValidateTotpCode(usr.TotpSecret, code) {
 				slog.Warn("mfa: invalid TOTP verification code", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
-				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
+				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
 				return
 			}
 		}
@@ -190,7 +204,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
 				return
 			}
-			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code")
+			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
 			return
 		}
 	default:
@@ -262,7 +276,65 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string) {
+func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config) bool {
+	switchTo := r.URL.Query().Get("switch_to")
+	if switchTo == "" || cfg.MfaMethod != "both" || cfg.SmtpHost == "" {
+		return false
+	}
+
+	switched := false
+	switch switchTo {
+	case "totp":
+		if challenge.Method != "totp" {
+			usr, err := user.UserByID(challenge.UserID)
+			if err != nil {
+				slog.Error("mfa: failed to get user for method switch", "request_id", reqid.Get(r.Context()), "error", err)
+				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				return true
+			}
+			if usr.TotpVerified {
+				switched = true
+			}
+		}
+	case "email":
+		if challenge.Method != "email" {
+			switched = true
+		}
+	}
+
+	if !switched {
+		return false
+	}
+
+	newChallengeID, err := authcode.GenerateSecureCode()
+	if err != nil {
+		slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
+		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
+		return true
+	}
+	if err := MarkChallengeUsed(challenge.ID); err != nil {
+		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return true
+	}
+	newChallenge := MfaChallenge{
+		ID:         newChallengeID,
+		UserID:     challenge.UserID,
+		Method:     switchTo,
+		LoginState: challenge.LoginState,
+		ExpiresAt:  challenge.ExpiresAt,
+	}
+	if err := CreateMfaChallenge(newChallenge); err != nil {
+		slog.Error("mfa: failed to create switched challenge", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return true
+	}
+	mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
+	http.Redirect(w, r, mfaURL, http.StatusFound)
+	return true
+}
+
+func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil {
 		slog.Error("mfa: failed to parse verify template", "request_id", reqid.Get(r.Context()), "error", err)
@@ -270,15 +342,26 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		return
 	}
 
+	canSwitch := cfg.MfaMethod == "both" && cfg.SmtpHost != ""
+	userTotpVerified := false
+	if canSwitch {
+		if usr, err := user.UserByID(challenge.UserID); err == nil {
+			userTotpVerified = usr.TotpVerified
+		}
+	}
+
 	data := map[string]any{
 		"ChallengeID":        challenge.ID,
 		"Method":             challenge.Method,
+		"Message":            infoMsg,
 		"Error":              errorMsg,
 		csrf.TemplateTag:     csrf.TemplateField(r),
 		"ThemeTitle":         cfg.Theme.Title,
 		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
 		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
 		"TrustDeviceDays":    int(cfg.TrustDeviceExpiration.Hours() / 24),
+		"CanSwitch":          canSwitch,
+		"UserTotpVerified":   userTotpVerified,
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {

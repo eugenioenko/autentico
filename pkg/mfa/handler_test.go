@@ -398,4 +398,271 @@ func TestHandleMfa_Post_ChallengeNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rr.Code)
 }
 
+func TestHandleMfa_SwitchToEmail(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp&switch_to=email", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "challenge_id=")
+	assert.NotContains(t, loc, "chall-totp")
+
+	// Old challenge should be marked used
+	old, _ := MfaChallengeByIDIncludingExpired("chall-totp")
+	assert.True(t, old.Used)
+}
+
+func TestHandleMfa_SwitchToTotp_Enrolled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-email",
+		UserID:     u.ID,
+		Method:     "email",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-email&switch_to=totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "challenge_id=")
+	assert.NotContains(t, loc, "chall-email")
+
+	old, _ := MfaChallengeByIDIncludingExpired("chall-email")
+	assert.True(t, old.Used)
+}
+
+func TestHandleMfa_SwitchToTotp_NotEnrolled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+
+	c := MfaChallenge{
+		ID:         "chall-email",
+		UserID:     u.ID,
+		Method:     "email",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-email&switch_to=totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	// Should ignore the switch and render the current page
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Old challenge should NOT be marked used
+	old, _ := MfaChallengeByIDIncludingExpired("chall-email")
+	assert.False(t, old.Used)
+}
+
+func TestHandleMfa_SwitchIgnoredWhenNotBoth(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "totp"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp&switch_to=email", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	// Should render the current TOTP verify page, not switch
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "authenticator")
+}
+
+func TestHandleMfa_SwitchIgnoredWhenNoSmtp(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = ""
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp&switch_to=email", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleMfa_EnrollBlockedWhenMfaMethodNotTotp(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	// Should redirect to login, not show enrollment
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=")
+}
+
+func TestHandleMfa_VerifyPageShowsSwitchLink(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Verify using email")
+}
+
+func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "totp"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "Verify using email")
+	assert.NotContains(t, rr.Body.String(), "Verify using authenticator app")
+}
+
+func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MfaMethod = "both"
+		config.Values.SmtpHost = "localhost"
+	})
+
+	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
+	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-totp",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa?challenge_id=chall-totp&switch_to=totp", nil)
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+
+	// Should render the current page, not redirect
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Challenge should not be marked used
+	old, _ := MfaChallengeByIDIncludingExpired("chall-totp")
+	assert.False(t, old.Used)
+}
+
 func boolPtr(b bool) *bool { return &b }
