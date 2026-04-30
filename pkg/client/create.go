@@ -96,12 +96,13 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 
 	query := `
 		INSERT INTO clients (
-			id, client_id, client_secret, client_name, client_type, redirect_uris, 
-			post_logout_redirect_uris, grant_types, response_types, scopes, 
+			id, client_id, client_secret, client_name, client_type, redirect_uris,
+			post_logout_redirect_uris, grant_types, response_types, scopes,
 			token_endpoint_auth_method, access_token_expiration, refresh_token_expiration,
 			authorization_code_expiration, allowed_audiences, allow_self_signup,
-			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration,
+			consent_required
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.GetDB().Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
@@ -109,6 +110,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
+		req.ConsentRequired,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)

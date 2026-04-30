@@ -666,14 +666,15 @@ func TestHandleAuthorize_PromptConsent_BypassesSSO(t *testing.T) {
 	}
 	_ = idpsession.CreateIdpSession(session)
 
-	// prompt=consent must force re-authentication even with an active SSO session
+	// OIDC Core §3.1.2.1: prompt=consent must redirect to consent screen, not auto-login with auth code
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/callback&state=s1&prompt=consent&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256", nil)
 	req.AddCookie(&http.Cookie{Name: "autentico_idp_session", Value: "idp-consent-1"})
 	rr := httptest.NewRecorder()
 
 	HandleAuthorize(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "prompt=consent must show login form, not auto-login")
+	assert.Equal(t, http.StatusFound, rr.Code, "prompt=consent must redirect to consent screen")
+	assert.Contains(t, rr.Header().Get("Location"), "/consent", "must redirect to consent endpoint")
 	assert.NotContains(t, rr.Header().Get("Location"), "code=", "must not issue auth code via SSO bypass")
 }
 

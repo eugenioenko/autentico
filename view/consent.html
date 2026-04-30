@@ -1,0 +1,29 @@
+{{define "title"}}{{.ThemeTitle}} - Authorization{{end}}
+
+{{define "content"}}
+<form class="auth-card" method="POST" action="{{authURL "/consent"}}">
+  {{template "logo" .}}
+  <h1 class="auth-title">Authorize Access</h1>
+  <p class="auth-text-muted"><strong>{{.ClientName}}</strong> is requesting access to your account</p>
+  {{ .csrfField }}
+  <input type="hidden" name="state" value="{{.State}}" />
+  <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
+  <input type="hidden" name="client_id" value="{{.ClientID}}" />
+  <input type="hidden" name="scope" value="{{.Scope}}" />
+  <input type="hidden" name="nonce" value="{{.Nonce}}" />
+  <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
+  <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="prompt" value="{{.Prompt}}" />
+  <input type="hidden" name="consent_sig" value="{{.ConsentSig}}" />
+  <div class="auth-info" role="status">
+    This application would like to:
+  </div>
+  <ul class="consent-scopes">
+    {{range .Scopes}}
+    <li class="consent-scope-item">{{.Description}}</li>
+    {{end}}
+  </ul>
+  <button class="auth-btn" type="submit" name="action" value="allow">Allow</button>
+  <button class="auth-btn-secondary" type="submit" name="action" value="deny" style="margin-top:0.75rem;">Deny</button>
+</form>
+{{end}}

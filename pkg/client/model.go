@@ -40,6 +40,7 @@ type Client struct {
 	SsoSessionIdleTimeout       *string `db:"sso_session_idle_timeout"`
 	TrustDeviceEnabled          *bool   `db:"trust_device_enabled"`
 	TrustDeviceExpiration       *string `db:"trust_device_expiration"`
+	ConsentRequired             *bool   `db:"consent_required"`
 }
 
 // ClientCreateRequest represents the request body for client registration
@@ -63,6 +64,7 @@ type ClientCreateRequest struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	ConsentRequired             *bool    `json:"consent_required,omitempty"`
 }
 
 // ClientUpdateRequest represents the request body for updating a client
@@ -84,6 +86,7 @@ type ClientUpdateRequest struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	ConsentRequired             *bool    `json:"consent_required,omitempty"`
 }
 
 // ClientResponse represents the response for client operations
@@ -130,6 +133,7 @@ type ClientInfoResponse struct {
 	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	ConsentRequired             *bool    `json:"consent_required,omitempty"`
 }
 
 // GetRedirectURIs parses and returns the redirect URIs as a slice
@@ -183,6 +187,7 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		SsoSessionIdleTimeout:       c.SsoSessionIdleTimeout,
 		TrustDeviceEnabled:          c.TrustDeviceEnabled,
 		TrustDeviceExpiration:       c.TrustDeviceExpiration,
+		ConsentRequired:             c.ConsentRequired,
 	}
 	if c.AllowedAudiences != nil {
 		var aud []string

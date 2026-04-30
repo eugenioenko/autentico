@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -128,12 +130,34 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §3.1.2.1: prompt=login requires fresh authentication — skip SSO auto-login
 	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
 	cfg := config.Get()
-	if redirectURL := tryAutoLogin(r, cfg, request); redirectURL != "" {
-		http.Redirect(w, r, redirectURL, http.StatusFound)
+	autoLoginResult := tryAutoLogin(r, cfg, request, registeredClient)
+	if autoLoginResult.redirectURL != "" {
+		http.Redirect(w, r, autoLoginResult.redirectURL, http.StatusFound)
+		return
+	}
+	if autoLoginResult.needsConsent {
+		consent.RedirectToConsent(w, r, consent.ConsentParams{
+			RedirectURI:         request.RedirectURI,
+			State:               request.State,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+			Prompt:              request.Prompt,
+		})
 		return
 	}
 
+	// OIDC Core §3.1.2.1: prompt=none — return error if login or consent is required
 	if request.Prompt == "none" {
+		if autoLoginResult.hasSession {
+			// OIDC Core §3.1.2.1: consent_required if consent is needed but prompt=none
+			if consent.NeedsConsent(registeredClient.ConsentRequired, autoLoginResult.userID, request.ClientID, request.Scope, "") {
+				redirectWithError(w, r, request.RedirectURI, request.State, "consent_required", "")
+				return
+			}
+		}
 		redirectWithError(w, r, request.RedirectURI, request.State, "login_required", "")
 		return
 	}
@@ -199,6 +223,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"Nonce":               request.Nonce,
 		"CodeChallenge":       request.CodeChallenge,
 		"CodeChallengeMethod": request.CodeChallengeMethod,
+		"Prompt":              request.Prompt,
 		"AuthorizeSig":        AuthorizeSignature(request),
 		"Error":               errorMsg,
 		"AuthMode":            cfg.AuthMode,
@@ -232,44 +257,68 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, stat
 	http.Redirect(w, r, redirectURI+"?"+q.Encode(), http.StatusFound)
 }
 
+type autoLoginResult struct {
+	redirectURL  string
+	needsConsent bool
+	hasSession   bool
+	userID       string
+}
+
 // tryAutoLogin checks for a valid IdP session and returns a redirect URL with
-// an authorization code if SSO auto-login succeeds. Returns "" if auto-login
-// should not or cannot proceed, letting the caller fall through to the login form.
-func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest) string {
-	if !cfg.AuthSsoEnabled || request.Prompt == "login" || request.Prompt == "consent" {
-		return ""
+// an authorization code if SSO auto-login succeeds. Returns empty redirectURL if
+// auto-login should not or cannot proceed.
+func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest, registeredClient *client.Client) autoLoginResult {
+	promptValues := strings.Fields(request.Prompt)
+	hasLogin := false
+	hasConsent := false
+	for _, v := range promptValues {
+		if v == "login" {
+			hasLogin = true
+		}
+		if v == "consent" {
+			hasConsent = true
+		}
+	}
+
+	if !cfg.AuthSsoEnabled || hasLogin {
+		return autoLoginResult{}
 	}
 
 	sessionID := idpsession.ReadCookie(r)
 	if sessionID == "" {
-		return ""
+		return autoLoginResult{}
 	}
 
 	session, err := idpsession.IdpSessionByID(sessionID)
 	if err != nil {
-		return ""
+		return autoLoginResult{}
 	}
 
 	withinIdleTimeout := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout
 	if !withinIdleTimeout {
-		return ""
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	withinMaxAge := cfg.AuthSsoSessionMaxAge == 0 || time.Since(session.CreatedAt) < cfg.AuthSsoSessionMaxAge
 	if !withinMaxAge {
-		return ""
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	maxAgeSecs := parseMaxAge(request.MaxAge)
 	if maxAgeSecs >= 0 && time.Since(session.CreatedAt) > time.Duration(maxAgeSecs)*time.Second {
-		return ""
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	_ = idpsession.UpdateLastActivity(session.ID)
 
+	// OIDC Core §3.1.2.4: check consent before issuing auth code
+	if hasConsent || consent.NeedsConsent(registeredClient.ConsentRequired, session.UserID, request.ClientID, request.Scope, request.Prompt) {
+		return autoLoginResult{needsConsent: true, hasSession: true, userID: session.UserID}
+	}
+
 	code, err := authcode.GenerateSecureCode()
 	if err != nil {
-		return ""
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	ac := authcode.AuthCode{
@@ -287,7 +336,7 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest)
 		IdpSessionID:        session.ID,
 	}
 	if err := authcode.CreateAuthCode(ac); err != nil {
-		return ""
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
@@ -296,7 +345,7 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest)
 	if request.State != "" {
 		redirectParams.Set("state", request.State)
 	}
-	return request.RedirectURI + "?" + redirectParams.Encode()
+	return autoLoginResult{redirectURL: request.RedirectURI + "?" + redirectParams.Encode(), hasSession: true, userID: session.UserID}
 }
 
 // parseMaxAge parses the max_age query parameter as seconds.

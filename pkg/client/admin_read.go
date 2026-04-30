@@ -17,7 +17,7 @@ func ClientByClientIDIncludingDisabled(clientID string) (*Client, error) {
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, consent_required
 		FROM clients WHERE client_id = ?
 	`
 	var c Client
@@ -29,7 +29,7 @@ func ClientByClientIDIncludingDisabled(clientID string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -56,7 +56,7 @@ func ClientByIDIncludingDisabled(id string) (*Client, error) {
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, consent_required
 		FROM clients WHERE id = ?
 	`
 	var c Client
@@ -68,7 +68,7 @@ func ClientByIDIncludingDisabled(id string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
