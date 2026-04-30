@@ -602,7 +602,7 @@ func TestHandleMfa_VerifyPageShowsSwitchLink(t *testing.T) {
 	HandleMfa(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Use email instead")
+	assert.Contains(t, rr.Body.String(), "Verify using email")
 }
 
 func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
@@ -629,8 +629,8 @@ func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
 	HandleMfa(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.NotContains(t, rr.Body.String(), "Use email instead")
-	assert.NotContains(t, rr.Body.String(), "Use authenticator app instead")
+	assert.NotContains(t, rr.Body.String(), "Verify using email")
+	assert.NotContains(t, rr.Body.String(), "Verify using authenticator app")
 }
 
 func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {

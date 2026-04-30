@@ -212,7 +212,7 @@ body {
   border-radius: var(--radius);
   background-color: var(--color-primary-bg);
   padding: 0.75rem 1.25rem;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-decoration: none;
@@ -226,6 +226,7 @@ body {
     scale 0.15s;
   font-family: inherit;
   text-align: center;
+  line-height: 1.5;
 }
 
 @media (hover: hover) {
@@ -249,7 +250,7 @@ body {
   background-color: var(--color-primar);
   padding: 0.75rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 300;
+  font-weight: 500;
   color: var(--color-fg);
   text-decoration: none;
   font-family: inherit;
@@ -269,6 +270,44 @@ body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+}
+
+.auth-btn-text {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  background: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-highlight);
+  text-decoration: none;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+@media (hover: hover) {
+  .auth-btn-text:hover {
+    opacity: 0.8;
+  }
+}
+
+.auth-info {
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in oklab, var(--color-highlight) 25%, transparent);
+  background-color: color-mix(
+    in oklab,
+    var(--color-highlight) 10%,
+    transparent
+  );
+  padding: 0.625rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-highlight);
 }
 
 .auth-error {

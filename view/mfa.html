@@ -7,6 +7,9 @@
   <p class="auth-text-muted">Enter the code from your {{if eq .Method "email"}}email{{else}}authenticator{{end}}</p>
   {{ .csrfField }}
   <input type="hidden" name="challenge_id" value="{{.ChallengeID}}" />
+  {{if .Message}}
+  <div class="auth-info" role="status">{{.Message}}</div>
+  {{end}}
   {{if .Error}}
   <div class="auth-error" role="alert">{{.Error}}</div>
   {{end}}
@@ -21,16 +24,17 @@
   </div>
   {{end}}
   <button class="auth-btn" type="submit">Verify</button>
+  {{if eq .Method "email"}}
+  <a class="auth-btn-secondary" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}" style="margin-top:0.75rem;">Resend code</a>
+  {{end}}
   {{if .CanSwitch}}
-  <div class="auth-link" style="margin-top:12px;">
-    {{if eq .Method "email"}}
-      {{if .UserTotpVerified}}
-      <a href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=totp">Use authenticator app instead</a>
-      {{end}}
-    {{else}}
-      <a href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=email">Use email instead</a>
+  {{if eq .Method "email"}}
+    {{if .UserTotpVerified}}
+    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=totp">Verify using authenticator app</a>
     {{end}}
-  </div>
+  {{else}}
+    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=email">Verify using email</a>
+  {{end}}
   {{end}}
 </form>
 {{end}}
