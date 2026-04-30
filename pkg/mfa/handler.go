@@ -69,57 +69,8 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 
 	cfg := config.Get()
 
-	// Method switching: handle switch_to query parameter
-	if switchTo := r.URL.Query().Get("switch_to"); switchTo != "" {
-		if cfg.MfaMethod == "both" && cfg.SmtpHost != "" {
-			switched := false
-			switch switchTo {
-			case "totp":
-				if challenge.Method != "totp" {
-					usr, err := user.UserByID(challenge.UserID)
-					if err != nil {
-						slog.Error("mfa: failed to get user for method switch", "request_id", reqid.Get(r.Context()), "error", err)
-						redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-						return
-					}
-					if usr.TotpVerified {
-						switched = true
-					}
-				}
-			case "email":
-				if challenge.Method != "email" {
-					switched = true
-				}
-			}
-			if switched {
-				newChallengeID, err := authcode.GenerateSecureCode()
-				if err != nil {
-					slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
-					renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
-					return
-				}
-				if err := MarkChallengeUsed(challenge.ID); err != nil {
-					slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
-					redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-					return
-				}
-				newChallenge := MfaChallenge{
-					ID:         newChallengeID,
-					UserID:     challenge.UserID,
-					Method:     switchTo,
-					LoginState: challenge.LoginState,
-					ExpiresAt:  challenge.ExpiresAt,
-				}
-				if err := CreateMfaChallenge(newChallenge); err != nil {
-					slog.Error("mfa: failed to create switched challenge", "request_id", reqid.Get(r.Context()), "error", err)
-					redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-					return
-				}
-				mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
-				http.Redirect(w, r, mfaURL, http.StatusFound)
-				return
-			}
-		}
+	if handleMethodSwitch(w, r, challenge, cfg) {
+		return
 	}
 
 	if challenge.Method == "totp" {
@@ -323,6 +274,64 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config) bool {
+	switchTo := r.URL.Query().Get("switch_to")
+	if switchTo == "" || cfg.MfaMethod != "both" || cfg.SmtpHost == "" {
+		return false
+	}
+
+	switched := false
+	switch switchTo {
+	case "totp":
+		if challenge.Method != "totp" {
+			usr, err := user.UserByID(challenge.UserID)
+			if err != nil {
+				slog.Error("mfa: failed to get user for method switch", "request_id", reqid.Get(r.Context()), "error", err)
+				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				return true
+			}
+			if usr.TotpVerified {
+				switched = true
+			}
+		}
+	case "email":
+		if challenge.Method != "email" {
+			switched = true
+		}
+	}
+
+	if !switched {
+		return false
+	}
+
+	newChallengeID, err := authcode.GenerateSecureCode()
+	if err != nil {
+		slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
+		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
+		return true
+	}
+	if err := MarkChallengeUsed(challenge.ID); err != nil {
+		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return true
+	}
+	newChallenge := MfaChallenge{
+		ID:         newChallengeID,
+		UserID:     challenge.UserID,
+		Method:     switchTo,
+		LoginState: challenge.LoginState,
+		ExpiresAt:  challenge.ExpiresAt,
+	}
+	if err := CreateMfaChallenge(newChallenge); err != nil {
+		slog.Error("mfa: failed to create switched challenge", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return true
+	}
+	mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
+	http.Redirect(w, r, mfaURL, http.StatusFound)
+	return true
 }
 
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
