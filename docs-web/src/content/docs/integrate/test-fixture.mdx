@@ -1,0 +1,339 @@
+---
+title: Use as a Test Fixture
+description: Spin up a fresh Autentico OIDC server per test — no Docker, no mocks, ~375ms startup.
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Autentico's single-binary architecture makes it practical to use as a **per-test OIDC server**. No Docker containers, no mock servers, no shared state between tests.
+
+## Why not mocks?
+
+Mock OIDC servers don't exercise real flows — they skip token signing, session management, PKCE validation, and cookie handling. Bugs that surface in production (misconfigured redirect URIs, incorrect token lifetimes, missing claims) pass silently with mocks.
+
+Docker-based IdP setups (Keycloak, Hydra, etc.) test real flows but take 10–30 seconds to start, making fresh-server-per-test impractical.
+
+Autentico starts in **~375ms** — including database initialization, admin account creation, client registration, and CORS configuration. This makes it viable to spin up a completely fresh OIDC server for every single test.
+
+## What you get
+
+- A real, standards-compliant OIDC server with RS256-signed JWTs
+- Full Authorization Code + PKCE flow, token refresh, revocation, introspection
+- Complete isolation between tests — no shared database, no leaked sessions
+- Deterministic behavior — no flakiness from the IdP layer
+
+## Setup
+
+<Steps>
+1. **Download the binary** (once, in your test setup):
+
+    ```bash
+    curl -fsSL -o autentico https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64
+    chmod +x autentico
+    ```
+
+2. **Initialize the environment** (once):
+
+    ```bash
+    ./autentico init --url http://localhost:9999
+    ```
+
+    This generates a `.env` with an RSA key, CSRF secret, and token signing secrets.
+
+3. **Per-test: clean, onboard, start, seed, test, stop.**
+</Steps>
+
+## Environment variables for testing
+
+Disable rate limiting and anti-timing delays to maximize test speed:
+
+```bash
+AUTENTICO_RATE_LIMIT_RPS=0      # Disable per-second rate limiting
+AUTENTICO_RATE_LIMIT_RPM=0      # Disable per-minute rate limiting
+AUTENTICO_ANTI_TIMING_MIN_MS=0  # Disable anti-timing delay (min)
+AUTENTICO_ANTI_TIMING_MAX_MS=0  # Disable anti-timing delay (max)
+```
+
+If running over plain HTTP (localhost), also disable secure cookie flags:
+
+```bash
+AUTENTICO_CSRF_SECURE_COOKIE=false
+AUTENTICO_IDP_SESSION_SECURE=false
+```
+
+## Playwright example
+
+This example shows a complete per-test fixture for [Playwright](https://playwright.dev). Each test gets its own Autentico instance with a clean database.
+
+### Global setup
+
+Download the binary and initialize the `.env` once before all tests:
+
+```ts
+// global-setup.ts
+import { execSync } from "child_process";
+import { existsSync, mkdirSync, chmodSync } from "fs";
+import { join } from "path";
+
+const AUTENTICO_DIR = join(import.meta.dirname, ".autentico");
+const AUTENTICO_BIN = join(AUTENTICO_DIR, "autentico");
+const AUTENTICO_RELEASE =
+  "https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64";
+const AUTENTICO_URL = "http://localhost:9999";
+
+export default async function globalSetup() {
+  mkdirSync(AUTENTICO_DIR, { recursive: true });
+
+  if (!existsSync(AUTENTICO_BIN)) {
+    console.log("Downloading autentico...");
+    execSync(`curl -fsSL -o ${AUTENTICO_BIN} ${AUTENTICO_RELEASE}`, {
+      stdio: "inherit",
+    });
+    chmodSync(AUTENTICO_BIN, 0o755);
+  }
+
+  const envFile = join(AUTENTICO_DIR, ".env");
+  if (!existsSync(envFile)) {
+    console.log("Initializing autentico...");
+    execSync(`${AUTENTICO_BIN} init --url ${AUTENTICO_URL}`, {
+      cwd: AUTENTICO_DIR,
+      stdio: "inherit",
+    });
+  }
+}
+```
+
+### Per-test fixture
+
+Each test wipes the database, creates an admin account, starts the server, seeds test data, runs the test, and stops the server:
+
+```ts
+// autentico.fixture.ts
+import { test as base } from "@playwright/test";
+import { execSync, spawn } from "child_process";
+import { createWriteStream, existsSync, rmSync } from "fs";
+import { join } from "path";
+
+const AUTENTICO_DIR = join(import.meta.dirname, "..", ".autentico");
+const AUTENTICO_BIN = join(AUTENTICO_DIR, "autentico");
+const AUTENTICO_URL = "http://localhost:9999";
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "TestAdmin123!";
+const ADMIN_EMAIL = "admin@test.com";
+const TEST_USER = "testuser";
+const TEST_PASS = "TestUser123!";
+const TEST_EMAIL = "testuser@test.com";
+
+async function waitForHealthy(url: string, timeoutMs = 15_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {
+      /* server not ready */
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`Autentico did not become healthy within ${timeoutMs}ms`);
+}
+
+async function getAdminToken(): Promise<string> {
+  const res = await fetch(`${AUTENTICO_URL}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "password",
+      username: ADMIN_USER,
+      password: ADMIN_PASS,
+      client_id: "autentico-admin",
+      scope: "openid",
+    }),
+  });
+  if (!res.ok)
+    throw new Error(
+      `Failed to get admin token: ${res.status} ${await res.text()}`
+    );
+  const data = (await res.json()) as { access_token: string };
+  return data.access_token;
+}
+
+async function seedTestData(token: string) {
+  // Register an OIDC client
+  const clientRes = await fetch(`${AUTENTICO_URL}/admin/api/clients`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: "e2e-test-app",
+      client_name: "E2E Test App",
+      redirect_uris: ["http://localhost:5173/callback"],
+      post_logout_redirect_uris: ["http://localhost:5173"],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      scopes: "openid profile email offline_access",
+      client_type: "public",
+      token_endpoint_auth_method: "none",
+    }),
+  });
+  if (!clientRes.ok)
+    throw new Error(
+      `Failed to register client: ${clientRes.status} ${await clientRes.text()}`
+    );
+
+  // Create a test user
+  const userRes = await fetch(`${AUTENTICO_URL}/admin/api/users`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: TEST_USER,
+      password: TEST_PASS,
+      email: TEST_EMAIL,
+    }),
+  });
+  if (!userRes.ok)
+    throw new Error(
+      `Failed to create test user: ${userRes.status} ${await userRes.text()}`
+    );
+
+  // Configure CORS for the test app origin
+  const corsRes = await fetch(`${AUTENTICO_URL}/admin/api/settings`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      cors_allowed_origins: "*",
+      sso_enabled: "false",
+    }),
+  });
+  if (!corsRes.ok)
+    throw new Error(
+      `Failed to configure CORS: ${corsRes.status} ${await corsRes.text()}`
+    );
+}
+
+function cleanDb() {
+  for (const f of ["autentico.db", "autentico.db-shm", "autentico.db-wal"]) {
+    const p = join(AUTENTICO_DIR, f);
+    if (existsSync(p)) rmSync(p);
+  }
+}
+
+export const test = base.extend<{ autentico: void }>({
+  autentico: [
+    async ({}, use) => {
+      // 1. Clean previous database
+      cleanDb();
+
+      // 2. Create admin account headlessly
+      execSync(
+        `${AUTENTICO_BIN} onboard --username ${ADMIN_USER} --password "${ADMIN_PASS}" --email ${ADMIN_EMAIL} --enable-admin-password-grant`,
+        { cwd: AUTENTICO_DIR, stdio: "pipe" }
+      );
+
+      // 3. Start server with rate limiting and timing delays disabled
+      const logFile = createWriteStream(join(AUTENTICO_DIR, "autentico.log"));
+      const proc = spawn(AUTENTICO_BIN, ["start"], {
+        cwd: AUTENTICO_DIR,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          AUTENTICO_RATE_LIMIT_RPS: "0",
+          AUTENTICO_RATE_LIMIT_RPM: "0",
+          AUTENTICO_ANTI_TIMING_MIN_MS: "0",
+          AUTENTICO_ANTI_TIMING_MAX_MS: "0",
+        },
+      });
+      proc.stdout?.pipe(logFile);
+      proc.stderr?.pipe(logFile);
+
+      // 4. Wait for the OIDC discovery endpoint to respond
+      await waitForHealthy(
+        `${AUTENTICO_URL}/.well-known/openid-configuration`
+      );
+
+      // 5. Seed test data (client, user, CORS)
+      const token = await getAdminToken();
+      await seedTestData(token);
+
+      // 6. Run the test
+      await use();
+
+      // 7. Graceful shutdown
+      const closed = new Promise<void>((resolve) =>
+        proc.on("close", resolve)
+      );
+      proc.kill("SIGTERM");
+      await closed;
+      logFile.close();
+    },
+    { auto: true },
+  ],
+});
+
+export { expect } from "@playwright/test";
+```
+
+### Playwright config
+
+Use a single worker to avoid port conflicts (each test runs its own server on the same port):
+
+```ts
+// playwright.config.ts
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./specs",
+  timeout: 30_000,
+  retries: 0,
+  workers: 1,
+  use: {
+    baseURL: "http://localhost:5173",
+    headless: true,
+  },
+  globalSetup: "./global-setup.ts",
+});
+```
+
+### Using the fixture in tests
+
+Import from the fixture instead of `@playwright/test` — the server starts automatically:
+
+```ts
+import { test, expect } from "./autentico.fixture.js";
+
+test("completes full OIDC login flow", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("login-button").click();
+
+  // Redirected to Autentico login page
+  await page.waitForURL(/localhost:9999/);
+  await page.fill('input[name="username"]', "testuser");
+  await page.fill('input[name="password"]', "TestUser123!");
+  await page.click('button[type="submit"]');
+
+  // Redirected back with tokens
+  await page.waitForURL(/localhost:5173/);
+  await expect(page.getByTestId("authenticated")).toBeVisible();
+  await expect(page.getByTestId("access-token")).toHaveText("present");
+});
+```
+
+## Performance
+
+| Metric | Value |
+|--------|-------|
+| Server startup (clean DB → ready) | ~375ms |
+| Full per-test lifecycle (clean + onboard + start + seed + stop) | ~400ms |
+| 15 browser E2E tests (single run) | ~18s |
+| 15 tests × 100 runs (1,500 server lifecycles) | ~30 min |
+| Flakiness from IdP layer | 0% |
+
+Compare this to Docker-based setups where a single container start takes 10–30 seconds — making fresh-per-test impractical and forcing shared state, teardown complexity, and flaky tests.
