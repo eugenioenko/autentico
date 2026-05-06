@@ -14,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -131,6 +132,7 @@ func startTestServer(t *testing.T) *TestServer {
 	// CSRF-protected routes (using plaintext wrapper for HTTP test server)
 	mux.Handle(oauth+"/authorize", plaintextCSRF(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle(oauth+"/consent", plaintextCSRF(http.HandlerFunc(consent.HandleConsent)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 
 	// OAuth2 client registration (admin-protected)
@@ -240,6 +242,21 @@ func getCSRFToken(body string) string {
 // getAuthorizeSig extracts the authorize_sig hidden field value from the rendered HTML body.
 func getAuthorizeSig(body string) string {
 	re := regexp.MustCompile(`<input type="hidden" name="authorize_sig" value="([^"]*)"`)
+	matches := re.FindStringSubmatch(body)
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}
+
+// getConsentSig extracts the consent_sig hidden field value from the rendered consent HTML body.
+func getConsentSig(body string) string {
+	return getHiddenField(body, "consent_sig")
+}
+
+// getHiddenField extracts the value of a hidden input field by name from rendered HTML.
+func getHiddenField(body, name string) string {
+	re := regexp.MustCompile(`<input type="hidden" name="` + regexp.QuoteMeta(name) + `" value="([^"]*)"`)
 	matches := re.FindStringSubmatch(body)
 	if len(matches) < 2 {
 		return ""

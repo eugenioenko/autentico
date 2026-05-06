@@ -19,6 +19,7 @@ type LoginRequest struct {
 	Nonce               string `json:"nonce"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
+	Prompt              string `json:"prompt"`
 }
 
 func ValidateLoginRequest(input LoginRequest) error {

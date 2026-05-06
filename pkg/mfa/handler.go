@@ -12,7 +12,9 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -244,6 +246,22 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
+
+	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
+	registeredClient, clientErr := client.ClientByClientID(loginState.ClientID)
+	if clientErr == nil && consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
+		consent.RedirectToConsent(w, r, consent.ConsentParams{
+			RedirectURI:         loginState.RedirectURI,
+			State:               loginState.State,
+			ClientID:            loginState.ClientID,
+			Scope:               loginState.Scope,
+			Nonce:               loginState.Nonce,
+			CodeChallenge:       loginState.CodeChallenge,
+			CodeChallengeMethod: loginState.CodeChallengeMethod,
+			Prompt:              loginState.Prompt,
+		})
+		return
+	}
 
 	authorizationCode, err := authcode.GenerateSecureCode()
 	if err != nil {

@@ -31,7 +31,7 @@ var clientColumns = `id, client_id, client_secret, client_name, client_type, red
 	token_endpoint_auth_method, is_active, created_at, updated_at,
 	access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 	allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-	trust_device_enabled, trust_device_expiration`
+	trust_device_enabled, trust_device_expiration, consent_required`
 
 func scanClient(rows *sql.Rows) (*Client, error) {
 	var c Client
@@ -43,7 +43,7 @@ func scanClient(rows *sql.Rows) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
 	); err != nil {
 		return nil, err
 	}
@@ -91,12 +91,12 @@ func ListClientsWithParams(params api.ListParams) ([]*Client, int, error) {
 func ClientByClientID(clientID string) (*Client, error) {
 	query := `
 		SELECT 
-			id, client_id, client_secret, client_name, client_type, redirect_uris, 
-			post_logout_redirect_uris, grant_types, response_types, scopes, 
+			id, client_id, client_secret, client_name, client_type, redirect_uris,
+			post_logout_redirect_uris, grant_types, response_types, scopes,
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, consent_required
 		FROM clients WHERE client_id = ? AND is_active = 1
 	`
 	var c Client
@@ -108,7 +108,7 @@ func ClientByClientID(clientID string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -128,12 +128,12 @@ func ClientByClientID(clientID string) (*Client, error) {
 func ClientByID(id string) (*Client, error) {
 	query := `
 		SELECT 
-			id, client_id, client_secret, client_name, client_type, redirect_uris, 
-			post_logout_redirect_uris, grant_types, response_types, scopes, 
+			id, client_id, client_secret, client_name, client_type, redirect_uris,
+			post_logout_redirect_uris, grant_types, response_types, scopes,
 			token_endpoint_auth_method, is_active, created_at, updated_at,
 			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration
+			trust_device_enabled, trust_device_expiration, consent_required
 		FROM clients WHERE id = ? AND is_active = 1
 	`
 	var c Client
@@ -145,7 +145,7 @@ func ClientByID(id string) (*Client, error) {
 		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration,
+		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
