@@ -133,6 +133,7 @@ export default defineConfig({
 						{ label: 'Client Libraries', link: '/integrate/client-libraries/' },
 						{ label: 'PKCE Flow Walkthrough', link: '/integrate/pkce-walkthrough/' },
 						{ label: 'Verifying Tokens', link: '/integrate/verifying-tokens/' },
+						{ label: 'Test Fixture', link: '/integrate/test-fixture/' },
 					],
 				},
 				{

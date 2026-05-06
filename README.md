@@ -59,6 +59,7 @@ Auténtico is a good fit for:
 - **Internal tools and self-hosted applications** where simplicity and low maintenance overhead matter more than enterprise-scale features
 - **Developers evaluating OIDC** who want a running, real implementation to work against rather than a mock
 - **Side projects and indie developers** who need user authentication without depending on a third-party service or running a heavy stack
+- **CI and test suites** that need a real OIDC provider as a test fixture — Autentico starts in ~375ms, making fresh-server-per-test practical without Docker or mocks
 
 It is not designed for organizations that require horizontal scaling of the auth tier, active-active multi-region deployments, or enterprise compliance features (SCIM, LDAP federation, custom authorization policies). Those requirements point to a different class of identity platform.
 
@@ -87,6 +88,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - [Security Considerations](#security-considerations)
 - [Deployment & Operations](#deployment--operations)
 - [Testing](#testing)
+- [Use as a Test Fixture](#use-as-a-test-fixture)
 - [API Documentation](#api-documentation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -998,6 +1000,50 @@ All testing layers are reproducible locally:
 - Load testing: see [`stress/README.md`](stress/README.md)
 
 No internal or proprietary tooling is required — the entire validation pipeline is transparent and executable by anyone.
+
+---
+
+## Use as a Test Fixture
+
+Autentico's single-binary architecture makes it practical to spin up a fresh, fully functional OIDC server per test — no Docker containers, no mocks, no shared state between tests.
+
+**Why this matters:** most IdP test setups either use mock servers (which don't test real OAuth flows) or Docker containers (which take 10–30 seconds to start). Autentico starts in ~375ms including database initialization, admin account creation, client registration, and CORS configuration. This makes fresh-server-per-test viable even in large test suites.
+
+**Setup pattern:**
+
+1. **Global setup** (once) — download the binary and run `autentico init` to generate a `.env`:
+
+```bash
+curl -fsSL -o autentico https://github.com/eugenioenko/autentico/releases/latest/download/autentico-linux-amd64
+chmod +x autentico
+./autentico init --url http://localhost:9999
+```
+
+2. **Per-test fixture** — for each test, wipe the database, onboard, start, seed, run, and tear down:
+
+```bash
+# Clean previous state
+rm -f autentico.db autentico.db-shm autentico.db-wal
+
+# Create admin account headlessly
+./autentico onboard --username admin --password "Admin123!" --email admin@test.com
+
+# Start with rate limiting and anti-timing delays disabled for test speed
+AUTENTICO_RATE_LIMIT_RPS=0 \
+AUTENTICO_RATE_LIMIT_RPM=0 \
+AUTENTICO_ANTI_TIMING_MIN_MS=0 \
+AUTENTICO_ANTI_TIMING_MAX_MS=0 \
+./autentico start &
+
+# Wait for ready, then seed test data via admin API
+# ... create clients, users, configure CORS ...
+```
+
+3. **After the test** — send `SIGTERM` to the process.
+
+The full per-test lifecycle (clean DB → onboard → start → seed → run test → shutdown) completes in under 400ms of server overhead. Running 15 browser-based E2E tests takes ~18 seconds; running the same suite 100 times (1,500 full server lifecycles) confirms zero flakiness from the IdP layer.
+
+For a complete working example using Playwright, see the [test fixture guide](https://autentico.top/integrate/test-fixture/) in the documentation.
 
 ---
 
