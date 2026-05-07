@@ -4,10 +4,12 @@ const apiClient = axios.create();
 
 let _getToken: (() => string | null) | null = null;
 let _login: (() => void) | null = null;
+let _refresh: (() => Promise<void>) | null = null;
 
-export function setAuth(getToken: () => string | null, login: () => void) {
+export function setAuth(getToken: () => string | null, login: () => void, refresh: () => Promise<void>) {
   _getToken = getToken;
   _login = login;
+  _refresh = refresh;
 }
 
 apiClient.interceptors.request.use((config) => {
@@ -23,16 +25,26 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (
-      error.response?.status !== 401 ||
-      originalRequest._retry ||
-      !_login
-    ) {
+    if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
-    _login();
+
+    if (_refresh) {
+      try {
+        await _refresh();
+        const token = _getToken?.();
+        if (token) {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        }
+      } catch {
+        // refresh failed — fall through to login
+      }
+    }
+
+    _login?.();
     return Promise.reject(error);
   }
 );

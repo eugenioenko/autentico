@@ -31,6 +31,7 @@ const oidcConfig: OidcConfig = {
   clientId: "autentico-admin",
   redirectUri: window.location.origin + BASENAME + "/callback",
   scopes: ["openid", "profile", "email"],
+  expiryBuffer: 0,
 };
 
 function AuthWrapper({ children }: { children: React.ReactNode }) {

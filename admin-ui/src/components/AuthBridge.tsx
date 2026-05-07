@@ -8,7 +8,7 @@ export default function AuthBridge() {
   tokenRef.current = tokens.access;
 
   useEffect(() => {
-    setAuth(() => tokenRef.current, actions.login);
+    setAuth(() => tokenRef.current, actions.login, actions.refresh);
   }, [actions]);
 
   return null;

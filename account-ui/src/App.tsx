@@ -23,6 +23,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     clientId: CLIENT_ID,
     redirectUri: REDIRECT_URI,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
+    expiryBuffer: 0,
   }), [oauth_path]);
 
   const onLogin = useMemo(() => (returnTo: string) => {
