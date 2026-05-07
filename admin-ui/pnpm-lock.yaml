@@ -24,8 +24,8 @@ importers:
         specifier: ^1.11.20
         version: 1.11.20
       oidc-js-react:
-        specifier: ^1.0.8
-        version: 1.0.8(react@19.2.5)
+        specifier: ^1.1.0
+        version: 1.1.0(react@19.2.5)
       react:
         specifier: ^19.2.5
         version: 19.2.5
@@ -917,16 +917,16 @@ packages:
   oas-validator@5.0.8:
     resolution: {integrity: sha512-cu20/HE5N5HKqVygs3dt94eYJfBi0TsZvPVXDhbXQHiEityDN+RROTleefoKRKKJ9dFAF2JBkDHgvWj0sjKGmw==}
 
-  oidc-js-core@1.0.8:
-    resolution: {integrity: sha512-fNt9g7WxHz6YiuMLn6GiLozmDEXqinDpe+DdNFj8Mkpq4DjMKiYC8DPbY7QxwjyjX/m99ZPwIEiDoLy/pY4UVg==}
+  oidc-js-core@1.1.0:
+    resolution: {integrity: sha512-lLaAFklqeSk5CNIs9NPGkh4i81bTZ6sBNAFRB56/ayVK1P1JPFb5Neaf3GFrYvaYZJnAKbxnKksh7EpadOE7TA==}
 
-  oidc-js-react@1.0.8:
-    resolution: {integrity: sha512-9xIhnezxw743FB13mcdWmpnABY3xB2OA2CXYtgmMieYMwCWmwXSmZRp/fnjNO6wvDzedoK0Vy06nkK1HoTNhbQ==}
+  oidc-js-react@1.1.0:
+    resolution: {integrity: sha512-AIsJ+JD4H5cIwVpJ+42tVU30PX2ZxC+UwD0RuePN33KmWSqPyJJRcvysaOGnB3yWYAAClBkC1UQIC5PcyvDpQQ==}
     peerDependencies:
       react: '>=18.0.0'
 
-  oidc-js@1.0.8:
-    resolution: {integrity: sha512-VoobLbKyK2jLKZCqmbLf6Jtx+8gpV4ddHu11nWO7zlDA17A53l0rI6XU53XoNAJvG3ierFoPR2quxzaSlJTDTg==}
+  oidc-js@1.1.0:
+    resolution: {integrity: sha512-UUvztp5UcGr53OOtblB14Sg/z1TB1+7uBJyXh2RyEv0L2R7b4vbVGkFN+2bJcpyApGG1oeS9iirUIorYm8KXCg==}
 
   openapi-typescript@7.13.0:
     resolution: {integrity: sha512-EFP392gcqXS7ntPvbhBzbF8TyBA+baIYEm791Hy5YkjDYKTnk/Tn5OQeKm5BIZvJihpp8Zzr4hzx0Irde1LNGQ==}
@@ -2046,17 +2046,17 @@ snapshots:
       should: 13.2.3
       yaml: 1.10.2
 
-  oidc-js-core@1.0.8: {}
+  oidc-js-core@1.1.0: {}
 
-  oidc-js-react@1.0.8(react@19.2.5):
+  oidc-js-react@1.1.0(react@19.2.5):
     dependencies:
-      oidc-js: 1.0.8
-      oidc-js-core: 1.0.8
+      oidc-js: 1.1.0
+      oidc-js-core: 1.1.0
       react: 19.2.5
 
-  oidc-js@1.0.8:
+  oidc-js@1.1.0:
     dependencies:
-      oidc-js-core: 1.0.8
+      oidc-js-core: 1.1.0
 
   openapi-typescript@7.13.0(typescript@6.0.3):
     dependencies:

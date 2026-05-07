@@ -22,7 +22,9 @@ const GroupsPage = lazy(() => import("./pages/GroupsPage"));
 const TokensPage = lazy(() => import("./pages/TokensPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1 } },
+});
 
 const BASENAME = "/admin";
 

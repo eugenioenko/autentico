@@ -16,7 +16,7 @@
     "antd": "^6.3.6",
     "axios": "^1.15.2",
     "dayjs": "^1.11.20",
-    "oidc-js-react": "^1.0.8",
+    "oidc-js-react": "^1.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2"

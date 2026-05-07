@@ -16,7 +16,7 @@
     "axios": "^1.15.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.11.0",
-    "oidc-js-react": "^1.0.8",
+    "oidc-js-react": "^1.1.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

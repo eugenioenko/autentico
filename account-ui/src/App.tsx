@@ -8,7 +8,9 @@ import AuthBridge from './components/AuthBridge';
 import Layout from './components/Layout';
 import Callback from './pages/Callback';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1 } },
+});
 
 const BASENAME = '/account';
 const CLIENT_ID = 'autentico-account';
