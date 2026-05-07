@@ -1,9 +1,11 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useMemo } from "react";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, theme } from "antd";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider } from "oidc-js-react";
+import type { OidcConfig } from "oidc-js-react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import AuthBridge from "./components/AuthBridge";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 
@@ -22,6 +24,33 @@ const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
 const queryClient = new QueryClient();
 
+const BASENAME = "/admin";
+
+const oidcConfig: OidcConfig = {
+  issuer: window.location.origin + "/oauth2",
+  clientId: "autentico-admin",
+  redirectUri: window.location.origin + BASENAME + "/callback",
+  scopes: ["openid", "profile", "email"],
+};
+
+function AuthWrapper({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+
+  const onLogin = useMemo(() => (returnTo: string) => {
+    const path = returnTo.startsWith(BASENAME)
+      ? returnTo.slice(BASENAME.length) || "/"
+      : returnTo;
+    navigate(path, { replace: true });
+  }, [navigate]);
+
+  return (
+    <AuthProvider config={oidcConfig} fetchProfile={false} onLogin={onLogin}>
+      <AuthBridge />
+      {children}
+    </AuthProvider>
+  );
+}
+
 function ThemedApp() {
   const { mode } = useTheme();
   return (
@@ -36,8 +65,8 @@ function ThemedApp() {
       }}
     >
       <App>
-        <BrowserRouter basename="/admin">
-          <AuthProvider>
+        <BrowserRouter basename={BASENAME}>
+          <AuthWrapper>
             <Routes>
               <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
               <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
@@ -56,7 +85,7 @@ function ThemedApp() {
                 </Route>
               </Route>
             </Routes>
-          </AuthProvider>
+          </AuthWrapper>
         </BrowserRouter>
       </App>
     </ConfigProvider>

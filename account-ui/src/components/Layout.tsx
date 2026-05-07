@@ -1,6 +1,6 @@
 import React, { useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useAuth } from '../AuthContext';
+import { useAuth } from 'oidc-js-react';
 import { IconMenu2 } from '@tabler/icons-react';
 import Sidebar from './Sidebar';
 import AppHeader from './AppHeader';
@@ -23,15 +23,15 @@ const pageTitles: Record<string, string> = {
 };
 
 const Layout: React.FC = () => {
-  const { user, logout, isLoading, signinRedirect } = useAuth();
+  const { user, isLoading, isAuthenticated, actions } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) signinRedirect(location.pathname);
-  }, [user, isLoading, signinRedirect, location.pathname]);
+    if (!isLoading && !isAuthenticated) actions.login();
+  }, [isLoading, isAuthenticated, actions]);
 
-  if (isLoading || !user) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-theme-bg">
         <Spinner />
@@ -39,7 +39,7 @@ const Layout: React.FC = () => {
     );
   }
 
-  const initials = user.profile.preferred_username?.[0]?.toUpperCase() || 'U';
+  const initials = (user?.claims?.preferred_username as string)?.[0]?.toUpperCase() || 'U';
   const pageTitle = pageTitles[location.pathname] ?? 'Account';
 
   return (
@@ -54,9 +54,9 @@ const Layout: React.FC = () => {
       <Sidebar
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
-        username={user.profile.preferred_username ?? ''}
+        username={(user?.claims?.preferred_username as string) ?? ''}
         initials={initials}
-        onLogout={logout}
+        onLogout={actions.logout}
       />
 
       <main className="flex-1 flex flex-col min-w-0">

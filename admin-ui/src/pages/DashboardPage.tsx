@@ -15,16 +15,16 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "oidc-js-react";
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useStats();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   const handleCopyToken = () => {
-    navigator.clipboard.writeText(user?.access_token ? `Bearer ${user.access_token}` : "").then(() => {
+    navigator.clipboard.writeText(tokens.access ? `Bearer ${tokens.access}` : "").then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

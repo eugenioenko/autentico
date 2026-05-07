@@ -54,21 +54,17 @@ test("signup via prompt=create from login page", async ({ page, context }) => {
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
   await page.fill("#username", ADMIN_USERNAME);
   await page.fill("#password", ADMIN_PASSWORD);
+  // Set up request listener before clicking submit so we capture the first authenticated API call
+  const apiRequestPromise = page.waitForRequest(
+    req => req.url().includes("/admin/api/") && (req.headers()["authorization"]?.startsWith("Bearer ") ?? false),
+    { timeout: TIMEOUT }
+  );
   await page.click('button[type="submit"]');
   await page.waitForURL("**/admin/**", { timeout: TIMEOUT });
   await expect(page.getByTestId("admin-dashboard")).toBeVisible({ timeout: TIMEOUT });
 
-  // Get admin token from oidc-client-ts sessionStorage and enable self-signup
-  const token = await page.evaluate(() => {
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i)!;
-      if (key.startsWith("oidc.user:")) {
-        const data = JSON.parse(sessionStorage.getItem(key)!);
-        return data.access_token;
-      }
-    }
-    return null;
-  });
+  const apiRequest = await apiRequestPromise;
+  const token = apiRequest.headers()["authorization"]!.replace("Bearer ", "");
   expect(token).toBeTruthy();
   const res = await page.request.put("http://localhost:9999/admin/api/settings", {
     headers: { Authorization: `Bearer ${token}` },

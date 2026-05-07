@@ -5,7 +5,7 @@ import Modal from './Modal';
 import Button from './Button';
 import Alert from './Alert';
 import { useSettings } from '../context/SettingsContext';
-import { useAuth } from '../AuthContext';
+import { useAuth } from 'oidc-js-react';
 import { extractError } from '../lib/utils';
 
 interface AccountDeletionModalProps {
@@ -14,13 +14,13 @@ interface AccountDeletionModalProps {
 
 const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) => {
   const settings = useSettings();
-  const { logout, user } = useAuth();
+  const { actions, user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmUsername, setConfirmUsername] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
-  const username = user?.profile?.preferred_username ?? '';
+  const username = (user?.claims?.preferred_username as string) ?? '';
   const usernameMatches = confirmUsername === username;
 
   const mutation = useMutation({
@@ -28,7 +28,7 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
       api.post('/deletion-request', reason.trim() ? { reason: reason.trim() } : {}),
     onSuccess: () => {
       if (settings.allow_self_service_deletion) {
-        logout();
+        actions.logout();
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['deletion-request'] });

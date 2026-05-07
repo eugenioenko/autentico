@@ -18,7 +18,7 @@ import {
   DownOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "oidc-js-react";
 import { useTheme } from "../context/ThemeContext";
 import ThemeToggle from "../components/ThemeToggle";
 
@@ -51,7 +51,7 @@ const menuItems: any[] = [
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, actions } = useAuth();
   const { mode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,9 +64,8 @@ export default function AdminLayout() {
       (item) => item.key && item.key !== "/" && location.pathname.startsWith(item.key)
     )?.key ?? "/";
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login", { replace: true });
+  const handleLogout = () => {
+    actions.logout();
   };
 
   const userDropdownItems = [
@@ -88,7 +87,7 @@ export default function AdminLayout() {
     },
   ];
 
-  const username = user?.profile?.preferred_username ?? user?.profile?.email ?? "User";
+  const username = (user?.claims?.preferred_username ?? user?.claims?.email ?? "User") as string;
   const siderBg = mode === "dark" ? "#1a1a1a" : "#141414";
 
   return (
@@ -172,8 +171,8 @@ export default function AdminLayout() {
             <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
               <div data-testid="user-menu" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <Avatar
-                  src={user?.profile?.picture}
-                  icon={!user?.profile?.picture && <UserOutlined />}
+                  src={user?.claims?.picture as string | undefined}
+                  icon={!user?.claims?.picture && <UserOutlined />}
                   style={{ backgroundColor: "#ff7b00" }}
                 />
                 <Text>{username}</Text>
