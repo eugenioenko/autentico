@@ -14,7 +14,7 @@ interface AccountDeletionModalProps {
 
 const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) => {
   const settings = useSettings();
-  const { actions, user } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmUsername, setConfirmUsername] = useState('');
   const [reason, setReason] = useState('');

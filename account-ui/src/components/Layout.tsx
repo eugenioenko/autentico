@@ -23,7 +23,7 @@ const pageTitles: Record<string, string> = {
 };
 
 const Layout: React.FC = () => {
-  const { user, actions } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
