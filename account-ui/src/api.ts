@@ -1,49 +1,62 @@
 import axios from 'axios';
-import type { UserManager } from 'oidc-client-ts';
+import type { AuthTokens } from 'oidc-js-react';
 
-let _userManager: UserManager | null = null;
-let _reauthInFlight = false;
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    _retryCount?: number;
+  }
+}
 
-export function setUserManager(mgr: UserManager) {
-  _userManager = mgr;
+const MAX_RETRIES = 3;
+
+let _getToken: (() => string | null) | null = null;
+let _login: (() => void) | null = null;
+let _refresh: (() => Promise<AuthTokens>) | null = null;
+
+export function setAuth(getToken: () => string | null, login: () => void, refresh: () => Promise<AuthTokens>) {
+  _getToken = getToken;
+  _login = login;
+  _refresh = refresh;
 }
 
 const api = axios.create({
   baseURL: '/account/api',
 });
 
-api.interceptors.request.use(async (config) => {
-  if (_userManager) {
-    const user = await _userManager.getUser();
-    if (user?.access_token) {
-      config.headers.Authorization = `Bearer ${user.access_token}`;
-    }
+api.interceptors.request.use((config) => {
+  if (config._retryCount) return config;
+  const token = _getToken?.();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// A 401 from the account API means the access token was revoked or the
-// underlying IdP session was cascaded (e.g. another device revoked this one).
-// Drop the stored user and route back through /oauth2/authorize — either the
-// browser still has a valid IdP cookie and auto-logs-in, or it lands on the
-// login page. The `_reauthInFlight` guard prevents concurrent 401s from
-// triggering multiple redirects before the browser has navigated away.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error?.response?.status === 401 && _userManager && !_reauthInFlight) {
-      _reauthInFlight = true;
+    const originalRequest = error.config;
+    const retryCount = originalRequest._retryCount ?? 0;
+
+    if (error?.response?.status !== 401 || retryCount >= MAX_RETRIES) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retryCount = retryCount + 1;
+
+    if (_refresh) {
       try {
-        await _userManager.removeUser();
+        const tokens = await _refresh();
+        if (tokens.access) {
+          originalRequest.headers.Authorization = `Bearer ${tokens.access}`;
+          return api(originalRequest);
+        }
       } catch {
-        /* ignore */
-      }
-      try {
-        await _userManager.signinRedirect();
-      } catch {
-        window.location.assign('/account/');
+        // refresh failed — fall through to login
       }
     }
+
+    _login?.();
     return Promise.reject(error);
   },
 );

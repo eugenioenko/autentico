@@ -1,12 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Outlet } from "react-router-dom";
+import { RequireAuth } from "oidc-js-react";
 
 export default function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+  return (
+    <RequireAuth>
+      <Outlet />
+    </RequireAuth>
+  );
 }

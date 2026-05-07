@@ -1,27 +1,42 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Spin } from "antd";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "oidc-js-react";
+import apiClient from "../api/client";
 
 export default function CallbackPage() {
   const navigate = useNavigate();
-  const { handleCallback } = useAuth();
+  const { isAuthenticated, isLoading, tokens } = useAuth();
   const processed = useRef(false);
 
   useEffect(() => {
-    if (processed.current) return;
+    if (isLoading || processed.current) return;
     processed.current = true;
 
-    handleCallback()
-      .then(() => {
-        navigate("/", { replace: true });
+    if (!isAuthenticated) {
+      navigate("/login?error=Sign-in+failed", { replace: true });
+      return;
+    }
+
+    apiClient
+      .get("/admin/api/clients", {
+        headers: { Authorization: `Bearer ${tokens.access}` },
       })
-      .catch((err: Error) => {
-        navigate(`/login?error=${encodeURIComponent(err.message)}`, {
-          replace: true,
-        });
+      .then(() => {
+        // onLogin handles navigation to returnTo
+      })
+      .catch((err: unknown) => {
+        const status =
+          err && typeof err === "object" && "response" in err
+            ? (err as { response?: { status?: number } }).response?.status
+            : undefined;
+        const msg =
+          status === 403
+            ? "Admin access required"
+            : "Failed to verify admin access";
+        navigate(`/login?error=${encodeURIComponent(msg)}`, { replace: true });
       });
-  }, [navigate, handleCallback]);
+  }, [isAuthenticated, isLoading, tokens, navigate]);
 
   return (
     <div
