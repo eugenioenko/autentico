@@ -32,7 +32,8 @@ const oidcConfig: OidcConfig = {
   issuer: window.location.origin + "/oauth2",
   clientId: "autentico-admin",
   redirectUri: window.location.origin + BASENAME + "/callback",
-  scopes: ["openid", "profile", "email"],
+  scopes: ["openid", "profile", "email", "offline_access"],
+  postLogoutRedirectUri: window.location.origin + BASENAME + "/login",
   expiryBuffer: 0,
 };
 

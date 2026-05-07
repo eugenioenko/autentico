@@ -45,7 +45,7 @@ const Layout: React.FC = () => {
         onClose={() => setMobileMenuOpen(false)}
         username={(user?.claims?.preferred_username as string) ?? ''}
         initials={initials}
-        onLogout={actions.logout}
+        onLogout={() => { window.location.href = '/oauth2/logout'; }}
       />
 
       <main className="flex-1 flex flex-col min-w-0">

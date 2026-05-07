@@ -65,7 +65,7 @@ export default function AdminLayout() {
     )?.key ?? "/";
 
   const handleLogout = () => {
-    actions.logout();
+    window.location.href = "/oauth2/logout";
   };
 
   const userDropdownItems = [

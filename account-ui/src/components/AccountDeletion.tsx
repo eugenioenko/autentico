@@ -28,7 +28,7 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
       api.post('/deletion-request', reason.trim() ? { reason: reason.trim() } : {}),
     onSuccess: () => {
       if (settings.allow_self_service_deletion) {
-        actions.logout();
+        window.location.href = '/oauth2/logout';
         return;
       }
       queryClient.invalidateQueries({ queryKey: ['deletion-request'] });
