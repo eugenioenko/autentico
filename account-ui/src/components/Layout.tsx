@@ -23,7 +23,7 @@ const pageTitles: Record<string, string> = {
 };
 
 const Layout: React.FC = () => {
-  const { user, actions } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
@@ -45,7 +45,7 @@ const Layout: React.FC = () => {
         onClose={() => setMobileMenuOpen(false)}
         username={(user?.claims?.preferred_username as string) ?? ''}
         initials={initials}
-        onLogout={actions.logout}
+        onLogout={() => { window.location.href = '/oauth2/logout'; }}
       />
 
       <main className="flex-1 flex flex-col min-w-0">

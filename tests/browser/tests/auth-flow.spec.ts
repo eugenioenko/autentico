@@ -42,7 +42,12 @@ test("admin UI logout requires re-authentication", async ({ page }) => {
   await page.getByTestId("user-menu").click();
   await page.click('text=Logout');
 
-  // Should redirect to login page
+  // Should land on the logout success page
+  await page.waitForURL("**/oauth2/logout**", { timeout: TIMEOUT });
+  await expect(page.getByText("You have been signed out.")).toBeVisible({ timeout: TIMEOUT });
+
+  // Navigating back should require re-authentication
+  await page.goto("/admin/");
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
   await expect(page.locator("#username")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("#password")).toBeVisible({ timeout: TIMEOUT });
@@ -123,7 +128,12 @@ test("account UI logout requires re-authentication", async ({ page }) => {
   // Logout
   await page.getByTestId("sign-out").click();
 
-  // Should redirect to login page
+  // Should land on the logout success page
+  await page.waitForURL("**/oauth2/logout**", { timeout: TIMEOUT });
+  await expect(page.getByText("You have been signed out.")).toBeVisible({ timeout: TIMEOUT });
+
+  // Navigating back should require re-authentication
+  await page.goto("/account/");
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
   await expect(page.locator("#username")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("#password")).toBeVisible({ timeout: TIMEOUT });
