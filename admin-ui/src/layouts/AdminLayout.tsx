@@ -51,7 +51,7 @@ const menuItems: any[] = [
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user, actions } = useAuth();
+  const { user } = useAuth();
   const { mode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
