@@ -125,12 +125,25 @@ func TestHandleDeleteMfa_InvalidJSON(t *testing.T) {
 
 func TestHandleDeleteMfa_WrongPassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
-	
+	token, usr := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+
 	req := DisableMfaRequest{CurrentPassword: "wrong"}
 	body, _ := json.Marshal(req)
 	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
+}
+
+func TestHandleDeleteMfa_NotEnrolled(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, _ := setupTestUserAndSession(t)
+
+	req := DisableMfaRequest{CurrentPassword: "anything"}
+	body, _ := json.Marshal(req)
+	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleMfaFlow(t *testing.T) {

@@ -2,6 +2,7 @@ package account
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -10,7 +11,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // HandleGetMfaStatus godoc
@@ -146,18 +146,22 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Require password confirmation if the user has a password
-	if usr.Password != "" {
-		if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
-			utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
-			return
-		}
-	}
-
-	// Require a valid TOTP code to prove possession of the enrolled device.
+	// Check enrollment before password to avoid leaking password correctness
+	// when TOTP is not enrolled.
 	if usr.TotpSecret == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "TOTP is not enrolled")
 		return
+	}
+
+	if usr.Password != "" {
+		if err := user.VerifyPassword(usr.ID, req.CurrentPassword); err != nil {
+			if errors.Is(err, user.ErrAccountLocked) {
+				utils.WriteErrorResponse(w, http.StatusTooManyRequests, "account_locked", "Account is temporarily locked")
+				return
+			}
+			utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
+			return
+		}
 	}
 	if req.Code == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "TOTP code is required to disable MFA")
