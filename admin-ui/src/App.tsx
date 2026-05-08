@@ -1,13 +1,17 @@
 import { lazy, Suspense, useMemo } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, theme } from "antd";
-import { AuthProvider } from "oidc-js-react";
+import { AuthProvider, RequireAuth } from "oidc-js-react";
 import type { OidcConfig } from "oidc-js-react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import AuthBridge from "./components/AuthBridge";
-import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
+
+function ProtectedRoute() {
+  const { pathname } = useLocation();
+  return <RequireAuth key={pathname}><Outlet /></RequireAuth>;
+}
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const CallbackPage = lazy(() => import("./pages/CallbackPage"));
