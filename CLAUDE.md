@@ -38,6 +38,65 @@ make docs                     # Serves Swagger UI at localhost:8888
 make generate-docs            # Regenerate swagger files from handler annotations
 ```
 
+## Headless Onboarding & Admin Token (CI / Testing)
+
+```bash
+# 1. Remove existing DB for a clean start (if needed)
+rm -f autentico.db
+
+# 2. Start the server (auto-generates .env if missing)
+./autentico start --auto-setup &
+sleep 2
+
+# 3. Create admin account with ROPC grant enabled (must run BEFORE start seeds the admin client,
+#    or on a fresh DB — seedAdminClient skips if autentico-admin already exists)
+./autentico onboard --username admin --password secret --email admin@test.com --enable-admin-password-grant
+
+# 4. Get an admin bearer token via ROPC
+TOKEN=$(curl -s http://localhost:9999/oauth2/token -X POST \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&username=admin&password=secret&client_id=autentico-admin&scope=openid profile email" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+# 5. Use the token for admin API calls
+curl -s http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Important:** `onboard` must run before the first `start` seeds the admin client, or on a fresh DB. The `--enable-admin-password-grant` flag adds the `password` grant type to `autentico-admin`. If the client already exists without it, delete the DB and re-onboard.
+
+## Playwright MCP (Browser Testing)
+
+The Playwright MCP server provides browser automation tools (`mcp__playwright__*`) for testing UI flows.
+
+**Setup:** The MCP server expects Chrome at `/opt/google/chrome/chrome`. If not installed, symlink the Playwright-managed Chromium:
+
+```bash
+# Install Playwright browsers (if not already cached)
+npx playwright install chromium
+
+# Symlink to the expected path (requires sudo)
+sudo mkdir -p /opt/google/chrome
+sudo ln -sf ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome /opt/google/chrome/chrome
+```
+
+**Debug UI as test client:** The `debug-ui/` directory contains a Vite+React app that acts as an OAuth2 client for manual testing. It runs on `http://localhost:5174` and uses client_id `autentico-debug`.
+
+```bash
+# Register the debug client (with consent_required for consent screen testing)
+curl -s -X POST http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"autentico-debug","client_name":"Debug UI","redirect_uris":["http://localhost:5174/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access","client_type":"public","token_endpoint_auth_method":"none","consent_required":true}'
+
+# Add CORS origin for the debug UI
+curl -s -X PUT http://localhost:9999/admin/api/settings \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"cors_allowed_origins": "http://localhost:5174"}'
+
+# Start the debug UI dev server
+cd debug-ui && pnpm dev
+```
+
 ## Feature Development Workflow
 
 When implementing new features, follow the checklist in `WORKFLOW.md`. Key points:
