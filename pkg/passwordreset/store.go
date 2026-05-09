@@ -3,6 +3,7 @@ package passwordreset
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"log/slog"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -42,25 +43,31 @@ func getResetTokenInfo(tokenHash string) (userID string, expiresAt time.Time, us
 
 // markTokenUsed sets the used_at timestamp on a token.
 func markTokenUsed(tokenHash string) {
-	_, _ = db.GetDB().Exec(
+	if _, err := db.GetDB().Exec(
 		`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`,
 		tokenHash,
-	)
+	); err != nil {
+		slog.Error("passwordreset: failed to mark token as used", "error", err)
+	}
 }
 
 // invalidatePreviousTokens marks all unused tokens for a user as used,
 // so only the latest reset link is valid.
 func invalidatePreviousTokens(userID string) {
-	_, _ = db.GetDB().Exec(
+	if _, err := db.GetDB().Exec(
 		`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL`,
 		userID,
-	)
+	); err != nil {
+		slog.Error("passwordreset: failed to invalidate previous tokens", "error", err, "user_id", userID)
+	}
 }
 
 // deactivateUserSessions deactivates all active sessions for a user.
 func deactivateUserSessions(userID string) {
-	_, _ = db.GetDB().Exec(
+	if _, err := db.GetDB().Exec(
 		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND deactivated_at IS NULL`,
 		userID,
-	)
+	); err != nil {
+		slog.Error("passwordreset: failed to deactivate user sessions", "error", err, "user_id", userID)
+	}
 }

@@ -261,26 +261,34 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// session from the cascade and let a revoked IdP session produce live
 		// tokens at the next refresh.
 		var priorIdp *string
-		_ = db.GetDB().QueryRow(
+		if err := db.GetDB().QueryRow(
 			`SELECT idp_session_id FROM sessions WHERE refresh_token = ?`,
 			request.RefreshToken,
-		).Scan(&priorIdp)
+		).Scan(&priorIdp); err != nil {
+			slog.Warn("token: failed to look up prior IdP session for refresh token", "error", err)
+		}
 		if priorIdp != nil {
 			idpSessionID = *priorIdp
 		}
 		// RFC 6819 §5.2.2.3 / OAuth 2.1 §6.1: rotate refresh token — revoke old, issue new.
 		// The old token is invalidated so it cannot be reused. If a revoked token is
 		// later presented, UserByRefreshToken detects the replay and revokes all user tokens.
-		_, _ = db.GetDB().Exec(
+		if _, err := db.GetDB().Exec(
 			`UPDATE tokens SET revoked_at = ? WHERE refresh_token = ? AND revoked_at IS NULL`,
 			time.Now().UTC(), request.RefreshToken,
-		)
+		); err != nil {
+			slog.Error("token: failed to revoke old refresh token during rotation", "error", err)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to rotate refresh token")
+			return
+		}
 		// RFC 6749 §5.1: scope must be included in the response when it may differ
 		// from what the client originally requested. Look up the scope and issued_at
 		// stored with the original token.
 		var tokenScope string
 		var tokenIssuedAt time.Time
-		_ = db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt)
+		if err := db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt); err != nil {
+			slog.Warn("token: failed to read scope/issued_at from original token", "error", err)
+		}
 		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
 		// authentication time, not the refresh time.
 		if !tokenIssuedAt.IsZero() {

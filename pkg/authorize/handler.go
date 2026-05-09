@@ -40,7 +40,9 @@ import (
 func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// Support both GET (query string) and POST (form body) per OIDC Core §3.1.2.1
 	if r.Method == http.MethodPost {
-		_ = r.ParseForm()
+		if err := r.ParseForm(); err != nil {
+			slog.Warn("authorize: failed to parse POST form", "error", err)
+		}
 	}
 	get := func(key string) string {
 		if r.Method == http.MethodPost {
