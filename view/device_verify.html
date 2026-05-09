@@ -1,0 +1,15 @@
+{{define "title"}}{{.ThemeTitle}} - Device Verification{{end}}
+
+{{define "content"}}
+<form class="auth-card" method="POST" action="{{authURL "/device"}}">
+  {{template "logo" .}}
+  <h1 class="auth-title">Device Verification</h1>
+  <p class="auth-text-muted">Enter the code displayed on your device</p>
+  {{ .csrfField }}
+  <input type="hidden" name="action" value="verify" />
+  {{if .Error}}<p class="auth-error">{{.Error}}</p>{{end}}
+  <label class="auth-label" for="user_code">Device Code</label>
+  <input class="auth-input" type="text" id="user_code" name="user_code" value="{{.UserCode}}" placeholder="XXXX-XXXX" maxlength="9" autocomplete="off" autofocus required />
+  <button class="auth-btn" type="submit">Continue</button>
+</form>
+{{end}}

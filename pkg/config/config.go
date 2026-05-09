@@ -130,6 +130,10 @@ type Config struct {
 	AllowUsernameChange bool
 	// When false (default), users cannot change their own email via the account portal.
 	AllowEmailChange bool
+	// Device Authorization Grant (RFC 8628)
+	DeviceCodeExpiration        time.Duration
+	DeviceCodeExpirationStr     string
+	DeviceCodePollingInterval   int
 	// CORS: parsed from the "cors_allowed_origins" runtime setting.
 	CORSAllowedOrigins []string
 	CORSAllowAll       bool
@@ -192,6 +196,9 @@ var defaultConfig = Config{
 	ValidationMaxUsernameLength:        64,
 	ValidationMinPasswordLength:        6,
 	ValidationMaxPasswordLength:        64,
+	DeviceCodeExpiration:                10 * time.Minute,
+	DeviceCodeExpirationStr:             "10m",
+	DeviceCodePollingInterval:           5,
 	Theme:                              ThemeConfig{Title: "Autentico"},
 	AllowSelfServiceDeletion:           false,
 	AllowUsernameChange:                false,

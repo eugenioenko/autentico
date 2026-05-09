@@ -64,7 +64,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		},
 		// RFC 8414 §2: OPTIONAL (default: ["authorization_code", "implicit"]).
 		// We explicitly list supported types to override the default.
-		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password", "client_credentials"},
+		GrantTypesSupported:       []string{"authorization_code", "refresh_token", "password", "client_credentials", "urn:ietf:params:oauth:grant-type:device_code"},
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
 		// RFC 8414 §2: OPTIONAL endpoint metadata
@@ -74,6 +74,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		RevocationEndpointAuthMethodsSupported:    []string{"client_secret_basic", "client_secret_post"},
 		CodeChallengeMethodsSupported:             []string{"S256"}, // RFC 7636 §6.2
 		PromptValuesSupported:         []string{"none", "login", "create"},
+		DeviceAuthorizationEndpoint:   fmt.Sprintf("%s/device_authorization", issuer),
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

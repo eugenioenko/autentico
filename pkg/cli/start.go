@@ -28,6 +28,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/deletion"
+	"github.com/eugenioenko/autentico/pkg/devicecode"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/group"
@@ -154,6 +155,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
 	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))
 	mux.Handle("POST "+oauth+"/protocol/openid-connect/token", rateLimitedFunc(token.HandleToken))
+	mux.Handle("POST "+oauth+"/device_authorization", rateLimitedFunc(devicecode.HandleDeviceAuthorization))
+	mux.Handle(oauth+"/device", rateLimited(csrfProtected(devicecode.HandleDeviceVerification)))
 	mux.Handle("POST "+oauth+"/revoke", rateLimitedFunc(revoke.HandleRevoke))
 	mux.Handle("POST "+oauth+"/introspect", rateLimitedFunc(introspect.HandleIntrospect))
 	mux.Handle(oauth+"/userinfo", rateLimitedFunc(userinfo.HandleUserInfo))
