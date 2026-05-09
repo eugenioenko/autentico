@@ -30,6 +30,15 @@ func ConsumeDeviceCode(code string) error {
 	return err
 }
 
+// RFC 8628 §3.5: slow_down increments the polling interval by 5 seconds
+func IncrementInterval(code string) error {
+	_, err := db.GetDB().Exec(
+		`UPDATE device_codes SET interval_seconds = interval_seconds + 5 WHERE code = ?`,
+		code,
+	)
+	return err
+}
+
 func UpdateLastPolledAt(code string, t time.Time) error {
 	_, err := db.GetDB().Exec(
 		`UPDATE device_codes SET last_polled_at = ? WHERE code = ?`,

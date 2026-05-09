@@ -112,8 +112,9 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		Interval:                cfg.DeviceCodePollingInterval,
 	}
 
-	// RFC 8628 §3.2: response MUST NOT be cached
+	// RFC 8628 §3.2 / RFC 6749 §5.1: response MUST NOT be cached
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	utils.WriteApiResponse(w, resp, http.StatusOK)
 }
 

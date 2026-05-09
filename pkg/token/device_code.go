@@ -44,6 +44,7 @@ func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request Token
 		if elapsed < time.Duration(dc.IntervalSeconds)*time.Second {
 			// RFC 8628 §3.5: slow_down adds 5 seconds to the interval
 			_ = devicecode.UpdateLastPolledAt(dc.Code, time.Now())
+			_ = devicecode.IncrementInterval(dc.Code)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "slow_down", "Polling too frequently")
 			return nil, "", errGrantHandled
 		}
