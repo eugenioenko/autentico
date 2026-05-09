@@ -36,17 +36,17 @@ import (
 // Param state formData string false "OAuth2 state"
 // Success 302 "Redirect back to client with code"
 func HandleSignup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		view.RenderError(w, r, http.StatusNotFound, "Page not found.")
+		return
+	}
+
 	if !config.Get().AuthAllowSelfSignup {
 		http.NotFound(w, r)
 		return
 	}
 
-	switch r.Method {
-	case http.MethodPost:
-		handleSignupPost(w, r)
-	default:
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
-	}
+	handleSignupPost(w, r)
 }
 
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
@@ -303,3 +303,4 @@ func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupPa
 	q.Set("code_challenge_method", params.CodeChallengeMethod)
 	http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/authorize?"+q.Encode(), http.StatusFound)
 }
+

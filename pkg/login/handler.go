@@ -22,6 +22,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/eugenioenko/autentico/view"
 )
 
 const mfaChallengeExpiration = 10 * time.Minute
@@ -42,7 +43,7 @@ const mfaChallengeExpiration = 10 * time.Minute
 // Failure 500 model.ApiError
 func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
+		view.RenderError(w, r, http.StatusMethodNotAllowed, "This page can only be accessed through the login flow.")
 		return
 	}
 
@@ -299,3 +300,4 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
+
