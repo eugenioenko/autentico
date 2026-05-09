@@ -41,7 +41,7 @@ func buildEmailHTML(title, preheader string, bodyHTML template.HTML) (string, er
 
 	logoURL := cfg.Theme.LogoUrl
 	if logoURL == "" {
-		logoURL = bs.AppURL + "/oauth2/static/logo.svg"
+		logoURL = bs.AppURL + bs.AppOAuthPath + "/static/logo.svg"
 	}
 
 	brandColor := cfg.Theme.BrandColor

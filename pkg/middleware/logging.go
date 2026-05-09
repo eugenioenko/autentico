@@ -4,18 +4,30 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 )
 
-var silentPrefixes = []string{
-	"/admin/assets/",
-	"/account/assets/",
-	"/oauth2/static/",
-	"/admin/favicon.svg",
-	"/account/favicon.svg",
-	"/.well-known/appspecific/",
+var (
+	silentPrefixes     []string
+	silentPrefixesOnce sync.Once
+)
+
+func getSilentPrefixes() []string {
+	silentPrefixesOnce.Do(func() {
+		silentPrefixes = []string{
+			"/admin/assets/",
+			"/account/assets/",
+			config.GetBootstrap().AppOAuthPath + "/static/",
+			"/admin/favicon.svg",
+			"/account/favicon.svg",
+			"/.well-known/appspecific/",
+		}
+	})
+	return silentPrefixes
 }
 
 type responseWriter struct {
@@ -34,7 +46,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		// These are fixed mount points — no API or auth paths share these prefixes.
 		if r.Method == http.MethodGet {
 			p := r.URL.Path
-			for _, prefix := range silentPrefixes {
+			for _, prefix := range getSilentPrefixes() {
 				if strings.HasPrefix(p, prefix) {
 					next.ServeHTTP(w, r)
 					return
