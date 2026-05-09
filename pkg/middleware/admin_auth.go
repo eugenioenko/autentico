@@ -45,7 +45,7 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
 		// Enforce that the token was issued for the admin API.
 		// Tokens from the autentico-admin client naturally include "autentico-admin" in aud.
 		// Other clients can be granted access by adding "autentico-admin" to their allowed_audiences.
-		if err := jwtutil.ValidateAudience(claims.Audience, []string{"autentico-admin"}); err != nil {
+		if err := jwtutil.ValidateAudience(claims.Audience, []string{config.AdminClientID}); err != nil {
 			slog.Warn("admin_auth: token not issued for admin API", "aud", claims.Audience, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Token not issued for admin API")
 			return

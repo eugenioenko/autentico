@@ -23,7 +23,7 @@ func generateTestAccessToken(userID string) (string, error) {
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
 		"iss":   config.GetBootstrap().AppAuthIssuer,
-		"aud":   []string{config.GetBootstrap().AppAuthIssuer, "autentico-admin"},
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, config.AdminClientID},
 		"sub":   userID,
 		"typ":   "Bearer",
 		"sid":   xid.New().String(),
@@ -193,7 +193,7 @@ func TestAdminAuthMiddleware_TokenFromOtherClient(t *testing.T) {
 	`, userID, "adminuser", "admin@example.com", "hashedpassword", "admin")
 	assert.NoError(t, err)
 
-	// Generate a token as if issued by "attacker-client" — aud does NOT include "autentico-admin"
+	// Generate a token as if issued by "attacker-client" — aud does NOT include config.AdminClientID
 	accessTokenExpiresAt := time.Now().Add(config.Get().AuthAccessTokenExpiration).UTC()
 	accessClaims := jwt.MapClaims{
 		"exp":   accessTokenExpiresAt.Unix(),

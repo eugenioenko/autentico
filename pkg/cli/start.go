@@ -328,9 +328,8 @@ func RunStart(c *cli.Context) error {
 // When enablePasswordGrant is true, "password" is included in grant_types so the client
 // can issue admin-API tokens headlessly for CI automation (RFC 6749 §4.3 / ROPC).
 func seedAdminClient(enablePasswordGrant bool) {
-	const adminClientID = "autentico-admin"
-	const adminClientName = "Autentico Admin UI"
-	if existing, err := client.ClientByClientID(adminClientID); err == nil && existing != nil {
+	const clientName = "Autentico Admin UI"
+	if existing, err := client.ClientByClientID(config.AdminClientID); err == nil && existing != nil {
 		return
 	}
 	grantTypes := []string{"authorization_code", "refresh_token"}
@@ -338,8 +337,8 @@ func seedAdminClient(enablePasswordGrant bool) {
 		grantTypes = append(grantTypes, "password")
 	}
 	redirectURI := config.GetBootstrap().AppURL + "/admin/callback"
-	if _, err := client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
-		ClientName:              adminClientName,
+	if _, err := client.CreateClientWithID(config.AdminClientID, client.ClientCreateRequest{
+		ClientName:              clientName,
 		RedirectURIs:            []string{redirectURI},
 		GrantTypes:              grantTypes,
 		ResponseTypes:           []string{"code"},
@@ -353,9 +352,8 @@ func seedAdminClient(enablePasswordGrant bool) {
 
 // seedAccountClient creates the autentico-account OAuth2 client if it does not already exist.
 func seedAccountClient() {
-	const clientID = "autentico-account"
-	const clientName = "Autentico Account UI"
-	if existing, err := client.ClientByClientID(clientID); err == nil && existing != nil {
+	const accountClientName = "Autentico Account UI"
+	if existing, err := client.ClientByClientID(config.AccountClientID); err == nil && existing != nil {
 		return
 	}
 	baseURL := config.GetBootstrap().AppURL
@@ -363,8 +361,8 @@ func seedAccountClient() {
 	postLogoutURI := baseURL + "/account/"
 	ssoTimeout := "24h"
 
-	if _, err := client.CreateClientWithID(clientID, client.ClientCreateRequest{
-		ClientName:              clientName,
+	if _, err := client.CreateClientWithID(config.AccountClientID, client.ClientCreateRequest{
+		ClientName:              accountClientName,
 		RedirectURIs:            []string{redirectURI},
 		PostLogoutRedirectURIs:  []string{postLogoutURI},
 		GrantTypes:              []string{"authorization_code", "refresh_token"},

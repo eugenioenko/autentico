@@ -22,7 +22,7 @@ func generateAccountTestAccessToken(userID string) (string, error) {
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
 		"iss":   config.GetBootstrap().AppAuthIssuer,
-		"aud":   []string{config.GetBootstrap().AppAuthIssuer, "autentico-account"},
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, config.AccountClientID},
 		"sub":   userID,
 		"typ":   "Bearer",
 		"sid":   xid.New().String(),

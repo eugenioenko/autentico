@@ -46,7 +46,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		// Tokens from autentico-account naturally include "autentico-account" in aud.
 		// Tokens from autentico-admin are also accepted for admin convenience.
 		// Other clients can be granted access by adding "autentico-account" to their allowed_audiences.
-		if err := jwtutil.ValidateAudience(claims.Audience, []string{"autentico-account", "autentico-admin"}); err != nil {
+		if err := jwtutil.ValidateAudience(claims.Audience, []string{config.AccountClientID, config.AdminClientID}); err != nil {
 			slog.Warn("account_auth: token not issued for account API", "aud", claims.Audience, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Token not issued for account API")
 			return

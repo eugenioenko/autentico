@@ -9,6 +9,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	AdminClientID   = "autentico-admin"
+	AccountClientID = "autentico-account"
+)
+
 // BootstrapConfig holds immutable infrastructure settings loaded from environment
 // variables at startup. AppDomain, AppHost, AppPort, and AppAuthIssuer are derived
 // from AppURL and AppOAuthPath — they are not read from env vars directly.
