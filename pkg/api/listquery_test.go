@@ -138,3 +138,107 @@ func TestBuildListQuery_SearchAndFilter(t *testing.T) {
 	assert.Contains(t, result.Where, " AND ")
 	assert.Len(t, result.Args, 3)
 }
+
+// --- ParseDateRange validation tests ---
+
+func TestParseDateRange_ValidRange(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-01-01&created_at_to=2024-12-31", nil)
+	where, args, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, where, "u.created_at >= ?")
+	assert.Contains(t, where, "u.created_at <= ?")
+	assert.Len(t, args, 2)
+	assert.Equal(t, "2024-01-01", args[0])
+	assert.Equal(t, "2024-12-31", args[1])
+}
+
+func TestParseDateRange_ValidRFC3339(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-01-01T00:00:00Z&created_at_to=2024-12-31T23:59:59Z", nil)
+	where, args, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, where, "u.created_at >= ?")
+	assert.Contains(t, where, "u.created_at <= ?")
+	assert.Len(t, args, 2)
+}
+
+func TestParseDateRange_ValidDatetimeNoTimezone(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-01-01T00:00:00&created_at_to=2024-12-31T23:59:59", nil)
+	_, _, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+}
+
+func TestParseDateRange_InvalidFromFormat(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=not-a-date", nil)
+	_, _, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid created_at_from")
+	assert.Contains(t, err.Error(), "invalid date format")
+}
+
+func TestParseDateRange_InvalidToFormat(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_to=2024/01/01", nil)
+	_, _, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid created_at_to")
+}
+
+func TestParseDateRange_InvertedRange(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-12-31&created_at_to=2024-01-01", nil)
+	_, _, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "is after")
+}
+
+func TestParseDateRange_OnlyFrom(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-06-15", nil)
+	where, args, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, where, "u.created_at >= ?")
+	assert.NotContains(t, where, "u.created_at <= ?")
+	assert.Len(t, args, 1)
+}
+
+func TestParseDateRange_OnlyTo(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_to=2024-06-15", nil)
+	where, args, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+	assert.NotContains(t, where, "u.created_at >= ?")
+	assert.Contains(t, where, "u.created_at <= ?")
+	assert.Len(t, args, 1)
+}
+
+func TestParseDateRange_EqualFromAndTo(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet,
+		"/items?created_at_from=2024-06-15&created_at_to=2024-06-15", nil)
+	where, args, err := ParseDateRange(req, map[string]string{
+		"created_at": "u.created_at",
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, where, "u.created_at >= ?")
+	assert.Contains(t, where, "u.created_at <= ?")
+	assert.Len(t, args, 2)
+}

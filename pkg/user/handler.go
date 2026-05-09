@@ -282,9 +282,13 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	if groupName := r.URL.Query().Get("group"); groupName != "" {
 		params.Filters["group"] = groupName
 	}
-	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+	dateWhere, dateArgs, dateErr := api.ParseDateRange(r, map[string]string{
 		"created_at": "users.created_at",
 	})
+	if dateErr != nil {
+		utils.ErrorResponse(w, dateErr.Error(), http.StatusBadRequest)
+		return
+	}
 
 	users, total, err := ListUsersWithParams(params, dateWhere, dateArgs)
 	if err != nil {

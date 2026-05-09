@@ -63,9 +63,13 @@ func tokenRowToResponse(r TokenRow) AdminTokenResponse {
 // @Router /admin/api/tokens [get]
 func HandleListTokens(w http.ResponseWriter, r *http.Request) {
 	params := api.ParseListParams(r)
-	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+	dateWhere, dateArgs, dateErr := api.ParseDateRange(r, map[string]string{
 		"issued_at": "t.issued_at",
 	})
+	if dateErr != nil {
+		utils.ErrorResponse(w, dateErr.Error(), http.StatusBadRequest)
+		return
+	}
 
 	tokens, total, err := ListTokensWithParams(params, dateWhere, dateArgs)
 	if err != nil {

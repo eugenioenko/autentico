@@ -60,10 +60,14 @@ func deviceRowsToResponse(devices []DeviceRow) []IdpSessionResponse {
 // @Router /admin/api/idp-sessions [get]
 func HandleListIdpSessions(w http.ResponseWriter, r *http.Request) {
 	params := api.ParseListParams(r)
-	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+	dateWhere, dateArgs, dateErr := api.ParseDateRange(r, map[string]string{
 		"created_at":       "s.created_at",
 		"last_activity_at": "s.last_activity_at",
 	})
+	if dateErr != nil {
+		utils.ErrorResponse(w, dateErr.Error(), http.StatusBadRequest)
+		return
+	}
 
 	devices, total, err := ListIdpSessionsWithParams(params, dateWhere, dateArgs)
 	if err != nil {

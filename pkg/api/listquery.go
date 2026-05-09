@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const DefaultMaxLimit = 100
@@ -58,19 +59,56 @@ func ParseFilters(r *http.Request, allowed map[string]bool) map[string]string {
 	return filters
 }
 
+// dateFormats lists the accepted date/datetime formats in order of preference.
+var dateFormats = []string{
+	time.RFC3339,            // 2006-01-02T15:04:05Z07:00
+	"2006-01-02T15:04:05",  // datetime without timezone
+	"2006-01-02",           // date only
+}
+
+// parseDate attempts to parse a date string using the accepted formats.
+// Returns the parsed time and nil error on success, or zero time and an error.
+func parseDate(value string) (time.Time, error) {
+	for _, layout := range dateFormats {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid date format: expected ISO 8601 (e.g. 2006-01-02 or 2006-01-02T15:04:05Z)")
+}
+
 // ParseDateRange reads "{param}_from" and "{param}_to" from the query string
 // for each entry in columns (param prefix → qualified SQL column).
 // Returns a WHERE fragment (with leading " AND ") and bound args.
-func ParseDateRange(r *http.Request, columns map[string]string) (where string, args []any) {
+// Returns an error if any date value is not a valid ISO 8601 date/datetime,
+// or if _from is after _to for the same parameter.
+func ParseDateRange(r *http.Request, columns map[string]string) (where string, args []any, err error) {
 	var conditions []string
 	for param, col := range columns {
-		if from := r.URL.Query().Get(param + "_from"); from != "" {
+		fromStr := r.URL.Query().Get(param + "_from")
+		toStr := r.URL.Query().Get(param + "_to")
+
+		var fromTime, toTime time.Time
+
+		if fromStr != "" {
+			fromTime, err = parseDate(fromStr)
+			if err != nil {
+				return "", nil, fmt.Errorf("invalid %s_from: %w", param, err)
+			}
 			conditions = append(conditions, col+" >= ?")
-			args = append(args, from)
+			args = append(args, fromStr)
 		}
-		if to := r.URL.Query().Get(param + "_to"); to != "" {
+		if toStr != "" {
+			toTime, err = parseDate(toStr)
+			if err != nil {
+				return "", nil, fmt.Errorf("invalid %s_to: %w", param, err)
+			}
 			conditions = append(conditions, col+" <= ?")
-			args = append(args, to)
+			args = append(args, toStr)
+		}
+
+		if fromStr != "" && toStr != "" && fromTime.After(toTime) {
+			return "", nil, fmt.Errorf("invalid date range: %s_from (%s) is after %s_to (%s)", param, fromStr, param, toStr)
 		}
 	}
 	if len(conditions) > 0 {
