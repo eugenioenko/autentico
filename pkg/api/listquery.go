@@ -74,7 +74,7 @@ func parseDate(value string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("invalid date format %q: expected ISO 8601 (e.g. 2006-01-02 or 2006-01-02T15:04:05Z)", value)
+	return time.Time{}, fmt.Errorf("invalid date format: expected ISO 8601 (e.g. 2006-01-02 or 2006-01-02T15:04:05Z)")
 }
 
 // ParseDateRange reads "{param}_from" and "{param}_to" from the query string
