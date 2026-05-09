@@ -217,7 +217,7 @@ func RunStart(c *cli.Context) error {
 	// -------------------------------------------------------------------------
 	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
 	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
-	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
+	mux.Handle("POST /account/api/password", rateLimitedFunc(account.HandleUpdatePassword))
 	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
 	mux.HandleFunc("POST /account/api/sessions/revoke-others", account.HandleRevokeOtherSessions)
@@ -229,7 +229,7 @@ func RunStart(c *cli.Context) error {
 	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
 	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
 	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
-	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	mux.Handle("DELETE /account/api/mfa/totp", rateLimitedFunc(account.HandleDeleteMfa))
 	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
 	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
 	mux.HandleFunc("GET /account/api/connected-providers", account.HandleListConnectedProviders)

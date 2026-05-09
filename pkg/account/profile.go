@@ -2,6 +2,7 @@ package account
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // HandleGetProfile godoc
@@ -162,8 +162,11 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify current password
-	if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.CurrentPassword)); err != nil {
+	if err := user.VerifyPassword(usr.ID, req.CurrentPassword); err != nil {
+		if errors.Is(err, user.ErrAccountLocked) {
+			utils.WriteErrorResponse(w, http.StatusTooManyRequests, "account_locked", "Account is temporarily locked")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
 		return
 	}

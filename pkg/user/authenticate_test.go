@@ -9,6 +9,8 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestAuthenticateUser(t *testing.T) {
@@ -163,9 +165,126 @@ func TestAuthenticateUser_LockoutDirect(t *testing.T) {
 
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAccountLockoutMaxAttempts = 5
-		
+
 		_, err := AuthenticateUser(username, "any")
 		assert.Error(t, err)
 		assert.Equal(t, ErrAccountLocked, err)
 	})
+}
+
+func createTestUserWithPassword(t *testing.T, id, password string) *User {
+	t.Helper()
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(
+		`INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`,
+		id, id, id+"@test.com", string(hashed),
+	)
+	require.NoError(t, err)
+	usr, err := UserByID(id)
+	require.NoError(t, err)
+	return usr
+}
+
+func TestVerifyPasswordWithLockout_CorrectPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	usr := createTestUserWithPassword(t, "u1", "secret")
+
+	err := verifyPasswordWithLockout(usr, "secret")
+	assert.NoError(t, err)
+}
+
+func TestVerifyPasswordWithLockout_WrongPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	usr := createTestUserWithPassword(t, "u1", "secret")
+
+	err := verifyPasswordWithLockout(usr, "wrong")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid password")
+}
+
+func TestVerifyPasswordWithLockout_IncrementsFailedAttempts(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 5
+		config.Values.AuthAccountLockoutDuration = 15 * time.Minute
+	})
+	usr := createTestUserWithPassword(t, "u1", "secret")
+
+	_ = verifyPasswordWithLockout(usr, "wrong")
+
+	updated, _ := UserByID("u1")
+	assert.Equal(t, 1, updated.FailedLoginAttempts)
+}
+
+func TestVerifyPasswordWithLockout_LocksAfterMaxAttempts(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 3
+		config.Values.AuthAccountLockoutDuration = 15 * time.Minute
+	})
+	createTestUserWithPassword(t, "u1", "secret")
+
+	for i := 0; i < 3; i++ {
+		usr, _ := UserByID("u1")
+		_ = verifyPasswordWithLockout(usr, "wrong")
+	}
+
+	usr, _ := UserByID("u1")
+	err := verifyPasswordWithLockout(usr, "secret")
+	assert.ErrorIs(t, err, ErrAccountLocked)
+}
+
+func TestVerifyPasswordWithLockout_ResetsOnSuccess(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 5
+		config.Values.AuthAccountLockoutDuration = 15 * time.Minute
+	})
+	createTestUserWithPassword(t, "u1", "secret")
+
+	for i := 0; i < 3; i++ {
+		usr, _ := UserByID("u1")
+		_ = verifyPasswordWithLockout(usr, "wrong")
+	}
+
+	usr, _ := UserByID("u1")
+	err := verifyPasswordWithLockout(usr, "secret")
+	assert.NoError(t, err)
+
+	updated, _ := UserByID("u1")
+	assert.Equal(t, 0, updated.FailedLoginAttempts)
+	assert.Nil(t, updated.LockedUntil)
+}
+
+func TestVerifyPasswordWithLockout_AlreadyLocked(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 5
+	})
+	usr := createTestUserWithPassword(t, "u1", "secret")
+
+	lockUntil := time.Now().Add(1 * time.Hour)
+	_, _ = db.GetDB().Exec(`UPDATE users SET locked_until = ? WHERE id = ?`, lockUntil, usr.ID)
+	usr, _ = UserByID("u1")
+
+	err := verifyPasswordWithLockout(usr, "secret")
+	assert.ErrorIs(t, err, ErrAccountLocked)
+}
+
+func TestVerifyPasswordWithLockout_LockoutDisabled(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AuthAccountLockoutMaxAttempts = 0
+	})
+	createTestUserWithPassword(t, "u1", "secret")
+
+	for i := 0; i < 20; i++ {
+		usr, _ := UserByID("u1")
+		_ = verifyPasswordWithLockout(usr, "wrong")
+	}
+
+	usr, _ := UserByID("u1")
+	err := verifyPasswordWithLockout(usr, "secret")
+	assert.NoError(t, err)
 }

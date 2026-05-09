@@ -183,7 +183,7 @@ describe('TOTP disable requires OTP code', () => {
     await setupAndVerifyTotp(userToken);
 
     const resp = await deleteWithBody(`${ACCOUNT_API}/mfa/totp`, { current_password: 'Password123!' }, userToken);
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(403);
   });
 
   it('rejects disable with wrong TOTP code', async () => {
