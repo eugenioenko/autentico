@@ -22,7 +22,6 @@ func TestHandleGetMfaStatus(t *testing.T) {
 
 	// Enabled
 	_, _ = db.GetDB().Exec("UPDATE users SET totp_verified = TRUE WHERE id = ?", usr.ID)
-	info = refreshAuthInfo(t, info)
 
 	rr := mockAuthRequest(t, "", "GET", "/account/mfa/status", HandleGetMfaStatus, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -38,7 +37,7 @@ func TestHandleVerifyTotp(t *testing.T) {
 	secret := currUser.TotpSecret
 	code, _ := totp.GenerateCode(secret, time.Now())
 
-	info = refreshAuthInfo(t, info)
+
 	verifyReq := TotpVerifyRequest{Code: code}
 	body, _ := json.Marshal(verifyReq)
 	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, info)
@@ -57,7 +56,7 @@ func TestHandleVerifyTotp_Errors(t *testing.T) {
 
 	// Invalid code
 	_ = user.StoreTotpSecretPending(usr.ID, "dummy")
-	info = refreshAuthInfo(t, info)
+
 	rr = mockAuthRequest(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
@@ -69,7 +68,7 @@ func TestHandleDeleteMfa(t *testing.T) {
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	secret := "JBSWY3DPEHPK3PXP"
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = ?, totp_verified = TRUE WHERE id = ?", string(hashedPassword), secret, usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: code}
@@ -84,7 +83,7 @@ func TestHandleDeleteMfa_NoCode(t *testing.T) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(deleteReq)
@@ -98,7 +97,7 @@ func TestHandleDeleteMfa_InvalidCode(t *testing.T) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: "000000"}
 	body, _ := json.Marshal(deleteReq)
@@ -113,7 +112,7 @@ func TestHandleDeleteMfa_NoPassword(t *testing.T) {
 	// User has no password (passkey-only) but has TOTP
 	secret := "JBSWY3DPEHPK3PXP"
 	_, _ = db.GetDB().Exec("UPDATE users SET password = '', totp_secret = ?, totp_verified = TRUE WHERE id = ?", secret, usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{Code: code}
@@ -135,7 +134,7 @@ func TestHandleDeleteMfa_WrongPassword(t *testing.T) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	req := DisableMfaRequest{CurrentPassword: "wrong"}
 	body, _ := json.Marshal(req)
@@ -149,7 +148,7 @@ func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	cases := []DisableMfaRequest{
 		{CurrentPassword: "wrong", Code: "000000"},
@@ -186,7 +185,7 @@ func TestHandleMfaFlow(t *testing.T) {
 	// Set a valid hashed password for AuthenticateUser to work
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashed), u.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	// 1. Get MFA Status
 	rr := mockAuthRequest(t, "", "GET", "/account/api/mfa/status", HandleGetMfaStatus, info)
@@ -207,7 +206,7 @@ func TestHandleMfaFlow(t *testing.T) {
 	assert.NotEmpty(t, setupResp.Data.Secret)
 
 	// 3. Verify TOTP (valid code)
-	info = refreshAuthInfo(t, info)
+
 	code, _ := totp.GenerateCode(setupResp.Data.Secret, time.Now())
 	verifyReq := TotpVerifyRequest{Code: code}
 	body, _ := json.Marshal(verifyReq)
@@ -215,7 +214,7 @@ func TestHandleMfaFlow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// 4. Verify status again
-	info = refreshAuthInfo(t, info)
+
 	rr = mockAuthRequest(t, "", "GET", "/account/api/mfa/status", HandleGetMfaStatus, info)
 	err = json.Unmarshal(rr.Body.Bytes(), &statusResp)
 	require.NoError(t, err)
@@ -236,7 +235,7 @@ func TestHandleSetupTotp_AlreadyEnrolled(t *testing.T) {
 
 	// Mark TOTP as verified
 	_, _ = db.GetDB().Exec("UPDATE users SET totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", usr.ID)
-	info = refreshAuthInfo(t, info)
+
 
 	rr := mockAuthRequest(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
 	assert.Equal(t, http.StatusConflict, rr.Code)
@@ -275,7 +274,10 @@ func TestHandleDeleteMfa_DbError(t *testing.T) {
 	// Set a valid hashed password and TOTP so the handler proceeds past validation
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashed), u.ID)
-	info = refreshAuthInfo(t, info)
+
+	// Refresh before closing DB so context has the updated user
+	freshUsr, _ := user.UserByID(u.ID)
+	info.User = freshUsr
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password123"}
 	body, _ := json.Marshal(deleteReq)

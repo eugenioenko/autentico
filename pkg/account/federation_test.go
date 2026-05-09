@@ -10,6 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
+	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,12 +70,14 @@ func TestHandleDisconnectProvider_Lockout(t *testing.T) {
 
 	// No password
 	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
-	info = refreshAuthInfo(t, info)
 
 	_, _ = db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Google', 'iss', 'c1', 's1')`)
 	_ = federation.CreateFederatedIdentity(federation.FederatedIdentity{ProviderID: "p1", ProviderUserID: "sub1", UserID: usr.ID})
 	identities, _ := federation.FederatedIdentitiesByUserID(usr.ID)
 	fiID := identities[0].ID
+
+	freshUsr, _ := user.UserByID(usr.ID)
+	info.User = freshUsr
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", HandleDisconnectProvider)

@@ -66,24 +66,22 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User, *middleware.Auth
 	return tokenString, usr, info
 }
 
-func mockAuthRequest(_ *testing.T, body, method, url string, handler http.HandlerFunc, info *middleware.AuthInfo) *httptest.ResponseRecorder {
+func mockAuthRequest(t *testing.T, body, method, url string, handler http.HandlerFunc, info *middleware.AuthInfo) *httptest.ResponseRecorder {
+	t.Helper()
 	req := httptest.NewRequest(method, url, bytes.NewBuffer([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 	if info != nil {
+		if usr, err := user.UserByID(info.User.ID); err == nil {
+			info = &middleware.AuthInfo{
+				User:    usr,
+				Token:   info.Token,
+				Claims:  info.Claims,
+				Session: info.Session,
+			}
+		}
 		req = middleware.WithAuthInfo(req, info)
 	}
 	rr := httptest.NewRecorder()
 	handler(rr, req)
 	return rr
-}
-
-func refreshAuthInfo(t *testing.T, info *middleware.AuthInfo) *middleware.AuthInfo {
-	usr, err := user.UserByID(info.User.ID)
-	assert.NoError(t, err)
-	return &middleware.AuthInfo{
-		User:    usr,
-		Token:   info.Token,
-		Claims:  info.Claims,
-		Session: info.Session,
-	}
 }
