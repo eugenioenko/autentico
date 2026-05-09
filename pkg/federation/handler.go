@@ -30,6 +30,10 @@ import (
 // directly to the URL, treating the SVG as a top-level document.
 func HandleFederationIcon(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
+	if providerID == "" {
+		http.NotFound(w, r)
+		return
+	}
 	provider, err := FederationProviderByID(providerID)
 	if err != nil || !provider.Enabled || !provider.IconSVG.Valid || provider.IconSVG.String == "" {
 		http.NotFound(w, r)
@@ -116,6 +120,10 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 // resolves the local user, and issues an authorization code.
 func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
+	if providerID == "" {
+		http.Error(w, "missing provider id", http.StatusBadRequest)
+		return
+	}
 	q := r.URL.Query()
 
 	rawState := q.Get("state")
