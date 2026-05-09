@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -174,7 +175,9 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	_, _ = db.GetDB().Exec(`DELETE FROM user_consents WHERE client_id = ?`, clientID)
+	if _, err := db.GetDB().Exec(`DELETE FROM user_consents WHERE client_id = ?`, clientID); err != nil {
+		slog.Error("client: failed to delete user consents for deleted client", "error", err, "client_id", clientID)
+	}
 	audit.Log(audit.EventClientDeleted, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }

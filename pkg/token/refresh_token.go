@@ -86,9 +86,12 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	if err == nil && revokedAt != nil {
 		slog.Warn("token: rotated refresh token replayed — revoking all user tokens",
 			"user_id", authToken.UserID)
-		_, _ = db.GetDB().Exec(
+		if _, err := db.GetDB().Exec(
 			`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`,
-			time.Now().UTC(), authToken.UserID)
+			time.Now().UTC(), authToken.UserID,
+		); err != nil {
+			slog.Error("token: failed to revoke all user tokens after replay detection", "error", err, "user_id", authToken.UserID)
+		}
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
 		return nil, fmt.Errorf("token has been revoked")
 	}

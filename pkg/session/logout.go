@@ -30,7 +30,9 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	// RP-Initiated Logout 1.0 §2: OPs MUST support the use of the HTTP GET and
 	// POST methods at the Logout Endpoint. If using POST, the request parameters
 	// are serialized using Form Serialization.
-	_ = r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		slog.Warn("session: failed to parse logout POST form", "error", err)
+	}
 	rpInitiatedLogout(w, r,
 		r.FormValue("id_token_hint"),
 		r.FormValue("post_logout_redirect_uri"),

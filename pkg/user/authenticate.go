@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -36,25 +37,31 @@ func verifyPasswordWithLockout(usr *User, password string) error {
 			newAttempts := usr.FailedLoginAttempts + 1
 			if newAttempts >= maxAttempts {
 				lockUntil := time.Now().Add(config.Get().AuthAccountLockoutDuration)
-				_, _ = db.GetDB().Exec(
+				if _, dbErr := db.GetDB().Exec(
 					`UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?`,
 					newAttempts, lockUntil, usr.ID,
-				)
+				); dbErr != nil {
+					slog.Error("user: failed to lock account after max attempts", "error", dbErr, "user_id", usr.ID)
+				}
 			} else {
-				_, _ = db.GetDB().Exec(
+				if _, dbErr := db.GetDB().Exec(
 					`UPDATE users SET failed_login_attempts = ? WHERE id = ?`,
 					newAttempts, usr.ID,
-				)
+				); dbErr != nil {
+					slog.Error("user: failed to increment failed login attempts", "error", dbErr, "user_id", usr.ID)
+				}
 			}
 		}
 		return fmt.Errorf("invalid password")
 	}
 
 	if maxAttempts > 0 && usr.FailedLoginAttempts > 0 {
-		_, _ = db.GetDB().Exec(
+		if _, dbErr := db.GetDB().Exec(
 			`UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`,
 			usr.ID,
-		)
+		); dbErr != nil {
+			slog.Error("user: failed to reset failed login attempts after successful login", "error", dbErr, "user_id", usr.ID)
+		}
 	}
 
 	return nil
@@ -106,10 +113,12 @@ func AuthenticateUser(username, password string) (*User, error) {
 		return nil, fmt.Errorf("invalid username or password")
 	}
 
-	_, _ = db.GetDB().Exec(
+	if _, err := db.GetDB().Exec(
 		`UPDATE users SET last_login = ? WHERE id = ?`,
 		time.Now(), user.ID,
-	)
+	); err != nil {
+		slog.Warn("user: failed to update last_login timestamp", "error", err, "user_id", user.ID)
+	}
 
 	return &user, nil
 }

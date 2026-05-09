@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -181,7 +182,10 @@ func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.T
 // regardless of email verification status. Used to prevent duplicate email assignment.
 func UserExistsByEmail(email string) bool {
 	var count int
-	_ = db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, strings.ToLower(email)).Scan(&count)
+	if err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deactivated_at IS NULL`, strings.ToLower(email)).Scan(&count); err != nil {
+		slog.Error("user: failed to check email existence", "error", err, "email", strings.ToLower(email))
+		return false
+	}
 	return count > 0
 }
 
