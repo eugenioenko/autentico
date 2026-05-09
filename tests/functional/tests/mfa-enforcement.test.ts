@@ -102,6 +102,7 @@ beforeAll(async () => {
       scopes: 'openid profile email offline_access',
       client_type: 'public',
       token_endpoint_auth_method: 'none',
+      allowed_audiences: ['autentico-account'],
     },
     adminToken
   );

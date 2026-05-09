@@ -6,6 +6,8 @@ export const ADMIN_PASSWORD = 'Password123!';
 export const ADMIN_EMAIL = 'admin@test.com';
 export const ADMIN_CLIENT_ID = 'autentico-admin';
 export const ADMIN_REDIRECT_URI = `http://localhost:${PORT}/admin/callback`;
+export const ACCOUNT_CLIENT_ID = 'autentico-account';
+export const ACCOUNT_REDIRECT_URI = `http://localhost:${PORT}/account/callback`;
 
 // RFC 7636 Appendix B test vectors for PKCE
 const TEST_CODE_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
@@ -97,7 +99,7 @@ export async function obtainAuthCodeSession(
   token_type: string;
   idpSessionCookie: string;
 }> {
-  return obtainTokenViaAuthCodeInternal(username, password, scope);
+  return obtainTokenViaAuthCodeInternal(ADMIN_CLIENT_ID, ADMIN_REDIRECT_URI, username, password, scope);
 }
 
 /**
@@ -109,11 +111,27 @@ export async function obtainTokenViaAuthCode(
   password: string,
   scope = 'openid profile email'
 ): Promise<{ access_token: string; refresh_token: string; id_token: string; token_type: string }> {
-  const { idpSessionCookie: _unused, ...tokens } = await obtainTokenViaAuthCodeInternal(username, password, scope);
+  const { idpSessionCookie: _unused, ...tokens } = await obtainTokenViaAuthCodeInternal(ADMIN_CLIENT_ID, ADMIN_REDIRECT_URI, username, password, scope);
+  return tokens;
+}
+
+/**
+ * Performs the authorization code flow using the autentico-account client.
+ * Use this for tests that hit /account/api/* endpoints, which require
+ * "autentico-account" or "autentico-admin" in the token audience.
+ */
+export async function obtainAccountToken(
+  username: string,
+  password: string,
+  scope = 'openid profile email'
+): Promise<{ access_token: string; refresh_token: string; id_token: string; token_type: string }> {
+  const { idpSessionCookie: _unused, ...tokens } = await obtainTokenViaAuthCodeInternal(ACCOUNT_CLIENT_ID, ACCOUNT_REDIRECT_URI, username, password, scope);
   return tokens;
 }
 
 async function obtainTokenViaAuthCodeInternal(
+  clientId: string,
+  redirectUri: string,
   username: string,
   password: string,
   scope: string
@@ -127,8 +145,8 @@ async function obtainTokenViaAuthCodeInternal(
   // Step 1: GET /authorize — renders login page with CSRF token
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
-  authorizeURL.searchParams.set('client_id', ADMIN_CLIENT_ID);
-  authorizeURL.searchParams.set('redirect_uri', ADMIN_REDIRECT_URI);
+  authorizeURL.searchParams.set('client_id', clientId);
+  authorizeURL.searchParams.set('redirect_uri', redirectUri);
   authorizeURL.searchParams.set('scope', scope);
   authorizeURL.searchParams.set('state', 'helper-state');
   authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
@@ -164,8 +182,8 @@ async function obtainTokenViaAuthCodeInternal(
       password,
       'gorilla.csrf.Token': csrfToken,
       authorize_sig: authorizeSig,
-      client_id: ADMIN_CLIENT_ID,
-      redirect_uri: ADMIN_REDIRECT_URI,
+      client_id: clientId,
+      redirect_uri: redirectUri,
       scope,
       state: 'helper-state',
       response_type: 'code',
@@ -195,8 +213,8 @@ async function obtainTokenViaAuthCodeInternal(
   const tokenResp = await postForm(`${OAUTH_URL}/token`, {
     grant_type: 'authorization_code',
     code,
-    redirect_uri: ADMIN_REDIRECT_URI,
-    client_id: ADMIN_CLIENT_ID,
+    redirect_uri: redirectUri,
+    client_id: clientId,
     code_verifier: TEST_CODE_VERIFIER,
   });
 

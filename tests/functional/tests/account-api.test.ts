@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_URL, obtainTokenViaROPC, postJSON, deleteRequest, getResponse } from '../helpers';
+import { BASE_URL, obtainAccountToken, obtainTokenViaROPC, postJSON, deleteRequest, getResponse } from '../helpers';
 
 const API = `${BASE_URL}/account/api/deletion-request`;
 
 describe('Account Self-Service — happy path', () => {
   it('requests account deletion', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const tokens = await obtainAccountToken('admin', 'Password123!');
 
     const resp = await postJSON(API, {}, tokens.access_token);
     expect(resp.status).toBe(201);
   });
 
   it('gets pending deletion request', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const tokens = await obtainAccountToken('admin', 'Password123!');
 
     const resp = await getResponse(API, tokens.access_token);
     expect(resp.ok).toBe(true);
@@ -22,14 +22,14 @@ describe('Account Self-Service — happy path', () => {
   });
 
   it('cancels deletion request', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const tokens = await obtainAccountToken('admin', 'Password123!');
 
     const resp = await deleteRequest(API, tokens.access_token);
     expect(resp.ok).toBe(true);
   });
 
   it('no pending request after cancel', async () => {
-    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const tokens = await obtainAccountToken('admin', 'Password123!');
 
     const resp = await getResponse(API, tokens.access_token);
     // After cancellation, there's no pending request — server may return 404 or empty
@@ -56,5 +56,14 @@ describe('Account Self-Service — error cases', () => {
   it('rejects DELETE without token', async () => {
     const resp = await deleteRequest(API);
     expect(resp.status).toBe(401);
+  });
+});
+
+describe('Account API — audience enforcement', () => {
+  it('rejects token from third-party client with 403', async () => {
+    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+
+    const resp = await getResponse(`${BASE_URL}/account/api/profile`, tokens.access_token);
+    expect(resp.status).toBe(403);
   });
 });

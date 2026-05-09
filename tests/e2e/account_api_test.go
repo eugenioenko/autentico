@@ -25,14 +25,14 @@ func TestAccountAPI_ProfileLifecycle(t *testing.T) {
 	createTestUser(t, username, password, username)
 
 	// 2. Perform login flow to get an access token
-	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, username, password, "state123")
+	code := performAuthorizationCodeFlow(t, ts, "autentico-account", redirectURI, username, password, "state123")
 
 	// 3. Exchange code for tokens
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
-	form.Set("client_id", "test-client")
+	form.Set("client_id", "autentico-account")
 	form.Set("code_verifier", testCodeVerifier)
 
 	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -102,4 +102,71 @@ func TestAccountAPI_ProfileLifecycle(t *testing.T) {
 	err = json.Unmarshal(body, &profileResp)
 	require.NoError(t, err)
 	assert.Equal(t, "NewGivenName", profileResp.Data.GivenName)
+}
+
+// TestAccountAPI_ThirdPartyTokenRejected verifies that a token issued to a
+// third-party client (test-client) is rejected by the account API with 403.
+func TestAccountAPI_ThirdPartyTokenRejected(t *testing.T) {
+	ts := startTestServer(t)
+	redirectURI := "http://localhost:3000/callback"
+
+	username := "thirdparty-user@test.com"
+	password := "password123"
+	createTestUser(t, username, password, username)
+
+	// Obtain a token via test-client (third-party)
+	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, username, password, "state-3p")
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("code", code)
+	form.Set("redirect_uri", redirectURI)
+	form.Set("client_id", "test-client")
+	form.Set("code_verifier", testCodeVerifier)
+
+	tokenResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = tokenResp.Body.Close() }()
+
+	body, _ := io.ReadAll(tokenResp.Body)
+	require.Equal(t, http.StatusOK, tokenResp.StatusCode)
+
+	var tokens token.TokenResponse
+	err = json.Unmarshal(body, &tokens)
+	require.NoError(t, err)
+
+	// GET /account/api/profile with third-party token should be rejected
+	req, err := http.NewRequest("GET", ts.BaseURL+"/account/api/profile", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode, "third-party client token must be rejected by account API")
+
+	// PUT /account/api/profile should also be rejected
+	updateBody, _ := json.Marshal(map[string]string{"given_name": "hacked"})
+	req, err = http.NewRequest("PUT", ts.BaseURL+"/account/api/profile", bytes.NewBuffer(updateBody))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err = ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode, "third-party client token must not be able to update profile")
+
+	// GET /account/api/sessions should also be rejected
+	req, err = http.NewRequest("GET", ts.BaseURL+"/account/api/sessions", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+
+	resp, err = ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode, "third-party client token must not access sessions")
 }
