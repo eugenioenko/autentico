@@ -1,6 +1,6 @@
 # Autentico
 
-> Autentico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite. Single binary, no external dependencies. Handles login, MFA, passkeys, sessions, token issuance, and admin — backed by a single SQLite file.
+> Autentico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go and SQLite. Single binary, no external dependencies. Handles login, MFA (TOTP + email OTP), passkeys (WebAuthn), SSO sessions, consent screens, federation/social login, token issuance, audit logging, and admin — backed by a single SQLite file.
 
 ---
 
@@ -36,7 +36,7 @@ ghcr.io/eugenioenko/autentico:latest
 
 ### Build from Source
 
-Requires Go 1.22+, Node 20+, pnpm.
+Requires Go 1.22+, Node 22+, pnpm.
 
 ```bash
 git clone https://github.com/eugenioenko/autentico.git
@@ -213,6 +213,12 @@ All values are stored as strings. Durations use Go format: `15m`, `1h`, `720h`.
 | `trust_device_enabled` | `false` | Allow MFA bypass on trusted devices. |
 | `trust_device_expiration` | `720h` | Trusted device token lifetime. |
 
+#### Consent
+
+| Setting | Default | Description |
+|---|---|---|
+| `consent_required` | Per-client | When enabled on a client, users must approve scopes. Consent is remembered per user+client+scope. |
+
 #### Passkeys
 
 | Setting | Default | Description |
@@ -260,7 +266,7 @@ Each accepts: `hidden`, `optional`, or `required`. `profile_field_email` also ac
 
 | Setting | Default | Description |
 |---|---|---|
-| `audit_log_retention` | `0` | `0` = disabled. `-1` = keep forever. Duration = auto-purge. |
+| `audit_log_retention` | `720h` | Duration for auto-purge (30 days default). `0` = disabled. `-1` = keep forever. |
 
 #### Theming
 
@@ -289,6 +295,7 @@ Each client can override these global settings. Unset fields use the global valu
 | `sso_session_idle_timeout` | Override idle timeout. |
 | `trust_device_enabled` | Override trusted devices. |
 | `trust_device_expiration` | Override trust duration. |
+| `consent_required` | Require consent screen for this client. |
 
 ---
 
@@ -305,7 +312,13 @@ Each client can override these global settings. Unset fields use the global valu
 | `/oauth2/userinfo` | GET/POST | UserInfo endpoint |
 | `/oauth2/introspect` | POST | Token introspection (RFC 7662) |
 | `/oauth2/revoke` | POST | Token revocation (RFC 7009) |
-| `/oauth2/logout` | POST | Session logout |
+| `/oauth2/logout` | GET/POST | RP-initiated logout (supports `id_token_hint`, `post_logout_redirect_uri`, `state`, `client_id`) |
+| `/oauth2/consent` | GET/POST | OAuth2 consent screen |
+| `/oauth2/verify-email` | GET | Email verification |
+| `/oauth2/resend-verification` | POST | Resend verification email |
+| `/oauth2/federation/{id}` | GET | Begin federation/social login |
+| `/oauth2/federation/{id}/callback` | GET | Federation callback |
+| `/oauth2/register` | POST | Dynamic client registration (RFC 7591) |
 
 ### Keycloak-Compatible Aliases
 
@@ -342,10 +355,22 @@ Each client can override these global settings. Unset fields use the global valu
 | `/admin/api/settings/export` | GET | Export all settings as JSON |
 | `/admin/api/settings/import/preview` | POST | Preview settings import diff |
 | `/admin/api/settings/import/apply` | POST | Apply imported settings |
+| `/admin/api/settings/test-smtp` | POST | Send test email |
 | `/admin/api/stats` | GET | Dashboard statistics |
 | `/admin/api/audit-logs` | GET | List audit log events |
 | `/admin/api/federation` | GET/POST | List or create federation providers |
 | `/admin/api/federation/{id}` | GET/PUT/DELETE | Manage federation provider |
+| `/admin/api/groups` | GET/POST | List or create groups |
+| `/admin/api/groups/{id}` | GET/PUT/DELETE | Manage group |
+| `/admin/api/groups/{id}/members` | GET/POST | List or add group members |
+| `/admin/api/groups/{id}/members/{user_id}` | DELETE | Remove group member |
+| `/admin/api/tokens` | GET | List tokens |
+| `/admin/api/tokens/{id}` | DELETE | Revoke token |
+| `/admin/api/idp-sessions` | GET | List IdP (SSO) sessions |
+| `/admin/api/idp-sessions/{id}` | DELETE | Force-logout IdP session (cascade) |
+| `/admin/api/deletion-requests` | GET | List account deletion requests |
+| `/admin/api/deletion-requests/{id}/approve` | POST | Approve deletion request |
+| `/admin/api/deletion-requests/{id}` | DELETE | Cancel deletion request |
 
 ### Account Self-Service API (Bearer token required)
 
@@ -368,6 +393,9 @@ Each client can override these global settings. Unset fields use the global valu
 | `/account/api/connected-providers` | GET | List connected providers |
 | `/account/api/connected-providers/{id}` | DELETE | Disconnect provider |
 | `/account/api/settings` | GET | Get UI configuration |
+| `/account/api/deletion-request` | GET/POST | Get or request account deletion |
+| `/account/api/deletion-request` | DELETE | Cancel deletion request |
+| `/account/api/sessions/revoke-others` | POST | Revoke all other sessions |
 
 ---
 
@@ -419,6 +447,8 @@ curl -X POST https://auth.example.com/oauth2/register \
 | `response_types` | No | `["code"]` | Allowed response types |
 | `scopes` | No | `"openid profile email"` | Space-separated allowed scopes |
 | `token_endpoint_auth_method` | No | `client_secret_basic` | `client_secret_basic`, `client_secret_post`, or `none` |
+| `consent_required` | No | `false` | Show consent screen for scope approval |
+| `post_logout_redirect_uris` | No | `[]` | Allowed URIs after RP-initiated logout |
 
 ---
 
@@ -589,10 +619,10 @@ volumes:
 ### Health Check
 
 ```
-GET /.well-known/openid-configuration
+GET /healthz
 ```
 
-Returns 200 when the server is ready.
+Returns 200 when the server is ready. `/.well-known/openid-configuration` also works but `/healthz` is lighter.
 
 ### Database Migrations
 
@@ -619,8 +649,9 @@ sqlite3 /data/autentico.db ".backup /backup/autentico-$(date +%Y%m%d-%H%M%S).db"
 | Grant | Use Case |
 |---|---|
 | `authorization_code` + PKCE | Web apps, SPAs, native apps (recommended) |
+| `client_credentials` | Machine-to-machine (confidential clients only) |
 | `refresh_token` | Obtain new access tokens without re-authentication |
-| `password` (ROPC) | Legacy clients only (deprecated in OAuth 2.1) |
+| `password` (ROPC) | Legacy clients only (deprecated in OAuth 2.1). MFA enforced via `totp_code` parameter. |
 
 ---
 
@@ -632,7 +663,27 @@ Access tokens and ID tokens are RS256-signed JWTs. Verify using the public key f
 GET /oauth2/.well-known/jwks.json
 ```
 
-ID token claims include: `sub` (user ID), `iss` (issuer), `aud` (client_id), `exp`, `iat`, `nonce`, `preferred_username`, `email`.
+ID token claims include: `sub` (user ID), `iss` (issuer), `aud` (client_id), `exp`, `iat`, `auth_time`, `nonce`, `sid`, `acr`, `name`, `preferred_username`, `given_name`, `family_name`, `middle_name`, `nickname`, `profile`, `picture`, `website`, `gender`, `birthdate`, `locale`, `zoneinfo`, `updated_at`, `email`, `email_verified`, `phone_number`, `address`, `groups`.
+
+Scopes: `openid`, `profile`, `email`, `address`, `phone`, `offline_access`, `groups`.
+
+---
+
+## Features
+
+- **Authentication**: Password, Passkeys (WebAuthn), MFA (TOTP + email OTP), trusted devices, SSO sessions
+- **OAuth2/OIDC**: Authorization Code + PKCE, Client Credentials, Refresh Token, ROPC, token introspection/revocation, dynamic client registration
+- **Consent**: Per-client consent screens, consent persistence per user+client+scope
+- **Federation**: Generic OIDC-based social login (any OIDC provider — Google, GitHub, or another Autentico instance)
+- **User Management**: Self-signup, email verification, password reset, account lockout, account deletion (self-service + admin review)
+- **Groups**: User group management, `groups` scope and claim in tokens
+- **Audit Logging**: 31 event types, configurable retention, queryable via admin API
+- **Admin UI**: Embedded React SPA for managing users, clients, sessions, settings, audit logs
+- **Account UI**: Embedded React SPA for profile, password, MFA, passkeys, sessions, trusted devices
+- **Settings Import/Export**: Backup and restore runtime settings as JSON
+- **Theming**: Custom logo, colors, CSS, tagline, footer links for login pages and emails
+- **Security**: Per-IP rate limiting (RPS + RPM), CSRF protection, anti-timing delays, PKCE S256 enforcement
+- **Keycloak Compatibility**: Token and userinfo endpoint aliases for migration from Keycloak
 
 ---
 
