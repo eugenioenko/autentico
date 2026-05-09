@@ -28,6 +28,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/deletion"
+	"github.com/eugenioenko/autentico/pkg/devicecode"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/group"
@@ -154,6 +155,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
 	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))
 	mux.Handle("POST "+oauth+"/protocol/openid-connect/token", rateLimitedFunc(token.HandleToken))
+	mux.Handle("POST "+oauth+"/device_authorization", rateLimitedFunc(devicecode.HandleDeviceAuthorization))
 	mux.Handle("POST "+oauth+"/revoke", rateLimitedFunc(revoke.HandleRevoke))
 	mux.Handle("POST "+oauth+"/introspect", rateLimitedFunc(introspect.HandleIntrospect))
 	mux.Handle(oauth+"/userinfo", rateLimitedFunc(userinfo.HandleUserInfo))
@@ -238,6 +240,9 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("DELETE /account/api/trusted-devices/{id}", accountAPI(account.HandleRevokeTrustedDevice))
 	mux.Handle("GET /account/api/connected-providers", accountAPI(account.HandleListConnectedProviders))
 	mux.Handle("DELETE /account/api/connected-providers/{id}", accountAPI(account.HandleDisconnectProvider))
+	mux.Handle("POST /account/api/device/verify", rateLimited(accountAPI(account.HandleDeviceVerify)))
+	mux.Handle("POST /account/api/device/authorize", rateLimited(accountAPI(account.HandleDeviceAuthorize)))
+	mux.Handle("POST /account/api/device/deny", rateLimited(accountAPI(account.HandleDeviceDeny)))
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 	mux.Handle("GET /account/api/deletion-request", accountAPI(deletion.HandleGetDeletionRequest))
 	mux.Handle("POST /account/api/deletion-request", accountAPI(deletion.HandleRequestDeletion))

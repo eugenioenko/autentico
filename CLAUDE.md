@@ -86,7 +86,7 @@ sudo ln -sf ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome /opt/google/
 # Register the debug client (with consent_required for consent screen testing)
 curl -s -X POST http://localhost:9999/admin/api/clients \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"client_id":"autentico-debug","client_name":"Debug UI","redirect_uris":["http://localhost:5174/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access","client_type":"public","token_endpoint_auth_method":"none","consent_required":true}'
+  -d '{"client_id":"autentico-debug","client_name":"Debug UI","redirect_uris":["http://localhost:5174/callback"],"grant_types":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:device_code"],"response_types":["code"],"scopes":"openid profile email offline_access","client_type":"public","token_endpoint_auth_method":"none","consent_required":true}'
 
 # Add CORS origin for the debug UI
 curl -s -X PUT http://localhost:9999/admin/api/settings \

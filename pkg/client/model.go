@@ -224,7 +224,7 @@ func ValidateClientCreateRequest(input ClientCreateRequest) error {
 	return validation.ValidateStruct(&input,
 		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Required, validation.Length(1, 10)),
-		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password"))),
+		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.ClientType, validation.In("", "confidential", "public")),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
@@ -246,7 +246,7 @@ func ValidateClientUpdateRequest(input ClientUpdateRequest) error {
 	return validation.ValidateStruct(&input,
 		validation.Field(&input.ClientName, validation.Length(0, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Length(0, 10)),
-		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password"))),
+		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
 	)

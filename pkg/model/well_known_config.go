@@ -47,4 +47,6 @@ type WellKnownConfigResponse struct {
 	CodeChallengeMethodsSupported []string `json:"code_challenge_methods_supported,omitempty"`
 	// OIDC Discovery §3: OPTIONAL. Prompt values supported.
 	PromptValuesSupported []string `json:"prompt_values_supported,omitempty"`
+	// RFC 8628 §4: device_authorization_endpoint.
+	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint,omitempty"`
 }

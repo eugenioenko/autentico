@@ -182,6 +182,8 @@ definitions:
         type: string
       client_type:
         type: string
+      consent_required:
+        type: boolean
       grant_types:
         items:
           type: string
@@ -230,6 +232,8 @@ definitions:
         type: string
       client_type:
         type: string
+      consent_required:
+        type: boolean
       grant_types:
         items:
           type: string
@@ -318,6 +322,8 @@ definitions:
         type: string
       client_name:
         type: string
+      consent_required:
+        type: boolean
       grant_types:
         items:
           type: string
@@ -367,6 +373,21 @@ definitions:
       user_id:
         type: string
       username:
+        type: string
+    type: object
+  devicecode.DeviceAuthorizationResponse:
+    properties:
+      device_code:
+        type: string
+      expires_in:
+        type: integer
+      interval:
+        type: integer
+      user_code:
+        type: string
+      verification_uri:
+        type: string
+      verification_uri_complete:
         type: string
     type: object
   federation.FederationProviderRequest:
@@ -679,6 +700,9 @@ definitions:
         items:
           type: string
         type: array
+      device_authorization_endpoint:
+        description: 'RFC 8628 §4: device_authorization_endpoint.'
+        type: string
       end_session_endpoint:
         description: 'OIDC RP-Initiated Logout 1.0 §2.1: end_session_endpoint.'
         type: string
@@ -3151,6 +3175,36 @@ paths:
           schema:
             $ref: '#/definitions/model.ApiError'
       summary: Authorize a client
+      tags:
+      - oauth2
+  /oauth2/device_authorization:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Issues a device code and user code for device authorization flow
+        (RFC 8628)
+      parameters:
+      - description: Client ID
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: Requested scope
+        in: formData
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/devicecode.DeviceAuthorizationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      summary: Device Authorization
       tags:
       - oauth2
   /oauth2/introspect:

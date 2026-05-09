@@ -36,6 +36,7 @@ type TokenRequest struct {
 	TotpCode     string `json:"totp_code,omitempty"`     // The TOTP code for MFA verification (used in password grant type)
 	RefreshToken string `json:"refresh_token,omitempty"` // The refresh token (used in refresh token grant type)
 	Scope        string `json:"scope,omitempty"`         // The requested scope (used in password grant type)
+	DeviceCode   string `json:"device_code,omitempty"`   // The device code (used in device_code grant type, RFC 8628)
 }
 
 type RefreshTokenClaims struct {
@@ -55,7 +56,7 @@ func (r *RefreshTokenClaims) Valid() error {
 
 func ValidateTokenRequest(input TokenRequest) error {
 	return validation.ValidateStruct(&input,
-		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password", "client_credentials")),
+		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password", "client_credentials", "urn:ietf:params:oauth:grant-type:device_code")),
 	)
 }
 

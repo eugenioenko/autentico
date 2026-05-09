@@ -33,6 +33,7 @@ const GRANT_TYPE_OPTIONS = [
   { label: "Refresh Token", value: "refresh_token" },
   { label: "Client Credentials", value: "client_credentials" },
   { label: "Password", value: "password" },
+  { label: "Device Code", value: "urn:ietf:params:oauth:grant-type:device_code" },
 ];
 
 const RESPONSE_TYPE_OPTIONS = [

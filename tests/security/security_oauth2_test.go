@@ -156,7 +156,6 @@ func TestToken_UnsupportedGrantType(t *testing.T) {
 
 	grantTypes := []string{
 		"implicit",
-		"urn:ietf:params:oauth:grant-type:device_code",
 		"custom_grant",
 		"' OR 1=1--",
 		"",

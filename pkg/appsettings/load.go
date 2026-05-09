@@ -69,6 +69,8 @@ var defaults = map[string]string{
 	"profile_field_locale":           "hidden",
 	"profile_field_address":          "optional",
 	"footer_links":                  "[]",
+	"device_code_expiration":         "10m",
+	"device_code_polling_interval":   "5",
 	"cors_allowed_origins":           "",
 }
 
@@ -300,6 +302,16 @@ func LoadIntoConfig() error {
 		var links []config.FooterLink
 		if err := json.Unmarshal([]byte(v), &links); err == nil {
 			cfg.FooterLinks = links
+		}
+	}
+
+	if v, ok := all["device_code_expiration"]; ok {
+		cfg.DeviceCodeExpirationStr = v
+		cfg.DeviceCodeExpiration = config.ParseDuration(v, cfg.DeviceCodeExpiration)
+	}
+	if v, ok := all["device_code_polling_interval"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.DeviceCodePollingInterval = n
 		}
 	}
 

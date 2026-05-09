@@ -70,6 +70,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		TotpCode:     r.FormValue("totp_code"),
 		RefreshToken: r.FormValue("refresh_token"),
 		Scope:        r.FormValue("scope"),
+		DeviceCode:   r.FormValue("device_code"),
 	}
 
 	err = ValidateTokenRequest(request)
@@ -250,6 +251,12 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Pragma", "no-cache")
 		utils.WriteApiResponse(w, ccResponse, http.StatusOK)
 		return
+
+	case "urn:ietf:params:oauth:grant-type:device_code":
+		usr, codeScope, err = handleDeviceCodeGrant(w, r, request)
+		if err != nil {
+			return
+		}
 
 	case "refresh_token":
 		usr, err = UserByRefreshToken(w, request)
