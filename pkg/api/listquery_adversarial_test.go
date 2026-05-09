@@ -249,13 +249,8 @@ func TestParseDateRange_SQLInjection(t *testing.T) {
 		t.Run(payload, func(t *testing.T) {
 			u := "/items?created_at_from=" + url.QueryEscape(payload) + "&created_at_to=" + url.QueryEscape(payload)
 			req := httptest.NewRequest(http.MethodGet, u, nil)
-			where, args := ParseDateRange(req, cols)
-			assert.Contains(t, where, "u.created_at >= ?")
-			assert.Contains(t, where, "u.created_at <= ?")
-			for _, arg := range args {
-				_, ok := arg.(string)
-				assert.True(t, ok, "date args must be strings bound as params")
-			}
+			_, _, err := ParseDateRange(req, cols)
+			assert.Error(t, err, "SQL injection payloads must be rejected as invalid dates")
 		})
 	}
 }
@@ -408,29 +403,48 @@ func TestBuildListQuery_LIKEWildcardAbuse(t *testing.T) {
 func TestParseDateRange_SemanticAbuse(t *testing.T) {
 	cols := map[string]string{"created_at": "u.created_at"}
 
-	cases := []struct {
+	t.Run("inverted_range", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/items?created_at_from=2099-12-31&created_at_to=2000-01-01", nil)
+		_, _, err := ParseDateRange(req, cols)
+		assert.Error(t, err, "inverted date range must be rejected")
+		assert.Contains(t, err.Error(), "is after")
+	})
+
+	invalidCases := []struct {
 		name  string
 		query string
 	}{
-		{"inverted_range", "created_at_from=2099-12-31&created_at_to=2000-01-01"},
 		{"non_date_string", "created_at_from=ZZZZZZZZZ&created_at_to=not-a-date"},
 		{"epoch_zero", "created_at_from=0000-00-00&created_at_to=0000-00-00"},
 		{"far_future", "created_at_from=9999-99-99&created_at_to=9999-99-99"},
 		{"negative_date", "created_at_from=-1&created_at_to=-99999"},
 		{"unix_timestamp", "created_at_from=1700000000&created_at_to=1800000000"},
+	}
+	for _, tc := range invalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/items?"+tc.query, nil)
+			_, _, err := ParseDateRange(req, cols)
+			assert.Error(t, err, "malformed date must be rejected")
+		})
+	}
+
+	validCases := []struct {
+		name  string
+		query string
+	}{
 		{"iso_with_timezone", "created_at_from=2024-01-01T00:00:00Z&created_at_to=2024-12-31T23:59:59%2B05:00"},
 		{"only_from", "created_at_from=2024-01-01"},
 		{"only_to", "created_at_to=2024-12-31"},
 	}
-	for _, tc := range cases {
+	for _, tc := range validCases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/items?"+tc.query, nil)
-			where, args := ParseDateRange(req, cols)
+			where, args, err := ParseDateRange(req, cols)
+			assert.NoError(t, err)
 			assert.NotEqual(t, "", where, "should produce at least one condition")
 			assert.Greater(t, len(args), 0, "should have at least one bound arg")
 			assert.Contains(t, where, "u.created_at")
 			assert.Contains(t, where, "?")
-			assert.NotContains(t, where, "ZZZZZ")
 		})
 	}
 }
@@ -439,9 +453,10 @@ func TestParseDateRange_SemanticAbuse(t *testing.T) {
 func TestParseDateRange_UnknownColumns(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet,
 		"/items?password_from=2024-01-01&secret_to=2024-12-31", nil)
-	where, args := ParseDateRange(req, map[string]string{
+	where, args, err := ParseDateRange(req, map[string]string{
 		"created_at": "u.created_at",
 	})
+	assert.NoError(t, err)
 	assert.Equal(t, "", where)
 	assert.Empty(t, args)
 }
@@ -449,9 +464,10 @@ func TestParseDateRange_UnknownColumns(t *testing.T) {
 func TestParseDateRange_EmptyValues(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet,
 		"/items?created_at_from=&created_at_to=", nil)
-	where, args := ParseDateRange(req, map[string]string{
+	where, args, err := ParseDateRange(req, map[string]string{
 		"created_at": "u.created_at",
 	})
+	assert.NoError(t, err)
 	assert.Equal(t, "", where)
 	assert.Empty(t, args)
 }

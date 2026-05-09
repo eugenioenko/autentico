@@ -32,9 +32,13 @@ func HandleListAuditLogs(w http.ResponseWriter, r *http.Request) {
 		params.Order = "desc"
 	}
 
-	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+	dateWhere, dateArgs, dateErr := api.ParseDateRange(r, map[string]string{
 		"created_at": "created_at",
 	})
+	if dateErr != nil {
+		utils.ErrorResponse(w, dateErr.Error(), http.StatusBadRequest)
+		return
+	}
 
 	logs, total, err := ListAuditLogsWithParams(params, dateWhere, dateArgs)
 	if err != nil {

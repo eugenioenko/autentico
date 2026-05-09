@@ -147,9 +147,13 @@ func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/deletion-requests [get]
 func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
 	params := api.ParseListParams(r)
-	dateWhere, dateArgs := api.ParseDateRange(r, map[string]string{
+	dateWhere, dateArgs, dateErr := api.ParseDateRange(r, map[string]string{
 		"requested_at": "d.requested_at",
 	})
+	if dateErr != nil {
+		utils.ErrorResponse(w, dateErr.Error(), http.StatusBadRequest)
+		return
+	}
 
 	requests, total, err := ListDeletionRequestsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
