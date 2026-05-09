@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_URL, getAdminToken, postJSON, deleteRequest, getResponse, obtainTokenViaROPC } from '../helpers';
+import { BASE_URL, getAdminToken, postJSON, deleteRequest, getResponse, obtainAccountToken } from '../helpers';
 
 const ADMIN_API = `${BASE_URL}/admin/api`;
 
@@ -30,7 +30,7 @@ describe('Admin Deletion Requests — happy path', () => {
     const userId = user.data.id;
 
     // Get a token for the test user
-    const userTokens = await obtainTokenViaROPC('deleteme', 'Password123!');
+    const userTokens = await obtainAccountToken('deleteme', 'Password123!');
 
     // User requests deletion
     const delReqResp = await postJSON(`${BASE_URL}/account/api/deletion-request`, {}, userTokens.access_token);
@@ -66,7 +66,7 @@ describe('Admin Deletion Requests — happy path', () => {
     const userId = user.data.id;
 
     // Get a token for the test user
-    const userTokens = await obtainTokenViaROPC('dismissme', 'Password123!');
+    const userTokens = await obtainAccountToken('dismissme', 'Password123!');
 
     // User requests deletion
     await postJSON(`${BASE_URL}/account/api/deletion-request`, {}, userTokens.access_token);

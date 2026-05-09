@@ -19,12 +19,12 @@ func TestSeedClients(t *testing.T) {
 	seedAdminClient(false)
 	seedAccountClient()
 
-	c1, err := client.ClientByClientID("autentico-admin")
+	c1, err := client.ClientByClientID(config.AdminClientID)
 	assert.NoError(t, err)
 	assert.NotNil(t, c1)
 	assert.NotContains(t, c1.GetGrantTypes(), "password", "default seed must not include password grant")
 
-	c2, err := client.ClientByClientID("autentico-account")
+	c2, err := client.ClientByClientID(config.AccountClientID)
 	assert.NoError(t, err)
 	assert.NotNil(t, c2)
 
@@ -41,7 +41,7 @@ func TestSeedAdminClient_WithPasswordGrant(t *testing.T) {
 
 	seedAdminClient(true)
 
-	c, err := client.ClientByClientID("autentico-admin")
+	c, err := client.ClientByClientID(config.AdminClientID)
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 	grants := c.GetGrantTypes()

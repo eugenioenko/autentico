@@ -22,13 +22,13 @@ import (
 func obtainAccessToken(t *testing.T, ts *TestServer, username, password string) string {
 	t.Helper()
 	redirectURI := "http://localhost:3000/callback"
-	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, username, password, "state-del")
+	code := performAuthorizationCodeFlow(t, ts, "autentico-account", redirectURI, username, password, "state-del")
 
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
-	form.Set("client_id", "test-client")
+	form.Set("client_id", "autentico-account")
 	form.Set("code_verifier", testCodeVerifier)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)

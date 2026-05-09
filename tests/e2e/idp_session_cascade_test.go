@@ -43,14 +43,14 @@ func TestIdpSessionCascade_FullFlow(t *testing.T) {
 
 	// Drive authorize → login; ts.Client has a cookie jar that will capture the
 	// IdP session cookie for subsequent requests.
-	code := performAuthorizationCodeFlow(t, ts, "test-client", redirectURI, username, password, "state-cascade")
+	code := performAuthorizationCodeFlow(t, ts, "autentico-account", redirectURI, username, password, "state-cascade")
 
 	// Exchange for tokens.
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")
 	form.Set("code", code)
 	form.Set("redirect_uri", redirectURI)
-	form.Set("client_id", "test-client")
+	form.Set("client_id", "autentico-account")
 	form.Set("code_verifier", testCodeVerifier)
 
 	tokResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)

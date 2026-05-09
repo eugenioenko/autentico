@@ -110,6 +110,7 @@ func RunStart(c *cli.Context) error {
 	rateLimited := middleware.RateLimitMiddleware(limiterStore)
 	rateLimitedFunc := func(h http.HandlerFunc) http.Handler { return rateLimited(h) }
 	adminAPI := func(h http.HandlerFunc) http.Handler { return middleware.AdminAuthMiddleware(h) }
+	accountAPI := func(h http.HandlerFunc) http.Handler { return middleware.AccountAuthMiddleware(h) }
 	csrfProtected := func(h http.HandlerFunc) http.Handler { return middleware.CSRFMiddleware(h) }
 
 	// -------------------------------------------------------------------------
@@ -213,31 +214,31 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("DELETE /admin/api/deletion-requests/{id}", adminAPI(deletion.HandleAdminCancelDeletionRequest))
 
 	// -------------------------------------------------------------------------
-	// Account self-service API (bearer-token authenticated per handler)
+	// Account self-service API (audience: autentico-account or autentico-admin)
 	// -------------------------------------------------------------------------
-	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
-	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
-	mux.Handle("POST /account/api/password", rateLimitedFunc(account.HandleUpdatePassword))
-	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
-	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
-	mux.HandleFunc("POST /account/api/sessions/revoke-others", account.HandleRevokeOtherSessions)
-	mux.HandleFunc("GET /account/api/passkeys", account.HandleListPasskeys)
-	mux.HandleFunc("DELETE /account/api/passkeys/{id}", account.HandleDeletePasskey)
-	mux.HandleFunc("PATCH /account/api/passkeys/{id}", account.HandleRenamePasskey)
-	mux.HandleFunc("POST /account/api/passkeys/register/begin", account.HandleAddPasskeyBegin)
-	mux.HandleFunc("POST /account/api/passkeys/register/finish", account.HandleAddPasskeyFinish)
-	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
-	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
-	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
-	mux.Handle("DELETE /account/api/mfa/totp", rateLimitedFunc(account.HandleDeleteMfa))
-	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
-	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
-	mux.HandleFunc("GET /account/api/connected-providers", account.HandleListConnectedProviders)
-	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", account.HandleDisconnectProvider)
+	mux.Handle("GET /account/api/profile", accountAPI(account.HandleGetProfile))
+	mux.Handle("PUT /account/api/profile", accountAPI(account.HandleUpdateProfile))
+	mux.Handle("POST /account/api/password", rateLimited(middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleUpdatePassword))))
+	mux.Handle("GET /account/api/sessions", accountAPI(account.HandleListSessions))
+	mux.Handle("DELETE /account/api/sessions/{id}", accountAPI(account.HandleRevokeSession))
+	mux.Handle("POST /account/api/sessions/revoke-others", accountAPI(account.HandleRevokeOtherSessions))
+	mux.Handle("GET /account/api/passkeys", accountAPI(account.HandleListPasskeys))
+	mux.Handle("DELETE /account/api/passkeys/{id}", accountAPI(account.HandleDeletePasskey))
+	mux.Handle("PATCH /account/api/passkeys/{id}", accountAPI(account.HandleRenamePasskey))
+	mux.Handle("POST /account/api/passkeys/register/begin", accountAPI(account.HandleAddPasskeyBegin))
+	mux.Handle("POST /account/api/passkeys/register/finish", accountAPI(account.HandleAddPasskeyFinish))
+	mux.Handle("GET /account/api/mfa", accountAPI(account.HandleGetMfaStatus))
+	mux.Handle("POST /account/api/mfa/totp/setup", accountAPI(account.HandleSetupTotp))
+	mux.Handle("POST /account/api/mfa/totp/verify", accountAPI(account.HandleVerifyTotp))
+	mux.Handle("DELETE /account/api/mfa/totp", rateLimited(middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleDeleteMfa))))
+	mux.Handle("GET /account/api/trusted-devices", accountAPI(account.HandleListTrustedDevices))
+	mux.Handle("DELETE /account/api/trusted-devices/{id}", accountAPI(account.HandleRevokeTrustedDevice))
+	mux.Handle("GET /account/api/connected-providers", accountAPI(account.HandleListConnectedProviders))
+	mux.Handle("DELETE /account/api/connected-providers/{id}", accountAPI(account.HandleDisconnectProvider))
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
-	mux.HandleFunc("GET /account/api/deletion-request", deletion.HandleGetDeletionRequest)
-	mux.HandleFunc("POST /account/api/deletion-request", deletion.HandleRequestDeletion)
-	mux.HandleFunc("DELETE /account/api/deletion-request", deletion.HandleCancelDeletionRequest)
+	mux.Handle("GET /account/api/deletion-request", accountAPI(deletion.HandleGetDeletionRequest))
+	mux.Handle("POST /account/api/deletion-request", accountAPI(deletion.HandleRequestDeletion))
+	mux.Handle("DELETE /account/api/deletion-request", accountAPI(deletion.HandleCancelDeletionRequest))
 
 	// -------------------------------------------------------------------------
 	// Embedded UIs
@@ -327,9 +328,8 @@ func RunStart(c *cli.Context) error {
 // When enablePasswordGrant is true, "password" is included in grant_types so the client
 // can issue admin-API tokens headlessly for CI automation (RFC 6749 §4.3 / ROPC).
 func seedAdminClient(enablePasswordGrant bool) {
-	const adminClientID = "autentico-admin"
-	const adminClientName = "Autentico Admin UI"
-	if existing, err := client.ClientByClientID(adminClientID); err == nil && existing != nil {
+	const clientName = "Autentico Admin UI"
+	if existing, err := client.ClientByClientID(config.AdminClientID); err == nil && existing != nil {
 		return
 	}
 	grantTypes := []string{"authorization_code", "refresh_token"}
@@ -337,8 +337,8 @@ func seedAdminClient(enablePasswordGrant bool) {
 		grantTypes = append(grantTypes, "password")
 	}
 	redirectURI := config.GetBootstrap().AppURL + "/admin/callback"
-	if _, err := client.CreateClientWithID(adminClientID, client.ClientCreateRequest{
-		ClientName:              adminClientName,
+	if _, err := client.CreateClientWithID(config.AdminClientID, client.ClientCreateRequest{
+		ClientName:              clientName,
 		RedirectURIs:            []string{redirectURI},
 		GrantTypes:              grantTypes,
 		ResponseTypes:           []string{"code"},
@@ -352,9 +352,8 @@ func seedAdminClient(enablePasswordGrant bool) {
 
 // seedAccountClient creates the autentico-account OAuth2 client if it does not already exist.
 func seedAccountClient() {
-	const clientID = "autentico-account"
-	const clientName = "Autentico Account UI"
-	if existing, err := client.ClientByClientID(clientID); err == nil && existing != nil {
+	const accountClientName = "Autentico Account UI"
+	if existing, err := client.ClientByClientID(config.AccountClientID); err == nil && existing != nil {
 		return
 	}
 	baseURL := config.GetBootstrap().AppURL
@@ -362,8 +361,8 @@ func seedAccountClient() {
 	postLogoutURI := baseURL + "/account/"
 	ssoTimeout := "24h"
 
-	if _, err := client.CreateClientWithID(clientID, client.ClientCreateRequest{
-		ClientName:              clientName,
+	if _, err := client.CreateClientWithID(config.AccountClientID, client.ClientCreateRequest{
+		ClientName:              accountClientName,
 		RedirectURIs:            []string{redirectURI},
 		PostLogoutRedirectURIs:  []string{postLogoutURI},
 		GrantTypes:              []string{"authorization_code", "refresh_token"},

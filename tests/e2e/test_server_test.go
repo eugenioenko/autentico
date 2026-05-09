@@ -68,6 +68,15 @@ func startTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to seed autentico-admin client: %v", err)
 	}
 
+	// Seed "autentico-account" client — account API requires "autentico-account" or "autentico-admin" in the token audience
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('autentico-account-id', 'autentico-account', 'Autentico Account', 'public', '["http://localhost:3000/callback","http://localhost:3000/account/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to seed autentico-account client: %v", err)
+	}
+
 	// Seed a shared confidential client for introspect/revoke E2E tests
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("e2e-secret"), bcrypt.MinCost)
 	_, err = db.GetDB().Exec(`
@@ -139,20 +148,21 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("PUT "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleUpdateClient)))
 	mux.Handle("DELETE "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleDeleteClient)))
 
-	// Account API routes
-	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
-	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
-	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
-	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
-	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
-	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
-	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
-	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
-	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
+	// Account API routes (audience: autentico-account or autentico-admin)
+	accountAPI := func(h http.HandlerFunc) http.Handler { return middleware.AccountAuthMiddleware(h) }
+	mux.Handle("GET /account/api/profile", accountAPI(account.HandleGetProfile))
+	mux.Handle("PUT /account/api/profile", accountAPI(account.HandleUpdateProfile))
+	mux.Handle("POST /account/api/password", accountAPI(account.HandleUpdatePassword))
+	mux.Handle("GET /account/api/sessions", accountAPI(account.HandleListSessions))
+	mux.Handle("DELETE /account/api/sessions/{id}", accountAPI(account.HandleRevokeSession))
+	mux.Handle("GET /account/api/mfa", accountAPI(account.HandleGetMfaStatus))
+	mux.Handle("POST /account/api/mfa/totp/setup", accountAPI(account.HandleSetupTotp))
+	mux.Handle("POST /account/api/mfa/totp/verify", accountAPI(account.HandleVerifyTotp))
+	mux.Handle("DELETE /account/api/mfa/totp", accountAPI(account.HandleDeleteMfa))
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
-	mux.HandleFunc("GET /account/api/deletion-request", deletion.HandleGetDeletionRequest)
-	mux.HandleFunc("POST /account/api/deletion-request", deletion.HandleRequestDeletion)
-	mux.HandleFunc("DELETE /account/api/deletion-request", deletion.HandleCancelDeletionRequest)
+	mux.Handle("GET /account/api/deletion-request", accountAPI(deletion.HandleGetDeletionRequest))
+	mux.Handle("POST /account/api/deletion-request", accountAPI(deletion.HandleRequestDeletion))
+	mux.Handle("DELETE /account/api/deletion-request", accountAPI(deletion.HandleCancelDeletionRequest))
 
 	// Admin API routes
 	mux.Handle("GET /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleListUsers)))

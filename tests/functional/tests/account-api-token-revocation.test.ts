@@ -5,7 +5,7 @@ import {
   ADMIN_USERNAME,
   ADMIN_PASSWORD,
   obtainTokenViaAuthCode,
-  obtainTokenViaROPC,
+  obtainAccountToken,
   postForm,
   getResponse,
 } from '../helpers';
@@ -20,7 +20,7 @@ describe('Account API honors token revocation (tokens.revoked_at)', () => {
     // in this suite revoke the admin user's authorization_code tokens,
     // which correctly fails the admin bearer gate on /oauth2/revoke.
     const admin = await obtainTokenViaAuthCode(ADMIN_USERNAME, ADMIN_PASSWORD);
-    const user = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
+    const user = await obtainAccountToken(ADMIN_USERNAME, ADMIN_PASSWORD);
 
     // Sanity: the user token works before revocation
     const pre = await getResponse(`${BASE_URL}/account/api/profile`, user.access_token);
