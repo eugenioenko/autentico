@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
+import mermaid from 'astro-mermaid';
 import sitemap from '@astrojs/sitemap';
 import starlightThemeGalaxy from 'starlight-theme-galaxy';
 
@@ -10,6 +10,7 @@ export default defineConfig({
 	site: 'https://autentico.top',
 	integrations: [
 		sitemap(),
+		mermaid(),
 		starlight({
 			head: [
 				{
@@ -41,7 +42,7 @@ export default defineConfig({
 			editLink: {
 				baseUrl: 'https://github.com/eugenioenko/autentico/edit/main/docs-web/',
 			},
-			plugins: [starlightThemeGalaxy(), starlightClientMermaid()],
+			plugins: [starlightThemeGalaxy()],
 			sidebar: [
 				{ label: 'Introduction', link: '/' },
 				{
