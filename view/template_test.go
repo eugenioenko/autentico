@@ -87,6 +87,7 @@ func TestLayoutThemeCSSRegression(t *testing.T) {
 		"ThemeTitle":   "T",
 		"ThemeLogoUrl": "",
 		"Error":        "boom",
+		"CspNonce":     "test-nonce",
 	})
 	assert.NoError(t, err)
 	out := buf.String()
@@ -131,6 +132,7 @@ func TestLoginTemplateFederationIconRegression(t *testing.T) {
 		"ProfileFieldEmail":   "optional",
 		"ThemeTitle":          "T",
 		"ThemeLogoUrl":        "",
+		"CspNonce":            "test-nonce",
 		"FederatedProviders": []provider{
 			{ID: "evil", Name: "Evil", HasIcon: true},
 		},
@@ -174,6 +176,7 @@ func TestFooterLinksRendering(t *testing.T) {
 			"ThemeTitle":   "T",
 			"ThemeLogoUrl": "",
 			"Error":        "test",
+			"CspNonce":     "test-nonce",
 		})
 		assert.NoError(t, err)
 		out := buf.String()
@@ -196,6 +199,7 @@ func TestFooterLinksRendering(t *testing.T) {
 			"ThemeTitle":   "T",
 			"ThemeLogoUrl": "",
 			"Error":        "test",
+			"CspNonce":     "test-nonce",
 		})
 		assert.NoError(t, err)
 		out := buf.String()
@@ -216,6 +220,7 @@ func TestFooterLinksRendering(t *testing.T) {
 			"ThemeTitle":   "T",
 			"ThemeLogoUrl": "",
 			"Error":        "test",
+			"CspNonce":     "test-nonce",
 		})
 		assert.NoError(t, err)
 		out := buf.String()

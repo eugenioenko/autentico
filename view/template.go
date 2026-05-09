@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/cspnonce"
 )
 
 //go:embed *.html static/*
@@ -32,6 +33,13 @@ func ParseTemplate(name string) (*template.Template, error) {
 		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
+}
+
+// InjectNonce reads the CSP nonce from the request context and adds it to the
+// template data map under the key "CspNonce". Call this before ExecuteTemplate
+// so that templates can render nonce="{{.CspNonce}}" on <script> tags.
+func InjectNonce(r *http.Request, data map[string]any) {
+	data["CspNonce"] = cspnonce.Get(r.Context())
 }
 
 // StaticHandler returns an http.Handler that serves files from view/static/.

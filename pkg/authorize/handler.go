@@ -66,7 +66,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Validate redirect_uri format first — if invalid we cannot redirect back safely
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		renderError(w, "Invalid redirect_uri")
+		renderError(w, r, "Invalid redirect_uri")
 		return
 	}
 
@@ -74,13 +74,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("authorize: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		renderError(w, "Unknown client_id")
+		renderError(w, r, "Unknown client_id")
 		return
 	}
 
 	if !registeredClient.IsActive {
 		slog.Warn("authorize: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		renderError(w, "Client is inactive")
+		renderError(w, r, "Client is inactive")
 		return
 	}
 
@@ -88,7 +88,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// if invalid, do not redirect — render an error page instead to avoid open redirector.
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
 		slog.Warn("authorize: invalid redirect_uri for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
-		renderError(w, "Redirect URI not allowed for this client")
+		renderError(w, r, "Redirect URI not allowed for this client")
 		return
 	}
 
@@ -238,6 +238,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"SmtpConfigured":      cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
 	}
+	view.InjectNonce(r, data)
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("authorize: failed to execute login template", "request_id", reqid.Get(r.Context()), "error", err)
@@ -365,7 +366,7 @@ func parseMaxAge(s string) int64 {
 
 // renderError renders a branded error page without any login form fields.
 // Use this for fatal errors where redirecting or submitting credentials makes no sense.
-func renderError(w http.ResponseWriter, errorMsg string) {
+func renderError(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("error")
 	if err != nil {
@@ -379,6 +380,7 @@ func renderError(w http.ResponseWriter, errorMsg string) {
 		"ThemeTitle":   cfg.Theme.Title,
 		"ThemeLogoUrl": cfg.Theme.LogoUrl,
 	}
+	view.InjectNonce(r, data)
 
 	w.WriteHeader(http.StatusBadRequest)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {

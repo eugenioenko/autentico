@@ -185,6 +185,7 @@ func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentPar
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 	}
+	view.InjectNonce(r, data)
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("consent: failed to execute template", "request_id", reqid.Get(r.Context()), "error", err)

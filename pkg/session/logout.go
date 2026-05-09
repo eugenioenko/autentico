@@ -149,7 +149,7 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 			slog.Warn("session: client_id does not match id_token_hint",
 				"client_id_param", clientIDParam, "hint_client_id", hintClientID)
 			idpsession.ClearCookie(w)
-			renderLogoutSuccess(w)
+			renderLogoutSuccess(w, r)
 			return
 		}
 	}
@@ -202,10 +202,10 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 	// RP-Initiated Logout 1.0 §4: When the OP detects errors or no valid
 	// redirect URI is available, the OP MUST NOT perform post-logout redirection.
 	// It MAY display a signed-out confirmation page.
-	renderLogoutSuccess(w)
+	renderLogoutSuccess(w, r)
 }
 
-func renderLogoutSuccess(w http.ResponseWriter) {
+func renderLogoutSuccess(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("logout_success")
 	if err != nil {
@@ -217,6 +217,7 @@ func renderLogoutSuccess(w http.ResponseWriter) {
 		"ThemeTitle":   cfg.Theme.Title,
 		"ThemeLogoUrl": cfg.Theme.LogoUrl,
 	}
+	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("session: failed to execute logout_success template", "error", err)
 	}

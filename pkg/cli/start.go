@@ -23,6 +23,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/cleanup"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/cspnonce"
 	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
@@ -302,6 +303,7 @@ func RunStart(c *cli.Context) error {
 
 	middlewareList := []func(http.Handler) http.Handler{
 		reqid.Middleware,
+		cspnonce.Middleware,
 		middleware.SecurityHeadersMiddleware,
 		middleware.LoggingMiddleware,
 		middleware.CORSMiddleware,
