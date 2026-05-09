@@ -12,18 +12,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// HandleDeviceRedirect redirects /device and /device/:code to the account UI device page.
-func HandleDeviceRedirect(w http.ResponseWriter, r *http.Request) {
-	code := r.PathValue("code")
-	target := "/account/device"
-	if code != "" {
-		target = "/account/device/" + code
-	} else if userCode := r.URL.Query().Get("user_code"); userCode != "" {
-		target = "/account/device/" + userCode
-	}
-	http.Redirect(w, r, target, http.StatusFound)
-}
-
 const DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
 
 // HandleDeviceAuthorization handles the device authorization request.
