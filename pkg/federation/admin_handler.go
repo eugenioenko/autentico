@@ -110,6 +110,10 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/federation/{id} [get]
 func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		return
+	}
 	p, err := FederationProviderByID(id)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
@@ -131,6 +135,10 @@ func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/federation/{id} [put]
 func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		return
+	}
 	if _, err := FederationProviderByID(id); err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
 		return
@@ -171,6 +179,10 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/federation/{id} [delete]
 func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		return
+	}
 	if _, err := FederationProviderByID(id); err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
 		return
