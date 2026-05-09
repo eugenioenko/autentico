@@ -3,8 +3,8 @@ package account
 import (
 	"net/http"
 
-	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -18,9 +18,9 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/connected-providers [get]
 func HandleListConnectedProviders(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -65,9 +65,9 @@ func HandleListConnectedProviders(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/connected-providers/{id} [delete]
 func HandleDisconnectProvider(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 

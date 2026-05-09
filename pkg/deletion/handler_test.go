@@ -1,6 +1,7 @@
 package deletion
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -21,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestUserAndSession(t *testing.T) (string, *user.User) {
+func setupTestUserAndSession(t *testing.T) (string, *user.User, *middleware.AuthInfo) {
 	t.Helper()
 	userID := uuid.New().String()
 	testutils.InsertTestUser(t, userID)
@@ -59,16 +61,35 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User) {
 	`, "tok-"+sessionID[:8], usr.ID, tokenString, "refresh-"+sessionID[:8], now.Add(time.Hour), now.Add(time.Hour), now)
 	require.NoError(t, err)
 
-	return tokenString, usr
+	info := &middleware.AuthInfo{
+		User:    usr,
+		Token:   tokenString,
+		Claims:  claims,
+		Session: &sess,
+	}
+
+	return tokenString, usr, info
+}
+
+func mockAuthRequest(t *testing.T, body, method, url string, handler http.HandlerFunc, info *middleware.AuthInfo) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, url, bytes.NewBuffer([]byte(body)))
+	req.Header.Set("Content-Type", "application/json")
+	if info != nil {
+		req = middleware.WithAuthInfo(req, info)
+	}
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	return rr
 }
 
 // --- HandleRequestDeletion ---
 
 func TestHandleRequestDeletion_AdminApprovalMode(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
-	rr := testutils.MockApiRequestWithAuth(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, token)
+	rr := mockAuthRequest(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 	var resp model.ApiResponse[DeletionRequestResponse]
@@ -78,9 +99,9 @@ func TestHandleRequestDeletion_AdminApprovalMode(t *testing.T) {
 
 func TestHandleRequestDeletion_WithReason(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
-	rr := testutils.MockApiRequestWithAuth(t, `{"reason":"no longer needed"}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, token)
+	rr := mockAuthRequest(t, `{"reason":"no longer needed"}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 	var resp model.ApiResponse[DeletionRequestResponse]
@@ -92,13 +113,13 @@ func TestHandleRequestDeletion_WithReason(t *testing.T) {
 
 func TestHandleRequestDeletion_SelfServiceMode(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowSelfServiceDeletion = true
 	})
 
-	rr := testutils.MockApiRequestWithAuth(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, token)
+	rr := mockAuthRequest(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 
 	deleted, err := user.UserByID(usr.ID)
@@ -108,18 +129,18 @@ func TestHandleRequestDeletion_SelfServiceMode(t *testing.T) {
 
 func TestHandleRequestDeletion_AlreadyPending(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr.ID, nil)
 	require.NoError(t, err)
 
-	rr := testutils.MockApiRequestWithAuth(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, token)
+	rr := mockAuthRequest(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
 	assert.Equal(t, http.StatusConflict, rr.Code)
 }
 
 func TestHandleRequestDeletion_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, "bad-token")
+	rr := mockAuthRequest(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
@@ -127,21 +148,21 @@ func TestHandleRequestDeletion_Unauthorized(t *testing.T) {
 
 func TestHandleGetDeletionRequest_NoPendingRequest(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleGetDeletionRequest_Found(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	reason := "testing"
 	_, err := CreateDeletionRequest(usr.ID, &reason)
 	require.NoError(t, err)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var resp model.ApiResponse[DeletionRequestResponse]
@@ -153,7 +174,7 @@ func TestHandleGetDeletionRequest_Found(t *testing.T) {
 
 func TestHandleGetDeletionRequest_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, "bad-token")
+	rr := mockAuthRequest(t, "", "GET", "/account/api/deletion-request", HandleGetDeletionRequest, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
@@ -161,12 +182,12 @@ func TestHandleGetDeletionRequest_Unauthorized(t *testing.T) {
 
 func TestHandleCancelDeletionRequest_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr.ID, nil)
 	require.NoError(t, err)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, token)
+	rr := mockAuthRequest(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, info)
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 
 	req, err := DeletionRequestByUserID(usr.ID)
@@ -176,15 +197,15 @@ func TestHandleCancelDeletionRequest_Success(t *testing.T) {
 
 func TestHandleCancelDeletionRequest_NotFound(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, token)
+	rr := mockAuthRequest(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, info)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestHandleCancelDeletionRequest_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, "bad-token")
+	rr := mockAuthRequest(t, "", "DELETE", "/account/api/deletion-request", HandleCancelDeletionRequest, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
@@ -206,8 +227,8 @@ func TestHandleListDeletionRequests_Empty(t *testing.T) {
 
 func TestHandleListDeletionRequests_WithRequests(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr1 := setupTestUserAndSession(t)
-	_, usr2 := setupTestUserAndSession(t)
+	_, usr1, _ := setupTestUserAndSession(t)
+	_, usr2, _ := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr1.ID, nil)
 	require.NoError(t, err)
@@ -230,8 +251,8 @@ func TestHandleListDeletionRequests_WithRequests(t *testing.T) {
 
 func TestHandleListDeletionRequests_Search(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr1 := setupTestUserAndSession(t)
-	_, usr2 := setupTestUserAndSession(t)
+	_, usr1, _ := setupTestUserAndSession(t)
+	_, usr2, _ := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr1.ID, nil)
 	require.NoError(t, err)
@@ -252,8 +273,8 @@ func TestHandleListDeletionRequests_Search(t *testing.T) {
 
 func TestHandleListDeletionRequests_SortByUsername(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr1 := setupTestUserAndSession(t)
-	_, usr2 := setupTestUserAndSession(t)
+	_, usr1, _ := setupTestUserAndSession(t)
+	_, usr2, _ := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr1.ID, nil)
 	require.NoError(t, err)
@@ -273,8 +294,8 @@ func TestHandleListDeletionRequests_SortByUsername(t *testing.T) {
 
 func TestHandleListDeletionRequests_Pagination(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr1 := setupTestUserAndSession(t)
-	_, usr2 := setupTestUserAndSession(t)
+	_, usr1, _ := setupTestUserAndSession(t)
+	_, usr2, _ := setupTestUserAndSession(t)
 
 	_, err := CreateDeletionRequest(usr1.ID, nil)
 	require.NoError(t, err)
@@ -296,7 +317,7 @@ func TestHandleListDeletionRequests_Pagination(t *testing.T) {
 
 func TestHandleApproveDeletionRequest_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr := setupTestUserAndSession(t)
+	_, usr, _ := setupTestUserAndSession(t)
 
 	dr, err := CreateDeletionRequest(usr.ID, nil)
 	require.NoError(t, err)
@@ -332,7 +353,7 @@ func TestHandleApproveDeletionRequest_NotFound(t *testing.T) {
 
 func TestHandleAdminCancelDeletionRequest_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, usr := setupTestUserAndSession(t)
+	_, usr, _ := setupTestUserAndSession(t)
 
 	dr, err := CreateDeletionRequest(usr.ID, nil)
 	require.NoError(t, err)

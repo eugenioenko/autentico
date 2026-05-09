@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -23,9 +23,9 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/profile [get]
 func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 	utils.SuccessResponse(w, usr.ToResponse(), http.StatusOK)
@@ -46,9 +46,9 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} model.ApiError
 // @Router /account/api/profile [put]
 func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -145,16 +145,12 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/password [post]
 func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
-	v, err := bearer.ValidateBearer(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	info := middleware.AuthInfoFromContext(r.Context())
+	if info == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
-	usr, err := user.UserByID(v.Claims.UserID)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
-		return
-	}
+	usr := info.User
 
 	var req UpdatePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -184,7 +180,7 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 
 	// Revoke all other sessions — a password change invalidates all sessions
 	// except the one that initiated the change.
-	if err := user.RevokeOtherUserAccess(usr.ID, v.Token); err != nil {
+	if err := user.RevokeOtherUserAccess(usr.ID, info.Token); err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

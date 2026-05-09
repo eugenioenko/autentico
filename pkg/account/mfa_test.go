@@ -3,7 +3,6 @@ package account
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -19,129 +18,138 @@ import (
 
 func TestHandleGetMfaStatus(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// Enabled
 	_, _ = db.GetDB().Exec("UPDATE users SET totp_verified = TRUE WHERE id = ?", usr.ID)
+	info = refreshAuthInfo(t, info)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/mfa/status", HandleGetMfaStatus, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/mfa/status", HandleGetMfaStatus, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleVerifyTotp(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
-	_ = testutils.MockApiRequestWithAuth(t, "", "POST", "/account/mfa/totp/setup", HandleSetupTotp, token)
-	
+	_ = mockAuthRequest(t, "", "POST", "/account/mfa/totp/setup", HandleSetupTotp, info)
+
 	currUser, _ := user.UserByID(usr.ID)
 	secret := currUser.TotpSecret
 	code, _ := totp.GenerateCode(secret, time.Now())
 
+	info = refreshAuthInfo(t, info)
 	verifyReq := TotpVerifyRequest{Code: code}
 	body, _ := json.Marshal(verifyReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleVerifyTotp_Errors(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// TOTP not initiated
 	verifyReq := TotpVerifyRequest{Code: "000000"}
 	body, _ := json.Marshal(verifyReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
 	// Invalid code
 	_ = user.StoreTotpSecretPending(usr.ID, "dummy")
-	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, token)
+	info = refreshAuthInfo(t, info)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleDeleteMfa(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	secret := "JBSWY3DPEHPK3PXP"
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = ?, totp_verified = TRUE WHERE id = ?", string(hashedPassword), secret, usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: code}
 	body, _ := json.Marshal(deleteReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleDeleteMfa_NoCode(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(deleteReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleDeleteMfa_InvalidCode(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: "000000"}
 	body, _ := json.Marshal(deleteReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleDeleteMfa_NoPassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// User has no password (passkey-only) but has TOTP
 	secret := "JBSWY3DPEHPK3PXP"
 	_, _ = db.GetDB().Exec("UPDATE users SET password = '', totp_secret = ?, totp_verified = TRUE WHERE id = ?", secret, usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{Code: code}
 	body, _ := json.Marshal(deleteReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleDeleteMfa_InvalidJSON(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
-	rr := testutils.MockApiRequestWithAuth(t, "{invalid", "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	_, _, info := setupTestUserAndSession(t)
+	rr := mockAuthRequest(t, "{invalid", "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleDeleteMfa_WrongPassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	req := DisableMfaRequest{CurrentPassword: "wrong"}
 	body, _ := json.Marshal(req)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	info = refreshAuthInfo(t, info)
 
 	cases := []DisableMfaRequest{
 		{CurrentPassword: "wrong", Code: "000000"},
@@ -152,7 +160,7 @@ func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
 	var responses []string
 	for _, c := range cases {
 		body, _ := json.Marshal(c)
-		rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+		rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
 		assert.Equal(t, http.StatusForbidden, rr.Code)
 		responses = append(responses, rr.Body.String())
 	}
@@ -163,56 +171,52 @@ func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
 
 func TestHandleDeleteMfa_NotEnrolled(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	req := DisableMfaRequest{CurrentPassword: "anything"}
 	body, _ := json.Marshal(req)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleMfaFlow(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Set a valid hashed password for AuthenticateUser to work
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashed), u.ID)
+	info = refreshAuthInfo(t, info)
 
 	// 1. Get MFA Status
-	req := httptest.NewRequest("GET", "/account/api/mfa/status", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	HandleGetMfaStatus(rr, req)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/mfa/status", HandleGetMfaStatus, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var statusResp model.ApiResponse[MfaStatusResponse]
 	err := json.Unmarshal(rr.Body.Bytes(), &statusResp)
 	require.NoError(t, err)
 	assert.False(t, statusResp.Data.TotpEnabled)
 
 	// 2. Setup TOTP
-	req = httptest.NewRequest("POST", "/account/api/mfa/totp/setup", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr = httptest.NewRecorder()
-	HandleSetupTotp(rr, req)
+	rr = mockAuthRequest(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var setupResp model.ApiResponse[TotpSetupResponse]
 	err = json.Unmarshal(rr.Body.Bytes(), &setupResp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, setupResp.Data.Secret)
 
 	// 3. Verify TOTP (valid code)
+	info = refreshAuthInfo(t, info)
 	code, _ := totp.GenerateCode(setupResp.Data.Secret, time.Now())
 	verifyReq := TotpVerifyRequest{Code: code}
 	body, _ := json.Marshal(verifyReq)
-	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, token)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// 4. Verify status again
-	rr = httptest.NewRecorder()
-	HandleGetMfaStatus(rr, req) // reusing req
+	info = refreshAuthInfo(t, info)
+	rr = mockAuthRequest(t, "", "GET", "/account/api/mfa/status", HandleGetMfaStatus, info)
 	err = json.Unmarshal(rr.Body.Bytes(), &statusResp)
 	require.NoError(t, err)
 	assert.True(t, statusResp.Data.TotpEnabled)
@@ -222,55 +226,56 @@ func TestHandleMfaFlow(t *testing.T) {
 	disableCode, _ := totp.GenerateCode(currUser.TotpSecret, time.Now())
 	deleteReq := DisableMfaRequest{CurrentPassword: "password123", Code: disableCode}
 	body, _ = json.Marshal(deleteReq)
-	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleSetupTotp_AlreadyEnrolled(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// Mark TOTP as verified
 	_, _ = db.GetDB().Exec("UPDATE users SET totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", usr.ID)
+	info = refreshAuthInfo(t, info)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, token)
+	rr := mockAuthRequest(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
 	assert.Equal(t, http.StatusConflict, rr.Code)
 	assert.Contains(t, rr.Body.String(), "already_enrolled")
 }
 
 func TestHandleVerifyTotp_InvalidCode(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	verifyReq := TotpVerifyRequest{Code: "000000"}
 	body, _ := json.Marshal(verifyReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleVerifyTotp_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	verifyReq := TotpVerifyRequest{Code: "123456"}
 	body, _ := json.Marshal(verifyReq)
-	
+
 	// Close DB to trigger error
 	db.CloseDB()
 
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, token)
-	
-	// GetUserFromRequest returns 401 if user lookup fails (e.g. DB closed)
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/verify", HandleVerifyTotp, info)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }
 
 func TestHandleDeleteMfa_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
-	// Set a valid hashed password
+	// Set a valid hashed password and TOTP so the handler proceeds past validation
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashed), u.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashed), u.ID)
+	info = refreshAuthInfo(t, info)
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password123"}
 	body, _ := json.Marshal(deleteReq)
@@ -278,8 +283,9 @@ func TestHandleDeleteMfa_DbError(t *testing.T) {
 	// Close DB to trigger error in DisableMfa
 	db.CloseDB()
 
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
-	
-	// GetUserFromRequest returns 401 if user lookup fails
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, info)
+
+	// With auth context, user is loaded from context; DB error hits during
+	// VerifyPassword or DisableMfa — returns 403 (password verify fails) or 500
+	assert.True(t, rr.Code == http.StatusForbidden || rr.Code == http.StatusInternalServerError)
 }

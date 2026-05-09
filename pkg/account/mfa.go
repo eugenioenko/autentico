@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -23,9 +23,9 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/mfa [get]
 func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -45,9 +45,9 @@ func HandleGetMfaStatus(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} model.ApiError
 // @Router /account/api/mfa/totp/setup [post]
 func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -87,9 +87,9 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/mfa/totp/verify [post]
 func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -99,8 +99,11 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch user again to get the unverified secret
-	currUser, _ := user.UserByID(usr.ID)
+	currUser, err := user.UserByID(usr.ID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to load user")
+		return
+	}
 	if currUser.TotpSecret == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "TOTP not initiated")
 		return
@@ -134,9 +137,9 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/mfa/totp [delete]
 func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 

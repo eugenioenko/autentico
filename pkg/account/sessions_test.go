@@ -10,6 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -44,14 +45,14 @@ func linkOAuthSessionToIdp(t *testing.T, usr *user.User, idpSessionID, accessTok
 
 func TestHandleListSessions_ReturnsIdpSessions(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	idpA := createIdpSessionFor(t, usr)
 	_ = linkOAuthSessionToIdp(t, usr, idpA, "at-a1")
 	_ = linkOAuthSessionToIdp(t, usr, idpA, "at-a2")
 	idpB := createIdpSessionFor(t, usr)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
@@ -68,7 +69,7 @@ func TestHandleListSessions_ReturnsIdpSessions(t *testing.T) {
 
 func TestHandleListSessions_ExcludesDeactivatedAndOtherUsers(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// Active IdP session for this user — must appear.
 	mine := createIdpSessionFor(t, usr)
@@ -86,7 +87,7 @@ func TestHandleListSessions_ExcludesDeactivatedAndOtherUsers(t *testing.T) {
 	require.NoError(t, err)
 	_ = createIdpSessionFor(t, other)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
@@ -97,12 +98,12 @@ func TestHandleListSessions_ExcludesDeactivatedAndOtherUsers(t *testing.T) {
 
 func TestHandleListSessions_MarksCurrentSessionFromCookie(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 	current := createIdpSessionFor(t, usr)
 	other := createIdpSessionFor(t, usr)
 
 	req := httptest.NewRequest("GET", "/account/api/sessions", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	req.AddCookie(&http.Cookie{
 		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
 		Value: current,
@@ -125,7 +126,7 @@ func TestHandleListSessions_MarksCurrentSessionFromCookie(t *testing.T) {
 
 func TestHandleListSessions_ExcludesIdleExpired(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
 	})
@@ -140,7 +141,7 @@ func TestHandleListSessions_ExcludesIdleExpired(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var resp model.ApiResponse[model.ListResponse[SessionResponse]]
@@ -151,13 +152,13 @@ func TestHandleListSessions_ExcludesIdleExpired(t *testing.T) {
 
 func TestHandleListSessions_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, "invalid-token")
+	rr := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
 func TestHandleRevokeSession_CascadesChildSessionsAndTokens(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	target := createIdpSessionFor(t, usr)
 	childSession := linkOAuthSessionToIdp(t, usr, target, "at-child")
@@ -175,7 +176,7 @@ func TestHandleRevokeSession_CascadesChildSessionsAndTokens(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", HandleRevokeSession)
 
 	req := httptest.NewRequest("DELETE", "/account/api/sessions/"+target, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -204,14 +205,14 @@ func TestHandleRevokeSession_CascadesChildSessionsAndTokens(t *testing.T) {
 
 func TestHandleRevokeSession_CurrentDevice_ClearsCookie(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 	current := createIdpSessionFor(t, usr)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", HandleRevokeSession)
 
 	req := httptest.NewRequest("DELETE", "/account/api/sessions/"+current, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	req.AddCookie(&http.Cookie{
 		Name:  config.GetBootstrap().AuthIdpSessionCookieName,
 		Value: current,
@@ -234,13 +235,13 @@ func TestHandleRevokeSession_CurrentDevice_ClearsCookie(t *testing.T) {
 
 func TestHandleRevokeSession_NotFound(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", HandleRevokeSession)
 
 	req := httptest.NewRequest("DELETE", "/account/api/sessions/nonexistent", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
@@ -248,7 +249,7 @@ func TestHandleRevokeSession_NotFound(t *testing.T) {
 
 func TestHandleRevokeSession_Forbidden_NotOwner(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	testutils.InsertTestUser(t, "other-user-id")
 	other, err := user.UserByID("other-user-id")
@@ -259,7 +260,7 @@ func TestHandleRevokeSession_Forbidden_NotOwner(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/sessions/{id}", HandleRevokeSession)
 
 	req := httptest.NewRequest("DELETE", "/account/api/sessions/"+otherIdp, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -268,10 +269,10 @@ func TestHandleRevokeSession_Forbidden_NotOwner(t *testing.T) {
 
 func TestHandleRevokeSession_MissingID(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	req := httptest.NewRequest("DELETE", "/account/api/sessions/", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleRevokeSession(rr, req)
 
@@ -281,7 +282,7 @@ func TestHandleRevokeSession_MissingID(t *testing.T) {
 
 func TestHandleRevokeOtherSessions_RevokesOthersKeepsCurrent(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// Create two other IdP sessions with child OAuth sessions + tokens.
 	idpOther1 := createIdpSessionFor(t, usr)
@@ -306,7 +307,7 @@ func TestHandleRevokeOtherSessions_RevokesOthersKeepsCurrent(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, token)
+	rr := mockAuthRequest(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "All other sessions revoked")
 
@@ -318,13 +319,13 @@ func TestHandleRevokeOtherSessions_RevokesOthersKeepsCurrent(t *testing.T) {
 	assert.NotNil(t, revoked2)
 
 	// Current session's token should NOT be revoked — verify by re-listing sessions.
-	rr2 := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/sessions", HandleListSessions, token)
+	rr2 := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, info)
 	assert.Equal(t, http.StatusOK, rr2.Code, "current session must remain valid after revoking others")
 }
 
 func TestHandleRevokeOtherSessions_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, "bad-token")
+	rr := mockAuthRequest(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 

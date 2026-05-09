@@ -8,6 +8,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -19,12 +20,12 @@ import (
 
 func TestHandleGetProfile(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/profile", HandleGetProfile, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/profile", HandleGetProfile, info)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var resp model.ApiResponse[user.UserResponse]
 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	assert.NoError(t, err)
@@ -33,13 +34,13 @@ func TestHandleGetProfile(t *testing.T) {
 
 func TestHandleGetProfile_Unauthorized(t *testing.T) {
 	testutils.WithTestDB(t)
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/profile", HandleGetProfile, "invalid-token")
+	rr := mockAuthRequest(t, "", "GET", "/account/profile", HandleGetProfile, nil)
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
 func TestHandleUpdateProfile_AllFields(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	updateReq := user.UserUpdateRequest{
 		GivenName:         "John",
@@ -55,20 +56,20 @@ func TestHandleUpdateProfile_AllFields(t *testing.T) {
 		AddressCountry:    "USA",
 	}
 	body, _ := json.Marshal(updateReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/profile", HandleUpdateProfile, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/profile", HandleUpdateProfile, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleUpdateProfile_Errors(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	// Username change not allowed
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowUsernameChange = false
 		req := user.UserUpdateRequest{Username: "newusername"}
 		b, _ := json.Marshal(req)
-		rr := testutils.MockApiRequestWithAuth(t, string(b), "POST", "/account/profile", HandleUpdateProfile, token)
+		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusForbidden, rr.Code)
 	})
 
@@ -79,12 +80,12 @@ func TestHandleUpdateProfile_Errors(t *testing.T) {
 		_, _ = db.GetDB().Exec("INSERT INTO users (id, username, email) VALUES (?, ?, ?)", otherUserID, "other", "other@test.com")
 		req := user.UserUpdateRequest{Email: "other@test.com"}
 		b, _ := json.Marshal(req)
-		rr := testutils.MockApiRequestWithAuth(t, string(b), "POST", "/account/profile", HandleUpdateProfile, token)
+		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusConflict, rr.Code)
 	})
-	
+
 	// Invalid JSON
-	rr := testutils.MockApiRequestWithAuth(t, "{invalid", "POST", "/account/profile", HandleUpdateProfile, token)
+	rr := mockAuthRequest(t, "{invalid", "POST", "/account/profile", HandleUpdateProfile, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
 	// Validation error
@@ -92,14 +93,14 @@ func TestHandleUpdateProfile_Errors(t *testing.T) {
 		config.Values.AllowUsernameChange = true
 		req := user.UserUpdateRequest{Username: "a"} // too short
 		b, _ := json.Marshal(req)
-		rr := testutils.MockApiRequestWithAuth(t, string(b), "POST", "/account/profile", HandleUpdateProfile, token)
+		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 	})
 }
 
 func TestHandleUpdatePassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("current-password"), bcrypt.DefaultCost)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
@@ -109,26 +110,26 @@ func TestHandleUpdatePassword(t *testing.T) {
 		NewPassword:     "new-secure-password123",
 	}
 	body, _ := json.Marshal(updateReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/password", HandleUpdatePassword, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/password", HandleUpdatePassword, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Invalid current password (returns 403)
 	updateReq.CurrentPassword = "wrong"
 	body, _ = json.Marshal(updateReq)
-	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/password", HandleUpdatePassword, token)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/password", HandleUpdatePassword, info)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 
 	// Invalid new password (too short) — must pass current password check first
 	updateReq.CurrentPassword = "current-password"
 	updateReq.NewPassword = "short"
 	body, _ = json.Marshal(updateReq)
-	rr = testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/password", HandleUpdatePassword, token)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/password", HandleUpdatePassword, info)
 	assert.Contains(t, []int{http.StatusBadRequest, http.StatusForbidden}, rr.Code)
 }
 
 func TestHandleUpdatePassword_NoPassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// User has no password (passkey user)
 	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
@@ -138,21 +139,21 @@ func TestHandleUpdatePassword_NoPassword(t *testing.T) {
 		NewPassword:     "new-password",
 	}
 	body, _ := json.Marshal(updateReq)
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/password", HandleUpdatePassword, token)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/password", HandleUpdatePassword, info)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleGetProfile_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	req := httptest.NewRequest("GET", "/account/api/profile", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleGetProfile(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var resp model.ApiResponse[user.User]
 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	require.NoError(t, err)
@@ -164,14 +165,14 @@ func TestHandleUpdateProfile_DbError(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowEmailChange = true
 	})
-	token, _ := setupTestUserAndSession(t)
-	
+	_, _, info := setupTestUserAndSession(t)
+
 	req := user.UserUpdateRequest{GivenName: "New Name"}
 	body, _ := json.Marshal(req)
-	
+
 	// Close DB to trigger error in UpdateUser
 	db.CloseDB()
 
-	rr := testutils.MockApiRequestWithAuth(t, string(body), "PUT", "/account/api/profile", HandleUpdateProfile, token)
-	assert.Equal(t, http.StatusUnauthorized, rr.Code) // GetUserFromRequest fails with 401 if DB closed
+	rr := mockAuthRequest(t, string(body), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code) // Auth from context succeeds, UpdateUser fails with DB closed
 }

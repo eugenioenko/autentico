@@ -8,6 +8,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -16,29 +17,29 @@ import (
 
 func TestHandleListConnectedProviders(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_, _ = db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Google', 'iss', 'c1', 's1')`)
 	_ = federation.CreateFederatedIdentity(federation.FederatedIdentity{ProviderID: "p1", ProviderUserID: "sub1", UserID: usr.ID})
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleListConnectedProviders_Partial(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// Provider doesn't exist in federation_providers table
 	_ = federation.CreateFederatedIdentity(federation.FederatedIdentity{ProviderID: "nonexistent", ProviderUserID: "sub1", UserID: usr.ID})
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleDisconnectProvider_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_, _ = db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Google', 'iss', 'c1', 's1')`)
 	_ = federation.CreateFederatedIdentity(federation.FederatedIdentity{ProviderID: "p1", ProviderUserID: "sub1", UserID: usr.ID})
@@ -49,14 +50,14 @@ func TestHandleDisconnectProvider_Success(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", HandleDisconnectProvider)
 
 	req := httptest.NewRequest("DELETE", "/account/api/connected-providers/"+fiID, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Not owned
 	req = httptest.NewRequest("DELETE", "/account/api/connected-providers/other", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
@@ -64,11 +65,12 @@ func TestHandleDisconnectProvider_Success(t *testing.T) {
 
 func TestHandleDisconnectProvider_Lockout(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	// No password
 	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
-	
+	info = refreshAuthInfo(t, info)
+
 	_, _ = db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Google', 'iss', 'c1', 's1')`)
 	_ = federation.CreateFederatedIdentity(federation.FederatedIdentity{ProviderID: "p1", ProviderUserID: "sub1", UserID: usr.ID})
 	identities, _ := federation.FederatedIdentitiesByUserID(usr.ID)
@@ -78,7 +80,7 @@ func TestHandleDisconnectProvider_Lockout(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", HandleDisconnectProvider)
 
 	req := httptest.NewRequest("DELETE", "/account/api/connected-providers/"+fiID, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -87,23 +89,17 @@ func TestHandleDisconnectProvider_Lockout(t *testing.T) {
 
 func TestHandleDisconnectProvider_InvalidPath(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
-	
-	req := httptest.NewRequest("DELETE", "/account/api/connected-providers/", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	HandleDisconnectProvider(rr, req)
+	_, _, info := setupTestUserAndSession(t)
+
+	rr := mockAuthRequest(t, "", "DELETE", "/account/api/connected-providers/", HandleDisconnectProvider, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleDisconnectProvider_MissingID(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
-	req := httptest.NewRequest("DELETE", "/account/api/connected-providers/", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	HandleDisconnectProvider(rr, req)
+	rr := mockAuthRequest(t, "", "DELETE", "/account/api/connected-providers/", HandleDisconnectProvider, info)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), "Missing identity ID")
@@ -111,7 +107,7 @@ func TestHandleDisconnectProvider_MissingID(t *testing.T) {
 
 func TestHandleDisconnectProvider_Success_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Must create provider first due to FK
 	_, err := db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'P1', 'http://iss', 'c1', 's1')`)
@@ -124,7 +120,7 @@ func TestHandleDisconnectProvider_Success_Extra(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/connected-providers/{id}", HandleDisconnectProvider)
 
 	req := httptest.NewRequest("DELETE", "/account/api/connected-providers/fi1", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
@@ -133,16 +129,13 @@ func TestHandleDisconnectProvider_Success_Extra(t *testing.T) {
 
 func TestHandleListConnectedProviders_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Create provider and identity
 	_, _ = db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'P1', 'http://iss', 'c1', 's1')`)
 	_, _ = db.GetDB().Exec(`INSERT INTO federated_identities (id, provider_id, provider_user_id, user_id, email) VALUES ('fi1', 'p1', 'sub1', ?, 'e1@test.com')`, u.ID)
 
-	req := httptest.NewRequest("GET", "/account/api/connected-providers", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rr := httptest.NewRecorder()
-	HandleListConnectedProviders(rr, req)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, info)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var listResp model.ApiResponse[[]ConnectedProviderResponse]

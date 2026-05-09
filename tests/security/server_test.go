@@ -64,6 +64,15 @@ func startTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to seed autentico-admin client: %v", err)
 	}
 
+	// Account client (audience accepted by AccountAuthMiddleware)
+	_, err = db.GetDB().Exec(`
+		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
+		VALUES ('autentico-account-id', 'autentico-account', 'Autentico Account', 'public', '["http://localhost:3000/account/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code"]', 'openid profile email offline_access', TRUE)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to seed autentico-account client: %v", err)
+	}
+
 	// Confidential test client
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("sec-secret"), bcrypt.MinCost)
 	_, err = db.GetDB().Exec(`
@@ -149,20 +158,21 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
 	mux.Handle("GET "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))
 
-	mux.HandleFunc("GET /account/api/profile", account.HandleGetProfile)
-	mux.HandleFunc("PUT /account/api/profile", account.HandleUpdateProfile)
-	mux.HandleFunc("POST /account/api/password", account.HandleUpdatePassword)
-	mux.HandleFunc("GET /account/api/sessions", account.HandleListSessions)
-	mux.HandleFunc("DELETE /account/api/sessions/{id}", account.HandleRevokeSession)
-	mux.HandleFunc("GET /account/api/mfa", account.HandleGetMfaStatus)
-	mux.HandleFunc("POST /account/api/mfa/totp/setup", account.HandleSetupTotp)
-	mux.HandleFunc("POST /account/api/mfa/totp/verify", account.HandleVerifyTotp)
-	mux.HandleFunc("DELETE /account/api/mfa/totp", account.HandleDeleteMfa)
-	mux.HandleFunc("GET /account/api/passkeys", account.HandleListPasskeys)
-	mux.HandleFunc("DELETE /account/api/passkeys/{id}", account.HandleDeletePasskey)
-	mux.HandleFunc("PATCH /account/api/passkeys/{id}", account.HandleRenamePasskey)
-	mux.HandleFunc("GET /account/api/trusted-devices", account.HandleListTrustedDevices)
-	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", account.HandleRevokeTrustedDevice)
+	mux.Handle("GET /account/api/profile", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleGetProfile)))
+	mux.Handle("PUT /account/api/profile", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleUpdateProfile)))
+	mux.Handle("POST /account/api/password", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleUpdatePassword)))
+	mux.Handle("GET /account/api/sessions", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleListSessions)))
+	mux.Handle("DELETE /account/api/sessions/{id}", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleRevokeSession)))
+	mux.Handle("POST /account/api/sessions/revoke-others", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleRevokeOtherSessions)))
+	mux.Handle("GET /account/api/mfa", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleGetMfaStatus)))
+	mux.Handle("POST /account/api/mfa/totp/setup", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleSetupTotp)))
+	mux.Handle("POST /account/api/mfa/totp/verify", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleVerifyTotp)))
+	mux.Handle("DELETE /account/api/mfa/totp", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleDeleteMfa)))
+	mux.Handle("GET /account/api/passkeys", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleListPasskeys)))
+	mux.Handle("DELETE /account/api/passkeys/{id}", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleDeletePasskey)))
+	mux.Handle("PATCH /account/api/passkeys/{id}", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleRenamePasskey)))
+	mux.Handle("GET /account/api/trusted-devices", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleListTrustedDevices)))
+	mux.Handle("DELETE /account/api/trusted-devices/{id}", middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleRevokeTrustedDevice)))
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 
 	mux.Handle("GET /admin/api/users", middleware.AdminAuthMiddleware(http.HandlerFunc(user.HandleListUsers)))
