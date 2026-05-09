@@ -1,5 +1,5 @@
 {{define "content"}}
-<form class="auth-card" method="POST" action="{{authURL "/signup"}}" data-auth-mode="{{.AuthMode}}" onsubmit="handleSignupSubmit(event)">
+<form class="auth-card" method="POST" action="{{authURL "/signup"}}" data-auth-mode="{{.AuthMode}}" id="signup-form">
   <div class="auth-header">
     {{template "logo" .}}
     <h1 class="auth-title">{{.ThemeTitle}}</h1>
@@ -89,7 +89,7 @@
   {{end}}
   {{if eq .AuthMode "password_and_passkey"}}
   <div class="auth-checkbox">
-    <input type="checkbox" id="use-passkey" onchange="togglePasskeyMode(this)" />
+    <input type="checkbox" id="use-passkey" />
     <label for="use-passkey">Use passkey instead of password</label>
   </div>
   {{end}}
@@ -106,8 +106,8 @@
 {{end}}
 
 {{define "scripts"}}
-{{if ne .AuthMode "password"}}<script src="{{authURL "/static/passkey.js"}}"></script>{{end}}
-<script>
+{{if ne .AuthMode "password"}}<script nonce="{{.CspNonce}}" src="{{authURL "/static/passkey.js"}}"></script>{{end}}
+<script nonce="{{.CspNonce}}">
   function showPasskeyError(msg) {
     const el = document.getElementById('signup-error');
     el.textContent = msg;
@@ -163,5 +163,11 @@
       startPasskeyRegistration();
     }
   }
+  (function() {
+    var form = document.getElementById('signup-form');
+    if (form) { form.addEventListener('submit', handleSignupSubmit); }
+    var passkeyCheckbox = document.getElementById('use-passkey');
+    if (passkeyCheckbox) { passkeyCheckbox.addEventListener('change', function() { togglePasskeyMode(this); }); }
+  })();
 </script>
 {{end}}

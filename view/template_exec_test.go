@@ -17,8 +17,9 @@ func TestParseTemplate_Execution(t *testing.T) {
 	
 	var buf bytes.Buffer
 	data := map[string]any{
-		"Title": "Login",
-		"Theme": config.ThemeConfig{Title: "Auth"},
+		"Title":    "Login",
+		"Theme":    config.ThemeConfig{Title: "Auth"},
+		"CspNonce": "test-nonce",
 	}
 	err = tmpl.ExecuteTemplate(&buf, "layout", data)
 	assert.NoError(t, err)

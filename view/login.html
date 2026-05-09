@@ -42,7 +42,7 @@
   {{if eq .AuthMode "password_and_passkey"}}
   <div class="auth-divider">or</div>
   {{end}}
-  <button type="button" class="auth-btn-secondary" onclick="startPasskeyLogin()">
+  <button type="button" class="auth-btn-secondary" id="passkey-login-btn">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="8" cy="8" r="5"/><path d="m13 13 9 9"/><path d="M13 13l-1.5-1.5"/><path d="m16 16 2-2"/><path d="m19 13 2-2"/>
     </svg>
@@ -72,8 +72,8 @@
 {{end}}
 
 {{define "scripts"}}
-{{if ne .AuthMode "password"}}<script src="{{authURL "/static/passkey.js"}}"></script>{{end}}
-<script>
+{{if ne .AuthMode "password"}}<script nonce="{{.CspNonce}}" src="{{authURL "/static/passkey.js"}}"></script>{{end}}
+<script nonce="{{.CspNonce}}">
   function showPasskeyError(msg) {
     const el = document.getElementById('login-error');
     el.textContent = msg;
@@ -100,5 +100,9 @@
       await doPasskeyAuth(data, '{{authURL ""}}');
     } catch (e) { showPasskeyError('Passkey error: ' + e.message); }
   }
+  (function() {
+    var btn = document.getElementById('passkey-login-btn');
+    if (btn) { btn.addEventListener('click', startPasskeyLogin); }
+  })();
 </script>
 {{end}}

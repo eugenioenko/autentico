@@ -383,6 +383,7 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"CanSwitch":          canSwitch,
 		"UserTotpVerified":   userTotpVerified,
 	}
+	view.InjectNonce(r, data)
 
 	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("mfa: failed to execute verify template", "request_id", reqid.Get(r.Context()), "error", err)
@@ -421,6 +422,7 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"ThemeTitle":     cfg.Theme.Title,
 		"ThemeLogoUrl":   cfg.Theme.LogoUrl,
 	}
+	view.InjectNonce(r, data)
 
 	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("mfa: failed to execute enroll template", "request_id", reqid.Get(r.Context()), "error", err)

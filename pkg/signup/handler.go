@@ -280,6 +280,7 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"ProfileFieldLocale":     cfg.ProfileFieldLocale,
 		"ProfileFieldAddress":    cfg.ProfileFieldAddress,
 	}
+	view.InjectNonce(r, data)
 
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)

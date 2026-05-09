@@ -65,6 +65,7 @@ func renderForgotPassword(w http.ResponseWriter, r *http.Request, mode string, p
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
+	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}
@@ -92,6 +93,7 @@ func renderResetPassword(w http.ResponseWriter, r *http.Request, mode, token str
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 	}
+	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
 	}

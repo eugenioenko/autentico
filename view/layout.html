@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="{{authURL "/static/auth.css"}}" />
   {{if hasThemeCss}}<link rel="stylesheet" href="{{authURL "/static/theme.css"}}" />{{end}}
   {{block "styles" .}}{{end}}
-  <script>try{var t=localStorage.getItem('autentico-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+  <script nonce="{{.CspNonce}}">try{var t=localStorage.getItem('autentico-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 </head>
 
 <body>
@@ -25,7 +25,7 @@
   <footer>{{range footerLinks}}<a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}}</a>{{end}}</footer>
   {{block "scripts" .}}{{end}}
 </body>
-<script src="{{authURL "/static/main.js"}}"></script>
+<script nonce="{{.CspNonce}}" src="{{authURL "/static/main.js"}}"></script>
 </html>
 {{end}}
 
