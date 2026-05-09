@@ -300,5 +300,5 @@ func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupPa
 	q.Set("nonce", params.Nonce)
 	q.Set("code_challenge", params.CodeChallenge)
 	q.Set("code_challenge_method", params.CodeChallengeMethod)
-	http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
+	http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/authorize?"+q.Encode(), http.StatusFound)
 }

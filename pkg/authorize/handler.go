@@ -197,7 +197,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		q.Set("code_challenge_method", request.CodeChallengeMethod)
 		q.Set("prompt", request.Prompt)
 		q.Set("max_age", request.MaxAge)
-		http.Redirect(w, r, "/oauth2/authorize?"+q.Encode(), http.StatusFound)
+		http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/authorize?"+q.Encode(), http.StatusFound)
 		return
 	}
 
