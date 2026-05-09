@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import CallbackPage from "./pages/CallbackPage";
 import DashboardPage from "./pages/DashboardPage";
+import DevicePage from "./pages/DevicePage";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/callback" element={<CallbackPage />} />
+              <Route path="/device" element={<DevicePage />} />
               <Route element={<ProtectedRoute />}>
                 <Route index element={<DashboardPage />} />
               </Route>

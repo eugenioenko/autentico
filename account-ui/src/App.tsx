@@ -7,6 +7,9 @@ import { SettingsProvider, useSettings } from './context/SettingsContext';
 import AuthBridge from './components/AuthBridge';
 import Layout from './components/Layout';
 import Callback from './pages/Callback';
+import Device from './pages/Device';
+import { RequireAuth } from 'oidc-js-react';
+import Spinner from './components/Spinner';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -51,6 +54,16 @@ function App() {
           <AuthWrapper>
             <Routes>
               <Route path="/callback" element={<Callback />} />
+              <Route path="/device/:code" element={
+                <RequireAuth fallback={<div className="min-h-dvh flex items-center justify-center bg-theme-bg"><Spinner /></div>}>
+                  <Device />
+                </RequireAuth>
+              } />
+              <Route path="/device" element={
+                <RequireAuth fallback={<div className="min-h-dvh flex items-center justify-center bg-theme-bg"><Spinner /></div>}>
+                  <Device />
+                </RequireAuth>
+              } />
               <Route path="/*" element={<Layout />} />
             </Routes>
           </AuthWrapper>

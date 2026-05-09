@@ -60,7 +60,8 @@ func TestHandleDeviceAuthorization_Success(t *testing.T) {
 	assert.Equal(t, 600, resp.ExpiresIn)
 	assert.Equal(t, 5, resp.Interval)
 	assert.Contains(t, resp.VerificationURI, "/device")
-	assert.Contains(t, resp.VerificationURIComplete, "user_code=")
+	assert.Contains(t, resp.VerificationURIComplete, "/account/device/")
+	assert.Contains(t, resp.VerificationURIComplete, resp.UserCode)
 }
 
 func TestHandleDeviceAuthorization_MissingClientID(t *testing.T) {
