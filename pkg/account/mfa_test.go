@@ -85,7 +85,7 @@ func TestHandleDeleteMfa_NoCode(t *testing.T) {
 	deleteReq := DisableMfaRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(deleteReq)
 	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/mfa/delete", HandleDeleteMfa, token)
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func TestHandleDeleteMfa_InvalidCode(t *testing.T) {
@@ -125,12 +125,50 @@ func TestHandleDeleteMfa_InvalidJSON(t *testing.T) {
 
 func TestHandleDeleteMfa_WrongPassword(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
-	
+	token, usr := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+
 	req := DisableMfaRequest{CurrentPassword: "wrong"}
 	body, _ := json.Marshal(req)
 	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
+}
+
+func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, usr := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+
+	cases := []DisableMfaRequest{
+		{CurrentPassword: "wrong", Code: "000000"},
+		{CurrentPassword: "wrong", Code: ""},
+		{CurrentPassword: "password", Code: "000000"},
+		{CurrentPassword: "password", Code: ""},
+	}
+	var responses []string
+	for _, c := range cases {
+		body, _ := json.Marshal(c)
+		rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+		responses = append(responses, rr.Body.String())
+	}
+	for i := 1; i < len(responses); i++ {
+		assert.Equal(t, responses[0], responses[i], "response %d differs from response 0", i)
+	}
+}
+
+func TestHandleDeleteMfa_NotEnrolled(t *testing.T) {
+	testutils.WithTestDB(t)
+	token, _ := setupTestUserAndSession(t)
+
+	req := DisableMfaRequest{CurrentPassword: "anything"}
+	body, _ := json.Marshal(req)
+	rr := testutils.MockApiRequestWithAuth(t, string(body), "POST", "/account/api/mfa/delete", HandleDeleteMfa, token)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestHandleMfaFlow(t *testing.T) {
