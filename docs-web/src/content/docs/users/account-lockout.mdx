@@ -10,7 +10,7 @@ Autentico tracks consecutive failed login attempts and locks the account tempora
 ## How it works
 
 1. Each failed password attempt increments `failed_login_attempts` on the user record
-2. When `failed_login_attempts` reaches `lockout_max_attempts`, the account is locked by setting `locked_until = now + lockout_duration`
+2. When `failed_login_attempts` reaches `account_lockout_max_attempts`, the account is locked by setting `locked_until = now + account_lockout_duration`
 3. Login attempts while the account is locked return an error immediately (no password check)
 4. The counter resets to `0` on a successful login
 
@@ -18,8 +18,8 @@ Autentico tracks consecutive failed login attempts and locks the account tempora
 
 | Setting | Default | Description |
 |---|---|---|
-| `lockout_max_attempts` | `5` | Number of consecutive failures before lockout |
-| `lockout_duration` | `15m` | How long the account stays locked |
+| `account_lockout_max_attempts` | `5` | Number of consecutive failures before lockout |
+| `account_lockout_duration` | `15m` | How long the account stays locked |
 
 Update via Admin UI (Settings) or API:
 
@@ -27,7 +27,7 @@ Update via Admin UI (Settings) or API:
 curl -X PUT https://auth.example.com/admin/api/settings \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"lockout_max_attempts": "10", "lockout_duration": "30m"}'
+  -d '{"account_lockout_max_attempts": 10, "account_lockout_duration": "30m"}'
 ```
 
 ## Unlocking accounts
@@ -39,10 +39,8 @@ Locked accounts unlock automatically when `locked_until` passes. To unlock immed
 **API**:
 
 ```bash
-curl -X POST https://auth.example.com/admin/api/users/unlock \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "USER_ID"}'
+curl -X POST https://auth.example.com/admin/api/users/USER_ID/unlock \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 Unlocking resets `failed_login_attempts` to `0` and clears `locked_until`.
@@ -52,5 +50,5 @@ Unlocking resets `failed_login_attempts` to `0` and clears `locked_until`.
 Account lockout applies to ROPC (Resource Owner Password Credentials) token requests as well as browser-based logins.
 
 <Aside type="tip">
-If users frequently lock themselves out, consider increasing `lockout_max_attempts` rather than disabling the feature. A threshold of 5-10 is a reasonable starting point for most applications.
+If users frequently lock themselves out, consider increasing `account_lockout_max_attempts` rather than disabling the feature. A threshold of 5-10 is a reasonable starting point for most applications.
 </Aside>

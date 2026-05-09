@@ -1,0 +1,158 @@
+---
+title: Account Deletion
+description: How account deletion works in Autentico, including self-service deletion, admin review, and the deletion request workflow.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico supports user-initiated account deletion with two modes: immediate self-service deletion and admin-reviewed deletion requests.
+
+## Deletion modes
+
+### Self-service deletion
+
+When `allow_self_service_deletion` is `true`, a user's account is permanently deleted immediately when they submit a deletion request. No admin review is required.
+
+### Admin-reviewed deletion
+
+When `allow_self_service_deletion` is `false` (the default), the user's request is stored as a pending deletion request. An admin must review and approve or cancel the request.
+
+## Configuration
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"allow_self_service_deletion": "true"}'
+```
+
+| Setting | Default | Description |
+|---|---|---|
+| `allow_self_service_deletion` | `false` | When `true`, deletion requests are executed immediately without admin review |
+
+## Account API endpoints (user-facing)
+
+These endpoints are authenticated with the user's access token.
+
+### Request deletion
+
+**`POST /account/api/deletion-request`**
+
+Submits a deletion request. In self-service mode, the account is deleted immediately (returns `204`). In admin-review mode, a pending request is created (returns `201`).
+
+```bash
+curl -X POST https://auth.example.com/account/api/deletion-request \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "No longer using the service"}'
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `reason` | No | Optional reason for the deletion request |
+
+Returns `409 Conflict` if a pending request already exists.
+
+### Get deletion request status
+
+**`GET /account/api/deletion-request`**
+
+Returns the current user's pending deletion request, or `null` if none exists.
+
+```bash
+curl https://auth.example.com/account/api/deletion-request \
+  -H "Authorization: Bearer $USER_TOKEN"
+```
+
+### Cancel deletion request
+
+**`DELETE /account/api/deletion-request`**
+
+Cancels the current user's pending deletion request.
+
+```bash
+curl -X DELETE https://auth.example.com/account/api/deletion-request \
+  -H "Authorization: Bearer $USER_TOKEN"
+```
+
+Returns `204` on success, `404` if no pending request exists.
+
+## Admin API endpoints
+
+These endpoints require admin authentication.
+
+### List deletion requests
+
+**`GET /admin/api/deletion-requests`**
+
+Lists all pending deletion requests with pagination, sorting, search, and date filtering.
+
+```bash
+curl https://auth.example.com/admin/api/deletion-requests \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+| Parameter | Description |
+|---|---|
+| `sort` | Sort field: `requested_at` (default), `username`, `email` |
+| `order` | Sort order: `asc` (default), `desc` |
+| `search` | Search by username, email, or reason |
+| `requested_at_from` | Filter: requested at or after (ISO 8601) |
+| `requested_at_to` | Filter: requested at or before (ISO 8601) |
+| `limit` | Max results per page (1--100, default 100) |
+| `offset` | Number of results to skip (default 0) |
+
+### Approve deletion
+
+**`POST /admin/api/deletion-requests/{id}/approve`**
+
+Permanently deletes the user and all associated data.
+
+```bash
+curl -X POST https://auth.example.com/admin/api/deletion-requests/$REQUEST_ID/approve \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+Returns `204` on success. Logs a `deletion_approved` audit event.
+
+### Cancel (dismiss) deletion request
+
+**`DELETE /admin/api/deletion-requests/{id}`**
+
+Cancels a deletion request without deleting the user.
+
+```bash
+curl -X DELETE https://auth.example.com/admin/api/deletion-requests/$REQUEST_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+## What gets deleted
+
+When a deletion is approved (or executed in self-service mode), the user and all associated data are permanently removed:
+
+- User account record
+- All OAuth sessions
+- All IdP sessions
+- All access and refresh tokens
+- All MFA challenges and TOTP secrets
+- All passkey credentials
+- All trusted device tokens
+- All federated identity links
+- All group memberships
+- All consent records
+- The deletion request itself
+
+<Aside type="caution">
+Account deletion is permanent and irreversible. There is no soft-delete or recovery period. Make sure admin review is enabled if you want a safety net.
+</Aside>
+
+## Database table
+
+The `deletion_requests` table stores pending requests:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | TEXT | Primary key (xid) |
+| `user_id` | TEXT | Foreign key to `users.id` |
+| `reason` | TEXT | Optional reason (nullable) |
+| `requested_at` | DATETIME | When the request was submitted |

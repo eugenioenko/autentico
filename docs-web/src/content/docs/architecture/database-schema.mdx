@@ -3,7 +3,7 @@ title: Database Schema
 description: The SQLite database schema used by Autentico.
 ---
 
-Autentico uses a single SQLite database file. All tables are created on startup if they don't exist. Schema migrations are applied automatically via `ALTER TABLE … ADD COLUMN` (idempotent).
+Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 7). Fresh databases run all migrations from scratch; existing databases run only pending ones. Migrations are applied automatically on startup by default, or can be applied interactively via `autentico migrate`.
 
 ## Tables
 
@@ -13,18 +13,43 @@ Stores all user accounts.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT PK | UUID — the `sub` claim in tokens |
+| `id` | TEXT PK | UUID -- the `sub` claim in tokens |
 | `username` | TEXT UNIQUE | Login name |
 | `email` | TEXT UNIQUE | Optional; enforced unique if set |
-| `password` | TEXT | bcrypt hash |
+| `password` | TEXT | bcrypt hash (NULL for passkey-only users) |
 | `role` | TEXT | `user` or `admin` |
+| `two_factor_enabled` | BOOLEAN | Whether 2FA is enabled |
 | `totp_secret` | TEXT | base32-encoded TOTP shared secret |
 | `totp_verified` | BOOLEAN | Whether enrollment is complete |
+| `last_login` | DATETIME | Timestamp of last successful login |
 | `failed_login_attempts` | INTEGER | Resets on successful login |
 | `locked_until` | DATETIME | NULL = not locked |
+| `password_last_changed` | DATETIME | When password was last updated |
 | `is_email_verified` | BOOLEAN | |
+| `email_verification_token` | TEXT | Token used for email verification |
+| `email_verification_expires_at` | DATETIME | Expiration of verification token |
 | `deactivated_at` | DATETIME | NULL = active |
+| `registered_at` | DATETIME | NULL only for passkey users mid-ceremony |
 | `created_at` | DATETIME | |
+| `updated_at` | DATETIME | |
+| `given_name` | TEXT | OIDC standard claim |
+| `family_name` | TEXT | OIDC standard claim |
+| `middle_name` | TEXT | OIDC standard claim |
+| `nickname` | TEXT | OIDC standard claim |
+| `website` | TEXT | OIDC standard claim |
+| `gender` | TEXT | OIDC standard claim |
+| `birthdate` | TEXT | OIDC standard claim |
+| `profile` | TEXT | OIDC standard claim |
+| `phone_number` | TEXT | OIDC standard claim |
+| `phone_number_verified` | BOOLEAN | OIDC standard claim |
+| `picture` | TEXT | OIDC standard claim |
+| `locale` | TEXT | OIDC standard claim |
+| `zoneinfo` | TEXT | OIDC standard claim |
+| `address_street` | TEXT | OIDC address claim |
+| `address_locality` | TEXT | OIDC address claim |
+| `address_region` | TEXT | OIDC address claim |
+| `address_postal_code` | TEXT | OIDC address claim |
+| `address_country` | TEXT | OIDC address claim |
 
 ### `clients`
 
@@ -43,6 +68,8 @@ Registered OAuth2 clients.
 | `scopes` | TEXT | Space-separated |
 | `token_endpoint_auth_method` | TEXT | |
 | `is_active` | BOOLEAN | |
+| `created_at` | DATETIME | |
+| `updated_at` | DATETIME | |
 | `access_token_expiration` | TEXT | NULL = use global |
 | `refresh_token_expiration` | TEXT | NULL = use global |
 | `authorization_code_expiration` | TEXT | NULL = use global |
@@ -51,6 +78,8 @@ Registered OAuth2 clients.
 | `sso_session_idle_timeout` | TEXT | NULL = use global |
 | `trust_device_enabled` | INTEGER | NULL = use global |
 | `trust_device_expiration` | TEXT | NULL = use global |
+| `post_logout_redirect_uris` | TEXT | JSON array |
+| `consent_required` | INTEGER | 0 = no consent screen (added in migration 007) |
 
 ### `tokens`
 
@@ -59,15 +88,37 @@ Issued access and refresh token records.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | |
-| `user_id` | TEXT FK | → users |
+| `user_id` | TEXT FK | -> users (nullable for client_credentials grant, changed in migration 005) |
 | `access_token` | TEXT | JWT |
 | `refresh_token` | TEXT | JWT |
 | `access_token_type` | TEXT | `Bearer` |
 | `access_token_expires_at` | DATETIME | |
 | `refresh_token_expires_at` | DATETIME | |
+| `refresh_token_last_used_at` | DATETIME | Tracks when refresh token was last used |
+| `issued_at` | DATETIME | |
 | `scope` | TEXT | |
 | `grant_type` | TEXT | |
 | `revoked_at` | DATETIME | NULL = not revoked |
+
+### `sessions`
+
+OAuth sessions linking a user to a specific access/refresh token pair and device.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `user_id` | TEXT FK | -> users |
+| `access_token` | TEXT | Associated access token |
+| `refresh_token` | TEXT | Associated refresh token |
+| `user_agent` | TEXT | Browser/device info |
+| `ip_address` | TEXT | Client IP at session creation |
+| `device_id` | TEXT | Unique device identifier |
+| `location` | TEXT | Location where session was initiated |
+| `last_activity_at` | DATETIME | |
+| `created_at` | DATETIME | |
+| `expires_at` | DATETIME | |
+| `deactivated_at` | DATETIME | NULL = active |
+| `idp_session_id` | TEXT FK | -> idp_sessions (added in migration 006; nullable for non-browser grants) |
 
 ### `idp_sessions`
 
@@ -76,7 +127,7 @@ SSO sessions (browser-facing, managed by session cookie).
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT PK | Stored in browser cookie |
-| `user_id` | TEXT FK | → users |
+| `user_id` | TEXT FK | -> users |
 | `user_agent` | TEXT | |
 | `ip_address` | TEXT | |
 | `last_activity_at` | DATETIME | Updated on each auto-login |
@@ -90,7 +141,7 @@ Short-lived authorization codes (typically 1-5 min).
 | Column | Type | Notes |
 |---|---|---|
 | `code` | TEXT PK | |
-| `user_id` | TEXT FK | → users |
+| `user_id` | TEXT FK | -> users |
 | `client_id` | TEXT | |
 | `redirect_uri` | TEXT | |
 | `scope` | TEXT | |
@@ -99,65 +150,218 @@ Short-lived authorization codes (typically 1-5 min).
 | `code_challenge_method` | TEXT | `S256` or `plain` |
 | `expires_at` | DATETIME | |
 | `used` | BOOLEAN | Single-use |
+| `idp_session_id` | TEXT FK | -> idp_sessions (added in migration 006; carried to session at code exchange) |
 
 ### `mfa_challenges`
 
 Pending MFA challenges (TOTP or email OTP).
 
-| Column | Notes |
-|---|---|
-| `id` | Challenge token — included in redirect URL |
-| `user_id` | |
-| `method` | `totp` or `email` |
-| `code` | OTP code (email OTP only) |
-| `login_state` | JSON blob with OAuth params to resume after MFA |
-| `expires_at` | 5 minutes |
-| `used` | Single-use |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Challenge token -- included in redirect URL |
+| `user_id` | TEXT FK | -> users |
+| `method` | TEXT | `totp` or `email` |
+| `code` | TEXT | OTP code (email OTP only) |
+| `login_state` | TEXT | JSON blob with OAuth params to resume after MFA |
+| `created_at` | DATETIME | |
+| `expires_at` | DATETIME | 5 minutes |
+| `used` | BOOLEAN | Single-use |
+| `failed_attempts` | INTEGER | Failed verification counter |
+| `otp_sent_at` | DATETIME | When the OTP email was last sent |
 
 ### `trusted_devices`
 
 Trusted device records for MFA bypass.
 
-| Column | Notes |
-|---|---|
-| `id` | Token stored in browser cookie |
-| `user_id` | |
-| `device_name` | User-agent at trust time |
-| `last_used_at` | |
-| `expires_at` | Configurable via `trust_device_expiration` |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Token stored in browser cookie |
+| `user_id` | TEXT FK | -> users |
+| `device_name` | TEXT | User-agent at trust time |
+| `created_at` | DATETIME | |
+| `last_used_at` | DATETIME | |
+| `expires_at` | DATETIME | Configurable via `trust_device_expiration` |
 
 ### `passkey_challenges`
 
 Pending WebAuthn authentication or registration challenges.
 
-| Column | Notes |
-|---|---|
-| `id` | Challenge ID returned to the browser |
-| `user_id` | |
-| `challenge_data` | JSON `SessionData` from go-webauthn |
-| `type` | `authentication` or `registration` |
-| `login_state` | JSON OAuth params to resume after passkey |
-| `expires_at` | 5 minutes |
-| `used` | Single-use |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Challenge ID returned to the browser |
+| `user_id` | TEXT FK | -> users (ON DELETE CASCADE) |
+| `challenge_data` | TEXT | JSON `SessionData` from go-webauthn |
+| `type` | TEXT | `authentication` or `registration` |
+| `login_state` | TEXT | JSON OAuth params to resume after passkey |
+| `created_at` | DATETIME | |
+| `expires_at` | DATETIME | 5 minutes |
+| `used` | BOOLEAN | Single-use |
 
 ### `passkey_credentials`
 
 Registered WebAuthn credentials.
 
-| Column | Notes |
-|---|---|
-| `id` | Credential ID (from WebAuthn) |
-| `user_id` | |
-| `name` | Optional user-visible name |
-| `credential` | JSON blob (full `Credential` from go-webauthn) |
-| `last_used_at` | |
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | Credential ID (from WebAuthn) |
+| `user_id` | TEXT FK | -> users (ON DELETE CASCADE) |
+| `name` | TEXT | Optional user-visible name |
+| `credential` | TEXT | JSON blob (full `Credential` from go-webauthn) |
+| `created_at` | DATETIME | |
+| `last_used_at` | DATETIME | |
 
 ### `settings`
 
 Key-value store for runtime settings.
 
-| Column | Notes |
-|---|---|
-| `key` | Setting name (e.g. `mfa_enabled`) |
-| `value` | String value |
-| `updated_at` | |
+| Column | Type | Notes |
+|---|---|---|
+| `key` | TEXT PK | Setting name (e.g. `mfa_enabled`) |
+| `value` | TEXT | String value |
+| `updated_at` | DATETIME | |
+
+### `federation_providers`
+
+External identity provider configurations for federated/social login.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `name` | TEXT | Display name of the provider |
+| `issuer` | TEXT | OIDC issuer URL of the external IdP |
+| `client_id` | TEXT | OAuth2 client ID at the external IdP |
+| `client_secret` | TEXT | OAuth2 client secret |
+| `icon_svg` | TEXT | Optional SVG icon for the login button |
+| `enabled` | BOOLEAN | Whether this provider is active |
+| `sort_order` | INTEGER | Display order on the login page |
+| `created_at` | DATETIME | |
+
+### `federated_identities`
+
+Links between local user accounts and external identity provider accounts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `provider_id` | TEXT FK | -> federation_providers |
+| `provider_user_id` | TEXT | User ID at the external IdP (unique per provider) |
+| `user_id` | TEXT FK | -> users |
+| `email` | TEXT | Email from the external IdP |
+| `created_at` | DATETIME | |
+
+Unique constraint on `(provider_id, provider_user_id)`.
+
+### `deletion_requests`
+
+User-initiated account deletion requests (reviewed by admins).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `user_id` | TEXT FK | -> users |
+| `reason` | TEXT | Optional reason provided by the user |
+| `requested_at` | DATETIME | |
+
+### `password_reset_tokens`
+
+Time-limited tokens for the password reset flow. Added in migration 002.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `user_id` | TEXT FK | -> users |
+| `token_hash` | TEXT UNIQUE | SHA-256 hash of the reset token |
+| `expires_at` | DATETIME | |
+| `used_at` | DATETIME | NULL until the token is consumed |
+| `created_at` | DATETIME | |
+
+### `audit_logs`
+
+Security event audit trail. Added in migration 003.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `event` | TEXT | Event type (e.g. `login_success`, `mfa_verify`) |
+| `actor_id` | TEXT | User ID of the actor (nullable for unauthenticated events) |
+| `actor_username` | TEXT | Username at the time of the event |
+| `target_type` | TEXT | Type of resource affected (e.g. `user`, `client`) |
+| `target_id` | TEXT | ID of the affected resource |
+| `detail` | TEXT | Additional context (JSON or free text) |
+| `ip_address` | TEXT | Client IP address |
+| `created_at` | DATETIME | |
+
+Indexed on `created_at`, `actor_id`, and `event`.
+
+### `groups`
+
+User groups for organizing users. Added in migration 004.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `name` | TEXT UNIQUE | Group name |
+| `description` | TEXT | |
+| `created_at` | DATETIME | |
+| `updated_at` | DATETIME | |
+
+### `user_groups`
+
+Group membership join table. Added in migration 004.
+
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | TEXT FK | -> users (ON DELETE CASCADE) |
+| `group_id` | TEXT FK | -> groups (ON DELETE CASCADE) |
+| `created_at` | DATETIME | |
+
+Composite primary key on `(user_id, group_id)`.
+
+### `user_consents`
+
+Stored OAuth2 consent decisions per user and client. Added in migration 007.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT PK | |
+| `user_id` | TEXT | |
+| `client_id` | TEXT | |
+| `scopes` | TEXT | Space-separated scopes that were granted |
+| `granted_at` | DATETIME | |
+
+Unique constraint on `(user_id, client_id)`. When a user approves a consent screen, the decision is stored here. Subsequent logins skip the consent screen unless the requested scopes change.
+
+## Migrations
+
+| Version | File | Description |
+|---|---|---|
+| 1 | `001_initial_schema.go` | Creates all base tables: users, tokens, sessions, auth_codes, idp_sessions, mfa_challenges, trusted_devices, passkey_challenges, passkey_credentials, clients, settings, federation_providers, federated_identities, deletion_requests |
+| 2 | `002_password_reset_tokens.go` | Adds `password_reset_tokens` table |
+| 3 | `003_audit_logs.go` | Adds `audit_logs` table |
+| 4 | `004_groups.go` | Adds `groups` and `user_groups` tables |
+| 5 | `005_nullable_token_user_id.go` | Rebuilds `tokens` table to make `user_id` nullable (for client_credentials grant) |
+| 6 | `006_idp_session_linkage.go` | Adds `idp_session_id` column to `auth_codes` and `sessions` tables |
+| 7 | `007_user_consents.go` | Adds `consent_required` column to `clients` and creates `user_consents` table |
+
+## Indexes
+
+The following indexes are created across migrations:
+
+- `idx_tokens_refresh_token` on `tokens(refresh_token)`
+- `idx_tokens_access_token` on `tokens(access_token)`
+- `idx_sessions_access_token` on `sessions(access_token)`
+- `idx_sessions_user_id` on `sessions(user_id)`
+- `idx_sessions_idp_session_id` on `sessions(idp_session_id)`
+- `idx_idp_sessions_user_id` on `idp_sessions(user_id)`
+- `idx_passkey_credentials_user_id` on `passkey_credentials(user_id)`
+- `idx_federated_identities_user_id` on `federated_identities(user_id)`
+- `idx_deletion_requests_user_id` on `deletion_requests(user_id)`
+- `idx_password_reset_tokens_hash` on `password_reset_tokens(token_hash)`
+- `idx_password_reset_tokens_user` on `password_reset_tokens(user_id)`
+- `idx_audit_logs_created_at` on `audit_logs(created_at)`
+- `idx_audit_logs_actor_id` on `audit_logs(actor_id)`
+- `idx_audit_logs_event` on `audit_logs(event)`
+- `idx_user_groups_user_id` on `user_groups(user_id)`
+- `idx_user_groups_group_id` on `user_groups(group_id)`
+- `idx_auth_codes_idp_session_id` on `auth_codes(idp_session_id)`
+- `idx_user_consents_user_client` on `user_consents(user_id, client_id)`

@@ -1,0 +1,162 @@
+---
+title: Settings Import/Export
+description: How to export and import Autentico settings for backup, migration, and environment promotion.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico provides API endpoints to export all runtime settings as JSON and import them into another instance. This is useful for backing up configuration, migrating between environments, and promoting settings from staging to production.
+
+## Export settings
+
+**`GET /admin/api/settings/export`**
+
+Exports all settings as a versioned JSON document. The `onboarded` flag is excluded from the export.
+
+```bash
+curl https://auth.example.com/admin/api/settings/export \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -o settings-backup.json
+```
+
+### Export format
+
+```json
+{
+  "version": 1,
+  "exported_at": "2026-05-09T14:30:00Z",
+  "settings": {
+    "access_token_expiration": "15m",
+    "refresh_token_expiration": "720h",
+    "require_mfa": "false",
+    "mfa_method": "totp",
+    "allow_self_signup": "false",
+    "smtp_host": "smtp.example.com",
+    "smtp_port": "587",
+    "smtp_username": "auth@example.com",
+    "smtp_from": "auth@example.com",
+    "theme_title": "My Auth Server",
+    "cors_allowed_origins": "https://app.example.com"
+  }
+}
+```
+
+<Aside type="note">
+The export includes all settings, including SMTP passwords and other sensitive values. Store exported files securely.
+</Aside>
+
+## Import preview
+
+**`POST /admin/api/settings/import/preview`**
+
+Before applying an import, you can preview the changes. The preview endpoint compares the incoming settings against the current values and identifies any unknown keys.
+
+```bash
+curl -X POST https://auth.example.com/admin/api/settings/import/preview \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @settings-backup.json
+```
+
+### Preview response
+
+```json
+{
+  "rows": [
+    {
+      "key": "access_token_expiration",
+      "current": "15m",
+      "incoming": "30m"
+    },
+    {
+      "key": "require_mfa",
+      "current": "false",
+      "incoming": "true"
+    }
+  ],
+  "unknown": ["some_invalid_key"]
+}
+```
+
+The `rows` array shows every known setting with its current and incoming value, so you can review the diff before applying. The `unknown` array lists any keys in the import file that are not recognized settings -- these will be skipped during import.
+
+## Import apply
+
+**`POST /admin/api/settings/import/apply`**
+
+Applies the imported settings. Unknown keys and protected fields are automatically skipped.
+
+```bash
+curl -X POST https://auth.example.com/admin/api/settings/import/apply \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @settings-backup.json
+```
+
+Returns `204 No Content` on success. The configuration is hot-reloaded immediately after import.
+
+### Protected fields
+
+The following fields are never modified by import:
+
+| Field | Reason |
+|---|---|
+| `onboarded` | System state flag -- must not be overwritten |
+| `private_key` | Cryptographic key -- environment-specific |
+
+### Validation
+
+Duration-typed settings (such as `access_token_expiration`, `refresh_token_expiration`, `audit_log_retention`, etc.) are validated before import. The import is rejected with a `400` error if any duration value is invalid.
+
+## Use cases
+
+### Environment promotion
+
+Export settings from staging, review the diff, and apply to production:
+
+```bash
+# Export from staging
+curl https://staging.example.com/admin/api/settings/export \
+  -H "Authorization: Bearer $STAGING_TOKEN" \
+  -o staging-settings.json
+
+# Preview changes on production
+curl -X POST https://auth.example.com/admin/api/settings/import/preview \
+  -H "Authorization: Bearer $PROD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @staging-settings.json
+
+# Apply to production
+curl -X POST https://auth.example.com/admin/api/settings/import/apply \
+  -H "Authorization: Bearer $PROD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @staging-settings.json
+```
+
+### Configuration backup
+
+Schedule periodic exports as part of your backup strategy:
+
+```bash
+curl https://auth.example.com/admin/api/settings/export \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -o "settings-$(date +%Y%m%d).json"
+```
+
+### Disaster recovery
+
+Restore settings from a backup file after re-deploying Autentico on a fresh database:
+
+```bash
+curl -X POST https://auth.example.com/admin/api/settings/import/apply \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @settings-backup.json
+```
+
+## Audit trail
+
+Both settings updates and imports are recorded in the [audit log](/admin-ui/audit-logging/):
+
+- `settings_updated` -- logged when settings are changed via `PUT /admin/api/settings`
+- `settings_imported` -- logged when settings are applied via the import endpoint

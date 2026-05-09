@@ -1,0 +1,147 @@
+---
+title: Audit Logging
+description: How audit logging works in Autentico, including event types, querying logs, retention, and the audit log API.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico records security-relevant events in an audit log stored in the `audit_logs` table. The log captures who did what, when, and from where -- providing a trail for security review, compliance, and incident investigation.
+
+## Configuration
+
+```bash
+curl -X PUT https://auth.example.com/admin/api/settings \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"audit_log_retention": "720h"}'
+```
+
+| Setting | Default | Description |
+|---|---|---|
+| `audit_log_retention` | `720h` (30 days) | How long audit logs are kept. Set to `0` to disable logging, `-1` to keep logs forever. |
+
+When retention is set to `0` or empty, audit events are not recorded at all. The background cleanup job purges expired entries based on the retention duration.
+
+## Event types
+
+| Event | Target | Description |
+|---|---|---|
+| `login_success` | user | Successful password or federation login |
+| `login_failed` | user | Failed login attempt |
+| `mfa_success` | user | Successful MFA verification |
+| `mfa_failed` | user | Failed MFA verification |
+| `passkey_login_success` | user | Successful passkey authentication |
+| `passkey_login_failed` | user | Failed passkey authentication |
+| `password_changed` | user | User changed their password |
+| `password_reset_requested` | user | Password reset email was sent |
+| `password_reset_completed` | user | Password was successfully reset |
+| `user_created` | user | New user account created |
+| `user_updated` | user | User profile updated |
+| `user_deactivated` | user | User account deactivated |
+| `user_reactivated` | user | User account reactivated |
+| `user_deleted` | user | User account permanently deleted |
+| `user_unlocked` | user | User account unlocked after lockout |
+| `mfa_enrolled` | user | User enrolled in TOTP MFA |
+| `mfa_disabled` | user | TOTP MFA disabled for user |
+| `passkey_added` | user | Passkey credential registered |
+| `passkey_removed` | user | Passkey credential removed |
+| `logout` | user | User logged out |
+| `session_revoked` | session | Individual session revoked |
+| `all_user_sessions_revoked` | session | All sessions for a user revoked |
+| `other_sessions_revoked` | session | All sessions except current revoked |
+| `token_revoked` | token | Token revoked |
+| `client_created` | client | OAuth2 client registered |
+| `client_updated` | client | OAuth2 client updated |
+| `client_deleted` | client | OAuth2 client deleted |
+| `settings_updated` | settings | System settings changed |
+| `settings_imported` | settings | Settings imported from file |
+| `federation_created` | federation | Federation provider added |
+| `federation_updated` | federation | Federation provider updated |
+| `federation_deleted` | federation | Federation provider removed |
+| `deletion_approved` | user | Account deletion request approved |
+
+## Querying audit logs
+
+**`GET /admin/api/audit-logs`**
+
+```bash
+curl "https://auth.example.com/admin/api/audit-logs?event=login_failed&order=desc&limit=50" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+### Query parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `event` | -- | Filter by event type (e.g. `login_failed`, `user_created`) |
+| `search` | -- | Search across `actor_username`, `target_id`, `ip_address`, `detail` |
+| `sort` | `created_at` | Sort field: `created_at`, `event` |
+| `order` | `desc` | Sort order: `asc`, `desc` |
+| `created_at_from` | -- | Date range start (ISO 8601, e.g. `2026-01-01T00:00:00Z`) |
+| `created_at_to` | -- | Date range end (ISO 8601) |
+| `limit` | `100` | Max results per page (1--100) |
+| `offset` | `0` | Number of results to skip |
+
+### Response
+
+```json
+{
+  "items": [
+    {
+      "id": "cq1abc123",
+      "event": "login_failed",
+      "actor_id": null,
+      "actor_username": "",
+      "target_type": "user",
+      "target_id": "user-456",
+      "detail": "{\"username\":\"alice\"}",
+      "ip_address": "192.168.1.100",
+      "created_at": "2026-05-09T14:30:00Z"
+    }
+  ],
+  "total": 42
+}
+```
+
+### Examples
+
+**Failed logins in the last 24 hours:**
+
+```bash
+curl "https://auth.example.com/admin/api/audit-logs?event=login_failed&created_at_from=2026-05-08T14:30:00Z" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+**All events for a specific IP address:**
+
+```bash
+curl "https://auth.example.com/admin/api/audit-logs?search=192.168.1.100" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+**Settings changes:**
+
+```bash
+curl "https://auth.example.com/admin/api/audit-logs?event=settings_updated" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+## Audit log record structure
+
+Each audit event stores the following fields in the `audit_logs` table:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | TEXT | Unique event ID (xid) |
+| `event` | TEXT | Event type (see table above) |
+| `actor_id` | TEXT | ID of the user who performed the action (nullable -- null for failed logins) |
+| `actor_username` | TEXT | Username of the actor at the time of the event |
+| `target_type` | TEXT | Type of entity affected: `user`, `client`, `session`, `token`, `settings`, `federation` |
+| `target_id` | TEXT | ID of the affected entity |
+| `detail` | TEXT | JSON string with additional context (e.g. `{"method":"federation","provider":"google"}`) |
+| `ip_address` | TEXT | Client IP address |
+| `created_at` | DATETIME | When the event occurred |
+
+<Aside type="tip">
+The `actor_id` is null for events where the acting user is unknown, such as failed login attempts. The `actor_username` may still be populated from the bearer token when available.
+</Aside>

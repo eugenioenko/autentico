@@ -8,7 +8,7 @@ import { Aside } from '@astrojs/starlight/components';
 The Resource Owner Password Credentials (ROPC) grant allows a client to exchange a username and password directly for tokens, without going through the browser authorization flow.
 
 <Aside type="caution">
-ROPC is a legacy grant type. It requires the client to handle user credentials directly, which means it cannot support MFA, passkeys, or SSO sessions. Only use it for trusted first-party CLI tools or migration scenarios where a browser redirect is not possible.
+ROPC is a legacy grant type. It requires the client to handle user credentials directly, which means it cannot support passkeys or SSO sessions. Only use it for trusted first-party CLI tools or migration scenarios where a browser redirect is not possible.
 </Aside>
 
 ## Request
@@ -20,8 +20,20 @@ curl -X POST https://auth.example.com/oauth2/token \
   -d "username=alice" \
   -d "password=secret" \
   -d "client_id=my-client-id" \
-  -d "scope=openid profile email"
+  -d "scope=openid profile email" \
+  -d "totp_code=123456"
 ```
+
+### Parameters
+
+| Parameter | Required | Description |
+|---|---|---|
+| `grant_type` | Yes | Must be `password` |
+| `username` | Yes | The user's username |
+| `password` | Yes | The user's password |
+| `client_id` | Yes | The client identifier |
+| `scope` | No | Space-separated list of scopes (defaults to client's allowed scopes, or `openid profile email`) |
+| `totp_code` | Conditional | Required when MFA is enforced (see [MFA enforcement](#mfa-enforcement) below) |
 
 **Response:**
 
@@ -52,9 +64,18 @@ curl -X POST https://auth.example.com/oauth2/register \
   }'
 ```
 
+## MFA enforcement
+
+MFA is fully enforced in the ROPC flow. When the global `require_mfa` setting is enabled or the user has TOTP enrolled, the `totp_code` parameter is required. The server responds with specific error codes:
+
+- **`mfa_required`** (HTTP 403) — returned when TOTP is enrolled but `totp_code` was not provided, or when `require_mfa` is enabled but the user has not yet enrolled in TOTP (the user must enroll via the browser login flow first)
+- **`invalid_mfa_code`** (HTTP 403) — returned when the provided `totp_code` is incorrect
+
+Only TOTP codes are supported in the ROPC flow. Email OTP is not available because there is no interactive session to complete the challenge. See [Multi-Factor Authentication](/authentication/mfa/) for details on MFA setup and enrollment.
+
 ## Limitations
 
-- MFA is not enforced — even if `mfa_enabled` is `true` globally, the ROPC flow bypasses the MFA challenge
 - Passkey authentication is not available — ROPC only supports username/password
+- Email OTP is not available — only TOTP codes can be used for MFA in ROPC
 - No SSO session is created — each ROPC token exchange is independent
 - Account lockout still applies — repeated failed password attempts will lock the account

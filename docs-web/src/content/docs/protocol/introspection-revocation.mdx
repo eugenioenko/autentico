@@ -13,7 +13,23 @@ The introspection endpoint lets a resource server verify whether a token is vali
 POST /oauth2/introspect
 ```
 
-**Request:**
+### Authentication
+
+The introspection endpoint requires one of two forms of authentication per RFC 7662 Section 2.1:
+
+1. **Client authentication** — using HTTP Basic auth (`client_secret_basic`) or form-encoded credentials (`client_secret_post`). A client can only introspect tokens that were issued to itself.
+2. **Admin bearer token** — using `Authorization: Bearer $ADMIN_TOKEN`. Admin users can introspect any token regardless of which client it was issued to.
+
+**Request with client authentication (Basic auth):**
+
+```bash
+curl -X POST https://auth.example.com/oauth2/introspect \
+  -u "my-client-id:my-client-secret" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Request with admin bearer token:**
 
 ```bash
 curl -X POST https://auth.example.com/oauth2/introspect \
@@ -28,7 +44,6 @@ curl -X POST https://auth.example.com/oauth2/introspect \
 {
   "active": true,
   "sub": "user-uuid",
-  "username": "alice",
   "exp": 1700000000,
   "iat": 1699999100,
   "iss": "https://auth.example.com/oauth2",
@@ -44,7 +59,7 @@ curl -X POST https://auth.example.com/oauth2/introspect \
 }
 ```
 
-The introspection endpoint is protected by the admin bearer token (`Authorization: Bearer $ADMIN_TOKEN`).
+When a client introspects a token that belongs to a different client, the endpoint returns `{"active": false}` rather than an error, to avoid leaking information about token existence (per RFC 7662 Section 2.2).
 
 ## Token revocation (RFC 7009)
 

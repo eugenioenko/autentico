@@ -4,3 +4,252 @@ description: Complete reference for all Autentico HTTP endpoints.
 ---
 
 The full interactive API reference is available at **[api.autentico.top](https://api.autentico.top)**.
+
+Below is a complete listing of all endpoints organized by category. The OAuth2 path prefix defaults to `/oauth2` but can be changed via `AUTENTICO_APP_OAUTH_PATH`.
+
+## Infrastructure
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/healthz` | Health check endpoint |
+| GET | `/.well-known/openid-configuration` | OIDC Discovery document |
+| GET | `/oauth2/.well-known/openid-configuration` | OIDC Discovery document (alternate path) |
+| GET | `/oauth2/.well-known/jwks.json` | JSON Web Key Set for token verification |
+| GET | `/swagger/*` | Swagger UI |
+| GET | `/api-docs/` | API documentation viewer |
+
+## OAuth2 Protocol
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/oauth2/authorize` | Authorization endpoint -- validates client and renders login page |
+| POST | `/oauth2/authorize` | Authorization endpoint (POST variant) |
+| POST | `/oauth2/token` | Token endpoint -- code exchange, refresh, ROPC, client credentials |
+| POST | `/oauth2/revoke` | Token revocation (RFC 7009) |
+| POST | `/oauth2/introspect` | Token introspection (RFC 7662) |
+| GET, POST | `/oauth2/userinfo` | UserInfo endpoint -- returns claims for the authenticated user |
+| POST | `/oauth2/logout` | Logout -- revokes session and tokens |
+| GET | `/oauth2/logout` | RP-Initiated Logout (RFC draft) |
+
+## Dynamic Client Registration
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/oauth2/register` | Register a new OAuth2 client (admin-authenticated) |
+| GET | `/oauth2/register/{client_id}` | Read client registration (admin-authenticated) |
+| PUT | `/oauth2/register/{client_id}` | Update client registration (admin-authenticated) |
+| DELETE | `/oauth2/register/{client_id}` | Delete client registration (admin-authenticated) |
+
+## Authentication
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/oauth2/login` | Credential validation and auth code issuance |
+| GET, POST | `/oauth2/consent` | OAuth2 consent screen -- scope approval |
+| GET, POST | `/oauth2/mfa` | MFA challenge -- TOTP or email OTP verification |
+| GET, POST | `/oauth2/signup` | Self-service user registration |
+| GET, POST | `/oauth2/forgot-password` | Initiate password reset flow |
+| GET, POST | `/oauth2/reset-password` | Complete password reset with token |
+| GET | `/oauth2/verify-email` | Confirm email verification token |
+| POST | `/oauth2/resend-verification` | Resend email verification link |
+
+## Passkey / WebAuthn
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/oauth2/passkey/login/begin` | Begin passkey authentication ceremony |
+| POST | `/oauth2/passkey/login/finish` | Complete passkey authentication ceremony |
+| GET | `/oauth2/passkey/register/begin` | Begin passkey registration ceremony |
+| POST | `/oauth2/passkey/register/finish` | Complete passkey registration ceremony |
+
+## Federation (Social Login)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/oauth2/federation/{id}` | Begin federated login with external IdP |
+| GET | `/oauth2/federation/{id}/callback` | Handle callback from external IdP |
+| GET | `/oauth2/federation/{id}/icon.svg` | Serve provider icon for login page |
+
+## Keycloak-Compatible Aliases
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/oauth2/protocol/openid-connect/token` | Token endpoint (Keycloak-compatible path) |
+| GET, POST | `/oauth2/protocol/openid-connect/userinfo` | UserInfo endpoint (Keycloak-compatible path) |
+
+## Admin API
+
+All admin endpoints require a bearer token with admin role.
+
+### Users
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/users` | List users (paginated, filterable) |
+| POST | `/admin/api/users` | Create a new user |
+| GET | `/admin/api/users/{id}` | Get user by ID |
+| PUT | `/admin/api/users/{id}` | Update user |
+| DELETE | `/admin/api/users/{id}` | Delete user |
+| POST | `/admin/api/users/{id}/deactivate` | Deactivate user account |
+| POST | `/admin/api/users/{id}/reactivate` | Reactivate user account |
+| POST | `/admin/api/users/{id}/unlock` | Unlock locked user account |
+| POST | `/admin/api/users/{id}/revoke-sessions` | Revoke all sessions for a user |
+| GET | `/admin/api/users/{id}/groups` | List groups a user belongs to |
+| GET | `/admin/api/users/{id}/idp-sessions` | List IdP sessions for a user |
+
+### Clients
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/clients` | List all OAuth2 clients |
+| POST | `/admin/api/clients` | Register a new client |
+| GET | `/admin/api/clients/{client_id}` | Get client by client_id |
+| PUT | `/admin/api/clients/{client_id}` | Update client |
+| DELETE | `/admin/api/clients/{client_id}` | Delete client |
+
+### Sessions
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/sessions` | List OAuth sessions |
+| DELETE | `/admin/api/sessions/{id}` | Deactivate a session |
+| GET | `/admin/api/idp-sessions` | List IdP SSO sessions |
+| GET | `/admin/api/idp-sessions/{id}/sessions` | List OAuth sessions under an IdP session |
+| DELETE | `/admin/api/idp-sessions/{id}` | Force logout an IdP session (cascades to child sessions and tokens) |
+
+### Tokens
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/tokens` | List issued tokens |
+| DELETE | `/admin/api/tokens/{id}` | Revoke a token |
+
+### Federation Providers
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/federation` | List federation providers |
+| POST | `/admin/api/federation` | Create a federation provider |
+| GET | `/admin/api/federation/{id}` | Get provider by ID |
+| PUT | `/admin/api/federation/{id}` | Update provider |
+| DELETE | `/admin/api/federation/{id}` | Delete provider |
+
+### Groups
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/groups` | List groups |
+| POST | `/admin/api/groups` | Create a group |
+| GET | `/admin/api/groups/{id}` | Get group by ID |
+| PUT | `/admin/api/groups/{id}` | Update group |
+| DELETE | `/admin/api/groups/{id}` | Delete group |
+| GET | `/admin/api/groups/{id}/members` | List group members |
+| POST | `/admin/api/groups/{id}/members` | Add a member to a group |
+| DELETE | `/admin/api/groups/{id}/members/{user_id}` | Remove a member from a group |
+
+### Audit Logs
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/audit-logs` | List audit log entries (paginated, filterable) |
+
+### Deletion Requests
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/deletion-requests` | List pending deletion requests |
+| POST | `/admin/api/deletion-requests/{id}/approve` | Approve a deletion request |
+| DELETE | `/admin/api/deletion-requests/{id}` | Cancel/reject a deletion request |
+
+### Settings
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/settings` | Get all runtime settings |
+| PUT | `/admin/api/settings` | Update runtime settings |
+| POST | `/admin/api/settings/test-smtp` | Send a test email to verify SMTP configuration |
+| GET | `/admin/api/settings/export` | Export settings as JSON |
+| POST | `/admin/api/settings/import/preview` | Preview settings import (dry run) |
+| POST | `/admin/api/settings/import/apply` | Apply imported settings |
+
+### Stats
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/admin/api/stats` | Dashboard statistics (user count, session count, etc.) |
+
+## Account API
+
+Self-service endpoints for authenticated users. Requires a bearer token with `autentico-account` or `autentico-admin` audience.
+
+### Profile
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/profile` | Get current user profile |
+| PUT | `/account/api/profile` | Update current user profile |
+| POST | `/account/api/password` | Change password (rate-limited) |
+
+### Sessions
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/sessions` | List current user's sessions |
+| DELETE | `/account/api/sessions/{id}` | Revoke a specific session |
+| POST | `/account/api/sessions/revoke-others` | Revoke all other sessions |
+
+### Passkeys
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/passkeys` | List registered passkeys |
+| DELETE | `/account/api/passkeys/{id}` | Delete a passkey |
+| PATCH | `/account/api/passkeys/{id}` | Rename a passkey |
+| POST | `/account/api/passkeys/register/begin` | Begin adding a new passkey |
+| POST | `/account/api/passkeys/register/finish` | Complete adding a new passkey |
+
+### MFA
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/mfa` | Get MFA status (TOTP enrolled, etc.) |
+| POST | `/account/api/mfa/totp/setup` | Begin TOTP enrollment -- returns QR code |
+| POST | `/account/api/mfa/totp/verify` | Verify TOTP code to complete enrollment |
+| DELETE | `/account/api/mfa/totp` | Disable TOTP MFA (rate-limited) |
+
+### Trusted Devices
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/trusted-devices` | List trusted devices |
+| DELETE | `/account/api/trusted-devices/{id}` | Revoke a trusted device |
+
+### Connected Providers (Federation)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/connected-providers` | List connected external identity providers |
+| DELETE | `/account/api/connected-providers/{id}` | Disconnect an external provider |
+
+### Account Settings
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/settings` | Get public account settings (no auth required) |
+
+### Account Deletion
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/account/api/deletion-request` | Get current deletion request status |
+| POST | `/account/api/deletion-request` | Request account deletion |
+| DELETE | `/account/api/deletion-request` | Cancel a pending deletion request |
+
+## Embedded UIs
+
+| Path | Description |
+|---|---|
+| `/admin/` | Admin UI (React SPA) |
+| `/account/` | Account UI (React SPA) |
+| `/onboard` | First-time admin account creation wizard |
+| `/` | Redirects to `/account/` |

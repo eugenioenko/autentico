@@ -13,14 +13,16 @@ If a user account may be compromised:
 4. **Revoke passkeys** — delete any passkey credentials associated with the account
 5. **Notify the user** out-of-band and require them to verify their identity before restoring access
 
-## Suspected admin token compromise
+## Suspected admin account compromise
 
-If `AUTENTICO_ADMIN_TOKEN` may be exposed:
+If an admin account may be compromised:
 
-1. **Rotate the token immediately** — update `AUTENTICO_ADMIN_TOKEN` in your environment and restart Autentico
-2. **Review admin API logs** for any unauthorized operations (user creation, settings changes, client registration)
-3. **Check for new admin users** — review the user list for accounts with `role = admin` you didn't create
-4. **Check for unexpected clients** — review the client list for unfamiliar registrations
+1. **Revoke all admin sessions** — Admin UI → Sessions → filter by the admin user → revoke all active sessions
+2. **Reset the admin password** — Admin UI → Users → edit the admin account → set a new strong password
+3. **Reset admin MFA** — re-enroll TOTP for the admin account
+4. **Review admin API logs** for any unauthorized operations (user creation, settings changes, client registration)
+5. **Check for new admin users** — review the user list for accounts with `role = admin` you didn't create
+6. **Check for unexpected clients** — review the client list for unfamiliar registrations
 
 ## Suspected private key compromise
 
@@ -43,7 +45,9 @@ If the SQLite database is accessed by an unauthorized party:
 
 ## Denial of service
 
-Autentico does not have built-in rate limiting beyond account lockout. For DoS mitigation:
+Autentico includes built-in per-IP rate limiting on all authentication endpoints, with configurable per-second (`AUTENTICO_RATE_LIMIT_RPS`, `AUTENTICO_RATE_LIMIT_BURST`) and per-minute (`AUTENTICO_RATE_LIMIT_RPM`, `AUTENTICO_RATE_LIMIT_RPM_BURST`) tiers. See [Security Hardening](/security/overview/#rate-limiting) and [Bootstrap Configuration](/configuration/bootstrap/) for details.
 
-- Configure rate limiting at the reverse proxy level (nginx `limit_req`, Caddy `rate_limit`, Traefik `ratelimit`)
+For additional DoS mitigation:
+
+- Consider adding rate limiting at the reverse proxy level as a second layer (nginx `limit_req`, Caddy `rate_limit`, Traefik `ratelimit`)
 - Restrict access to the admin API endpoints by IP at the firewall or proxy level

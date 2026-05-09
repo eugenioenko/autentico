@@ -1,0 +1,144 @@
+---
+title: User Groups
+description: Managing user groups in Autentico, including group CRUD, membership, and the groups claim in tokens.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Groups allow you to organize users and include group membership information in access tokens and userinfo responses. Groups are managed via the admin API and can be used for role-based access control in your applications.
+
+## Groups in tokens
+
+When the `groups` scope is requested and granted, the user's group names are included as a `groups` claim in:
+
+- **Access tokens** -- as an array of group name strings
+- **ID tokens** -- as an array of group name strings
+- **Userinfo responses** -- as a `groups` field
+
+Example token claims:
+
+```json
+{
+  "sub": "user-123",
+  "groups": ["admins", "developers", "team-alpha"],
+  "scope": "openid profile groups"
+}
+```
+
+<Aside type="tip">
+Add `groups` to the client's allowed scopes and include it in the authorization request to receive group claims. See [Scopes](/protocol/scopes/) for details.
+</Aside>
+
+## Admin API endpoints
+
+All group endpoints require admin authentication.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/admin/api/groups` | List all groups (paginated) |
+| `POST` | `/admin/api/groups` | Create a new group |
+| `GET` | `/admin/api/groups/{id}` | Get a group by ID |
+| `PUT` | `/admin/api/groups/{id}` | Update a group |
+| `DELETE` | `/admin/api/groups/{id}` | Delete a group |
+| `GET` | `/admin/api/groups/{id}/members` | List members of a group |
+| `POST` | `/admin/api/groups/{id}/members` | Add a user to a group |
+| `DELETE` | `/admin/api/groups/{id}/members/{user_id}` | Remove a user from a group |
+| `GET` | `/admin/api/users/{id}/groups` | Get groups for a specific user |
+
+### List groups
+
+```bash
+curl https://auth.example.com/admin/api/groups \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+Supports query parameters:
+
+| Parameter | Description |
+|---|---|
+| `sort` | Sort field: `name`, `created_at`, `updated_at` |
+| `order` | Sort order: `asc` (default), `desc` |
+| `search` | Search across name and description |
+| `limit` | Max results per page (1--100, default 100) |
+| `offset` | Number of results to skip (default 0) |
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "cq1abc123",
+      "name": "developers",
+      "description": "Engineering team",
+      "member_count": 5,
+      "created_at": "2026-01-15T10:00:00Z",
+      "updated_at": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### Create a group
+
+```bash
+curl -X POST https://auth.example.com/admin/api/groups \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "developers", "description": "Engineering team"}'
+```
+
+| Field | Required | Validation |
+|---|---|---|
+| `name` | Yes | 1--100 characters, alphanumeric plus `-` and `_` only |
+| `description` | No | Up to 500 characters |
+
+Group names must be unique. Attempting to create a group with a duplicate name returns a `409 Conflict` error.
+
+### Add a user to a group
+
+```bash
+curl -X POST https://auth.example.com/admin/api/groups/$GROUP_ID/members \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user-123"}'
+```
+
+Returns `201 Created` on success. Returns `409 Conflict` if the user is already a member.
+
+### Remove a user from a group
+
+```bash
+curl -X DELETE https://auth.example.com/admin/api/groups/$GROUP_ID/members/$USER_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+### Get groups for a user
+
+```bash
+curl https://auth.example.com/admin/api/users/$USER_ID/groups \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+## Database tables
+
+### `groups` table
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | TEXT | Primary key (xid) |
+| `name` | TEXT | Unique group name |
+| `description` | TEXT | Optional description |
+| `created_at` | DATETIME | Creation timestamp |
+| `updated_at` | DATETIME | Last update timestamp |
+
+### `user_groups` table
+
+| Column | Type | Description |
+|---|---|---|
+| `user_id` | TEXT | Foreign key to `users.id` |
+| `group_id` | TEXT | Foreign key to `groups.id` |
+| `created_at` | DATETIME | When the membership was created |
+
+A unique constraint on `(user_id, group_id)` prevents duplicate memberships. Deleting a group cascades to remove all memberships.

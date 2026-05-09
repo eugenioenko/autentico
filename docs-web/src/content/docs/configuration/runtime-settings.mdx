@@ -249,16 +249,6 @@ Default: `64`
 
 Maximum password length.
 
-### `validation_username_is_email`
-Default: `false`
-
-Require usernames to be valid email addresses.
-
-### `validation_email_required`
-Default: `false`
-
-Require the email field at registration.
-
 ---
 
 ## Profile fields
@@ -266,17 +256,17 @@ Require the email field at registration.
 Profile field settings control which OIDC-standard fields are collected on the signup form and shown in the self-service account portal. Each field accepts one of three values: `hidden` (never shown), `optional` (shown but not required), or `required` (must be filled).
 
 ### `profile_field_email`
-Default: `hidden`
+Default: `optional`
 
 Controls the email field. Also accepts `is_username` to treat the username field as the email address (stored in both columns).
 
 ### `profile_field_given_name`
-Default: `hidden`
+Default: `optional`
 
 Controls the `given_name` (first name) OIDC claim field.
 
 ### `profile_field_family_name`
-Default: `hidden`
+Default: `optional`
 
 Controls the `family_name` (last name) OIDC claim field.
 
@@ -311,22 +301,22 @@ Default: `hidden`
 Controls the `birthdate` OIDC claim field. Value should be in ISO 8601 format (`YYYY-MM-DD`).
 
 ### `profile_field_phone`
-Default: `hidden`
+Default: `optional`
 
 Controls the `phone_number` OIDC claim field.
 
 ### `profile_field_picture`
-Default: `hidden`
+Default: `optional`
 
 Controls the `picture` OIDC claim field (URL to an avatar image).
 
 ### `profile_field_locale`
-Default: `hidden`
+Default: `optional`
 
 Controls the `locale` OIDC claim field (e.g. `en-US`).
 
 ### `profile_field_address`
-Default: `hidden`
+Default: `optional`
 
 Controls all address fields (`address_street`, `address_city`, `address_region`, `address_postal_code`, `address_country`) as a group.
 
@@ -356,9 +346,9 @@ Minimum age of an expired record before it is eligible for deletion. Protects ve
 ## Audit log
 
 ### `audit_log_retention`
-Default: `0`
+Default: `720h`
 
-Controls whether audit logging is enabled and how long events are kept. `0` disables audit logging entirely (no events recorded). `-1` enables logging and keeps events forever. Any Go duration value (e.g. `720h` for 30 days) enables logging and automatically purges events older than that duration during cleanup.
+Controls how long audit log events are kept. `0` disables audit logging entirely (no events recorded). `-1` enables logging and keeps events forever. Any Go duration value (e.g. `720h` for 30 days) enables logging and automatically purges events older than that duration during cleanup.
 
 ---
 

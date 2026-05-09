@@ -10,8 +10,12 @@ Scopes control which claims are included in the ID token and returned from the U
 | Scope | Claims included |
 |---|---|
 | `openid` | `sub`, `iss`, `aud`, `exp`, `iat` — required for OIDC; also triggers ID token issuance |
-| `profile` | `name`, `preferred_username`, `given_name`, `family_name` (empty values omitted) |
+| `profile` | `name`, `preferred_username`, `given_name`, `family_name`, `middle_name`, `nickname`, `website`, `gender`, `birthdate`, `profile`, `picture`, `locale`, `zoneinfo`, `updated_at` (empty values omitted) |
 | `email` | `email`, `email_verified` |
+| `address` | `address` — a structured JSON object containing `street_address`, `locality`, `region`, `postal_code`, `country` (empty fields omitted; the entire claim is omitted if all fields are empty) |
+| `phone` | `phone_number`, `phone_number_verified` |
+| `offline_access` | No additional claims — enables refresh token issuance so the client can obtain new access tokens without user interaction |
+| `groups` | `groups` — an array of group names the user belongs to |
 
 Always request `openid` to get an ID token. Add `profile` and `email` to include those claims.
 
@@ -24,7 +28,7 @@ GET /oauth2/authorize?
   response_type=code&
   client_id=my-client&
   redirect_uri=https://app.example.com/callback&
-  scope=openid+profile+email&
+  scope=openid+profile+email+address+phone+groups&
   code_challenge=...&
   code_challenge_method=S256
 ```
@@ -52,14 +56,25 @@ The scopes are recorded on the authorization code and propagated to the token re
 }
 ```
 
-**UserInfo response** for an access token with `profile email` scope:
+**UserInfo response** for an access token with `profile email phone address groups` scope:
 
 ```json
 {
   "sub": "a3f4e5b6-...",
   "name": "alice",
+  "preferred_username": "alice",
   "email": "alice@example.com",
-  "email_verified": true
+  "email_verified": true,
+  "phone_number": "+1-555-0100",
+  "phone_number_verified": false,
+  "address": {
+    "street_address": "123 Main St",
+    "locality": "Springfield",
+    "region": "IL",
+    "postal_code": "62704",
+    "country": "US"
+  },
+  "groups": ["engineering", "admin"]
 }
 ```
 
