@@ -24,7 +24,7 @@ var scopeDescriptions = map[string]string{
 	"email":          "View your email address",
 	"address":        "View your address",
 	"phone":          "View your phone number",
-	"offline_access": "Maintain access when you're not using the app",
+	"offline_access": "Stay signed in between sessions",
 }
 
 func DescribeScopes(scopeStr string) []ScopeInfo {

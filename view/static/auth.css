@@ -483,14 +483,14 @@ footer a:hover {
   list-style: none;
   padding: 0;
   margin: 0.75rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  width: 100%;
 }
 
 .consent-scope-item {
-  padding: 0.625rem 1rem;
-  border-radius: var(--radius);
-  background: color-mix(in oklab, var(--color-fg) 4%, transparent);
+  padding: 0.5rem 0;
   font-size: 0.9rem;
+}
+
+.consent-scope-item + .consent-scope-item {
+  border-top: 1px solid color-mix(in oklab, var(--color-fg) 8%, transparent);
 }

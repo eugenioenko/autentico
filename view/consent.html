@@ -15,9 +15,6 @@
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <input type="hidden" name="prompt" value="{{.Prompt}}" />
   <input type="hidden" name="consent_sig" value="{{.ConsentSig}}" />
-  <div class="auth-info" role="status">
-    This application would like to:
-  </div>
   <ul class="consent-scopes">
     {{range .Scopes}}
     <li class="consent-scope-item">{{.Description}}</li>
