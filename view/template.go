@@ -42,6 +42,27 @@ func InjectNonce(r *http.Request, data map[string]any) {
 	data["CspNonce"] = cspnonce.Get(r.Context())
 }
 
+// RenderError renders a branded error page using the error template.
+// Use this for user-facing errors on browser endpoints that should not return JSON.
+func RenderError(w http.ResponseWriter, r *http.Request, status int, errorMsg string) {
+	cfg := config.Get()
+	tmpl, err := ParseTemplate("error")
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	data := map[string]any{
+		"Error":        errorMsg,
+		"ThemeTitle":   cfg.Theme.Title,
+		"ThemeLogoUrl": cfg.Theme.LogoUrl,
+	}
+	InjectNonce(r, data)
+	w.WriteHeader(status)
+	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
+		http.Error(w, "Template Execution Error", http.StatusInternalServerError)
+	}
+}
+
 // StaticHandler returns an http.Handler that serves files from view/static/.
 // Mount it with http.StripPrefix so the handler receives bare file names.
 func StaticHandler() http.Handler {

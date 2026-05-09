@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHandleSignup_DisabledReturns404(t *testing.T) {
+func TestHandleSignup_DisabledReturns405(t *testing.T) {
 	testutils.WithTestDB(t)
 	// Seed 'onboarded' as true to simulate an already-setup system
 	_ = appsettings.SetSetting("onboarded", "true")
@@ -30,7 +30,7 @@ func TestHandleSignup_DisabledReturns404(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
 func TestHandleSignup_WrongMethod(t *testing.T) {
@@ -309,7 +309,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleSignup(rr, req)
 
-	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
 func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T) {
