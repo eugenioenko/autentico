@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// RFC 8628 §6.1: device_code must have at least 160 bits of entropy.
+// RFC 8628 §6.1: device_code MUST have sufficient entropy to prevent brute-force guessing (160+ bits).
 func GenerateDeviceCode() (string, error) {
 	b := make([]byte, 20)
 	if _, err := rand.Read(b); err != nil {

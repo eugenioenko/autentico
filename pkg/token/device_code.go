@@ -13,6 +13,7 @@ import (
 
 // handleDeviceCodeGrant implements the token polling side of RFC 8628 §3.4-3.5.
 func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request TokenRequest) (*user.User, string, error) {
+	// RFC 8628 §3.4: device_code is REQUIRED in the token request
 	if request.DeviceCode == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "device_code is required")
 		return nil, "", errGrantHandled

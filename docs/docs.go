@@ -3432,6 +3432,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/oauth2/device_authorization": {
+            "post": {
+                "description": "Issues a device code and user code for device authorization flow (RFC 8628)",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "Device Authorization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Requested scope",
+                        "name": "scope",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/devicecode.DeviceAuthorizationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/oauth2/introspect": {
             "post": {
                 "description": "Validates and retrieves metadata about a token",
@@ -4219,6 +4263,9 @@ const docTemplate = `{
                 "client_type": {
                     "type": "string"
                 },
+                "consent_required": {
+                    "type": "boolean"
+                },
                 "grant_types": {
                     "type": "array",
                     "items": {
@@ -4290,6 +4337,9 @@ const docTemplate = `{
                 },
                 "client_type": {
                     "type": "string"
+                },
+                "consent_required": {
+                    "type": "boolean"
                 },
                 "grant_types": {
                     "type": "array",
@@ -4417,6 +4467,9 @@ const docTemplate = `{
                 "client_name": {
                     "type": "string"
                 },
+                "consent_required": {
+                    "type": "boolean"
+                },
                 "grant_types": {
                     "type": "array",
                     "items": {
@@ -4491,6 +4544,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "devicecode.DeviceAuthorizationResponse": {
+            "type": "object",
+            "properties": {
+                "device_code": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "user_code": {
+                    "type": "string"
+                },
+                "verification_uri": {
+                    "type": "string"
+                },
+                "verification_uri_complete": {
                     "type": "string"
                 }
             }
@@ -4959,6 +5035,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "device_authorization_endpoint": {
+                    "description": "RFC 8628 §4: device_authorization_endpoint.",
+                    "type": "string"
                 },
                 "end_session_endpoint": {
                     "description": "OIDC RP-Initiated Logout 1.0 §2.1: end_session_endpoint.",

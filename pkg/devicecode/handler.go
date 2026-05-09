@@ -52,6 +52,7 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 8628 §3.1: client_id is REQUIRED in the device authorization request
 	clientID := r.FormValue("client_id")
 	scope := r.FormValue("scope")
 
@@ -74,7 +75,7 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scope against client's allowed scopes
+	// RFC 8628 §3.1: scope is OPTIONAL; validate against client's allowed scopes
 	if scope != "" && !client.ValidateScopes(registeredClient, scope) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
 		return
@@ -117,7 +118,7 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 	bs := config.GetBootstrap()
 	verificationURI := fmt.Sprintf("%s%s/device", bs.AppURL, bs.AppOAuthPath)
 
-	// RFC 8628 §3.2: Device Authorization Response
+	// RFC 8628 §3.2: response MUST include device_code, user_code, verification_uri, expires_in
 	resp := DeviceAuthorizationResponse{
 		DeviceCode:              deviceCode,
 		UserCode:                FormatUserCode(userCode),
@@ -127,6 +128,7 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		Interval:                cfg.DeviceCodePollingInterval,
 	}
 
+	// RFC 8628 §3.2: response MUST NOT be cached
 	w.Header().Set("Cache-Control", "no-store")
 	utils.WriteApiResponse(w, resp, http.StatusOK)
 }
