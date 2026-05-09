@@ -61,7 +61,7 @@ Open http://localhost:9999/onboard to create your admin account.
 
 CLI commands:
 - `autentico init` — generate .env configuration
-- `autentico onboard` — create first admin account (headless alternative to /onboard)
+- `autentico onboard` — create first admin account (headless alternative to /onboard). See Onboard Flags below.
 - `autentico start` — start the server (auto-migrates by default)
 - `autentico start --auto-setup` — generate .env if missing, then start
 - `autentico start --no-auto-migrate` — start without auto-applying migrations
@@ -565,8 +565,17 @@ Keycloak-compatible aliases are available:
 Open /onboard to create the admin account, or use the headless CLI:
 
 ```bash
-./autentico onboard --username admin --password "$ADMIN_PASSWORD"
+./autentico onboard --username admin --password "$ADMIN_PASSWORD" --email admin@example.com
 ```
+
+#### Onboard Flags
+
+| Flag | Type | Required | Env Var | Description |
+|---|---|---|---|---|
+| `--username` | string | Yes | `AUTENTICO_ADMIN_USERNAME` | Admin username. |
+| `--password` | string | Yes | `AUTENTICO_ADMIN_PASSWORD` | Admin password. |
+| `--email` | string | No | `AUTENTICO_ADMIN_EMAIL` | Admin email address. |
+| `--enable-admin-password-grant` | bool | No | `AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT` | Seed the autentico-admin client with the password (ROPC) grant for headless token acquisition in CI/CD. |
 
 Place behind a reverse proxy (nginx, Caddy) for TLS.
 
