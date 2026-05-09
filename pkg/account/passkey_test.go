@@ -5,22 +5,23 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/passkey"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
 )
 
 func TestHandleListPasskeys(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_ = passkey.CreatePasskeyCredential(passkey.PasskeyCredential{
 		ID:         "pk1",
@@ -29,13 +30,13 @@ func TestHandleListPasskeys(t *testing.T) {
 		Credential: "{}",
 	})
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "GET", "/account/api/passkeys", HandleListPasskeys, token)
+	rr := mockAuthRequest(t, "", "GET", "/account/api/passkeys", HandleListPasskeys, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleDeletePasskey(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_ = passkey.CreatePasskeyCredential(passkey.PasskeyCredential{
 		ID:         "pk1",
@@ -48,14 +49,14 @@ func TestHandleDeletePasskey(t *testing.T) {
 	mux.HandleFunc("DELETE /account/api/passkeys/{id}", HandleDeletePasskey)
 
 	req := httptest.NewRequest("DELETE", "/account/api/passkeys/pk1", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Not owned
 	req = httptest.NewRequest("DELETE", "/account/api/passkeys/otherpk", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
@@ -63,7 +64,7 @@ func TestHandleDeletePasskey(t *testing.T) {
 
 func TestHandleRenamePasskey(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	_ = passkey.CreatePasskeyCredential(passkey.PasskeyCredential{
 		ID:         "pk1",
@@ -78,14 +79,14 @@ func TestHandleRenamePasskey(t *testing.T) {
 	renameReq := PasskeyRenameRequest{Name: "New Name"}
 	body, _ := json.Marshal(renameReq)
 	req := httptest.NewRequest("PUT", "/account/api/passkeys/pk1", bytes.NewBuffer(body))
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Not owned
 	req = httptest.NewRequest("PUT", "/account/api/passkeys/otherpk", bytes.NewBuffer(body))
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr = httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
@@ -93,24 +94,24 @@ func TestHandleRenamePasskey(t *testing.T) {
 
 func TestHandleAddPasskeyBegin(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AppDomain = "localhost"
 		config.Bootstrap.AppURL = "http://localhost"
 		config.Values.PasskeyRPName = "Test"
 	})
 
-	rr := testutils.MockApiRequestWithAuth(t, "", "POST", "/account/api/passkeys/add/begin", HandleAddPasskeyBegin, token)
+	rr := mockAuthRequest(t, "", "POST", "/account/api/passkeys/add/begin", HandleAddPasskeyBegin, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestHandleAddPasskeyFinish_Errors(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	// Missing challenge_id
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=invalid", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -126,7 +127,7 @@ func TestHandleAddPasskeyFinish_Errors(t *testing.T) {
 	}
 	_ = passkey.CreatePasskeyChallenge(challenge)
 	req = httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=chall1", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr = httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 	assert.Equal(t, http.StatusForbidden, rr.Code)
@@ -134,7 +135,7 @@ func TestHandleAddPasskeyFinish_Errors(t *testing.T) {
 
 func TestHandleAddPasskeyFinish_InvalidChallengeData(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, usr := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
 
 	challenge := passkey.PasskeyChallenge{
 		ID:            "chall1",
@@ -146,7 +147,7 @@ func TestHandleAddPasskeyFinish_InvalidChallengeData(t *testing.T) {
 	_ = passkey.CreatePasskeyChallenge(challenge)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=chall1", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -154,13 +155,13 @@ func TestHandleAddPasskeyFinish_InvalidChallengeData(t *testing.T) {
 
 func TestHandleRenamePasskey_InvalidJSON(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
-	
+	_, _, info := setupTestUserAndSession(t)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("PUT /account/api/passkeys/{id}", HandleRenamePasskey)
-	
+
 	req := httptest.NewRequest("PUT", "/account/api/passkeys/pk1", nil) // No body
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -168,10 +169,10 @@ func TestHandleRenamePasskey_InvalidJSON(t *testing.T) {
 
 func TestHandleAddPasskeyFinish_MissingChallengeID(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 
@@ -181,30 +182,30 @@ func TestHandleAddPasskeyFinish_MissingChallengeID(t *testing.T) {
 
 func TestHandleAddPasskeyBegin_Success(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/begin", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyBegin(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	var resp model.ApiResponse[map[string]any]
 	err := json.Unmarshal(rr.Body.Bytes(), &resp)
 	require.NoError(t, err)
-	
+
 	assert.NotEmpty(t, resp.Data["challenge_id"])
 	assert.NotNil(t, resp.Data["options"])
 }
 
 func TestHandleAddPasskeyFinish_InvalidChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	// No challenge created in DB
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=nonexistent", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 
@@ -214,7 +215,7 @@ func TestHandleAddPasskeyFinish_InvalidChallenge(t *testing.T) {
 
 func TestHandleAddPasskeyFinish_ChallengeExpired(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Create an expired challenge with CORRECT type: account-registration
 	_, _ = db.GetDB().Exec(`
@@ -223,7 +224,7 @@ func TestHandleAddPasskeyFinish_ChallengeExpired(t *testing.T) {
 	`, u.ID)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=expired", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 
@@ -233,7 +234,7 @@ func TestHandleAddPasskeyFinish_ChallengeExpired(t *testing.T) {
 
 func TestHandleAddPasskeyFinish_InvalidBody(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Create a valid challenge
 	_, _ = db.GetDB().Exec(`
@@ -242,7 +243,7 @@ func TestHandleAddPasskeyFinish_InvalidBody(t *testing.T) {
 	`, u.ID)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=valid", strings.NewReader("{invalid"))
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 
@@ -251,7 +252,7 @@ func TestHandleAddPasskeyFinish_InvalidBody(t *testing.T) {
 
 func TestHandleAddPasskeyFinish_WrongUser(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t) // token for u1
+	_, _, info := setupTestUserAndSession(t) // info for u1
 
 	// Create a challenge for OTHER user
 	testutils.InsertTestUser(t, "other")
@@ -261,7 +262,7 @@ func TestHandleAddPasskeyFinish_WrongUser(t *testing.T) {
 	`)
 
 	req := httptest.NewRequest("POST", "/account/api/passkeys/add/finish?challenge_id=other-chall", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	HandleAddPasskeyFinish(rr, req)
 
@@ -271,7 +272,7 @@ func TestHandleAddPasskeyFinish_WrongUser(t *testing.T) {
 
 func TestHandleRenamePasskey_Success_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, u := setupTestUserAndSession(t)
+	_, u, info := setupTestUserAndSession(t)
 
 	// Create a passkey in the CORRECT table: passkey_credentials
 	_, _ = db.GetDB().Exec(`
@@ -285,12 +286,12 @@ func TestHandleRenamePasskey_Success_Extra(t *testing.T) {
 	renameReq := PasskeyRenameRequest{Name: "New Name"}
 	body, _ := json.Marshal(renameReq)
 	req := httptest.NewRequest("PATCH", "/account/api/passkeys/pk1", bytes.NewBuffer(body))
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	
+
 	// Verify renamed
 	var name string
 	_ = db.GetDB().QueryRow("SELECT name FROM passkey_credentials WHERE id = 'pk1'").Scan(&name)
@@ -299,13 +300,13 @@ func TestHandleRenamePasskey_Success_Extra(t *testing.T) {
 
 func TestHandleDeletePasskey_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
-	token, _ := setupTestUserAndSession(t)
+	_, _, info := setupTestUserAndSession(t)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /account/api/passkeys/{id}", HandleDeletePasskey)
 
 	req := httptest.NewRequest("DELETE", "/account/api/passkeys/none", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req = middleware.WithAuthInfo(req, info)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusForbidden, rr.Code)

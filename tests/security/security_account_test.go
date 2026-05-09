@@ -41,7 +41,7 @@ func doAccountRequest(t *testing.T, ts *TestServer, method, token, path string, 
 func TestAccount_ProfileRoleEscalation(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "escuser", "password123", "escuser@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "escuser", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "escuser", "password123")
 
 	payloads := []struct {
 		name string
@@ -81,7 +81,7 @@ func TestAccount_SessionIDOR(t *testing.T) {
 
 	createTestUser(t, "idoruser_a", "password123", "idora@test.com")
 	userB := createTestUser(t, "idoruser_b", "password123", "idorb@test.com")
-	tokenA := obtainTokensViaROPC(t, ts, "test-client", "idoruser_a", "password123")
+	tokenA := obtainTokensViaROPC(t, ts, "autentico-account", "idoruser_a", "password123")
 
 	victimSessionID := "victim-session-idor"
 	err := idpsession.CreateIdpSession(idpsession.IdpSession{
@@ -106,7 +106,7 @@ func TestAccount_SessionIDOR(t *testing.T) {
 func TestAccount_SessionRevoke_NonexistentID(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "sessuser", "password123", "sessuser@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "sessuser", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "sessuser", "password123")
 
 	status, _ := doAccountRequest(t, ts, "DELETE", tokenResp.AccessToken,
 		"/account/api/sessions/nonexistent-session-id-12345", "")
@@ -119,7 +119,7 @@ func TestAccount_SessionRevoke_NonexistentID(t *testing.T) {
 func TestAccount_PasswordChange_WrongCurrentPassword(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "pwuser", "password123", "pwuser@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "pwuser", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "pwuser", "password123")
 
 	status, _ := doAccountRequest(t, ts, "POST", tokenResp.AccessToken,
 		"/account/api/password",
@@ -133,7 +133,7 @@ func TestAccount_PasswordChange_WrongCurrentPassword(t *testing.T) {
 func TestAccount_PasswordChange_ShortNewPassword(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "pwuser2", "password123", "pwuser2@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "pwuser2", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "pwuser2", "password123")
 
 	status, _ := doAccountRequest(t, ts, "POST", tokenResp.AccessToken,
 		"/account/api/password",
@@ -202,8 +202,8 @@ func TestAccount_SessionListIsolation(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "isolateA", "password123", "isolatea@test.com")
 	createTestUser(t, "isolateB", "password123", "isolateb@test.com")
-	tokenA := obtainTokensViaROPC(t, ts, "test-client", "isolateA", "password123")
-	_ = obtainTokensViaROPC(t, ts, "test-client", "isolateB", "password123")
+	tokenA := obtainTokensViaROPC(t, ts, "autentico-account", "isolateA", "password123")
+	_ = obtainTokensViaROPC(t, ts, "autentico-account", "isolateB", "password123")
 
 	// User A fetches their sessions — should not see user B's sessions
 	status, body := doAccountRequest(t, ts, "GET", tokenA.AccessToken, "/account/api/sessions", "")
@@ -239,7 +239,7 @@ func TestAccount_PasskeyDeleteIDOR(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "pkuserA", "password123", "pkusera@test.com")
 	userB := createTestUser(t, "pkuserB", "password123", "pkuserb@test.com")
-	tokenA := obtainTokensViaROPC(t, ts, "test-client", "pkuserA", "password123")
+	tokenA := obtainTokensViaROPC(t, ts, "autentico-account", "pkuserA", "password123")
 
 	fakeCredID := "fake-passkey-cred-id"
 	_, err := db.GetDB().Exec(
@@ -260,7 +260,7 @@ func TestAccount_TrustedDeviceIDOR(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "tduserA", "password123", "tdusera@test.com")
 	userB := createTestUser(t, "tduserB", "password123", "tduserb@test.com")
-	tokenA := obtainTokensViaROPC(t, ts, "test-client", "tduserA", "password123")
+	tokenA := obtainTokensViaROPC(t, ts, "autentico-account", "tduserA", "password123")
 
 	fakeDeviceID := "fake-trusted-device-id"
 	_, err := db.GetDB().Exec(
@@ -281,7 +281,7 @@ func TestAccount_TrustedDeviceIDOR(t *testing.T) {
 func TestAccount_ProfileUpdate_XSSInFields(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "xssuser", "password123", "xssuser@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "xssuser", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "xssuser", "password123")
 
 	xssPayload := `{"given_name": "<script>alert(1)</script>", "family_name": "<img src=x onerror=alert(1)>"}`
 
@@ -307,7 +307,7 @@ func TestAccount_ProfileUpdate_XSSInFields(t *testing.T) {
 func TestAccount_PasswordChange_Success(t *testing.T) {
 	ts := startTestServer(t)
 	createTestUser(t, "pwok", "password123", "pwok@test.com")
-	tokenResp := obtainTokensViaROPC(t, ts, "test-client", "pwok", "password123")
+	tokenResp := obtainTokensViaROPC(t, ts, "autentico-account", "pwok", "password123")
 
 	status, _ := doAccountRequest(t, ts, "POST", tokenResp.AccessToken,
 		"/account/api/password",
@@ -333,8 +333,8 @@ func TestAccount_PasswordChange_InvalidatesOtherSessions(t *testing.T) {
 	createTestUser(t, "pwsess", "password123", "pwsess@test.com")
 
 	// Create two independent sessions via ROPC
-	session1 := obtainTokensViaROPC(t, ts, "test-client", "pwsess", "password123")
-	session2 := obtainTokensViaROPC(t, ts, "test-client", "pwsess", "password123")
+	session1 := obtainTokensViaROPC(t, ts, "autentico-account", "pwsess", "password123")
+	session2 := obtainTokensViaROPC(t, ts, "autentico-account", "pwsess", "password123")
 
 	// Both sessions should work before password change
 	s1Status, _ := doAccountRequest(t, ts, "GET", session1.AccessToken, "/account/api/profile", "")

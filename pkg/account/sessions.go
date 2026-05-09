@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/api"
-	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -35,9 +35,9 @@ func currentIdpSessionID(r *http.Request) string {
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/sessions [get]
 func HandleListSessions(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -92,9 +92,9 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} model.ApiError
 // @Router /account/api/sessions/{id} [delete]
 func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -143,13 +143,13 @@ func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/sessions/revoke-others [post]
 func HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
-	v, err := bearer.ValidateBearer(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	info := middleware.AuthInfoFromContext(r.Context())
+	if info == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
-	if err := user.RevokeOtherUserAccess(v.Session.UserID, v.Token); err != nil {
+	if err := user.RevokeOtherUserAccess(info.User.ID, info.Token); err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

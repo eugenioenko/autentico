@@ -1,6 +1,9 @@
 package account
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -15,16 +19,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTestUserAndSession(t *testing.T) (string, *user.User) {
+func setupTestUserAndSession(t *testing.T) (string, *user.User, *middleware.AuthInfo) {
 	userID := uuid.New().String()
 	testutils.InsertTestUser(t, userID)
-	
+
 	usr, err := user.UserByID(userID)
 	assert.NoError(t, err)
 
 	sessionID := uuid.New().String()
-	
-	// Create a valid JWT token signed with the ephemeral test key
+
 	claims := &jwtutil.AccessTokenClaims{
 		UserID:    usr.ID,
 		SessionID: sessionID,
@@ -45,8 +48,6 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User) {
 	err = session.CreateSession(sess)
 	assert.NoError(t, err)
 
-	// Persist the matching tokens row so bearer.ValidateBearer's
-	// revocation check sees an active row (not sql.ErrNoRows).
 	now := time.Now().UTC()
 	_, err = db.GetDB().Exec(`
 		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
@@ -55,5 +56,32 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User) {
 	`, "tok-"+sessionID[:8], usr.ID, tokenString, "refresh-"+sessionID[:8], now.Add(time.Hour), now.Add(time.Hour), now)
 	assert.NoError(t, err)
 
-	return tokenString, usr
+	info := &middleware.AuthInfo{
+		User:    usr,
+		Token:   tokenString,
+		Claims:  claims,
+		Session: &sess,
+	}
+
+	return tokenString, usr, info
+}
+
+func mockAuthRequest(t *testing.T, body, method, url string, handler http.HandlerFunc, info *middleware.AuthInfo) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, url, bytes.NewBuffer([]byte(body)))
+	req.Header.Set("Content-Type", "application/json")
+	if info != nil {
+		if usr, err := user.UserByID(info.User.ID); err == nil {
+			info = &middleware.AuthInfo{
+				User:    usr,
+				Token:   info.Token,
+				Claims:  info.Claims,
+				Session: info.Session,
+			}
+		}
+		req = middleware.WithAuthInfo(req, info)
+	}
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	return rr
 }

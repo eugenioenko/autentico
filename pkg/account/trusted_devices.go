@@ -3,7 +3,7 @@ package account
 import (
 	"net/http"
 
-	"github.com/eugenioenko/autentico/pkg/bearer"
+	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -18,9 +18,9 @@ import (
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/trusted-devices [get]
 func HandleListTrustedDevices(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
@@ -57,9 +57,9 @@ func HandleListTrustedDevices(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} model.ApiError
 // @Router /account/api/trusted-devices/{id} [delete]
 func HandleRevokeTrustedDevice(w http.ResponseWriter, r *http.Request) {
-	usr, err := bearer.UserFromRequest(r)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", err.Error())
+	usr := middleware.UserFromContext(r.Context())
+	if usr == nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
