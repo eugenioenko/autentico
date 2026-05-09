@@ -16,6 +16,9 @@ Ten phases tackling one spec at a time, in dependency order. Each phase: read sp
 | 8 | OIDC RP-Initiated Logout 1.0 | 1.5h | ✅ Done (2026-04-03) |
 | 9 | RFC 7591 — Dynamic Client Registration | 1.5h | ✅ Done (2026-04-03) |
 | 10 | RFC 8414 — OAuth 2.0 Authorization Server Metadata | 0.5h | ✅ Done (2026-04-03) |
+| 11 | RFC 6749 §4.4 — Client Credentials Grant | 1h | ✅ Done (2026-04-06) |
+| 12 | RFC 6819/9700 — Refresh Token Rotation | 1h | ✅ Done (2026-04-07) |
+| 13 | RFC 8628 — Device Authorization Grant | 2h | ✅ Done (2026-05-09) |
 
 **Recommended order:** 1 → 4 → 5 → 2 → 3 → 6 → 7 → 8 → 9 → 10
 
@@ -757,3 +760,88 @@ This is analogous to the existing "public endpoints by design" decision for intr
 - E2e: `TestRefreshToken_ReplayDetection` — replayed rotated token revokes all user tokens, legitimate user must re-authenticate ✅ Added
 - Functional: `token.test.ts` "rotates refresh token" — old token rejected after rotation ✅ Added
 - Functional: `token.test.ts` "replay detection revokes all user tokens" — theft mitigation verified ✅ Added
+
+---
+
+## Phase 13 — RFC 8628: Device Authorization Grant
+
+**File:** `rfc/rfc8628.txt`
+
+**Context:** Implements the Device Authorization Grant for headless devices and CLI tools. User verification is handled by the account UI (`/account/device`) which leverages existing OIDC authentication (login, MFA, passkeys) instead of reimplementing auth in the device flow.
+
+| Section | What to check | Code path |
+|---|---|---|
+| §3.1 | `client_id` REQUIRED, `scope` OPTIONAL, client supports `device_code` grant | `pkg/devicecode/handler.go` `HandleDeviceAuthorization` |
+| §3.2 | Response: `device_code`, `user_code`, `verification_uri`, `expires_in` REQUIRED; `verification_uri_complete`, `interval` OPTIONAL; `Cache-Control: no-store` | `pkg/devicecode/handler.go` response construction |
+| §3.3 | User verification mechanism — code entry and confirmation | `account-ui/src/pages/Device.tsx`, `pkg/account/device.go` |
+| §3.4 | Token request: `grant_type`, `device_code` REQUIRED; `client_id` binding | `pkg/token/device_code.go` `handleDeviceCodeGrant` |
+| §3.5 | Polling responses: `authorization_pending`, `slow_down` (+5s interval), `access_denied`, `expired_token` | `pkg/token/device_code.go` status switch |
+| §3.5 | Device code is single-use — consumed after successful token exchange | `pkg/token/device_code.go`, `pkg/devicecode/update.go` `ConsumeDeviceCode` |
+| §4 | `device_authorization_endpoint` in discovery; `grant_types_supported` includes device_code URN | `pkg/wellknown/handler.go`, `pkg/model/well_known_config.go` |
+
+**MUST / SHOULD / MAY compliance:**
+
+| Keyword | Section | Requirement | Status |
+|---------|---------|-------------|--------|
+| MUST | §3.1 | `client_id` required in device authorization request | ✅ Implemented |
+| MUST | §3.1 | Validate client exists and supports `device_code` grant | ✅ Implemented |
+| MUST | §3.2 | Response includes `device_code`, `user_code`, `verification_uri`, `expires_in` | ✅ Implemented |
+| MUST | §3.2 | Response MUST NOT be cached (`Cache-Control: no-store`, `Pragma: no-cache`) | ✅ Implemented |
+| MUST | §3.4 | `grant_type` and `device_code` required in token request | ✅ Implemented |
+| MUST | §3.4 | Verify `device_code` was issued to the requesting `client_id` | ✅ Implemented |
+| MUST | §3.5 | Return `authorization_pending` while user has not yet responded | ✅ Implemented |
+| MUST | §3.5 | Return `slow_down` when polling faster than `interval`; increase interval by 5 seconds | ✅ Implemented |
+| MUST | §3.5 | Return `access_denied` when user denies authorization | ✅ Implemented |
+| MUST | §3.5 | Return `expired_token` when device code expires | ✅ Implemented |
+| MUST | §3.5 | Device code is single-use — reject after successful exchange | ✅ Implemented |
+| SHOULD | §3.1 | Validate `scope` against client's allowed scopes | ✅ Implemented |
+| SHOULD | §3.1 | Default to client's registered scopes when `scope` omitted | ✅ Implemented |
+| OPTIONAL | §3.2 | `verification_uri_complete` with embedded user code | ✅ Implemented (path format: `/account/device/{code}`) |
+| OPTIONAL | §3.2 | `interval` in response (default 5 seconds if omitted) | ✅ Implemented |
+
+**Security Considerations (§5):**
+- [x] §5.1: User code entropy — 8 characters from 20-char consonant alphabet (~34.6 bits); sufficient for typed codes with short expiration
+- [x] §5.2: User code format — `XXXX-XXXX` with hyphen separator for readability; consonants only (no vowels) to avoid forming offensive words
+- [x] §5.3: Non-textual verification URI — `verification_uri_complete` enables QR codes; client can display QR for the full URL
+- [x] §5.4: Device code entropy — 160 bits (20 bytes hex via `crypto/rand`); high entropy secret
+- [x] §5.5: Rate limiting — `slow_down` enforced with progressive interval increase; per-IP rate limiting on all endpoints
+- [x] §5.6: Session spying — user must be authenticated before seeing device info; verification happens in authenticated account UI
+- [x] Client binding — device code cannot be exchanged by a different client than the one that requested it
+
+**Discovery cross-check:**
+- [x] `device_authorization_endpoint` present in `/.well-known/openid-configuration`
+- [x] `grant_types_supported` includes `"urn:ietf:params:oauth:grant-type:device_code"`
+
+**Tests:**
+- Unit: `TestCreateAndReadDeviceCode` — CRUD lifecycle ✅
+- Unit: `TestDeviceCodeByCode_NotFound` — unknown code ✅
+- Unit: `TestDeviceCodeByUserCode_NotFound` — unknown user code ✅
+- Unit: `TestAuthorizeDeviceCode` — status transition pending → authorized ✅
+- Unit: `TestDenyDeviceCode` — status transition pending → denied ✅
+- Unit: `TestAuthorizeDeviceCode_NotPending` — cannot authorize non-pending code ✅
+- Unit: `TestUpdateLastPolledAt` — polling timestamp update ✅
+- Unit: `TestGenerateDeviceCode` — 40-char hex output ✅
+- Unit: `TestGenerateUserCode` — 8-char consonant code ✅
+- Unit: `TestGenerateUserCode_NoVowels` — no vowels in generated codes ✅
+- Unit: `TestFormatUserCode` — XXXX-XXXX formatting ✅
+- Unit: `TestNormalizeUserCode` — strip hyphens + uppercase ✅
+- Unit: `TestHandleDeviceAuthorization_Success` — happy path, all required fields present ✅
+- Unit: `TestHandleDeviceAuthorization_MissingClientID` — missing client_id → 400 ✅
+- Unit: `TestHandleDeviceAuthorization_UnknownClient` — unknown client → 400 ✅
+- Unit: `TestHandleDeviceAuthorization_GrantTypeNotAllowed` — wrong grant type → 400 ✅
+- Unit: `TestHandleDeviceAuthorization_WrongMethod` — GET rejected ✅
+- Unit: `TestHandleDeviceAuthorization_InvalidScope` — invalid scope → 400 ✅
+- Unit: `TestDeviceCodeGrant_AuthorizationPending` — pending → authorization_pending ✅
+- Unit: `TestDeviceCodeGrant_AccessDenied` — denied → access_denied ✅
+- Unit: `TestDeviceCodeGrant_ExpiredToken` — expired → expired_token ✅
+- Unit: `TestDeviceCodeGrant_Success` — authorized → tokens issued ✅
+- Unit: `TestDeviceCodeGrant_MissingDeviceCode` — missing device_code → invalid_request ✅
+- Functional: `device-grant.test.ts` "issues device_code and user_code" — endpoint response validation ✅
+- Functional: `device-grant.test.ts` "returns authorization_pending when polling" — polling before authorization ✅
+- Functional: `device-grant.test.ts` "rejects client without device_code grant" — unauthorized_client ✅
+- Functional: `device-grant.test.ts` "rejects unknown client_id" — invalid_client ✅
+- Functional: `device-grant.test.ts` "rejects without client_id" — invalid_request ✅
+- Functional: `device-grant.test.ts` "rejects invalid device_code" — invalid_grant ✅
+- Functional: `device-grant.test.ts` "rejects without device_code field" — invalid_request ✅
+- Functional: `device-grant.test.ts` "rejects invalid scope" — invalid_scope ✅
+- Functional: `device-grant.test.ts` "discovery includes device_authorization_endpoint" — discovery verification ✅
