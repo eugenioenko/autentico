@@ -22,6 +22,14 @@ func DenyDeviceCode(userCode string) error {
 	return err
 }
 
+func ConsumeDeviceCode(code string) error {
+	_, err := db.GetDB().Exec(
+		`UPDATE device_codes SET status = 'consumed' WHERE code = ? AND status = 'authorized'`,
+		code,
+	)
+	return err
+}
+
 func UpdateLastPolledAt(code string, t time.Time) error {
 	_, err := db.GetDB().Exec(
 		`UPDATE device_codes SET last_polled_at = ? WHERE code = ?`,

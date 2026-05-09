@@ -26,6 +26,12 @@ func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request Token
 		return nil, "", errGrantHandled
 	}
 
+	// RFC 8628 §3.4: verify the device_code was issued to this client
+	if dc.ClientID != request.ClientID {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "device_code was not issued to this client")
+		return nil, "", errGrantHandled
+	}
+
 	// RFC 8628 §3.5: expired_token
 	if time.Now().After(dc.ExpiresAt) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "expired_token", "The device code has expired")
@@ -64,6 +70,8 @@ func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request Token
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "User not found")
 			return nil, "", errGrantHandled
 		}
+		// RFC 8628 §3.5: device code is single-use; mark consumed to prevent replay
+		_ = devicecode.ConsumeDeviceCode(dc.Code)
 		return usr, dc.Scope, nil
 	default:
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid device code status")
