@@ -22,7 +22,7 @@ func TestSelfSignup_Disabled(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
 }
 
 func TestSelfSignup_RendersForm(t *testing.T) {

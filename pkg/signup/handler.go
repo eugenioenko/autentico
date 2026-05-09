@@ -36,13 +36,8 @@ import (
 // Param state formData string false "OAuth2 state"
 // Success 302 "Redirect back to client with code"
 func HandleSignup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		view.RenderError(w, r, http.StatusNotFound, "Page not found.")
-		return
-	}
-
-	if !config.Get().AuthAllowSelfSignup {
-		http.NotFound(w, r)
+	if !config.Get().AuthAllowSelfSignup || r.Method != http.MethodPost {
+		view.RenderError(w, r, http.StatusMethodNotAllowed, "This page can only be accessed through the signup flow.")
 		return
 	}
 
