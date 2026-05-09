@@ -387,6 +387,15 @@ export default function ClientCreateForm({
                     >
                       <Input placeholder="Global default (e.g. 720h)" />
                     </Form.Item>
+
+                    <Form.Item
+                      label="Consent Required"
+                      name="consent_required"
+                      valuePropName="checked"
+                      tooltip={{ title: "When enabled, users must grant consent before this client can access their information", icon: <ExclamationCircleOutlined /> }}
+                    >
+                      <Switch />
+                    </Form.Item>
                   </Space>
                 ),
               },

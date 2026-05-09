@@ -13,6 +13,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -61,6 +62,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		Nonce:               r.FormValue("nonce"),
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+		Prompt:              r.FormValue("prompt"),
 	}
 
 	if config.Get().AuthMode == "passkey_only" {
@@ -186,6 +188,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			Nonce:               request.Nonce,
 			CodeChallenge:       request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
+			Prompt:              request.Prompt,
 		}
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
@@ -221,6 +224,21 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
+
+	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
+	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, request.ClientID, request.Scope, request.Prompt) {
+		consent.RedirectToConsent(w, r, consent.ConsentParams{
+			RedirectURI:         request.RedirectURI,
+			State:               request.State,
+			ClientID:            request.ClientID,
+			Scope:               request.Scope,
+			Nonce:               request.Nonce,
+			CodeChallenge:       request.CodeChallenge,
+			CodeChallengeMethod: request.CodeChallengeMethod,
+			Prompt:              request.Prompt,
+		})
+		return
+	}
 
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {

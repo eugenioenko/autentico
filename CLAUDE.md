@@ -38,6 +38,65 @@ make docs                     # Serves Swagger UI at localhost:8888
 make generate-docs            # Regenerate swagger files from handler annotations
 ```
 
+## Headless Onboarding & Admin Token (CI / Testing)
+
+```bash
+# 1. Remove existing DB for a clean start (if needed)
+rm -f autentico.db
+
+# 2. Start the server (auto-generates .env if missing)
+./autentico start --auto-setup &
+sleep 2
+
+# 3. Create admin account with ROPC grant enabled (must run BEFORE start seeds the admin client,
+#    or on a fresh DB — seedAdminClient skips if autentico-admin already exists)
+./autentico onboard --username admin --password secret --email admin@test.com --enable-admin-password-grant
+
+# 4. Get an admin bearer token via ROPC
+TOKEN=$(curl -s http://localhost:9999/oauth2/token -X POST \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&username=admin&password=secret&client_id=autentico-admin&scope=openid profile email" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+# 5. Use the token for admin API calls
+curl -s http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Important:** `onboard` must run before the first `start` seeds the admin client, or on a fresh DB. The `--enable-admin-password-grant` flag adds the `password` grant type to `autentico-admin`. If the client already exists without it, delete the DB and re-onboard.
+
+## Playwright MCP (Browser Testing)
+
+The Playwright MCP server provides browser automation tools (`mcp__playwright__*`) for testing UI flows.
+
+**Setup:** The MCP server expects Chrome at `/opt/google/chrome/chrome`. If not installed, symlink the Playwright-managed Chromium:
+
+```bash
+# Install Playwright browsers (if not already cached)
+npx playwright install chromium
+
+# Symlink to the expected path (requires sudo)
+sudo mkdir -p /opt/google/chrome
+sudo ln -sf ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome /opt/google/chrome/chrome
+```
+
+**Debug UI as test client:** The `debug-ui/` directory contains a Vite+React app that acts as an OAuth2 client for manual testing. It runs on `http://localhost:5174` and uses client_id `autentico-debug`.
+
+```bash
+# Register the debug client (with consent_required for consent screen testing)
+curl -s -X POST http://localhost:9999/admin/api/clients \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"autentico-debug","client_name":"Debug UI","redirect_uris":["http://localhost:5174/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access","client_type":"public","token_endpoint_auth_method":"none","consent_required":true}'
+
+# Add CORS origin for the debug UI
+curl -s -X PUT http://localhost:9999/admin/api/settings \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"cors_allowed_origins": "http://localhost:5174"}'
+
+# Start the debug UI dev server
+cd debug-ui && pnpm dev
+```
+
 ## Feature Development Workflow
 
 When implementing new features, follow the checklist in `WORKFLOW.md`. Key points:
@@ -126,8 +185,9 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callba
 
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), CSRF secret, and token signing secrets
-- `autentico start` — loads config, initializes DB, auto-applies pending migrations, seeds `autentico-admin` client, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
+- `autentico start` — loads config, initializes DB, auto-applies pending migrations, seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
 - `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts user to type the target version number to confirm (irreversible)
+- `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
 
@@ -141,29 +201,45 @@ Each feature package in `pkg/` follows a consistent pattern:
 
 | Package | Purpose |
 |---------|---------|
+| `pkg/account` | Account UI API — profile, password change, TOTP setup, passkey management, session listing |
 | `pkg/admin` | Serves embedded React admin UI (from `pkg/admin/dist`) and `/admin/api/stats` |
+| `pkg/api` | API utilities shared across admin and account APIs |
 | `pkg/appsettings` | Settings CRUD — persists runtime config to `settings` table, checks onboarding status |
+| `pkg/audit` | Audit log recording and querying (`audit_logs` table) |
 | `pkg/auth_code` | Authorization code model (PKCE, nonce, single-use flag) |
 | `pkg/authorize` | `/oauth2/authorize` — validates client + redirect URI, renders login page |
+| `pkg/authzsig` | HMAC signatures for authorize-to-login parameter integrity |
+| `pkg/bearer` | Bearer token extraction utilities |
 | `pkg/cleanup` | Background goroutine purging expired tokens, sessions, MFA challenges, etc. |
-| `pkg/cli` | `init`, `start`, and `migrate` subcommand implementations |
+| `pkg/cli` | `init`, `start`, `migrate`, and `onboard` subcommand implementations |
 | `pkg/client` | OAuth2 client registration, CRUD, and authentication (`/oauth2/register`) |
 | `pkg/config` | Bootstrap config (env vars, immutable) and runtime config (DB, hot-reloadable) |
+| `pkg/consent` | OAuth2 consent screen — per-client `consent_required`, scope display, consent persistence |
 | `pkg/db` | SQLite initialization, schema DDL |
 | `pkg/db/migrations` | Migration system — `SchemaVersion` constant, `Migration` struct, `Check()` and `Run()` functions, ordered migrations slice |
+| `pkg/deletion` | Account deletion requests — user-initiated, admin-reviewed |
+| `pkg/email` | Email sending (SMTP) — OTP codes, password reset, email verification |
+| `pkg/emailverification` | Email verification flow — send verification link, confirm token |
+| `pkg/federation` | Federated/social login providers (external IdP integration) |
+| `pkg/group` | User groups — CRUD, membership management |
+| `pkg/health` | Health check endpoint (`/health`) |
 | `pkg/idpsession` | IdP-level SSO sessions — cross-request browser sessions, idle timeout enforcement |
 | `pkg/introspect` | `/oauth2/introspect` — token introspection (RFC 7662) |
 | `pkg/jwtutil` | JWT parsing, `AccessTokenClaims`, audience validation |
 | `pkg/key` | RSA key loading (from `AUTENTICO_PRIVATE_KEY` env var) or ephemeral fallback, JWK generation |
 | `pkg/login` | `/oauth2/login` — credential validation, MFA challenge creation, auth code issuance |
 | `pkg/mfa` | MFA challenge management (TOTP enrollment, TOTP/email OTP verification) |
-| `pkg/middleware` | CORS, CSRF, logging, admin bearer-token auth, audience validation |
+| `pkg/middleware` | CORS, CSRF, logging, admin bearer-token auth, audience validation, rate limiting |
 | `pkg/model` | Shared response types: `ApiResponse[T]`, `ApiError`, `AuthErrorResponse`, JWK/JWKS, WellKnownConfig |
 | `pkg/onboarding` | First-run admin account creation wizard |
 | `pkg/passkey` | WebAuthn registration + authentication ceremonies (`go-webauthn/webauthn v0.15.0`) |
+| `pkg/passwordreset` | Password reset flow — forgot password, reset token, new password |
+| `pkg/ratelimit` | Per-IP rate limiting for auth endpoints (token bucket) |
+| `pkg/reqid` | Request ID generation and context propagation |
+| `pkg/revoke` | `/oauth2/revoke` — token revocation (RFC 7009) |
 | `pkg/session` | OAuth session lifecycle (create, read, deactivate, logout) |
 | `pkg/signup` | Self-service user registration (enabled via `allow_self_signup` setting) |
-| `pkg/token` | `/oauth2/token` — code exchange, refresh token grant, ROPC, revocation |
+| `pkg/token` | `/oauth2/token` — code exchange, refresh token grant, ROPC, client credentials |
 | `pkg/trusteddevice` | Trusted device tokens — MFA bypass cookie management |
 | `pkg/user` | User CRUD, bcrypt password hashing, account lockout, TOTP secret storage |
 | `pkg/userinfo` | `/oauth2/userinfo` endpoint |
@@ -174,15 +250,16 @@ Each feature package in `pkg/` follows a consistent pattern:
 
 1. Client redirects to `/oauth2/authorize` → validates client, renders `view/login.html`
 2. Depending on `auth_mode`: user submits password to `/oauth2/login`, or initiates passkey ceremony at `/oauth2/passkey/login/begin` + `/oauth2/passkey/login/finish`
-3. If MFA is enabled: user is redirected to `/oauth2/mfa` for TOTP/email OTP verification (unless on a trusted device)
-4. Auth code is issued, client redirects back with `code`
-5. Client exchanges code at `/oauth2/token` → access token + id token + refresh token (RS256 JWTs)
-6. Tokens are signed with the RSA key from `AUTENTICO_PRIVATE_KEY` (base64-encoded PEM env var); if unset, an ephemeral key is used (tokens invalidated on restart)
+3. If MFA is enabled (`require_mfa` or user has TOTP enrolled): user is redirected to `/oauth2/mfa` for TOTP/email OTP verification (unless on a trusted device). When `mfa_method` is `both` and user has TOTP enrolled, TOTP is preferred with an option to switch to email.
+4. If client has `consent_required`: user is redirected to `/oauth2/consent` to approve requested scopes. Consent is remembered per user+client+scopes — subsequent logins skip this step unless scopes change.
+5. Auth code is issued, client redirects back with `code`
+6. Client exchanges code at `/oauth2/token` → access token + id token + refresh token (RS256 JWTs)
+7. Tokens are signed with the RSA key from `AUTENTICO_PRIVATE_KEY` (base64-encoded PEM env var); if unset, an ephemeral key is used (tokens invalidated on restart)
 
 ### View Templates
 
 HTML templates in `view/` rendered server-side for all interactive flows:
-`layout.html`, `login.html`, `signup.html`, `onboard.html`, `mfa.html`, `mfa_enroll.html`, `error.html`
+`layout.html`, `login.html`, `signup.html`, `onboard.html`, `mfa.html`, `mfa_enroll.html`, `consent.html`, `forgot_password.html`, `reset_password.html`, `verify_email.html`, `logout_success.html`, `error.html`
 
 ### Configuration (3 layers)
 
@@ -190,27 +267,32 @@ HTML templates in `view/` rendered server-side for all interactive flows:
 
 Key fields:
 - `AUTENTICO_APP_URL` — base URL (derives issuer, domain, port)
+- `AUTENTICO_APP_OAUTH_PATH` — override OAuth path (default: `/oauth2`)
+- `AUTENTICO_LISTEN_PORT` — override listen port independent of `APP_URL` (for reverse proxy setups)
 - `AUTENTICO_DB_FILE_PATH` — SQLite file path (default: `./autentico.db`)
+- `AUTENTICO_DB_READ_POOL_SIZE` — SQLite read connection pool (default: `min(CPUs, 4)`)
 - `AUTENTICO_PRIVATE_KEY` — base64-encoded RSA private key PEM
 - `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`, `AUTENTICO_CSRF_SECRET_KEY`
 - `AUTENTICO_CSRF_SECURE_COOKIE`, `AUTENTICO_REFRESH_TOKEN_SECURE`, `AUTENTICO_IDP_SESSION_SECURE`
 - `AUTENTICO_JWK_CERT_KEY_ID` (default: `autentico-key-1`)
+- `AUTENTICO_RATE_LIMIT_RPS`, `AUTENTICO_RATE_LIMIT_BURST`, `AUTENTICO_RATE_LIMIT_RPM`, `AUTENTICO_RATE_LIMIT_RPM_BURST` — per-IP rate limiting
+- `AUTENTICO_ANTI_TIMING_MIN_MS`, `AUTENTICO_ANTI_TIMING_MAX_MS` — anti-timing delay for auth responses
 
 Access via `config.GetBootstrap()`.
 
 **Runtime** (`pkg/config`, persisted in `settings` table, hot-reloadable via admin API)
 
-Key fields: token expiration durations, `auth_mode`, `mfa_enabled`, `mfa_method`, `allow_self_signup`, `sso_session_idle_timeout`, account lockout, passkey RP name, trusted device settings, cleanup intervals, SMTP settings, theme (CSS, logo, title), validation rules.
+Key fields: token expiration durations, `auth_mode`, `require_mfa`, `mfa_method`, `allow_self_signup`, `sso_session_idle_timeout`, account lockout, passkey RP name, trusted device settings, cleanup intervals, SMTP settings (host, port, username, password, from), CORS (`cors_allowed_origins`), theme (CSS, logo, title, tagline, footer links), profile field visibility, email verification, password reset, account deletion permissions, validation rules.
 
 Access via `config.Get()`. Updated via `appsettings.LoadIntoConfig()`.
 
 **Per-client overrides** (stored on `clients` table, nullable — unset means "use global")
 
-Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `sso_session_idle_timeout`, `trust_device_enabled`, `trust_device_expiration`.
+Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `sso_session_idle_timeout`, `trust_device_enabled`, `trust_device_expiration`, `consent_required`.
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema in `pkg/db/db.go`. 11 tables:
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables (SchemaVersion 7):
 
 | Table | Purpose |
 |-------|---------|
@@ -223,8 +305,16 @@ Initialized by `db.InitDB()`. Schema in `pkg/db/db.go`. 11 tables:
 | `trusted_devices` | Trusted device tokens (MFA bypass) |
 | `passkey_challenges` | Pending WebAuthn ceremony state |
 | `passkey_credentials` | Registered WebAuthn credentials (JSON blob) |
-| `clients` | OAuth2 clients with per-client config overrides |
+| `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) |
 | `settings` | Key-value runtime config |
+| `federation_providers` | External IdP configurations for federated/social login |
+| `federated_identities` | Links between local users and external IdP accounts |
+| `deletion_requests` | User-initiated account deletion requests (admin-reviewed) |
+| `password_reset_tokens` | Time-limited tokens for password reset flow (migration 002) |
+| `audit_logs` | Security event audit trail (migration 003) |
+| `groups` | User groups (migration 004) |
+| `user_groups` | Group membership join table (migration 004) |
+| `user_consents` | Stored OAuth2 consent decisions per user+client+scopes (migration 007) |
 
 **SQLite driver:** `modernc.org/sqlite` (NOT `mattn/go-sqlite3`). Scanning SQL NULL into a plain `string` causes an error — always use `*string` or provide explicit `""` in test fixtures for nullable string columns.
 

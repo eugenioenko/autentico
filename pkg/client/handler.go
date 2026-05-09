@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -173,6 +174,7 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
+	_, _ = db.GetDB().Exec(`DELETE FROM user_consents WHERE client_id = ?`, clientID)
 	audit.Log(audit.EventClientDeleted, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
 	w.WriteHeader(http.StatusNoContent)
 }

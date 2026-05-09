@@ -67,6 +67,11 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		audiences = c.AllowedAudiences
 	}
 
+	newConsentRequired := c.ConsentRequired
+	if req.ConsentRequired != nil {
+		newConsentRequired = req.ConsentRequired
+	}
+
 	query := `
 		UPDATE clients SET
 			client_name = ?,
@@ -85,6 +90,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 			sso_session_idle_timeout = ?,
 			trust_device_enabled = ?,
 			trust_device_expiration = ?,
+			consent_required = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE client_id = ?`
 	_, err = db.GetDB().Exec(query,
@@ -93,6 +99,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		req.AccessTokenExpiration, req.RefreshTokenExpiration,
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
+		newConsentRequired,
 		clientID,
 	)
 	if err != nil {

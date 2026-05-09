@@ -13,6 +13,7 @@
   <input type="hidden" name="nonce" value="{{.Nonce}}" />
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="prompt" value="{{.Prompt}}" />
   <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
