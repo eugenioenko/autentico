@@ -73,10 +73,8 @@ On their next login, they will be shown the TOTP enrollment QR code again.
 If a user is locked out after too many failed attempts:
 
 ```bash
-curl -X POST https://auth.example.com/admin/api/users/unlock \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "USER_ID"}'
+curl -X POST https://auth.example.com/admin/api/users/USER_ID/unlock \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 Or via **Admin UI → Users → (user) → Unlock**.

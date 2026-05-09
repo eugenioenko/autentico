@@ -35,7 +35,7 @@ The idle timeout can be overridden per-client, so different clients can have str
 
 ## Session storage
 
-Sessions are stored in the `sessions` table with the following fields:
+Sessions are stored in the `idp_sessions` table with the following fields:
 
 | Field | Description |
 |---|---|
@@ -45,14 +45,17 @@ Sessions are stored in the `sessions` table with the following fields:
 | `ip_address` | Client IP at login time |
 | `last_activity_at` | Updated on each authorization request (used for idle timeout) |
 | `created_at` | Session creation time |
-| `expires_at` | Absolute expiry |
 | `deactivated_at` | Set when the session is explicitly logged out |
+
+Session expiry is not stored as a column. Instead, it is computed at validation time from `created_at + sso_session_max_age`. This means changes to `sso_session_max_age` apply retroactively to all existing sessions.
 
 ## Logout
 
 The `GET /oauth2/logout` endpoint is scoped to the **current End-User session at this OP** per [OpenID Connect RP-Initiated Logout 1.0 §2](https://openid.net/specs/openid-connect-rpinitiated-1_0.html). It reads the IdP session cookie, cascade-revokes that IdP session plus every OAuth session born from it (and their access/refresh tokens), clears the cookie, and redirects the user. Other devices the same subject is signed in on keep their sessions — matching Keycloak, Auth0, and Google behavior.
 
 A dedicated "Sign out everywhere" action is separate from RP-Initiated Logout.
+
+See [Admin UI > Sessions](/admin-ui/sessions/) for managing SSO sessions.
 
 <Aside type="tip">
 If a user's session is still active when they visit `/oauth2/authorize`, they are logged in silently. This is what makes SSO work across multiple applications registered with the same Autentico instance.

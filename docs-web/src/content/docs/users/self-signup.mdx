@@ -45,6 +45,8 @@ The signup page checks the `allow_self_signup` setting for the originating clien
 
 The same username and password validation rules apply at signup as at admin-created accounts. See [Password Authentication](/authentication/password/) for the validation settings reference.
 
+Consider enabling [Email Verification](/authentication/email-verification/) alongside self-signup to validate user email addresses.
+
 <Aside type="caution">
 Enabling self-signup means anyone can create an account. Consider pairing it with email verification (`validation_email_required = true`) or manual review before allowing access to sensitive clients.
 </Aside>

@@ -83,6 +83,10 @@ Enable or disable trusted devices for users authenticating through this client. 
 
 Override trusted device token lifetime for this client. Overrides the global [`trust_device_expiration`](/configuration/runtime-settings/#trust_device_expiration).
 
+### `consent_required`
+
+When enabled (`true`), users authenticating through this client must explicitly approve the requested OAuth2 scopes on a consent screen before the authorization code is issued. Consent decisions are remembered per user + client + scope combination — subsequent logins skip the consent screen unless the requested scopes change.
+
 ---
 
 ## Precedence example

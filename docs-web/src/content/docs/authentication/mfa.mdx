@@ -5,7 +5,7 @@ description: How TOTP and Email OTP multi-factor authentication works in Autenti
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-When `mfa_enabled` is `true`, all users must complete an MFA step after password authentication before an authorization code is issued.
+When `require_mfa` is `true`, all users must complete an MFA step after password authentication before an authorization code is issued.
 
 ## MFA flow
 
@@ -71,7 +71,7 @@ Email OTP is only as secure as the user's email account. TOTP is generally prefe
 
 ## Enabling MFA
 
-In the Admin UI: Settings → set `mfa_enabled` to `true` and choose `mfa_method`.
+In the Admin UI: Settings → set `require_mfa` to `true` and choose `mfa_method`.
 
 Via API:
 
@@ -79,12 +79,12 @@ Via API:
 curl -X PUT https://auth.example.com/admin/api/settings \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"mfa_enabled": "true", "mfa_method": "totp"}'
+  -d '{"require_mfa": "true", "mfa_method": "totp"}'
 ```
 
 ## Trusted devices
 
-After a successful MFA verification, users can check **"Trust this device"** to skip MFA on future logins from the same browser. See [Trusted Devices](/authentication/trusted-devices/) for details.
+After a successful MFA verification, users can check **"Trust this device"** to skip MFA on future logins from the same browser. See [Trusted Devices](/authentication/trusted-devices/) for MFA bypass on recognized devices.
 
 <Aside type="tip">
 MFA is applied to password authentication only. Passkey authentication does not go through the MFA flow — a passkey is itself a strong second factor.

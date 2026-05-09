@@ -13,10 +13,10 @@ Settings are grouped by category:
 
 | Category | Examples |
 |---|---|
-| **Authentication** | `auth_mode`, `mfa_enabled`, `mfa_method` |
+| **Authentication** | `auth_mode`, `require_mfa`, `mfa_method` |
 | **Token lifetimes** | `access_token_expiration`, `refresh_token_expiration` |
 | **SSO sessions** | `sso_enabled`, `sso_session_idle_timeout`, `sso_session_max_age` |
-| **Account security** | `lockout_max_attempts`, `lockout_duration` |
+| **Account security** | `account_lockout_max_attempts`, `account_lockout_duration` |
 | **SMTP** | `smtp_host`, `smtp_port`, `smtp_username`, `smtp_from` |
 | **Trusted devices** | `trust_device_enabled`, `trust_device_expiration` |
 | **Passkeys** | `passkey_rp_name` |
@@ -41,7 +41,7 @@ curl https://auth.example.com/admin/api/settings \
 curl -X PUT https://auth.example.com/admin/api/settings \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"mfa_enabled": "true", "mfa_method": "totp"}'
+  -d '{"require_mfa": "true", "mfa_method": "totp"}'
 ```
 
 See [Runtime Settings](/configuration/runtime-settings/) for the full reference table.

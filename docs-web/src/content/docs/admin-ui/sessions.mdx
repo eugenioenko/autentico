@@ -3,9 +3,21 @@ title: Sessions
 description: Viewing and revoking active SSO sessions from the Autentico Admin UI.
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 The Sessions section lists all SSO sessions — both active and recently expired.
 
 {/* TODO: add screenshot of sessions list */}
+
+## IdP sessions vs. OAuth sessions
+
+Autentico maintains two layers of sessions:
+
+- **IdP sessions** (SSO browser sessions) represent a single browser or device login. One IdP session is created when a user authenticates, and a cookie ties that browser to the session. This is what enables single sign-on — the user logs in once and subsequent authorization requests from any client are served without re-prompting for credentials.
+
+- **OAuth sessions** (per-client token sessions) are created each time the user authorizes a specific client during an IdP session. Each OAuth session holds the access and refresh tokens issued for that client. A single IdP session can have many child OAuth sessions — one for each client the user authorized during that browser session.
+
+The Sessions page in the Admin UI shows **IdP sessions**. Each entry represents one browser/device login for a user.
 
 ## Session list
 
@@ -19,11 +31,14 @@ Each session entry shows:
 | Status | `active`, `expired`, or `deactivated` |
 | Created at | When the session was established |
 | Last activity | Most recent authorization request on this session |
-| Expires at | Absolute session expiry |
+
+<Aside type="note">
+Session expiry is not stored as a database column. It is computed from `created_at + sso_session_max_age` at validation time. See [SSO Sessions](/authentication/sso-sessions/) for details on session lifetime settings.
+</Aside>
 
 ## Revoking sessions
 
-Click a session and select **Revoke** to immediately deactivate it. The user's next request will require re-authentication.
+Click a session and select **Revoke** to immediately deactivate it. Revoking an IdP session triggers a **cascade revocation**: the IdP session is deactivated along with all of its child OAuth sessions and their associated access and refresh tokens, all in a single transaction. The user's next request from that browser will require re-authentication.
 
 This is useful for:
 - Forcing a specific user to re-authenticate (e.g. after a password reset)
@@ -32,4 +47,4 @@ This is useful for:
 
 ## Cleanup
 
-Expired and deactivated sessions are removed automatically by the background cleanup job. See [Architecture → Design Decisions](/architecture/design-decisions/) for details on the cleanup interval.
+Expired and deactivated sessions are removed automatically by the background cleanup job. See [Architecture > Design Decisions](/architecture/design-decisions/) for details on the cleanup interval.

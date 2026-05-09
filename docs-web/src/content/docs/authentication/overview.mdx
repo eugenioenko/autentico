@@ -15,7 +15,7 @@ graph TD
     B -->|password| C[Username + Password]
     B -->|password_and_passkey| D[Username + Password<br/>or Passkey]
     B -->|passkey_only| E[Passkey only]
-    C --> F{mfa_enabled?}
+    C --> F{require_mfa?}
     F -->|yes| G[MFA challenge]
     F -->|no| H[Auth code issued]
     D --> F
@@ -25,7 +25,7 @@ graph TD
 
 | Mode | Description |
 |---|---|
-| `password` | Standard username and password. MFA is applied on top if `mfa_enabled` is `true`. This is the default. |
+| `password` | Standard username and password. MFA is applied on top if `require_mfa` is `true`. This is the default. |
 | `password_and_passkey` | Users can authenticate with either a password or a registered passkey. Password logins can include MFA; passkey logins do not (a passkey is itself a strong factor). |
 | `passkey_only` | Password authentication is disabled. Users must authenticate with a passkey. First-time users are walked through passkey registration during their initial login. |
 

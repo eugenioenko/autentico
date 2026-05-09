@@ -1,0 +1,106 @@
+---
+title: RP-Initiated Logout
+description: How RP-Initiated Logout works in Autentico, including supported parameters, session cascade, and post-logout redirect.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Autentico implements RP-Initiated Logout per [OpenID Connect RP-Initiated Logout 1.0](https://openid.net/specs/openid-connect-rpinitiated-1_0.html). This allows relying parties (clients) to request that the user be logged out of the Identity Provider.
+
+## Endpoint
+
+**`GET {oauth_path}/logout`** -- query string parameters
+
+**`POST {oauth_path}/logout`** -- form-encoded parameters
+
+Both HTTP methods are supported per the specification (Section 2).
+
+## Parameters
+
+| Parameter | Required | Description |
+|---|---|---|
+| `id_token_hint` | Recommended | A previously issued ID token. Used to identify the client and validate the logout request. Expired tokens are accepted. |
+| `post_logout_redirect_uri` | No | URI to redirect to after logout. Must be registered in the client's `post_logout_redirect_uris`. |
+| `state` | No | Opaque value passed back to the `post_logout_redirect_uri` as a query parameter. |
+| `client_id` | No | Client identifier. Used to validate `post_logout_redirect_uri` when no `id_token_hint` is provided. |
+
+## Example
+
+### GET request
+
+```bash
+curl -G "https://auth.example.com/oauth2/logout" \
+  --data-urlencode "id_token_hint=$ID_TOKEN" \
+  --data-urlencode "post_logout_redirect_uri=https://app.example.com/signed-out" \
+  --data-urlencode "state=abc123"
+```
+
+### POST request
+
+```bash
+curl -X POST "https://auth.example.com/oauth2/logout" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "id_token_hint=$ID_TOKEN" \
+  -d "post_logout_redirect_uri=https://app.example.com/signed-out" \
+  -d "state=abc123"
+```
+
+## Session cascade
+
+When logout is triggered, Autentico performs a cascade deactivation of the current browser's IdP session:
+
+1. The IdP session identified by the browser cookie is deactivated
+2. All OAuth sessions linked to that IdP session are deactivated
+3. All tokens associated with those OAuth sessions are revoked
+4. The IdP session cookie is cleared from the browser
+
+<Aside type="note">
+Only the current browser's IdP session is affected. Sessions on other devices stay active. This is the correct behavior per the spec -- the scope is the End-User's session at this OP.
+</Aside>
+
+## Post-logout redirect
+
+After logout, the behavior depends on whether a valid `post_logout_redirect_uri` was provided:
+
+1. **Valid redirect URI** -- the user is redirected to the URI with the optional `state` parameter appended
+2. **No redirect URI or invalid URI** -- a "You have been signed out" confirmation page is displayed
+
+### Registering post-logout redirect URIs
+
+The `post_logout_redirect_uri` must be registered on the client. Set it when creating or updating a client:
+
+```bash
+curl -X POST https://auth.example.com/admin/api/clients \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "my-app",
+    "client_name": "My Application",
+    "redirect_uris": ["https://app.example.com/callback"],
+    "post_logout_redirect_uris": ["https://app.example.com/signed-out"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "scopes": "openid profile email",
+    "client_type": "public",
+    "token_endpoint_auth_method": "none"
+  }'
+```
+
+## Validation rules
+
+Per the specification:
+
+- When `id_token_hint` is present, Autentico validates that it was the issuer of the ID token (signature verification against the server's key)
+- When both `client_id` and `id_token_hint` are present, the `client_id` must match the `azp` (authorized party) or `aud` (audience) claim in the ID token
+- If validation fails, post-logout redirection is not performed -- the user sees the signed-out confirmation page instead
+- The `post_logout_redirect_uri` must exactly match a registered URI on the resolved client
+
+## Client identification
+
+The client is resolved in this order:
+
+1. Explicit `client_id` parameter (if provided)
+2. `azp` claim from the `id_token_hint`
+3. First value of the `aud` claim from the `id_token_hint`
+
+If no client can be resolved, post-logout redirect is not performed.

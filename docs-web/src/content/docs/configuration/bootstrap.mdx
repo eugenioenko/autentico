@@ -30,6 +30,7 @@ Never commit `.env` to source control. It contains your RSA private key and all 
 | `AUTENTICO_APP_URL` | `http://localhost:9999` | Public base URL of the application. Used as the OIDC issuer (`iss`) and for constructing redirect URIs. Must match the URL clients use to reach the server. |
 | `AUTENTICO_APP_OAUTH_PATH` | `/oauth2` | URL path prefix for all OAuth2 endpoints. Change this only if you need to namespace the endpoints. |
 | `AUTENTICO_DB_FILE_PATH` | `./autentico.db` | Path to the SQLite database file. The directory must exist and be writable. Use an absolute path in production. |
+| `AUTENTICO_LISTEN_PORT` | _(derived from `APP_URL`)_ | Override the port the server binds to locally. Useful when a reverse proxy handles TLS and the public `AUTENTICO_APP_URL` port differs from the local bind port. Defaults to the port in `AUTENTICO_APP_URL`. |
 
 ## Cryptographic secrets
 
@@ -56,7 +57,16 @@ The two `_SECURE` cookie flags default to `true`. They should only be set to `fa
 
 ## Rate limiting
 
-Per-IP token-bucket rate limiting applied to authentication endpoints (`/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, `/oauth2/passkey/login/finish`).
+Per-IP token-bucket rate limiting applied to authentication and sensitive endpoints:
+
+- `/oauth2/login`
+- `/oauth2/mfa` and `/oauth2/mfa/`
+- `/oauth2/passkey/login/begin` and `/oauth2/passkey/login/finish`
+- `/oauth2/forgot-password`
+- `/oauth2/reset-password`
+- `/oauth2/token` (and Keycloak-compatible `/oauth2/protocol/openid-connect/token`)
+- `/account/api/password`
+- `/account/api/mfa/totp` (DELETE)
 
 Two-tier limiting: a request must pass both the per-second and per-minute bucket to proceed.
 
@@ -69,7 +79,7 @@ Two-tier limiting: a request must pass both the per-second and per-minute bucket
 
 ## Anti-timing delay
 
-Random delay added to authentication responses (`/oauth2/login`, `/oauth2/passkey/login`, `/oauth2/forgot-password`, `/oauth2/resend-verification`) to prevent timing-based user enumeration. The server sleeps for a random duration between the min and max values before responding.
+Random delay added to authentication responses (`/oauth2/passkey/login/*`, `/oauth2/forgot-password`, `/oauth2/resend-verification`) to prevent timing-based user enumeration. The server sleeps for a random duration between the min and max values before responding.
 
 Set both to `0` to disable — useful for profiling or when your infrastructure already mitigates timing attacks.
 
