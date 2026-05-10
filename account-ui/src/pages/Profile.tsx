@@ -4,6 +4,7 @@ import api from '../api';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Alert from '../components/Alert';
+import PasswordPrompt from '../components/PasswordPrompt';
 import { useSettings } from '../context/SettingsContext';
 import { extractError } from '../lib/utils';
 
@@ -67,6 +68,8 @@ const ProfilePage: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, string> | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -96,15 +99,16 @@ const ProfilePage: React.FC = () => {
   const set = (key: keyof ProfileForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+  const needsPasswordConfirm = (payload: Record<string, string>) => {
+    if (!profile) return false;
+    const emailChanging = payload.email && payload.email !== profile.email;
+    const usernameChanging = payload.username && payload.username !== profile.username;
+    return emailChanging || usernameChanging;
+  };
+
+  const submitProfile = async (payload: Record<string, string>) => {
     setIsUpdating(true);
     try {
-      const payload = { ...form };
-      if (!settings.allow_username_change) delete (payload as Partial<ProfileForm>).username;
-      if (!settings.allow_email_change) delete (payload as Partial<ProfileForm>).email;
       await api.put('/profile', payload);
       setSuccess('Profile updated successfully.');
       refetch();
@@ -113,6 +117,30 @@ const ProfilePage: React.FC = () => {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    const payload: Record<string, string> = { ...form };
+    if (!settings.allow_username_change) delete payload.username;
+    if (!settings.allow_email_change) delete payload.email;
+
+    if (needsPasswordConfirm(payload)) {
+      setPendingPayload(payload);
+      setShowPasswordPrompt(true);
+      return;
+    }
+
+    await submitProfile(payload);
+  };
+
+  const handlePasswordConfirm = async (password: string) => {
+    if (!pendingPayload) return;
+    setShowPasswordPrompt(false);
+    await submitProfile({ ...pendingPayload, current_password: password });
+    setPendingPayload(null);
   };
 
   const showGivenName = settings.profile_field_given_name !== 'hidden';
@@ -131,6 +159,16 @@ const ProfilePage: React.FC = () => {
   const req = (field: string) => settings[`profile_field_${field}` as keyof typeof settings] === 'required';
 
   return (
+    <>
+    {showPasswordPrompt && (
+      <PasswordPrompt
+        title="Confirm Password"
+        message="Enter your password to confirm this change."
+        confirmLabel="Save Changes"
+        onConfirm={handlePasswordConfirm}
+        onCancel={() => { setShowPasswordPrompt(false); setPendingPayload(null); }}
+      />
+    )}
     <Card title="Personal Information" description="Update your profile details.">
       <form onSubmit={handleUpdate} className="space-y-5 mt-2">
         <div>
@@ -253,6 +291,7 @@ const ProfilePage: React.FC = () => {
         </div>
       </form>
     </Card>
+    </>
   );
 };
 

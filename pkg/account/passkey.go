@@ -71,6 +71,16 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req PasswordConfirmRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+
+	if !verifyCurrentPassword(w, usr, req.CurrentPassword) {
+		return
+	}
+
 	passkeyID := r.PathValue("id")
 	if passkeyID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing passkey ID")
@@ -153,6 +163,16 @@ func HandleAddPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 	usr := middleware.UserFromContext(r.Context())
 	if usr == nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
+		return
+	}
+
+	var req PasswordConfirmRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+
+	if !verifyCurrentPassword(w, usr, req.CurrentPassword) {
 		return
 	}
 

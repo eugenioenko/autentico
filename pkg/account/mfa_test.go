@@ -31,12 +31,16 @@ func TestHandleVerifyTotp(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, usr, info := setupTestUserAndSession(t)
 
-	_ = mockAuthRequest(t, "", "POST", "/account/mfa/totp/setup", HandleSetupTotp, info)
+	hashedPw, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPw), usr.ID)
+
+	setupReq := PasswordConfirmRequest{CurrentPassword: "password"}
+	setupBody, _ := json.Marshal(setupReq)
+	_ = mockAuthRequest(t, string(setupBody), "POST", "/account/mfa/totp/setup", HandleSetupTotp, info)
 
 	currUser, _ := user.UserByID(usr.ID)
 	secret := currUser.TotpSecret
 	code, _ := totp.GenerateCode(secret, time.Now())
-
 
 	verifyReq := TotpVerifyRequest{Code: code}
 	body, _ := json.Marshal(verifyReq)
@@ -197,7 +201,9 @@ func TestHandleMfaFlow(t *testing.T) {
 	assert.False(t, statusResp.Data.TotpEnabled)
 
 	// 2. Setup TOTP
-	rr = mockAuthRequest(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	setupReq := PasswordConfirmRequest{CurrentPassword: "password123"}
+	setupBody, _ := json.Marshal(setupReq)
+	rr = mockAuthRequest(t, string(setupBody), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var setupResp model.ApiResponse[TotpSetupResponse]
@@ -229,15 +235,63 @@ func TestHandleMfaFlow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
+func TestHandleSetupTotp_RequiresPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+
+	// Without password — should fail
+	req := PasswordConfirmRequest{}
+	body, _ := json.Marshal(req)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+
+	// Wrong password — should fail
+	req = PasswordConfirmRequest{CurrentPassword: "wrong"}
+	body, _ = json.Marshal(req)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+
+	// Correct password — should succeed
+	req = PasswordConfirmRequest{CurrentPassword: "password"}
+	body, _ = json.Marshal(req)
+	rr = mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleSetupTotp_PasskeyUserSkipsPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
+
+	req := PasswordConfirmRequest{}
+	body, _ := json.Marshal(req)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleSetupTotp_InvalidJSON(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+
+	rr := mockAuthRequest(t, "{invalid", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
 func TestHandleSetupTotp_AlreadyEnrolled(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, usr, info := setupTestUserAndSession(t)
 
-	// Mark TOTP as verified
-	_, _ = db.GetDB().Exec("UPDATE users SET totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", usr.ID)
+	// Set password and mark TOTP as verified
+	hashedPw, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPw), usr.ID)
 
-
-	rr := mockAuthRequest(t, "", "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
+	setupReq := PasswordConfirmRequest{CurrentPassword: "password"}
+	body, _ := json.Marshal(setupReq)
+	rr := mockAuthRequest(t, string(body), "POST", "/account/api/mfa/totp/setup", HandleSetupTotp, info)
 	assert.Equal(t, http.StatusConflict, rr.Code)
 	assert.Contains(t, rr.Body.String(), "already_enrolled")
 }

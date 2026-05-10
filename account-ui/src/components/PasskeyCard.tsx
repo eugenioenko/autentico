@@ -8,6 +8,7 @@ import Card from './Card';
 import Button from './Button';
 import Alert from './Alert';
 import StatusDot from './StatusDot';
+import PasswordPrompt from './PasswordPrompt';
 
 const PasskeyCard: React.FC = () => {
   const { data: passkeys, refetch } = useQuery({
@@ -18,12 +19,15 @@ const PasskeyCard: React.FC = () => {
   const [addError, setAddError] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [showAddPrompt, setShowAddPrompt] = useState(false);
+  const [showDeletePrompt, setShowDeletePrompt] = useState<string | null>(null);
 
-  const handleAdd = async () => {
+  const handleAdd = async (password: string) => {
     setAddError('');
     setIsAdding(true);
+    setShowAddPrompt(false);
     try {
-      const beginRes = await api.post('/passkeys/register/begin');
+      const beginRes = await api.post('/passkeys/register/begin', { current_password: password });
       const data = beginRes.data.data;
       const credential = await performPasskeyRegistration(data);
       await api.post(`/passkeys/register/finish?challenge_id=${data.challenge_id}`, credential);
@@ -39,10 +43,13 @@ const PasskeyCard: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (password: string) => {
+    if (!showDeletePrompt) return;
     setDeleteError('');
+    const id = showDeletePrompt;
+    setShowDeletePrompt(null);
     try {
-      await api.delete(`/passkeys/${id}`);
+      await api.delete(`/passkeys/${id}`, { data: { current_password: password } });
       refetch();
     } catch (err: unknown) {
       setDeleteError(extractError(err, 'Failed to delete passkey.'));
@@ -50,49 +57,69 @@ const PasskeyCard: React.FC = () => {
   };
 
   return (
-    <Card
-      title="Passkeys"
-      description="Biometrics or security keys for passwordless login."
-      action={
-        <Button onClick={handleAdd} disabled={isAdding}>
-          {isAdding ? 'Registering…' : 'Add Passkey'}
-        </Button>
-      }
-    >
-      {addError && <Alert type="danger" message={addError} className="mb-2" />}
-      {deleteError && <Alert type="danger" message={deleteError} className="mb-2" />}
-      {passkeys && passkeys.length > 0 ? (
-        <div className="divide-y divide-theme-fg/10 mt-1">
-          {passkeys.map((pk: { id: string; name: string; created_at: string }) => (
-            <div key={pk.id} className="py-3.5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
-                  <IconKey size={14} className="text-theme-fg" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{pk.name || 'Unnamed Passkey'}</p>
-                  <p className="text-xs text-theme-muted">
-                    Added {new Date(pk.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="danger"
-                onClick={() => handleDelete(pk.id)}
-                className="flex-shrink-0"
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 mt-1">
-          <StatusDot active={false} />
-          <span className="text-sm text-theme-fg">No passkeys registered</span>
-        </div>
+    <>
+      {showAddPrompt && (
+        <PasswordPrompt
+          title="Add Passkey"
+          message="Enter your password to register a new passkey."
+          confirmLabel="Continue"
+          onConfirm={handleAdd}
+          onCancel={() => setShowAddPrompt(false)}
+        />
       )}
-    </Card>
+      {showDeletePrompt && (
+        <PasswordPrompt
+          title="Remove Passkey"
+          message="Enter your password to remove this passkey."
+          confirmLabel="Remove"
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeletePrompt(null)}
+        />
+      )}
+      <Card
+        title="Passkeys"
+        description="Biometrics or security keys for passwordless login."
+        action={
+          <Button onClick={() => setShowAddPrompt(true)} disabled={isAdding}>
+            {isAdding ? 'Registering…' : 'Add Passkey'}
+          </Button>
+        }
+      >
+        {addError && <Alert type="danger" message={addError} className="mb-2" />}
+        {deleteError && <Alert type="danger" message={deleteError} className="mb-2" />}
+        {passkeys && passkeys.length > 0 ? (
+          <div className="divide-y divide-theme-fg/10 mt-1">
+            {passkeys.map((pk: { id: string; name: string; created_at: string }) => (
+              <div key={pk.id} className="py-3.5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-theme-body flex items-center justify-center flex-shrink-0">
+                    <IconKey size={14} className="text-theme-fg" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{pk.name || 'Unnamed Passkey'}</p>
+                    <p className="text-xs text-theme-muted">
+                      Added {new Date(pk.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="danger"
+                  onClick={() => setShowDeletePrompt(pk.id)}
+                  className="flex-shrink-0"
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 mt-1">
+            <StatusDot active={false} />
+            <span className="text-sm text-theme-fg">No passkeys registered</span>
+          </div>
+        )}
+      </Card>
+    </>
   );
 };
 

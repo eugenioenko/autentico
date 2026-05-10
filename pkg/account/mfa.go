@@ -51,6 +51,16 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req PasswordConfirmRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+
+	if !verifyCurrentPassword(w, usr, req.CurrentPassword) {
+		return
+	}
+
 	// Block re-enrollment if TOTP is already verified — must disable first.
 	if usr.TotpVerified {
 		utils.WriteErrorResponse(w, http.StatusConflict, "already_enrolled", "TOTP is already enrolled. Disable it first before re-enrolling.")
