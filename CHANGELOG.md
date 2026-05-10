@@ -77,6 +77,7 @@ The authorization flow now uses HMAC-signed parameters to prevent form tampering
 - **Scope validation** on the authorize endpoint (#328)
 - **Stored XSS fix** in auth views via federation icon and theme CSS (#219)
 - **SSRF prevention** on federation OIDC discovery (#181)
+- **Password confirmation for sensitive actions** — profile changes, MFA enrollment/disable, and passkey management require `current_password` to prevent unauthorized modifications (#347)
 - **Password oracle fix** on TOTP disable and password change endpoints (#319)
 
 #### Admin UI
@@ -98,6 +99,7 @@ The authorization flow now uses HMAC-signed parameters to prevent form tampering
 
 - **Account deletion requests** — user-initiated, admin-reviewed (#84)
 - **Session listing** with revoke capability (#288)
+- **Password confirmation prompt** — inline password verification for sensitive account operations (#347)
 
 #### User Management
 
