@@ -13,26 +13,34 @@ interface TotpSetupModalProps {
 }
 
 const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) => {
-  const [step, setStep] = useState<'loading' | 'qr' | 'verify'>('loading');
+  const [step, setStep] = useState<'password' | 'loading' | 'qr' | 'verify'>('password');
   const [secret, setSecret] = useState('');
   const [qrData, setQrData] = useState('');
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  React.useEffect(() => {
-    api.post('/mfa/totp/setup')
+  const beginSetup = (pw: string) => {
+    setStep('loading');
+    setError('');
+    api.post('/mfa/totp/setup', { current_password: pw })
       .then((res) => {
         setSecret(res.data.data.secret);
         setQrData(res.data.data.qr_code_data);
         setStep('qr');
       })
-      .catch(() => {
-        setError('Failed to initialize TOTP setup');
-        setStep('qr');
+      .catch((err) => {
+        setError(extractError(err, 'Failed to initialize TOTP setup'));
+        setStep('password');
       });
-  }, []);
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    beginSetup(password);
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(secret).then(() => {
@@ -58,6 +66,33 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
 
   return (
     <Modal title="Set Up Authenticator" onClose={onClose}>
+          {step === 'password' && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <p className="text-sm text-theme-muted">
+                Enter your password to set up two-factor authentication.
+              </p>
+              <div>
+                <label>Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {error && <Alert type="danger" message={error} />}
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1">
+                  Continue
+                </Button>
+              </div>
+            </form>
+          )}
+
           {step === 'loading' && (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-theme-fg/20 border-t-theme-fg rounded-full animate-spin" />

@@ -42,7 +42,7 @@ func TestHandleUpdateProfile_AllFields(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, _, info := setupTestUserAndSession(t)
 
-	updateReq := user.UserUpdateRequest{
+	updateReq := ProfileUpdateRequest{
 		GivenName:         "John",
 		FamilyName:        "Doe",
 		PhoneNumber:       "+123456789",
@@ -62,12 +62,15 @@ func TestHandleUpdateProfile_AllFields(t *testing.T) {
 
 func TestHandleUpdateProfile_Errors(t *testing.T) {
 	testutils.WithTestDB(t)
-	_, _, info := setupTestUserAndSession(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	// Clear password so password check is skipped in these validation tests
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
 
 	// Username change not allowed
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowUsernameChange = false
-		req := user.UserUpdateRequest{Username: "newusername"}
+		req := ProfileUpdateRequest{Username: "newusername"}
 		b, _ := json.Marshal(req)
 		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusForbidden, rr.Code)
@@ -78,7 +81,7 @@ func TestHandleUpdateProfile_Errors(t *testing.T) {
 		config.Values.AllowEmailChange = true
 		otherUserID := uuid.New().String()
 		_, _ = db.GetDB().Exec("INSERT INTO users (id, username, email) VALUES (?, ?, ?)", otherUserID, "other", "other@test.com")
-		req := user.UserUpdateRequest{Email: "other@test.com"}
+		req := ProfileUpdateRequest{Email: "other@test.com", CurrentPassword: "password"}
 		b, _ := json.Marshal(req)
 		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusConflict, rr.Code)
@@ -88,10 +91,10 @@ func TestHandleUpdateProfile_Errors(t *testing.T) {
 	rr := mockAuthRequest(t, "{invalid", "POST", "/account/profile", HandleUpdateProfile, info)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
-	// Validation error
+	// Validation error — passkey user (no password) so password check is skipped
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowUsernameChange = true
-		req := user.UserUpdateRequest{Username: "a"} // too short
+		req := ProfileUpdateRequest{Username: "a"} // too short
 		b, _ := json.Marshal(req)
 		rr := mockAuthRequest(t, string(b), "POST", "/account/profile", HandleUpdateProfile, info)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -160,6 +163,129 @@ func TestHandleGetProfile_Success(t *testing.T) {
 	assert.Equal(t, u.Username, resp.Data.Username)
 }
 
+func TestHandleUpdateProfile_EmailChangeRequiresPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowEmailChange = true
+
+		// Without password — should fail
+		req := ProfileUpdateRequest{Email: "new@test.com"}
+		b, _ := json.Marshal(req)
+		rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+
+		// Wrong password — should fail
+		req = ProfileUpdateRequest{Email: "new@test.com", CurrentPassword: "wrong"}
+		b, _ = json.Marshal(req)
+		rr = mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+
+		// Correct password — should succeed
+		req = ProfileUpdateRequest{Email: "new@test.com", CurrentPassword: "password"}
+		b, _ = json.Marshal(req)
+		rr = mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		// Verify email_verified was reset
+		updated, _ := user.UserByID(usr.ID)
+		assert.False(t, updated.IsEmailVerified)
+	})
+}
+
+func TestHandleUpdateProfile_UsernameChangeRequiresPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowUsernameChange = true
+
+		// Without password — should fail
+		req := ProfileUpdateRequest{Username: "newname"}
+		b, _ := json.Marshal(req)
+		rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+
+		// Correct password — should succeed
+		req = ProfileUpdateRequest{Username: "newname", CurrentPassword: "password"}
+		b, _ = json.Marshal(req)
+		rr = mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
+func TestHandleUpdateProfile_NonSensitiveFieldsNoPassword(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+
+	req := ProfileUpdateRequest{GivenName: "NewName", FamilyName: "NewFamily"}
+	b, _ := json.Marshal(req)
+	rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestHandleUpdateProfile_PasskeyUserSkipsPasswordCheck(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	// Passkey user has empty password
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowEmailChange = true
+
+		req := ProfileUpdateRequest{Email: "new@test.com"}
+		b, _ := json.Marshal(req)
+		rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
+func TestHandleUpdateProfile_EmailChangeResetsVerified(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '', is_email_verified = TRUE WHERE id = ?", usr.ID)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowEmailChange = true
+
+		req := ProfileUpdateRequest{Email: "changed@test.com"}
+		b, _ := json.Marshal(req)
+		rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		updated, _ := user.UserByID(usr.ID)
+		assert.Equal(t, "changed@test.com", updated.Email)
+		assert.False(t, updated.IsEmailVerified)
+	})
+}
+
+func TestHandleUpdateProfile_SameEmailNoPasswordRequired(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowEmailChange = true
+
+		// Submitting same email should not require password
+		req := ProfileUpdateRequest{Email: usr.Email, GivenName: "Updated"}
+		b, _ := json.Marshal(req)
+		rr := mockAuthRequest(t, string(b), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
 func TestHandleUpdateProfile_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
@@ -167,7 +293,7 @@ func TestHandleUpdateProfile_DbError(t *testing.T) {
 	})
 	_, _, info := setupTestUserAndSession(t)
 
-	req := user.UserUpdateRequest{GivenName: "New Name"}
+	req := ProfileUpdateRequest{GivenName: "New Name"}
 	body, _ := json.Marshal(req)
 
 	// Close DB to trigger error in UpdateUser

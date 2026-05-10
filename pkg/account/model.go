@@ -48,6 +48,33 @@ type DisableMfaRequest struct {
 	Code            string `json:"code"`
 }
 
+type PasswordConfirmRequest struct {
+	CurrentPassword string `json:"current_password"`
+}
+
+type ProfileUpdateRequest struct {
+	CurrentPassword   string `json:"current_password"`
+	Username          string `json:"username,omitempty"`
+	Email             string `json:"email,omitempty"`
+	GivenName         string `json:"given_name,omitempty"`
+	FamilyName        string `json:"family_name,omitempty"`
+	MiddleName        string `json:"middle_name,omitempty"`
+	Nickname          string `json:"nickname,omitempty"`
+	PhoneNumber       string `json:"phone_number,omitempty"`
+	Picture           string `json:"picture,omitempty"`
+	Website           string `json:"website,omitempty"`
+	Gender            string `json:"gender,omitempty"`
+	Birthdate         string `json:"birthdate,omitempty"`
+	ProfileURL        string `json:"profile,omitempty"`
+	Locale            string `json:"locale,omitempty"`
+	Zoneinfo          string `json:"zoneinfo,omitempty"`
+	AddressStreet     string `json:"address_street,omitempty"`
+	AddressLocality   string `json:"address_locality,omitempty"`
+	AddressRegion     string `json:"address_region,omitempty"`
+	AddressPostalCode string `json:"address_postal_code,omitempty"`
+	AddressCountry    string `json:"address_country,omitempty"`
+}
+
 type PasskeyRenameRequest struct {
 	Name string `json:"name"`
 }

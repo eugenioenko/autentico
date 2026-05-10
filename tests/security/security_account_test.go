@@ -250,7 +250,7 @@ func TestAccount_PasskeyDeleteIDOR(t *testing.T) {
 
 	// User A tries to delete user B's passkey
 	status, _ := doAccountRequest(t, ts, "DELETE", tokenA.AccessToken,
-		"/account/api/passkeys/"+fakeCredID, "")
+		"/account/api/passkeys/"+fakeCredID, `{"current_password":"password123"}`)
 	assert.True(t, status == http.StatusForbidden || status == http.StatusNotFound,
 		"IDOR: user A must not delete user B's passkey, got %d", status)
 }

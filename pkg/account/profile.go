@@ -13,6 +13,21 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+func verifyCurrentPassword(w http.ResponseWriter, usr *user.User, currentPassword string) bool {
+	if usr.Password == "" {
+		return true
+	}
+	if err := user.VerifyPassword(usr.ID, currentPassword); err != nil {
+		if errors.Is(err, user.ErrAccountLocked) {
+			utils.WriteErrorResponse(w, http.StatusTooManyRequests, "account_locked", "Account is temporarily locked")
+			return false
+		}
+		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password is required to perform this action")
+		return false
+	}
+	return true
+}
+
 // HandleGetProfile godoc
 // @Summary Get current user profile
 // @Description Returns the authenticated user's profile information.
@@ -52,7 +67,7 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req user.UserUpdateRequest
+	var req ProfileUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
 		return
@@ -86,15 +101,23 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	emailChanging := req.Email != "" && req.Email != usr.Email
+	usernameChanging := req.Username != "" && req.Username != usr.Username
+
 	// Check email uniqueness if changing email
-	if req.Email != "" && req.Email != usr.Email {
+	if emailChanging {
 		if user.UserExistsByEmail(req.Email) {
 			utils.WriteErrorResponse(w, http.StatusConflict, "email_taken", "Email address already in use")
 			return
 		}
 	}
 
-	// Allow updating profile fields only — exclude password, role, totp settings
+	if emailChanging || usernameChanging {
+		if !verifyCurrentPassword(w, usr, req.CurrentPassword) {
+			return
+		}
+	}
+
 	updateReq := user.UserUpdateRequest{
 		Email:             req.Email,
 		Username:          req.Username,
@@ -115,6 +138,11 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		AddressRegion:     req.AddressRegion,
 		AddressPostalCode: req.AddressPostalCode,
 		AddressCountry:    req.AddressCountry,
+	}
+
+	if emailChanging {
+		f := false
+		updateReq.IsEmailVerified = &f
 	}
 
 	if err := user.ValidateUserUpdateRequest(updateReq); err != nil {
