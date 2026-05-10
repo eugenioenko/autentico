@@ -1,8 +1,8 @@
 # Autentico — OAuth 2.0 / OIDC Identity Provider
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-72.7%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-1644-blue.svg)](https://github.com/eugenioenko/autentico)
+[![Test Coverage](https://img.shields.io/badge/coverage-70.4%25-green.svg)](https://github.com/eugenioenko/autentico)
+[![Tests](https://img.shields.io/badge/tests-1856-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
@@ -12,7 +12,7 @@ Identity infrastructure is typically complex to operate: a separate database to 
 
 Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplified or non-standard subset. Authorization Code + PKCE, refresh tokens, token introspection, OIDC discovery, RS256-signed JWTs, WebAuthn/passkeys, TOTP, and email OTP are all standard-compliant. The simplicity is operational, not protocol-level.
 
-**Correctness is verified through 1,600+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
+**Correctness is verified through 1,800+ tests, RFC-by-RFC compliance audits, official OIDC conformance tests, and full-flow load testing.**
 
 ---
 
@@ -917,7 +917,7 @@ The goal is not just high coverage, but **high confidence that every externally 
 
 ### Automated Tests
 
-**1,600+ tests** across unit, integration, end-to-end, security, functional, and browser tests at **72.7% coverage**.
+**1,800+ tests** across unit, integration, end-to-end, security, functional, and browser tests at **70.4% coverage**.
 
 - **Unit and integration tests** — validate deterministic logic (token generation, validation rules, claim construction) and cross-package invariants (authorization code lifecycle, session ↔ token relationships, client authentication rules)
 - **End-to-end tests** — execute full OAuth2/OIDC flows over HTTP against a real server instance, including redirects, cookies, token exchange, revocation, introspection, and logout
