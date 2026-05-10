@@ -47,9 +47,9 @@ async function getUserToken(username: string, password: string, totpCode?: strin
 /**
  * Helper: setup and verify TOTP for a user, returning the secret.
  */
-async function setupAndVerifyTotp(userToken: string): Promise<string> {
+async function setupAndVerifyTotp(userToken: string, password = 'Password123!'): Promise<string> {
   // Setup TOTP
-  const setupResp = await postJSON(`${ACCOUNT_API}/mfa/totp/setup`, {}, userToken);
+  const setupResp = await postJSON(`${ACCOUNT_API}/mfa/totp/setup`, { current_password: password }, userToken);
   expect(setupResp.status).toBe(200);
   const setupBody = await setupResp.json();
   const secret = setupBody.data.secret;
@@ -166,7 +166,7 @@ describe('TOTP re-enrollment blocked', () => {
 
     // Try to setup again — should be blocked
     // Need a fresh token since the user now has TOTP
-    const secret2Resp = await postJSON(`${ACCOUNT_API}/mfa/totp/setup`, {}, userToken);
+    const secret2Resp = await postJSON(`${ACCOUNT_API}/mfa/totp/setup`, { current_password: 'Password123!' }, userToken);
     expect(secret2Resp.status).toBe(409);
     const body = await secret2Resp.json();
     expect(body.error).toBe('already_enrolled');
