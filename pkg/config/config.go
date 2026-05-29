@@ -110,6 +110,9 @@ type Config struct {
 	EmailVerificationExpirationStr     string
 	PasswordResetExpiration            time.Duration
 	PasswordResetExpirationStr         string
+	MagicLinkEnabled                   bool
+	MagicLinkExpiration                time.Duration
+	MagicLinkExpirationStr             string
 	AuditLogRetention                  time.Duration
 	AuditLogRetentionStr               string
 	SmtpHost                           string
@@ -191,6 +194,9 @@ var defaultConfig = Config{
 	EmailVerificationExpirationStr:     "24h",
 	PasswordResetExpiration:            1 * time.Hour,
 	PasswordResetExpirationStr:         "1h",
+	MagicLinkEnabled:                   false,
+	MagicLinkExpiration:                15 * time.Minute,
+	MagicLinkExpirationStr:             "15m",
 	SmtpPort:                           "587",
 	ValidationMinUsernameLength:        4,
 	ValidationMaxUsernameLength:        64,

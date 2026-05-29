@@ -236,6 +236,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		"ThemeTagline":        cfg.Theme.Tagline,
 		"SmtpConfigured":      cfg.SmtpHost != "",
+		"MagicLinkEnabled":    cfg.MagicLinkEnabled && cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
 	}
 	view.InjectNonce(r, data)

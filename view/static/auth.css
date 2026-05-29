@@ -386,7 +386,6 @@ body {
 
 .auth-text {
   margin: 0;
-  text-align: center;
   line-height: 1.5;
   color: var(--color-fg);
 }

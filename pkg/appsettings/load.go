@@ -37,6 +37,8 @@ var defaults = map[string]string{
 	"require_email_verification":     "false",
 	"email_verification_expiration":  "24h",
 	"password_reset_expiration":      "1h",
+	"magic_link_enabled":             "false",
+	"magic_link_expiration":          "15m",
 	"audit_log_retention":            "720h",
 	"smtp_host":                       "",
 	"smtp_port":                       "587",
@@ -212,6 +214,13 @@ func LoadIntoConfig() error {
 	if v, ok := all["password_reset_expiration"]; ok {
 		cfg.PasswordResetExpirationStr = v
 		cfg.PasswordResetExpiration = config.ParseDuration(v, cfg.PasswordResetExpiration)
+	}
+	if v, ok := all["magic_link_enabled"]; ok {
+		cfg.MagicLinkEnabled = parseBool(v, false)
+	}
+	if v, ok := all["magic_link_expiration"]; ok {
+		cfg.MagicLinkExpirationStr = v
+		cfg.MagicLinkExpiration = config.ParseDuration(v, cfg.MagicLinkExpiration)
 	}
 	if v, ok := all["audit_log_retention"]; ok {
 		cfg.AuditLogRetentionStr = v
