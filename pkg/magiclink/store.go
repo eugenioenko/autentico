@@ -3,7 +3,9 @@ package magiclink
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
@@ -21,11 +23,19 @@ func generateToken() (rawToken, tokenHash string, err error) {
 	return
 }
 
-func createMagicLinkToken(userID, tokenHash string, expiresAt time.Time) error {
+func generateCode() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+func createMagicLinkToken(userID, tokenHash, codeHash string, expiresAt time.Time) error {
 	id := xid.New().String()
 	_, err := db.GetDB().Exec(
-		`INSERT INTO magic_link_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
-		id, userID, tokenHash, expiresAt,
+		`INSERT INTO magic_link_tokens (id, user_id, token_hash, code_hash, expires_at) VALUES (?, ?, ?, ?, ?)`,
+		id, userID, tokenHash, codeHash, expiresAt,
 	)
 	return err
 }
@@ -35,6 +45,14 @@ func getMagicLinkTokenInfo(tokenHash string) (userID string, expiresAt time.Time
 		`SELECT user_id, expires_at, used_at FROM magic_link_tokens WHERE token_hash = ?`,
 		tokenHash,
 	).Scan(&userID, &expiresAt, &usedAt)
+	return
+}
+
+func getMagicLinkTokenByCodeHash(codeHash string) (tokenHash, userID string, expiresAt time.Time, usedAt *time.Time, err error) {
+	err = db.GetDB().QueryRow(
+		`SELECT token_hash, user_id, expires_at, used_at FROM magic_link_tokens WHERE code_hash = ? ORDER BY created_at DESC LIMIT 1`,
+		codeHash,
+	).Scan(&tokenHash, &userID, &expiresAt, &usedAt)
 	return
 }
 

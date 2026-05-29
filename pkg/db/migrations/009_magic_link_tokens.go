@@ -5,11 +5,13 @@ const migration009 = `
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL,
 		token_hash TEXT NOT NULL UNIQUE,
+		code_hash TEXT NOT NULL DEFAULT '',
 		expires_at DATETIME NOT NULL,
 		used_at DATETIME DEFAULT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (user_id) REFERENCES users(id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_hash ON magic_link_tokens(token_hash);
+	CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_code ON magic_link_tokens(code_hash);
 	CREATE INDEX IF NOT EXISTS idx_magic_link_tokens_user ON magic_link_tokens(user_id);
 `

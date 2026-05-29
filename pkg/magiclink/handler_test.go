@@ -38,7 +38,7 @@ func TestCreateAndGetMagicLinkToken(t *testing.T) {
 	_ = raw
 
 	expires := time.Now().Add(time.Hour)
-	require.NoError(t, createMagicLinkToken("ml-user-1", hash, expires))
+	require.NoError(t, createMagicLinkToken("ml-user-1", hash, "", expires))
 
 	userID, expiresAt, usedAt, err := getMagicLinkTokenInfo(hash)
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestMarkMagicLinkTokenUsed(t *testing.T) {
 	testutils.InsertTestUser(t, "ml-user-2")
 
 	_, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken("ml-user-2", hash, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-user-2", hash, "", time.Now().Add(time.Hour)))
 
 	markTokenUsed(hash)
 
@@ -67,8 +67,8 @@ func TestInvalidatePreviousMagicLinkTokens(t *testing.T) {
 
 	_, hash1, _ := generateToken()
 	_, hash2, _ := generateToken()
-	require.NoError(t, createMagicLinkToken("ml-user-3", hash1, time.Now().Add(time.Hour)))
-	require.NoError(t, createMagicLinkToken("ml-user-3", hash2, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-user-3", hash1, "", time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-user-3", hash2, "", time.Now().Add(time.Hour)))
 
 	invalidatePreviousTokens("ml-user-3")
 
@@ -319,7 +319,7 @@ func TestHandleMagicLinkVerify_ExpiredToken(t *testing.T) {
 	testutils.InsertTestUser(t, "ml-exp-user")
 
 	raw, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken("ml-exp-user", hash, time.Now().Add(-time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-exp-user", hash, "", time.Now().Add(-time.Hour)))
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?token="+raw, nil)
 	rr := httptest.NewRecorder()
@@ -338,7 +338,7 @@ func TestHandleMagicLinkVerify_UsedToken(t *testing.T) {
 	testutils.InsertTestUser(t, "ml-used-user")
 
 	raw, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken("ml-used-user", hash, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-used-user", hash, "", time.Now().Add(time.Hour)))
 	markTokenUsed(hash)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?token="+raw, nil)
@@ -378,7 +378,7 @@ func TestHandleMagicLinkVerify_ValidToken_RedirectsWithCode(t *testing.T) {
 	require.NoError(t, user.MarkEmailVerified(u.ID))
 
 	raw, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken(u.ID, hash, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken(u.ID, hash, "", time.Now().Add(time.Hour)))
 
 	q := url.Values{}
 	q.Set("token", raw)
@@ -413,7 +413,7 @@ func TestHandleMagicLinkVerify_TokenSingleUse(t *testing.T) {
 	require.NoError(t, user.MarkEmailVerified(u.ID))
 
 	raw, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken(u.ID, hash, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken(u.ID, hash, "", time.Now().Add(time.Hour)))
 
 	q := url.Values{}
 	q.Set("token", raw)
@@ -446,7 +446,7 @@ func TestHandleMagicLinkVerify_InvalidSig_RejectsRequest(t *testing.T) {
 	testutils.InsertTestUser(t, "ml-sig-user")
 
 	raw, hash, _ := generateToken()
-	require.NoError(t, createMagicLinkToken("ml-sig-user", hash, time.Now().Add(time.Hour)))
+	require.NoError(t, createMagicLinkToken("ml-sig-user", hash, "", time.Now().Add(time.Hour)))
 
 	q := url.Values{}
 	q.Set("token", raw)

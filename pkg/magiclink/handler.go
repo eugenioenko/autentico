@@ -14,13 +14,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/consent"
+	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
-	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 )
@@ -62,7 +62,7 @@ func paramsFromForm(r *http.Request) oauthParams {
 	}
 }
 
-func renderMagicLink(w http.ResponseWriter, r *http.Request, mode string, params oauthParams, authorizeSig, errMsg string) {
+func renderMagicLink(w http.ResponseWriter, r *http.Request, mode string, params oauthParams, authorizeSig, errMsg string, extra map[string]any) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("magic_link")
 	if err != nil {
@@ -83,6 +83,9 @@ func renderMagicLink(w http.ResponseWriter, r *http.Request, mode string, params
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+	}
+	for k, v := range extra {
+		data[k] = v
 	}
 	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
@@ -114,7 +117,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 			CodeChallengeMethod: params.CodeChallengeMethod,
 			State:               params.State,
 		})
-		renderMagicLink(w, r, "form", params, sig, "")
+		renderMagicLink(w, r, "form", params, sig, "", nil)
 		return
 	}
 
@@ -128,7 +131,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	emailAddr := r.FormValue("email")
 
 	if emailAddr == "" {
-		renderMagicLink(w, r, "form", params, authorizeSigValue, "Please enter your email address.")
+		renderMagicLink(w, r, "form", params, authorizeSigValue, "Please enter your email address.", nil)
 		return
 	}
 
@@ -154,7 +157,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	// Look up user by verified email only
 	usr, err := user.UserByEmail(emailAddr)
 	if err != nil || usr == nil || usr.DeactivatedAt != nil {
-		renderMagicLink(w, r, "sent", params, authorizeSigValue, "")
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "", nil)
 		return
 	}
 
@@ -163,14 +166,22 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	rawToken, tokenHash, err := generateToken()
 	if err != nil {
 		slog.Error("magiclink: failed to generate token", "request_id", reqID, "error", err)
-		renderMagicLink(w, r, "sent", params, authorizeSigValue, "")
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "", nil)
 		return
 	}
 
+	code, err := generateCode()
+	if err != nil {
+		slog.Error("magiclink: failed to generate code", "request_id", reqID, "error", err)
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "", nil)
+		return
+	}
+	codeHash := utils.HashSHA256(code)
+
 	expiresAt := time.Now().Add(cfg.MagicLinkExpiration)
-	if err := createMagicLinkToken(usr.ID, tokenHash, expiresAt); err != nil {
+	if err := createMagicLinkToken(usr.ID, tokenHash, codeHash, expiresAt); err != nil {
 		slog.Error("magiclink: failed to store token", "request_id", reqID, "error", err)
-		renderMagicLink(w, r, "sent", params, authorizeSigValue, "")
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "", nil)
 		return
 	}
 
@@ -179,16 +190,16 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	magicLinkURL := buildMagicLinkURL(rawToken, params, authorizeSigValue)
 	expirationMinutes := max(int(cfg.MagicLinkExpiration.Minutes()), 1)
 	go func() {
-		if err := email.SendMagicLinkEmail(usr.Email, magicLinkURL, expirationMinutes); err != nil {
+		if err := email.SendMagicLinkEmail(usr.Email, magicLinkURL, code, expirationMinutes); err != nil {
 			slog.Error("magiclink: failed to send email", "request_id", reqID, "error", err)
 		}
 	}()
 
-	renderMagicLink(w, r, "sent", params, authorizeSigValue, "")
+	renderMagicLink(w, r, "sent", params, authorizeSigValue, "", nil)
 }
 
 // HandleMagicLinkVerify handles GET for /oauth2/magic-link/verify.
-// Validates the token and completes the login flow.
+// Validates the magic link token and completes the login flow.
 func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if !cfg.MagicLinkEnabled {
@@ -201,7 +212,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	rawToken := r.URL.Query().Get("token")
 
 	if rawToken == "" {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Invalid or missing magic link.")
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Invalid or missing magic link.", nil)
 		return
 	}
 
@@ -209,28 +220,82 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	userID, expiresAt, usedAt, err := getMagicLinkTokenInfo(tokenHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link is invalid or has already been used.")
+			renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link is invalid or has already been used.", nil)
 			return
 		}
 		slog.Error("magiclink: failed to look up token", "request_id", reqid.Get(r.Context()), "error", err)
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Something went wrong. Please request a new link.")
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Something went wrong. Please request a new link.", nil)
 		return
 	}
 
 	if usedAt != nil {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link has already been used.")
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link has already been used.", nil)
 		return
 	}
 
 	if time.Now().After(expiresAt) {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link has expired.")
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link has expired.", nil)
 		return
 	}
 
-	// Mark used immediately to prevent reuse
 	markTokenUsed(tokenHash)
 
-	// Verify HMAC signature to prevent parameter tampering
+	completeLogin(w, r, cfg, params, authorizeSigValue, userID)
+}
+
+// HandleMagicLinkVerifyCode handles POST for /oauth2/magic-link/verify.
+// Validates the 6-digit code and completes the login flow.
+func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
+	cfg := config.Get()
+	if !cfg.MagicLinkEnabled {
+		view.RenderError(w, r, http.StatusNotFound, "Magic link login is not enabled.")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	params := paramsFromForm(r)
+	authorizeSigValue := r.FormValue("authorize_sig")
+	code := r.FormValue("code")
+
+	if code == "" {
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "Please enter the code from your email.", nil)
+		return
+	}
+
+	codeHash := utils.HashSHA256(code)
+	tokenHash, userID, expiresAt, usedAt, err := getMagicLinkTokenByCodeHash(codeHash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			renderMagicLink(w, r, "sent", params, authorizeSigValue, "Invalid code. Please check and try again.", nil)
+			return
+		}
+		slog.Error("magiclink: failed to look up code", "request_id", reqid.Get(r.Context()), "error", err)
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "Something went wrong. Please try again.", nil)
+		return
+	}
+
+	if usedAt != nil {
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "This code has already been used.", nil)
+		return
+	}
+
+	if time.Now().After(expiresAt) {
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, "This code has expired.", nil)
+		return
+	}
+
+	markTokenUsed(tokenHash)
+
+	completeLogin(w, r, cfg, params, authorizeSigValue, userID)
+}
+
+// completeLogin performs the post-verification login flow: signature check,
+// client validation, MFA, consent, IdP session, and auth code issuance.
+func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, params oauthParams, authorizeSigValue, userID string) {
 	if !authzsig.Verify(authzsig.AuthorizeParams{
 		ClientID:            params.ClientID,
 		RedirectURI:         params.RedirectURI,
@@ -245,7 +310,6 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate client and redirect_uri
 	registeredClient, err := client.ClientByClientID(params.ClientID)
 	if err != nil {
 		slog.Warn("magiclink: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID)
@@ -265,14 +329,12 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Look up the user
 	usr, err := user.UserByID(userID)
 	if err != nil || usr == nil || usr.DeactivatedAt != nil {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Account not found or deactivated.")
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Account not found or deactivated.", nil)
 		return
 	}
 
-	// MFA check: required globally, or user has voluntarily enrolled in TOTP
 	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
 	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
 		method := cfg.MfaMethod
@@ -339,7 +401,6 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
-	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
 	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, params.ClientID, params.Scope, "") {
 		consent.RedirectToConsent(w, r, consent.ConsentParams{
 			RedirectURI:         params.RedirectURI,
@@ -360,7 +421,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code := authcode.AuthCode{
+	codeRecord := authcode.AuthCode{
 		Code:                authCodeValue,
 		UserID:              usr.ID,
 		ClientID:            params.ClientID,
@@ -374,7 +435,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		IdpSessionID:        idpSessionID,
 	}
 
-	if err := authcode.CreateAuthCode(code); err != nil {
+	if err := authcode.CreateAuthCode(codeRecord); err != nil {
 		slog.Error("magiclink: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
 		view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
 		return
@@ -382,9 +443,8 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 
 	audit.Log(audit.EventMagicLinkLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "magic_link"), utils.GetClientIP(r))
 
-	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
 	redirectParams := url.Values{}
-	redirectParams.Set("code", code.Code)
+	redirectParams.Set("code", codeRecord.Code)
 	if params.State != "" {
 		redirectParams.Set("state", params.State)
 	}

@@ -85,12 +85,13 @@ func SendPasswordResetEmail(to, resetURL string) error {
 	return SendEmail(to, "Reset your password", "Reset your password — this link expires in 1 hour.", body)
 }
 
-func SendMagicLinkEmail(to, magicLinkURL string, expirationMinutes int) error {
+func SendMagicLinkEmail(to, magicLinkURL, code string, expirationMinutes int) error {
 	body, err := renderBody(bodyMagicLinkTmpl, struct {
 		BrandColor        string
 		MagicLinkURL      string
+		Code              string
 		ExpirationMinutes int
-	}{brandColor(), magicLinkURL, expirationMinutes})
+	}{brandColor(), magicLinkURL, code, expirationMinutes})
 	if err != nil {
 		return fmt.Errorf("failed to render email body: %w", err)
 	}
