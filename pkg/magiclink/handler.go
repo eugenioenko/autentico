@@ -270,7 +270,8 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve user by email to scope the code lookup
+	utils.RandomDelay()
+
 	genericErr := "Invalid code. Please check and try again."
 	usr, err := user.UserByEmail(emailAddr)
 	if err != nil || usr == nil {
