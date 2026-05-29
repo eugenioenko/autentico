@@ -95,8 +95,8 @@ func SendMagicLinkEmail(to, magicLinkURL, code string, expirationMinutes int) er
 	if err != nil {
 		return fmt.Errorf("failed to render email body: %w", err)
 	}
-	subject := "Sign in to your account"
-	preheader := fmt.Sprintf("Your sign-in link — expires in %d minutes.", expirationMinutes)
+	subject := "Complete your sign-in"
+	preheader := fmt.Sprintf("Your sign-in link and code — expires in %d minutes.", expirationMinutes)
 	return SendEmail(to, subject, preheader, body)
 }
 
