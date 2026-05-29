@@ -7,6 +7,14 @@ const Callback: React.FC = () => {
   const { error } = useAuth();
 
   if (error) {
+    // If onError already triggered a retry redirect, show spinner instead of error
+    if (sessionStorage.getItem('oidc_retry')) {
+      return (
+        <div className="min-h-dvh flex items-center justify-center bg-theme-accent-bg">
+          <Spinner />
+        </div>
+      );
+    }
     return (
       <div className="min-h-dvh flex items-center justify-center bg-theme-body p-4">
         <div className="bg-theme-bg rounded-2xl shadow-sm p-8 max-w-sm w-full space-y-4">
