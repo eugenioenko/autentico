@@ -48,11 +48,11 @@ func getMagicLinkTokenInfo(tokenHash string) (userID string, expiresAt time.Time
 	return
 }
 
-func getMagicLinkTokenByCodeHash(codeHash string) (tokenHash, userID string, expiresAt time.Time, usedAt *time.Time, err error) {
+func getMagicLinkTokenByCodeHash(userID, codeHash string) (tokenHash string, expiresAt time.Time, usedAt *time.Time, err error) {
 	err = db.GetDB().QueryRow(
-		`SELECT token_hash, user_id, expires_at, used_at FROM magic_link_tokens WHERE code_hash = ? ORDER BY created_at DESC LIMIT 1`,
-		codeHash,
-	).Scan(&tokenHash, &userID, &expiresAt, &usedAt)
+		`SELECT token_hash, expires_at, used_at FROM magic_link_tokens WHERE user_id = ? AND code_hash = ? ORDER BY created_at DESC LIMIT 1`,
+		userID, codeHash,
+	).Scan(&tokenHash, &expiresAt, &usedAt)
 	return
 }
 

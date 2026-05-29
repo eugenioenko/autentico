@@ -465,6 +465,119 @@ func TestHandleMagicLinkVerify_InvalidSig_RejectsRequest(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "tampered")
 }
 
+// --- Code verify handler tests ---
+
+func TestHandleMagicLinkVerifyCode_NoEmail_Rejected(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MagicLinkEnabled = true
+		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
+	})
+
+	testutils.InsertTestClient(t, "ml-code-client", []string{"http://localhost:3000/callback"})
+	u, err := user.CreateUser("ml-code-user", "password123", "ml-code@test.com")
+	require.NoError(t, err)
+	require.NoError(t, user.MarkEmailVerified(u.ID))
+
+	code := "123456"
+	codeHash := utils.HashSHA256(code)
+	_, tokenHash, _ := generateToken()
+	require.NoError(t, createMagicLinkToken(u.ID, tokenHash, codeHash, time.Now().Add(time.Hour)))
+
+	// Submit code WITHOUT email — should fail with generic error
+	form := url.Values{}
+	form.Set("code", code)
+	form.Set("client_id", "ml-code-client")
+	form.Set("redirect_uri", "http://localhost:3000/callback")
+	form.Set("state", "s1")
+	form.Set("scope", "openid")
+	testutils.SetAuthorizeSig(form)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleMagicLinkVerifyCode(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid code")
+}
+
+func TestHandleMagicLinkVerifyCode_WrongEmail_Rejected(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MagicLinkEnabled = true
+		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
+	})
+
+	testutils.InsertTestClient(t, "ml-code-client2", []string{"http://localhost:3000/callback"})
+	u, err := user.CreateUser("ml-code-user2", "password123", "ml-code2@test.com")
+	require.NoError(t, err)
+	require.NoError(t, user.MarkEmailVerified(u.ID))
+
+	code := "654321"
+	codeHash := utils.HashSHA256(code)
+	_, tokenHash, _ := generateToken()
+	require.NoError(t, createMagicLinkToken(u.ID, tokenHash, codeHash, time.Now().Add(time.Hour)))
+
+	// Submit correct code but wrong email — should fail with same generic error
+	form := url.Values{}
+	form.Set("code", code)
+	form.Set("email", "attacker@evil.com")
+	form.Set("client_id", "ml-code-client2")
+	form.Set("redirect_uri", "http://localhost:3000/callback")
+	form.Set("state", "s1")
+	form.Set("scope", "openid")
+	testutils.SetAuthorizeSig(form)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleMagicLinkVerifyCode(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid code")
+}
+
+func TestHandleMagicLinkVerifyCode_CorrectEmailAndCode_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MagicLinkEnabled = true
+		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
+	})
+
+	testutils.InsertTestClient(t, "ml-code-client3", []string{"http://localhost:3000/callback"})
+	u, err := user.CreateUser("ml-code-user3", "password123", "ml-code3@test.com")
+	require.NoError(t, err)
+	require.NoError(t, user.MarkEmailVerified(u.ID))
+
+	code := "987654"
+	codeHash := utils.HashSHA256(code)
+	_, tokenHash, _ := generateToken()
+	require.NoError(t, createMagicLinkToken(u.ID, tokenHash, codeHash, time.Now().Add(time.Hour)))
+
+	form := url.Values{}
+	form.Set("code", code)
+	form.Set("email", "ml-code3@test.com")
+	form.Set("client_id", "ml-code-client3")
+	form.Set("redirect_uri", "http://localhost:3000/callback")
+	form.Set("state", "s1")
+	form.Set("scope", "openid")
+	testutils.SetAuthorizeSig(form)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	HandleMagicLinkVerifyCode(rr, req)
+
+	assert.Equal(t, http.StatusFound, rr.Code)
+	loc := rr.Header().Get("Location")
+	assert.Contains(t, loc, "http://localhost:3000/callback")
+	assert.Contains(t, loc, "code=")
+}
+
 func TestBuildMagicLinkURL(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		bs := config.GetBootstrap()
