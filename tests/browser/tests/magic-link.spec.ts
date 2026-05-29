@@ -23,8 +23,11 @@ test("magic link login shows account dashboard", async ({ browser }) => {
     await page.fill("#confirm_password", ADMIN_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL("**/admin/**", { timeout: TIMEOUT });
-    await context.clearCookies();
   }
+
+  // Start fresh — navigate to a neutral page before clearing state
+  await page.goto(`${BASE_URL}/healthz`);
+  await context.clearCookies();
 
   // Log in as admin to capture a bearer token
   const apiRequestPromise = page.waitForRequest(
