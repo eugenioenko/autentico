@@ -364,47 +364,51 @@ func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, p
 				return
 			}
 		}
+		// Magic link already proves email ownership — skip email OTP
+		if method == "email" {
+			slog.Info("magiclink: skipping email MFA — magic link already verified email ownership", "request_id", reqid.Get(r.Context()), "user_id", userID)
+		} else {
+			loginState := mfa.LoginState{
+				RedirectURI:         params.RedirectURI,
+				State:               params.State,
+				ClientID:            params.ClientID,
+				Scope:               params.Scope,
+				Nonce:               params.Nonce,
+				CodeChallenge:       params.CodeChallenge,
+				CodeChallengeMethod: params.CodeChallengeMethod,
+			}
+			stateJSON, err := json.Marshal(loginState)
+			if err != nil {
+				slog.Error("magiclink: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
+				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
+				return
+			}
 
-		loginState := mfa.LoginState{
-			RedirectURI:         params.RedirectURI,
-			State:               params.State,
-			ClientID:            params.ClientID,
-			Scope:               params.Scope,
-			Nonce:               params.Nonce,
-			CodeChallenge:       params.CodeChallenge,
-			CodeChallengeMethod: params.CodeChallengeMethod,
-		}
-		stateJSON, err := json.Marshal(loginState)
-		if err != nil {
-			slog.Error("magiclink: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
-			view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
+			challengeID, err := authcode.GenerateSecureCode()
+			if err != nil {
+				slog.Error("magiclink: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
+				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
+				return
+			}
+
+			challenge := mfa.MfaChallenge{
+				ID:         challengeID,
+				UserID:     usr.ID,
+				Method:     method,
+				LoginState: string(stateJSON),
+				ExpiresAt:  time.Now().Add(mfaChallengeExpiration),
+			}
+
+			if err := mfa.CreateMfaChallenge(challenge); err != nil {
+				slog.Error("magiclink: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
+				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
+				return
+			}
+
+			mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
+			http.Redirect(w, r, mfaURL, http.StatusFound)
 			return
 		}
-
-		challengeID, err := authcode.GenerateSecureCode()
-		if err != nil {
-			slog.Error("magiclink: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
-			view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-			return
-		}
-
-		challenge := mfa.MfaChallenge{
-			ID:         challengeID,
-			UserID:     usr.ID,
-			Method:     method,
-			LoginState: string(stateJSON),
-			ExpiresAt:  time.Now().Add(mfaChallengeExpiration),
-		}
-
-		if err := mfa.CreateMfaChallenge(challenge); err != nil {
-			slog.Error("magiclink: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-			return
-		}
-
-		mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
-		http.Redirect(w, r, mfaURL, http.StatusFound)
-		return
 	}
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
