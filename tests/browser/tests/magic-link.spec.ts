@@ -1,35 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { getLastEmail, clearEmails, extractMagicLinkCode } from "../smtp-helper";
 import type { CapturedEmail } from "../smtp-helper";
+import {
+  startServer,
+  stopServer,
+  getAdminToken,
+  updateSettings,
+  BASE_URL,
+  ADMIN_EMAIL,
+  TIMEOUT,
+} from "../server-manager";
 
-const BASE_URL = "http://localhost:9999";
-const ADMIN_EMAIL = "admin@test.com";
-const TIMEOUT = 5000;
+test.beforeAll(async () => {
+  await startServer();
 
-async function getAdminToken(): Promise<string> {
-  const resp = await fetch(`${BASE_URL}/oauth2/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "password",
-      username: "admin",
-      password: "Password123!",
-      client_id: "autentico-admin",
-      scope: "openid profile email",
-    }),
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Failed to get admin token (${resp.status}): ${text}`);
-  }
-  const data = await resp.json();
-  if (!data.access_token) {
-    throw new Error(`No access_token in response: ${JSON.stringify(data)}`);
-  }
-  return data.access_token;
-}
+  const token = await getAdminToken();
 
-async function enableMagicLink(token: string) {
   // Mark admin email as verified
   const usersResp = await fetch(`${BASE_URL}/admin/api/users`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -38,7 +24,6 @@ async function enableMagicLink(token: string) {
   const adminUser = users.data.items.find(
     (u: any) => u.username === "admin"
   );
-
   await fetch(`${BASE_URL}/admin/api/users/${adminUser.id}`, {
     method: "PUT",
     headers: {
@@ -48,30 +33,23 @@ async function enableMagicLink(token: string) {
     body: JSON.stringify({ is_email_verified: true }),
   });
 
-  await fetch(`${BASE_URL}/admin/api/settings`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      magic_link_enabled: "true",
-      smtp_host: "localhost",
-      smtp_port: "2525",
-      smtp_from: "test@test.com",
-    }),
+  await updateSettings(token, {
+    magic_link_enabled: "true",
+    smtp_host: "localhost",
+    smtp_port: "2525",
+    smtp_from: "test@test.com",
   });
-}
+});
+
+test.afterAll(() => {
+  stopServer();
+});
 
 test("magic link login with code shows account dashboard", async ({
   browser,
 }) => {
-  // Setup: enable magic link via API (no browser needed)
-  const token = await getAdminToken();
-  await enableMagicLink(token);
   await clearEmails();
 
-  // Start the login flow from the account UI
   const context = await browser.newContext();
   const page = await context.newPage();
 
