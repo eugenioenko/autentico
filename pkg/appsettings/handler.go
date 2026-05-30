@@ -3,6 +3,7 @@ package appsettings
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"time"
@@ -262,7 +263,8 @@ func HandleTestSmtp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := email.SendTestEmail(usr.Email); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", err.Error())
+		slog.Error("settings: SMTP test failed", "error", err, "email", usr.Email)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", "Failed to send test email. Check SMTP configuration.")
 		return
 	}
 

@@ -472,3 +472,74 @@ func TestHandleCreateUser_AdminFlow(t *testing.T) {
 	HandleCreateUser(rr, req)
 	assert.Equal(t, http.StatusCreated, rr.Code)
 }
+
+func TestHandleCreateUser_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	body, _ := json.Marshal(UserCreateRequest{Username: "testuser", Password: "password123", Email: "test@test.com"})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleCreateUser(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "constraint")
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+
+func TestHandleUpdateUser_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, userID := setupAuthenticatedUser(t)
+	db.CloseDB()
+
+	body, _ := json.Marshal(UserUpdateRequest{GivenName: "Updated"})
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/users/"+userID, bytes.NewBuffer(body))
+	req.SetPathValue("id", userID)
+	rr := httptest.NewRecorder()
+	HandleUpdateUser(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "constraint")
+}
+
+func TestHandleUpdateUser_DuplicateUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.ValidationMinUsernameLength = 3
+		config.Values.ValidationMaxUsernameLength = 50
+	})
+
+	_, userID := setupAuthenticatedUser(t)
+	otherID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password, role) VALUES (?, ?, ?, ?, ?)`,
+		otherID, "existinguser", "existing@test.com", "hashed", "user")
+
+	body, _ := json.Marshal(UserUpdateRequest{Username: "existinguser"})
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/users/"+userID, bytes.NewBuffer(body))
+	req.SetPathValue("id", userID)
+	rr := httptest.NewRecorder()
+	HandleUpdateUser(rr, req)
+	assert.Equal(t, http.StatusConflict, rr.Code)
+	assert.Contains(t, rr.Body.String(), "already exists")
+}
+
+func TestHandleDeleteUser_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, userID := setupAuthenticatedUser(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/api/users/"+userID, nil)
+	req.SetPathValue("id", userID)
+	rr := httptest.NewRecorder()
+	HandleDeleteUser(rr, req)
+	assert.True(t, rr.Code == http.StatusInternalServerError || rr.Code == http.StatusNotFound)
+}
+
+func TestHandleListUsers_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/users", nil)
+	rr := httptest.NewRecorder()
+	HandleListUsers(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}

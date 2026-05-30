@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -134,4 +135,15 @@ func TestHandleFederationProviders_Errors(t *testing.T) {
 	rr = httptest.NewRecorder()
 	HandleDeleteProvider(rr, req)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestHandleListProviders_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/federation", nil)
+	rr := httptest.NewRecorder()
+	HandleListProviders(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
 }

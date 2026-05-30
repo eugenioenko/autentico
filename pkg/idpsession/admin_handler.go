@@ -71,7 +71,7 @@ func HandleListIdpSessions(w http.ResponseWriter, r *http.Request) {
 
 	devices, total, err := ListIdpSessionsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list sessions")
 		return
 	}
 
@@ -99,7 +99,7 @@ func HandleListUserIdpSessions(w http.ResponseWriter, r *http.Request) {
 
 	devices, err := ListActiveDevicesForUser(userID, time.Time{})
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list sessions")
 		return
 	}
 
@@ -129,7 +129,7 @@ func HandleForceLogoutIdpSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := DeactivateWithCascade(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to deactivate session")
 		return
 	}
 

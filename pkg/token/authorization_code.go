@@ -24,7 +24,7 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 	code, err := authcode.AuthCodeByCodeIncludingUsed(request.Code)
 	if err != nil {
 		slog.Warn("token: authorization code not found", "error", err)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("%v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has expired")
 		return nil, nil, err
 	}
 
@@ -78,13 +78,13 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 	err = authcode.MarkAuthCodeAsUsed(request.Code)
 	if err != nil {
 		slog.Error("token: failed to mark authorization code as used", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to mark authorization code as used: %v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to process authorization code")
 		return nil, nil, err
 	}
 
 	usr, err := user.UserByID(code.UserID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "User not found")
 		return nil, nil, err
 	}
 	return usr, code, nil

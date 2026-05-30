@@ -2,6 +2,7 @@ package deletion
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -39,7 +40,8 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 
 	if config.Get().AllowSelfServiceDeletion {
 		if err := HardDeleteUser(usr.ID); err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+			slog.Error("deletion: failed to delete user (self-service)", "error", err, "user_id", usr.ID)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete account")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -49,7 +51,8 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	// Check if a pending request already exists
 	existing, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to check existing request", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to process deletion request")
 		return
 	}
 	if existing != nil {
@@ -64,7 +67,8 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 
 	req, err := CreateDeletionRequest(usr.ID, reason)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to create deletion request", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create deletion request")
 		return
 	}
 	utils.SuccessResponse(w, req.ToResponse(), http.StatusCreated)
@@ -87,7 +91,8 @@ func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 	req, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to get deletion request", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
 		return
 	}
 	if req == nil {
@@ -115,7 +120,8 @@ func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 	req, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to get deletion request for cancel", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
 		return
 	}
 	if req == nil {
@@ -124,7 +130,8 @@ func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := CancelDeletionRequest(req.ID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to cancel deletion request", "error", err, "request_id", req.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to cancel deletion request")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -157,7 +164,8 @@ func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
 
 	requests, total, err := ListDeletionRequestsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to list deletion requests", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list deletion requests")
 		return
 	}
 
@@ -193,7 +201,8 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 
 	req, err := DeletionRequestByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to get deletion request", "error", err, "request_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
 		return
 	}
 	if req == nil {
@@ -202,7 +211,8 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := HardDeleteUser(req.UserID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to delete user (admin approve)", "error", err, "user_id", req.UserID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
 		return
 	}
 	audit.Log(audit.EventDeletionApproved, audit.ActorFromRequest(r), audit.TargetUser, req.UserID, nil, utils.GetClientIP(r))
@@ -231,7 +241,8 @@ func HandleAdminCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Deletion request not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("deletion: failed to cancel deletion request (admin)", "error", err, "request_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to cancel deletion request")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

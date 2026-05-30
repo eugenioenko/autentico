@@ -34,7 +34,7 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 
 	providers, total, err := ListFederationProvidersWithParams(params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list federation providers")
 		return
 	}
 
@@ -161,7 +161,7 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := UpdateFederationProvider(id, req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update federation provider")
 		return
 	}
 
@@ -189,7 +189,7 @@ func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := DeleteFederationProvider(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete federation provider")
 		return
 	}
 	audit.Log(audit.EventFederationDeleted, audit.ActorFromRequest(r), audit.TargetFederation, id, nil, utils.GetClientIP(r))

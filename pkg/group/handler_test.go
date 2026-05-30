@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -303,4 +304,39 @@ func TestHandleGetUserGroups_NoGroups(t *testing.T) {
 	var resp model.ApiResponse[[]GroupResponse]
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Empty(t, resp.Data)
+}
+
+func TestHandleListGroups_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/groups", nil)
+	rr := httptest.NewRecorder()
+	HandleListGroups(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+
+func TestHandleCreateGroup_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	body, _ := json.Marshal(GroupCreateRequest{Name: "test-group"})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/groups", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleCreateGroup(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "constraint")
+}
+
+func TestHandleGetUserGroups_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/users/user1/groups", nil)
+	req.SetPathValue("id", "user1")
+	rr := httptest.NewRecorder()
+	HandleGetUserGroups(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
 }

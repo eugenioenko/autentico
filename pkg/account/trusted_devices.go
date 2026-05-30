@@ -1,6 +1,7 @@
 package account
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/middleware"
@@ -26,7 +27,8 @@ func HandleListTrustedDevices(w http.ResponseWriter, r *http.Request) {
 
 	devices, err := trusteddevice.TrustedDevicesByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to list trusted devices", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list trusted devices")
 		return
 	}
 
@@ -76,7 +78,8 @@ func HandleRevokeTrustedDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := trusteddevice.DeleteTrustedDevice(deviceID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to revoke trusted device", "error", err, "device_id", deviceID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke trusted device")
 		return
 	}
 

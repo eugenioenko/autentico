@@ -300,5 +300,25 @@ func TestHandleUpdateProfile_DbError(t *testing.T) {
 	db.CloseDB()
 
 	rr := mockAuthRequest(t, string(body), "PUT", "/account/api/profile", HandleUpdateProfile, info)
-	assert.Equal(t, http.StatusInternalServerError, rr.Code) // Auth from context succeeds, UpdateUser fails with DB closed
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "constraint")
+	assert.NotContains(t, rr.Body.String(), "SQL")
 }
+
+func TestHandleUpdateProfile_DuplicateUsername(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.AllowUsernameChange = true
+	})
+	_, _, info := setupTestUserAndSession(t)
+
+	otherID := uuid.New().String()
+	_, _ = db.GetDB().Exec("INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)", otherID, "takenuser", "taken@test.com", "")
+
+	req := ProfileUpdateRequest{Username: "takenuser", CurrentPassword: "password"}
+	body, _ := json.Marshal(req)
+	rr := mockAuthRequest(t, string(body), "PUT", "/account/api/profile", HandleUpdateProfile, info)
+	assert.Equal(t, http.StatusConflict, rr.Code)
+	assert.Contains(t, rr.Body.String(), "username_taken")
+}
+

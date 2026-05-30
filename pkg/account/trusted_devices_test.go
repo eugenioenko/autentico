@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -77,4 +78,13 @@ func TestHandleRevokeTrustedDevice_Extra(t *testing.T) {
 	mux.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusForbidden, rr.Code)
+}
+
+func TestHandleListTrustedDevices_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+	db.CloseDB()
+	rr := mockAuthRequest(t, "", "GET", "/account/api/trusted-devices", HandleListTrustedDevices, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
 }

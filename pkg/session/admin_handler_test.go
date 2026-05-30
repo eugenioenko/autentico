@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -88,4 +89,15 @@ func TestHandleDeactivateSession_MissingID(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleDeactivateSession(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleListSessions_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/sessions", nil)
+	rr := httptest.NewRecorder()
+	HandleListSessions(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
 }

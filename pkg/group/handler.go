@@ -2,7 +2,7 @@ package group
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -29,7 +29,8 @@ func HandleListGroups(w http.ResponseWriter, r *http.Request) {
 
 	groups, total, err := ListGroupsWithParams(params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to list groups", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list groups")
 		return
 	}
 	utils.SuccessResponse(w, model.ListResponse[GroupResponse]{
@@ -64,7 +65,8 @@ func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A group with that name already exists")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Group creation error. %v", err))
+		slog.Error("group: failed to create group", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create group")
 		return
 	}
 	utils.SuccessResponse(w, response, http.StatusCreated)
@@ -87,7 +89,7 @@ func HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	g, err := GroupByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", err.Error())
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
 		return
 	}
 	utils.SuccessResponse(w, g.ToResponse(), http.StatusOK)
@@ -129,12 +131,14 @@ func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A group with that name already exists")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to update group", "error", err, "group_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update group")
 		return
 	}
 	g, err := GroupByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to read group after update", "error", err, "group_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read group")
 		return
 	}
 	utils.SuccessResponse(w, g.ToResponse(), http.StatusOK)
@@ -160,7 +164,8 @@ func HandleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to delete group", "error", err, "group_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete group")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "group deleted"}, http.StatusOK)
@@ -186,7 +191,8 @@ func HandleListMembers(w http.ResponseWriter, r *http.Request) {
 	}
 	members, err := MembersByGroupID(groupID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to list members", "error", err, "group_id", groupID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list members")
 		return
 	}
 	utils.SuccessResponse(w, members, http.StatusOK)
@@ -221,14 +227,15 @@ func HandleAddMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := AddMember(groupID, req.UserID); err != nil {
 		if strings.Contains(err.Error(), "already a member") {
-			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", err.Error())
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "User is already a member of this group")
 			return
 		}
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", err.Error())
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User or group not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to add member", "error", err, "group_id", groupID, "user_id", req.UserID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to add member")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "member added"}, http.StatusCreated)
@@ -253,10 +260,11 @@ func HandleRemoveMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := RemoveMember(groupID, userID); err != nil {
 		if strings.Contains(err.Error(), "not a member") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", err.Error())
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User is not a member of this group")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to remove member", "error", err, "group_id", groupID, "user_id", userID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to remove member")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "member removed"}, http.StatusOK)
@@ -278,7 +286,8 @@ func HandleGetUserGroups(w http.ResponseWriter, r *http.Request) {
 	}
 	groups, err := GroupsByUserID(userID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("group: failed to list groups for user", "error", err, "user_id", userID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list groups")
 		return
 	}
 	utils.SuccessResponse(w, groups, http.StatusOK)

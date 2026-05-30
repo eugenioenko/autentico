@@ -563,3 +563,38 @@ func TestHandleUpdateClient_RFC7591_InvalidRedirectURI_ErrorCode(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 	assert.Contains(t, rr.Body.String(), `"invalid_redirect_uri"`)
 }
+
+func TestHandleRegister_DbError(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	db.CloseDB()
+
+	reqBody := ClientCreateRequest{
+		ClientName:   "Test App",
+		RedirectURIs: []string{"http://localhost:3000/callback"},
+		GrantTypes:   []string{"authorization_code"},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/register", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandleRegister(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "constraint")
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+
+func TestHandleListClients_DbError(t *testing.T) {
+	_, err := db.InitTestDB()
+	if err != nil {
+		t.Fatalf("Failed to initialize test database: %v", err)
+	}
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/clients", nil)
+	rr := httptest.NewRecorder()
+	HandleAdminListClients(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}

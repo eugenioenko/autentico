@@ -34,7 +34,7 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list sessions")
 		return
 	}
 
@@ -70,7 +70,7 @@ func HandleListIdpSessionSessions(w http.ResponseWriter, r *http.Request) {
 
 	sessions, total, err := ListOAuthSessionsByIdpSession(idpSessionID, params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list sessions")
 		return
 	}
 
@@ -105,7 +105,7 @@ func HandleDeactivateSession(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Session not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to deactivate session")
 		return
 	}
 	audit.Log(audit.EventSessionRevoked, audit.ActorFromRequest(r), audit.TargetSession, id, nil, utils.GetClientIP(r))

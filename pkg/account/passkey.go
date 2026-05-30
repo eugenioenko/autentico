@@ -35,7 +35,8 @@ func HandleListPasskeys(w http.ResponseWriter, r *http.Request) {
 
 	creds, err := passkey.PasskeyCredentialsByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to list passkeys", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list passkeys")
 		return
 	}
 
@@ -94,7 +95,8 @@ func HandleDeletePasskey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := passkey.DeletePasskeyCredential(passkeyID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to delete passkey", "error", err, "passkey_id", passkeyID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete passkey")
 		return
 	}
 
@@ -142,7 +144,8 @@ func HandleRenamePasskey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := passkey.UpdatePasskeyName(passkeyID, req.Name); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to rename passkey", "error", err, "passkey_id", passkeyID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to rename passkey")
 		return
 	}
 

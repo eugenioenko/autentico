@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -54,7 +56,8 @@ func HandleListSessions(w http.ResponseWriter, r *http.Request) {
 
 	devices, total, err := idpsession.ListActiveDevicesForUserPaginated(usr.ID, idleCutoff, params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to list sessions", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list sessions")
 		return
 	}
 
@@ -117,7 +120,8 @@ func HandleRevokeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := idpsession.DeactivateWithCascade(targetID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to revoke session", "error", err, "session_id", targetID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke session")
 		return
 	}
 
@@ -150,7 +154,8 @@ func HandleRevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.RevokeOtherUserAccess(info.User.ID, info.Token); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to revoke other sessions", "error", err, "user_id", info.User.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke sessions")
 		return
 	}
 

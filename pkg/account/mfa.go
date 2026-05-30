@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"log/slog"
+
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/mfa"
@@ -69,12 +71,14 @@ func HandleSetupTotp(w http.ResponseWriter, r *http.Request) {
 
 	secret, url, err := mfa.GenerateTotpSecret(usr.Username, config.Get().PasskeyRPName)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to generate TOTP secret", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to generate TOTP secret")
 		return
 	}
 
 	if err := user.StoreTotpSecretPending(usr.ID, secret); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to store TOTP secret", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store TOTP secret")
 		return
 	}
 
@@ -125,7 +129,8 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.SaveTotpSecret(usr.ID, currUser.TotpSecret); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to save TOTP secret", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to save TOTP secret")
 		return
 	}
 
@@ -185,7 +190,8 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.DisableMfa(usr.ID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to disable MFA", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to disable MFA")
 		return
 	}
 

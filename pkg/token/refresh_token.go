@@ -39,14 +39,14 @@ func extractACR(tokenString string) string {
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
 	err := ValidateTokenRequestRefresh(request)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
 		return nil, err
 	}
 
 	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
 		slog.Warn("token: invalid refresh token", "error", err)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid or expired refresh token: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
 		return nil, err
 	}
 
@@ -59,7 +59,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	sess, err := session.SessionByIDIncludingDeactivated(authToken.SessionID)
 	if err != nil {
 		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Failed to retrieve session: %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Failed to retrieve session")
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	usr, err := user.UserByID(authToken.UserID)
 	if err != nil {
 		slog.Error("token: failed to retrieve user for refresh token", "error", err, "user_id", authToken.UserID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Failed to retrieve user: %v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to retrieve user")
 		return nil, err
 	}
 

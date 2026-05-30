@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -49,7 +50,8 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A user with that username or email already exists")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("User creation error. %v", err))
+		slog.Error("user: failed to create user", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -75,7 +77,7 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := UserByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", err.Error())
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
@@ -121,14 +123,20 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A user with that username or email already exists")
+			return
+		}
+		slog.Error("user: failed to update user", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserUpdated, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to read user after update", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read user")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
@@ -159,7 +167,8 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := HardDeleteUser(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to delete user", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -191,7 +200,8 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or already deactivated")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to deactivate user", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to deactivate user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -217,7 +227,8 @@ func HandleRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := RevokeAllUserAccess(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to revoke sessions", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke sessions")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -249,7 +260,8 @@ func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or not deactivated")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to reactivate user", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to reactivate user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -292,7 +304,8 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, total, err := ListUsersWithParams(params, dateWhere, dateArgs)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to list users", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list users")
 		return
 	}
 
@@ -341,14 +354,16 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to unlock user", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to unlock user")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
 	audit.Log(audit.EventUserUnlocked, admin, audit.TargetUser, id, nil, utils.GetClientIP(r))
 	result, err := UserByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("user: failed to read user after unlock", "error", err, "user_id", id)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read user")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)

@@ -57,7 +57,12 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		response, err = CreateClient(request)
 	}
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A client with that ID already exists")
+			return
+		}
+		slog.Error("client: failed to create client", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create client")
 		return
 	}
 
@@ -140,7 +145,8 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("client: failed to update client", "error", err, "client_id", clientID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update client")
 		return
 	}
 
@@ -172,7 +178,8 @@ func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("client: failed to delete client", "error", err, "client_id", clientID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete client")
 		return
 	}
 	if _, err := db.GetDB().Exec(`DELETE FROM user_consents WHERE client_id = ?`, clientID); err != nil {
@@ -207,7 +214,8 @@ func HandleAdminListClients(w http.ResponseWriter, r *http.Request) {
 
 	clients, total, err := ListClientsWithParams(params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("client: failed to list clients", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list clients")
 		return
 	}
 
