@@ -329,3 +329,21 @@ func TestHandleRevokeOtherSessions_Unauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
+func TestHandleListSessions_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+	db.CloseDB()
+	rr := mockAuthRequest(t, "", "GET", "/account/api/sessions", HandleListSessions, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+
+func TestHandleRevokeOtherSessions_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+	db.CloseDB()
+	rr := mockAuthRequest(t, "", "POST", "/account/api/sessions/revoke-others", HandleRevokeOtherSessions, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+

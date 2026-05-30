@@ -147,3 +147,12 @@ func TestHandleListConnectedProviders_Extra(t *testing.T) {
 	assert.Len(t, listResp.Data, 1)
 	assert.Equal(t, "P1", listResp.Data[0].ProviderName)
 }
+
+func TestHandleListConnectedProviders_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+	db.CloseDB()
+	rr := mockAuthRequest(t, "", "GET", "/account/api/connected-providers", HandleListConnectedProviders, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}

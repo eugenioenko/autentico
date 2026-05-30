@@ -230,3 +230,14 @@ func TestHandleForceLogoutIdpSession_MissingID(t *testing.T) {
 	HandleForceLogoutIdpSession(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
+
+func TestHandleListIdpSessions_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/idp-sessions", nil)
+	rr := httptest.NewRecorder()
+	HandleListIdpSessions(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}

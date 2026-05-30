@@ -389,3 +389,23 @@ func TestHandleAdminCancelDeletionRequest_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
+
+func TestHandleRequestDeletion_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, _, info := setupTestUserAndSession(t)
+	db.CloseDB()
+	rr := mockAuthRequest(t, "", "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
+
+func TestHandleListDeletionRequests_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/deletion-requests", nil)
+	rr := httptest.NewRecorder()
+	HandleListDeletionRequests(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+}
