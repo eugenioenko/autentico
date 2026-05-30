@@ -1,121 +1,114 @@
 import { test, expect } from "@playwright/test";
-import { join } from "path";
-import Database from "better-sqlite3";
+import { getLastEmail, clearEmails, extractMagicLinkCode } from "../smtp-helper";
+import type { CapturedEmail } from "../smtp-helper";
 
 const BASE_URL = "http://localhost:9999";
-const OAUTH_URL = `${BASE_URL}/oauth2`;
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "Password123!";
 const ADMIN_EMAIL = "admin@test.com";
 const TIMEOUT = 5000;
-const DB_FILE = join(__dirname, "../../../autentico.db");
 
-test("magic link login shows account dashboard", async ({ browser }) => {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
-  // Onboard if needed (when running in isolation on a fresh DB)
-  await page.goto(`${BASE_URL}/onboard`);
-  if (await page.locator("#username").isVisible({ timeout: 2000 }).catch(() => false)) {
-    await page.fill("#username", ADMIN_USERNAME);
-    await page.fill("#email", ADMIN_EMAIL);
-    await page.fill("#password", ADMIN_PASSWORD);
-    await page.fill("#confirm_password", ADMIN_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/admin/**", { timeout: TIMEOUT });
-  }
-
-  // Start fresh — navigate to a neutral page before clearing state
-  await page.goto(`${BASE_URL}/healthz`);
-  await context.clearCookies();
-
-  // Log in as admin to capture a bearer token
-  const apiRequestPromise = page.waitForRequest(
-    (req) =>
-      req.url().includes("/admin/api/") &&
-      (req.headers()["authorization"]?.startsWith("Bearer ") ?? false),
-    { timeout: 15000 }
-  );
-
-  await page.goto(`${BASE_URL}/admin/`);
-  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
-  await page.fill("#username", ADMIN_USERNAME);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL("**/admin/**", { timeout: TIMEOUT });
-  await expect(page.getByTestId("admin-dashboard")).toBeVisible({ timeout: TIMEOUT });
-
-  const apiRequest = await apiRequestPromise;
-  const token = apiRequest.headers()["authorization"]!.replace("Bearer ", "");
-
-  // Enable magic link + SMTP + verify admin email
-  await page.request.put(`${BASE_URL}/admin/api/settings`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: {
-      magic_link_enabled: "true",
-      smtp_host: "localhost",
-      smtp_port: "2525",
-      smtp_from: "test@test.com",
-    },
+async function getAdminToken(): Promise<string> {
+  const resp = await fetch(`${BASE_URL}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "password",
+      username: "admin",
+      password: "Password123!",
+      client_id: "autentico-admin",
+      scope: "openid profile email",
+    }),
   });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Failed to get admin token (${resp.status}): ${text}`);
+  }
+  const data = await resp.json();
+  if (!data.access_token) {
+    throw new Error(`No access_token in response: ${JSON.stringify(data)}`);
+  }
+  return data.access_token;
+}
 
-  const usersResp = await page.request.get(`${BASE_URL}/admin/api/users`, {
+async function enableMagicLink(token: string) {
+  // Mark admin email as verified
+  const usersResp = await fetch(`${BASE_URL}/admin/api/users`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const users = await usersResp.json();
   const adminUser = users.data.items.find(
-    (u: any) => u.username === ADMIN_USERNAME
+    (u: any) => u.username === "admin"
   );
-  await page.request.put(`${BASE_URL}/admin/api/users/${adminUser.id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { is_email_verified: true },
+
+  await fetch(`${BASE_URL}/admin/api/users/${adminUser.id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ is_email_verified: true }),
   });
 
-  // Start fresh for the account UI login
-  const accountContext = await browser.newContext();
-  const accountPage = await accountContext.newPage();
-
-  await accountPage.goto(`${BASE_URL}/account/`);
-  await accountPage.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
-  await expect(accountPage.locator("text=Sign in with email link")).toBeVisible({ timeout: TIMEOUT });
-
-  // Create a magic link token in the DB
-  const crypto = await import("crypto");
-  const rawToken = crypto.randomBytes(32).toString("base64url");
-  const hash = crypto.createHash("sha256").update(rawToken).digest("hex");
-
-  const db = new Database(DB_FILE);
-  db.prepare(
-    `INSERT INTO magic_link_tokens (id, user_id, token_hash, expires_at)
-     VALUES (?, ?, ?, datetime('now', '+15 minutes'))`
-  ).run("test-ml-" + Date.now(), adminUser.id, hash);
-  db.close();
-
-  // Get a valid authorize_sig
-  const mlResp = await accountPage.request.get(
-    `${OAUTH_URL}/magic-link?client_id=autentico-account&redirect_uri=${encodeURIComponent(BASE_URL + "/account/callback")}&state=ml-test&scope=openid+profile+email`
-  );
-  const mlHtml = await mlResp.text();
-  const sigMatch = mlHtml.match(/name="authorize_sig"\s+value="([^"]*)"/);
-  expect(sigMatch).toBeTruthy();
-
-  // Open the magic link verify URL
-  const verifyParams = new URLSearchParams({
-    token: rawToken,
-    client_id: "autentico-account",
-    redirect_uri: `${BASE_URL}/account/callback`,
-    state: "ml-test",
-    scope: "openid profile email",
-    authorize_sig: sigMatch![1],
+  await fetch(`${BASE_URL}/admin/api/settings`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      magic_link_enabled: "true",
+      smtp_host: "localhost",
+      smtp_port: "2525",
+      smtp_from: "test@test.com",
+    }),
   });
-  await accountPage.goto(`${OAUTH_URL}/magic-link/verify?${verifyParams}`);
+}
 
-  // The onError handler detects the state mismatch, auto-retries,
-  // and SSO auto-login completes the flow.
-  await expect(accountPage.getByTestId("account-dashboard")).toBeVisible({
+test("magic link login with code shows account dashboard", async ({
+  browser,
+}) => {
+  // Setup: enable magic link via API (no browser needed)
+  const token = await getAdminToken();
+  await enableMagicLink(token);
+  await clearEmails();
+
+  // Start the login flow from the account UI
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.goto(`${BASE_URL}/account/`);
+  await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
+
+  // Click "Sign in with email link"
+  await page.click("text=Sign in with email link");
+  await expect(page.locator("#email")).toBeVisible({ timeout: TIMEOUT });
+
+  // Fill email and submit
+  await page.fill("#email", ADMIN_EMAIL);
+  await page.click('button:has-text("Send sign-in link")');
+
+  // Should see the code input
+  await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
+
+  // Wait for the email to arrive
+  let code: string | null = null;
+  for (let i = 0; i < 20; i++) {
+    const email: CapturedEmail | null = await getLastEmail();
+    if (email) {
+      code = extractMagicLinkCode(email);
+      if (code) break;
+    }
+    await page.waitForTimeout(250);
+  }
+  expect(code).toBeTruthy();
+
+  // Enter the code and verify
+  await page.fill("#code", code!);
+  await page.click('button:has-text("Verify code")');
+
+  // Should land on account dashboard
+  await expect(page.getByTestId("account-dashboard")).toBeVisible({
     timeout: 15000,
   });
 
-  await accountContext.close();
   await context.close();
 });

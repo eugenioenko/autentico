@@ -1,6 +1,7 @@
 import { execSync, spawn } from "child_process";
 import { existsSync, unlinkSync } from "fs";
 import { join } from "path";
+import { startSmtpServer } from "./smtp-helper";
 
 const ROOT = join(__dirname, "../..");
 const BINARY = join(ROOT, "autentico");
@@ -37,6 +38,13 @@ export default async function globalSetup() {
   console.log("[setup] Initializing configuration...");
   execSync(`${BINARY} init`, { cwd: ROOT, stdio: "inherit" });
 
+  // Onboard admin account with ROPC grant enabled (must run before start seeds the client)
+  console.log("[setup] Onboarding admin account...");
+  execSync(
+    `${BINARY} onboard --username admin --password "Password123!" --email admin@test.com --enable-admin-password-grant`,
+    { cwd: ROOT, stdio: "inherit" }
+  );
+
   // Start the server
   console.log("[setup] Starting server...");
   const server = spawn(BINARY, ["start"], {
@@ -61,4 +69,7 @@ export default async function globalSetup() {
   // Wait for server to be ready
   await waitForServer(`${BASE_URL}/.well-known/openid-configuration`);
   console.log("[setup] Server is ready.");
+
+  // Start fake SMTP server for email capture
+  await startSmtpServer(2525);
 }

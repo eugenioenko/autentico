@@ -55,4 +55,4 @@ autentico.db
 autentico.db-shm
 autentico.db-wal
 data/
-scripts/
+scripts/.smtp-mail/
