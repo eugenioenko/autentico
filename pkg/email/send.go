@@ -21,11 +21,15 @@ var bodyResetRaw string
 //go:embed email_body_otp.html
 var bodyOTPRaw string
 
+//go:embed email_body_magic_link.html
+var bodyMagicLinkRaw string
+
 var (
 	bodyTestTmpl   = template.Must(template.New("body_test").Parse(bodyTestRaw))
 	bodyVerifyTmpl = template.Must(template.New("body_verify").Parse(bodyVerifyRaw))
 	bodyResetTmpl  = template.Must(template.New("body_reset").Parse(bodyResetRaw))
-	bodyOTPTmpl    = template.Must(template.New("body_otp").Parse(bodyOTPRaw))
+	bodyOTPTmpl       = template.Must(template.New("body_otp").Parse(bodyOTPRaw))
+	bodyMagicLinkTmpl = template.Must(template.New("body_magic_link").Parse(bodyMagicLinkRaw))
 )
 
 func brandColor() string {
@@ -79,6 +83,21 @@ func SendPasswordResetEmail(to, resetURL string) error {
 		return fmt.Errorf("failed to render email body: %w", err)
 	}
 	return SendEmail(to, "Reset your password", "Reset your password — this link expires in 1 hour.", body)
+}
+
+func SendMagicLinkEmail(to, magicLinkURL, code string, expirationMinutes int) error {
+	body, err := renderBody(bodyMagicLinkTmpl, struct {
+		BrandColor        string
+		MagicLinkURL      string
+		Code              string
+		ExpirationMinutes int
+	}{brandColor(), magicLinkURL, code, expirationMinutes})
+	if err != nil {
+		return fmt.Errorf("failed to render email body: %w", err)
+	}
+	subject := "Complete your sign-in"
+	preheader := fmt.Sprintf("Your sign-in link and code — expires in %d minutes.", expirationMinutes)
+	return SendEmail(to, subject, preheader, body)
 }
 
 func SendEmailOTP(to, code string) error {

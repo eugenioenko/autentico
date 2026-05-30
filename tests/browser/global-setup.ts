@@ -47,6 +47,8 @@ export default async function globalSetup() {
       ...process.env,
       AUTENTICO_CSRF_SECURE_COOKIE: "false",
       AUTENTICO_IDP_SESSION_SECURE: "false",
+      AUTENTICO_RATE_LIMIT_RPS: "0",
+      AUTENTICO_RATE_LIMIT_RPM: "0",
     },
   });
 

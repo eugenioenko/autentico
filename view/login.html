@@ -38,16 +38,32 @@
   {{if ne .AuthMode "passkey_only"}}
   <button class="auth-btn" type="submit">Log In</button>
   {{end}}
-  {{if ne .AuthMode "password"}}
-  {{if eq .AuthMode "password_and_passkey"}}
+  {{if or (ne .AuthMode "password") .MagicLinkEnabled .FederatedProviders}}
   <div class="auth-divider">or</div>
   {{end}}
+  {{if ne .AuthMode "password"}}
   <button type="button" class="auth-btn-secondary" id="passkey-login-btn">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="8" cy="8" r="5"/><path d="m13 13 9 9"/><path d="M13 13l-1.5-1.5"/><path d="m16 16 2-2"/><path d="m19 13 2-2"/>
     </svg>
     Sign in with passkey
   </button>
+  {{end}}
+  {{if .MagicLinkEnabled}}
+  <a href="{{authURL "/magic-link"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}" class="auth-btn-secondary">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+    Sign in with email link
+  </a>
+  {{end}}
+  {{if .FederatedProviders}}
+  {{range .FederatedProviders}}
+  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
+    {{if .HasIcon}}<img src="{{authURL "/federation/"}}{{.ID}}/icon.svg" alt="" width="20" height="20" class="federation-icon" />{{end}}
+    Sign in with {{.Name}}
+  </a>
+  {{end}}
   {{end}}
   {{if or .AllowSelfSignup (and .SmtpConfigured (ne .AuthMode "passkey_only"))}}
   <div class="auth-links">
@@ -58,15 +74,6 @@
     <div class="auth-link" style="margin-left:auto;"><a href="{{authURL "/authorize"}}?response_type=code&prompt=create&state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create account</a></div>
     {{end}}
   </div>
-  {{end}}
-  {{if .FederatedProviders}}
-  <div class="auth-divider">or</div>
-  {{range .FederatedProviders}}
-  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
-    {{if .HasIcon}}<img src="{{authURL "/federation/"}}{{.ID}}/icon.svg" alt="" width="20" height="20" class="federation-icon" />{{end}}
-    Sign in with {{.Name}}
-  </a>
-  {{end}}
   {{end}}
 </form>
 {{end}}

@@ -29,6 +29,7 @@ var durationSettings = map[string][]string{
 	"cleanup_retention":             nil,
 	"email_verification_expiration": nil,
 	"password_reset_expiration":     nil,
+	"magic_link_expiration":         nil,
 	"audit_log_retention":           {"", "0", "-1"},
 }
 

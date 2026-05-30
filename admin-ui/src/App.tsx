@@ -44,14 +44,25 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   const onLogin = useMemo(() => (returnTo: string) => {
+    sessionStorage.removeItem("oidc_retry");
     const path = returnTo.startsWith(BASENAME)
       ? returnTo.slice(BASENAME.length) || "/"
       : returnTo;
     navigate(path, { replace: true });
   }, [navigate]);
 
+  const onError = useMemo(() => (err: Error) => {
+    const isStateError = err.message?.includes("Missing auth state") || err.message?.includes("State parameter");
+    if (isStateError && !sessionStorage.getItem("oidc_retry")) {
+      sessionStorage.setItem("oidc_retry", "1");
+      window.location.href = BASENAME;
+      return;
+    }
+    sessionStorage.removeItem("oidc_retry");
+  }, []);
+
   return (
-    <AuthProvider config={oidcConfig} fetchProfile={false} onLogin={onLogin}>
+    <AuthProvider config={oidcConfig} fetchProfile={false} onLogin={onLogin} onError={onError}>
       <AuthBridge />
       {children}
     </AuthProvider>

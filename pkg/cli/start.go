@@ -37,6 +37,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
+	"github.com/eugenioenko/autentico/pkg/magiclink"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/onboarding"
@@ -147,6 +148,9 @@ func RunStart(c *cli.Context) error {
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.Handle("GET "+oauth+"/verify-email", rateLimited(csrfProtected(emailverification.HandleVerifyEmail)))
 	mux.Handle("POST "+oauth+"/resend-verification", rateLimited(csrfProtected(emailverification.HandleResendVerification)))
+	mux.Handle(oauth+"/magic-link", rateLimited(csrfProtected(magiclink.HandleMagicLink)))
+	mux.Handle("GET "+oauth+"/magic-link/verify", rateLimited(csrfProtected(magiclink.HandleMagicLinkVerify)))
+	mux.Handle("POST "+oauth+"/magic-link/verify", rateLimited(csrfProtected(magiclink.HandleMagicLinkVerifyCode)))
 	mux.Handle(oauth+"/forgot-password", rateLimited(csrfProtected(passwordreset.HandleForgotPassword)))
 	mux.Handle(oauth+"/reset-password", rateLimited(csrfProtected(passwordreset.HandleResetPassword)))
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)

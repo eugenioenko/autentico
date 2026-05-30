@@ -114,6 +114,8 @@ const tip = makeTip({
   theme_tagline: "Optional tagline shown below the logo on login pages and in emails.",
   email_footer_text: "Optional text shown in the email footer (e.g. copyright, company address). Supports multiple lines.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
+  magic_link_enabled: "Allow users to sign in via a magic link sent to their email, without entering a password. Requires SMTP.",
+  magic_link_expiration: "How long a magic link remains valid (e.g. 15m, 30m).",
 }, "https://autentico.top/configuration/runtime-settings");
 
 interface FooterLink {
@@ -172,6 +174,8 @@ export default function SettingsPage() {
   const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
   const requireEmailVerification = Form.useWatch("require_email_verification", form);
   const emailVerifyWithoutSmtp = (requireEmailVerification === true || requireEmailVerification === "true") && !smtpHost;
+  const magicLinkEnabled = Form.useWatch("magic_link_enabled", form);
+  const magicLinkWithoutSmtp = (magicLinkEnabled === true || magicLinkEnabled === "true") && !smtpHost;
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -392,6 +396,32 @@ export default function SettingsPage() {
                     label="Verification Link Expiration"
                     name="email_verification_expiration"
                     tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <DurationInput />
+                  </Form.Item>
+
+                  <Divider />
+
+                  <Title level={5} style={{ marginTop: 0 }}>Magic Link Login</Title>
+                  <Form.Item name="magic_link_enabled" valuePropName="checked" getValueProps={boolProp}>
+                    <Checkbox>
+                      Magic Link Enabled{' '}
+                      <Tooltip title={tip("magic_link_enabled")}><ExclamationCircleOutlined /></Tooltip>
+                    </Checkbox>
+                  </Form.Item>
+                  {magicLinkWithoutSmtp && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="SMTP not configured"
+                      description="Magic link login requires a configured SMTP server. Make sure SMTP is properly configured."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
+                  <Form.Item
+                    label="Magic Link Expiration"
+                    name="magic_link_expiration"
+                    tooltip={{ title: tip("magic_link_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <DurationInput />
                   </Form.Item>
