@@ -146,6 +146,16 @@ export async function clearEmails(): Promise<void> {
   await fetch(`${EMAIL_API}/emails/clear`);
 }
 
+export async function waitForNewEmail(timeout = 5000): Promise<CapturedEmail> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const email = await getLastEmail();
+    if (email) return email;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error("No email received within timeout");
+}
+
 export function extractMagicLinkCode(email: CapturedEmail): string | null {
   const decoded = decodeEmailBody(email.data);
   const match = decoded.match(/(\d{6})/);
@@ -156,6 +166,18 @@ export function extractMagicLinkURL(email: CapturedEmail): string | null {
   const decoded = decodeEmailBody(email.data);
   const match = decoded.match(/href="([^"]*magic-link\/verify[^"]*)"/);
   return match ? match[1] : null;
+}
+
+export function extractLink(email: CapturedEmail, pathContains: string): string | null {
+  const decoded = decodeEmailBody(email.data);
+  const re = new RegExp(`href="([^"]*${pathContains}[^"]*)"`, "i");
+  const match = decoded.match(re);
+  return match
+    ? match[1]
+        .replace(/&amp;/g, "&")
+        .replace(/&#43;/g, "+")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    : null;
 }
 
 function decodeEmailBody(raw: string): string {
