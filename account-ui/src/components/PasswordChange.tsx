@@ -12,6 +12,7 @@ interface PasswordChangeModalProps {
 const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,6 +20,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await api.post('/password', { current_password: currentPassword, new_password: newPassword });
@@ -63,12 +68,20 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
             onChange={(e) => setNewPassword(e.target.value)}
           />
         </div>
+        <div>
+          <label>Confirm New Password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
         {error && <Alert type="danger" message={error} />}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || !currentPassword || !newPassword} className="flex-1">
+          <Button type="submit" disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword} className="flex-1">
             {isSubmitting ? 'Updating…' : 'Update Password'}
           </Button>
         </div>
