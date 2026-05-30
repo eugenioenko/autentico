@@ -3,6 +3,7 @@ package account
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -112,6 +113,14 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Check username uniqueness if changing username
+	if usernameChanging {
+		if user.UserExistsByUsername(req.Username) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "username_taken", "Username already in use")
+			return
+		}
+	}
+
 	if emailChanging || usernameChanging {
 		if !verifyCurrentPassword(w, usr, req.CurrentPassword) {
 			return
@@ -151,7 +160,8 @@ func HandleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.UpdateUser(usr.ID, updateReq); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to update profile", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update profile")
 		return
 	}
 
@@ -202,14 +212,16 @@ func HandleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.UpdateUser(usr.ID, user.UserUpdateRequest{Password: req.NewPassword}); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to update password", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update password")
 		return
 	}
 
 	// Revoke all other sessions — a password change invalidates all sessions
 	// except the one that initiated the change.
 	if err := user.RevokeOtherUserAccess(usr.ID, info.Token); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to revoke sessions after password change", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke sessions")
 		return
 	}
 

@@ -73,7 +73,7 @@ func HandleListTokens(w http.ResponseWriter, r *http.Request) {
 
 	tokens, total, err := ListTokensWithParams(params, dateWhere, dateArgs)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list tokens")
 		return
 	}
 
@@ -109,7 +109,7 @@ func HandleRevokeToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Token not found or already revoked")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke token")
 		return
 	}
 

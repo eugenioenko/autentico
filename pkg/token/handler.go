@@ -136,7 +136,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			}
 			slog.Warn("token: invalid ROPC credentials", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 			// RFC 6749 §4.3.2: invalid credentials in ROPC MUST return invalid_grant (not invalid_client)
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", fmt.Sprintf("Invalid username or password: %v", err))
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid username or password")
 			return
 		}
 		// Enforce MFA on password grant when required or when user has TOTP enrolled.
@@ -216,7 +216,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		ccToken, ccErr := GenerateClientCredentialsToken(request.ClientID, ccScope, ccCfg)
 		if ccErr != nil {
 			slog.Error("token: failed to generate client_credentials token", "request_id", reqid.Get(r.Context()), "error", ccErr)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", ccErr))
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Token generation failed")
 			return
 		}
 
@@ -234,7 +234,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		})
 		if ccErr != nil {
 			slog.Error("token: failed to store client_credentials token", "request_id", reqid.Get(r.Context()), "error", ccErr)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", ccErr))
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store token")
 			return
 		}
 
@@ -332,7 +332,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	authToken, err := GenerateTokens(*usr, request.ClientID, codeScope, clientCfg)
 	if err != nil {
 		slog.Error("token: failed to generate tokens", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("Token generation failed: %v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Token generation failed")
 		return
 	}
 
@@ -350,7 +350,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		slog.Error("token: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store token")
 		return
 	}
 
@@ -370,7 +370,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		slog.Error("token: failed to create session", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("%v", err))
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create session")
 		return
 	}
 
@@ -388,7 +388,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		idToken, idErr := GenerateIDToken(*usr, authToken.SessionID, codeNonce, codeScope, request.ClientID, codeAuthTime, authToken.AccessToken)
 		if idErr != nil {
 			slog.Error("token: failed to generate ID token", "request_id", reqid.Get(r.Context()), "error", idErr)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", fmt.Sprintf("ID token generation failed: %v", idErr))
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Token generation failed")
 			return
 		}
 		response.IDToken = idToken

@@ -1,6 +1,7 @@
 package account
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/federation"
@@ -26,7 +27,8 @@ func HandleListConnectedProviders(w http.ResponseWriter, r *http.Request) {
 
 	identities, err := federation.FederatedIdentitiesByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to list connected providers", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list connected providers")
 		return
 	}
 
@@ -79,7 +81,8 @@ func HandleDisconnectProvider(w http.ResponseWriter, r *http.Request) {
 
 	identities, err := federation.FederatedIdentitiesByUserID(usr.ID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to list federated identities", "error", err, "user_id", usr.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list connected providers")
 		return
 	}
 
@@ -104,7 +107,8 @@ func HandleDisconnectProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := federation.DeleteFederatedIdentity(identityID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", err.Error())
+		slog.Error("account: failed to disconnect provider", "error", err, "identity_id", identityID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to disconnect provider")
 		return
 	}
 

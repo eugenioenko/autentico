@@ -189,6 +189,15 @@ func UserExistsByEmail(email string) bool {
 	return count > 0
 }
 
+func UserExistsByUsername(username string) bool {
+	var count int
+	if err := db.GetDB().QueryRow(`SELECT COUNT(*) FROM users WHERE username = ? AND deactivated_at IS NULL`, username).Scan(&count); err != nil {
+		slog.Error("user: failed to check username existence", "error", err, "username", username)
+		return false
+	}
+	return count > 0
+}
+
 // UserByIDIncludingDeactivated returns a user by ID without filtering by deactivated_at.
 // Used by introspection and admin operations that need to check deactivated users.
 func UserByIDIncludingDeactivated(userID string) (*User, error) {
