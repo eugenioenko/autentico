@@ -16,6 +16,7 @@ type AccessTokenClaims struct {
 	ExpiresAt int64    `json:"exp"`
 	Audience  []string `json:"aud"`
 	Issuer    string   `json:"iss"`
+	Scope     string   `json:"scope"`
 }
 
 func (a *AccessTokenClaims) Valid() error {

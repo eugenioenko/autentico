@@ -353,6 +353,50 @@ func TestAccountAuthMiddleware_WWWAuthenticate_On401(t *testing.T) {
 	}
 }
 
+func TestAccountAuthMiddleware_InsufficientScope(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, _ = db.GetDB().Exec(`INSERT INTO users (id, username, email, password, role) VALUES (?, 'scopeuser', 'scope@example.com', 'hashed', 'user')`, userID)
+
+	accessClaims := jwt.MapClaims{
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+		"iss":   config.GetBootstrap().AppAuthIssuer,
+		"aud":   []string{config.GetBootstrap().AppAuthIssuer, config.AccountClientID},
+		"sub":   userID,
+		"typ":   "Bearer",
+		"sid":   xid.New().String(),
+		"scope": "openid",
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
+	accessToken.Header["kid"] = config.GetBootstrap().AuthJwkCertKeyID
+	token, err := accessToken.SignedString(key.GetPrivateKey())
+	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := AccountAuthMiddleware(handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code)
+	assert.Contains(t, rr.Body.String(), "insufficient_scope")
+}
+
+func TestHasRequiredScopes(t *testing.T) {
+	assert.True(t, hasRequiredScopes("openid profile email", []string{"openid", "profile", "email"}))
+	assert.True(t, hasRequiredScopes("openid profile email offline_access", []string{"openid", "profile", "email"}))
+	assert.False(t, hasRequiredScopes("openid", []string{"openid", "profile", "email"}))
+	assert.False(t, hasRequiredScopes("openid profile", []string{"openid", "profile", "email"}))
+	assert.False(t, hasRequiredScopes("", []string{"openid", "profile", "email"}))
+	assert.True(t, hasRequiredScopes("openid profile email", []string{}))
+}
+
 // Verify that lowercase "bearer" is accepted (RFC 6750 §2.1 / RFC 7235).
 func TestAccountAuthMiddleware_CaseInsensitiveBearer(t *testing.T) {
 	testutils.WithTestDB(t)

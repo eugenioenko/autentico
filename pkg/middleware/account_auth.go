@@ -13,6 +13,23 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+func hasRequiredScopes(tokenScope string, required []string) bool {
+	scopes := strings.Fields(tokenScope)
+	for _, req := range required {
+		found := false
+		for _, s := range scopes {
+			if s == req {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 // AccountAuthMiddleware verifies that the request has a valid JWT token
 // issued for the account API (audience "autentico-account" or "autentico-admin").
 func AccountAuthMiddleware(next http.Handler) http.Handler {
@@ -49,6 +66,16 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		if err := jwtutil.ValidateAudience(claims.Audience, []string{config.AccountClientID, config.AdminClientID}); err != nil {
 			slog.Warn("account_auth: token not issued for account API", "aud", claims.Audience, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Token not issued for account API")
+			return
+		}
+
+		// Require openid, profile, and email scopes for account API access.
+		// This prevents third-party tokens with partial scopes from performing
+		// account management operations beyond what the user consented to.
+		// TODO #365: add per-field phone and address scope enforcement
+		if !hasRequiredScopes(claims.Scope, []string{"openid", "profile", "email"}) {
+			slog.Warn("account_auth: insufficient scope", "scope", claims.Scope, "ip", utils.GetClientIP(r))
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token requires openid, profile, and email scopes")
 			return
 		}
 
