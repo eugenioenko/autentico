@@ -665,4 +665,59 @@ func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {
 	assert.False(t, old.Used)
 }
 
+func TestHandleMfa_Post_TotpLockedAfter5Attempts(t *testing.T) {
+	testutils.WithTestDB(t)
+	u, _ := user.CreateUser("mfalock", "pass", "mfalock@example.com")
+	secret, _, _ := GenerateTotpSecret("mfalock", "Auth")
+	_ = user.SaveTotpSecret(u.ID, secret)
+
+	c := MfaChallenge{
+		ID:         "chall-lock",
+		UserID:     u.ID,
+		Method:     "totp",
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"autentico-account","scope":"openid profile email"}`,
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	_ = CreateMfaChallenge(c)
+
+	// First 4 wrong attempts — should re-render the verify page
+	for i := 0; i < 4; i++ {
+		form := url.Values{}
+		form.Set("challenge_id", "chall-lock")
+		form.Set("code", "000000")
+		req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+		HandleMfa(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code, "attempt %d should render verify page", i+1)
+		assert.Contains(t, rr.Body.String(), "Invalid verification code")
+	}
+
+	// 5th wrong attempt — should lock the challenge and redirect to login
+	form := url.Values{}
+	form.Set("challenge_id", "chall-lock")
+	form.Set("code", "000000")
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleMfa(rr, req)
+	assert.Equal(t, http.StatusFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Location"), "error=Too+many+failed+attempts")
+
+	// 6th attempt — challenge is used, should be rejected
+	form = url.Values{}
+	form.Set("challenge_id", "chall-lock")
+	form.Set("code", "000000")
+	req = httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr = httptest.NewRecorder()
+	HandleMfa(rr, req)
+	assert.Equal(t, http.StatusFound, rr.Code)
+
+	// Verify the challenge is marked as used
+	ch, _ := MfaChallengeByIDIncludingExpired("chall-lock")
+	assert.True(t, ch.Used)
+	assert.GreaterOrEqual(t, ch.FailedAttempts, 5)
+}
+
 func boolPtr(b bool) *bool { return &b }
