@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -191,6 +192,19 @@ type UserUpdateRequest struct {
 	AddressCountry    string `json:"address_country,omitempty"`
 }
 
+// validateURLScheme checks that a URL string uses http or https scheme.
+// Returns an error for javascript:, file:, data:, and other non-http(s) schemes.
+func validateURLScheme(value string) error {
+	u, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("invalid URL")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("URL must use http or https scheme")
+	}
+	return nil
+}
+
 func ValidateUserUpdateRequest(input UserUpdateRequest) error {
 	if input.Username != "" {
 		if err := validation.Validate(input.Username, validation.Length(config.Get().ValidationMinUsernameLength, config.Get().ValidationMaxUsernameLength)); err != nil {
@@ -210,6 +224,21 @@ func ValidateUserUpdateRequest(input UserUpdateRequest) error {
 	if input.Role != "" {
 		if err := validation.Validate(input.Role, validation.In("user", "admin")); err != nil {
 			return fmt.Errorf("role is invalid: %w", err)
+		}
+	}
+	if input.Picture != "" {
+		if err := validateURLScheme(input.Picture); err != nil {
+			return fmt.Errorf("picture is invalid: %w", err)
+		}
+	}
+	if input.Website != "" {
+		if err := validateURLScheme(input.Website); err != nil {
+			return fmt.Errorf("website is invalid: %w", err)
+		}
+	}
+	if input.ProfileURL != "" {
+		if err := validateURLScheme(input.ProfileURL); err != nil {
+			return fmt.Errorf("profile URL is invalid: %w", err)
 		}
 	}
 	return nil
