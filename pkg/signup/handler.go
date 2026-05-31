@@ -145,14 +145,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	usr, err := user.CreateUser(username, password, emailAddr)
-	if err != nil {
-		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
-		return
-	}
-	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
-
-	// Save optional/required profile fields
+	// Validate profile fields (e.g. URL scheme checks) before creating the user
 	profileUpdate := user.UserUpdateRequest{
 		GivenName:         profileFields["given_name"],
 		FamilyName:        profileFields["family_name"],
@@ -165,6 +158,19 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		AddressPostalCode: profileFields["address_postal_code"],
 		AddressCountry:    profileFields["address_country"],
 	}
+	if err := user.ValidateUserUpdateRequest(profileUpdate); err != nil {
+		redirectSignupError(w, r, params, err.Error())
+		return
+	}
+
+	usr, err := user.CreateUser(username, password, emailAddr)
+	if err != nil {
+		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
+		return
+	}
+	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
+
+	// Save profile fields
 	_ = user.UpdateUser(usr.ID, profileUpdate)
 
 	// Email verification gate — non-admin users with an email must verify before logging in
