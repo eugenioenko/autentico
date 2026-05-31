@@ -189,8 +189,14 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Verification flow: validate against stored secret
 			if !ValidateTotpCode(usr.TotpSecret, code) {
-				slog.Warn("mfa: invalid TOTP verification code", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
+				_ = IncrementFailedAttempts(challenge.ID)
+				slog.Warn("mfa: invalid TOTP verification code", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r), "attempts", challenge.FailedAttempts+1)
 				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
+				if challenge.FailedAttempts+1 >= 5 {
+					_ = MarkChallengeUsed(challenge.ID)
+					redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
+					return
+				}
 				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
 				return
 			}
