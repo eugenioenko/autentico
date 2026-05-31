@@ -72,6 +72,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		// Require openid, profile, and email scopes for account API access.
 		// This prevents third-party tokens with partial scopes from performing
 		// account management operations beyond what the user consented to.
+		// TODO #365: add per-field phone and address scope enforcement
 		if !hasRequiredScopes(claims.Scope, []string{"openid", "profile", "email"}) {
 			slog.Warn("account_auth: insufficient scope", "scope", claims.Scope, "ip", utils.GetClientIP(r))
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token requires openid, profile, and email scopes")
