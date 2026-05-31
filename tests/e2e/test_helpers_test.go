@@ -113,6 +113,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 		"response_type":        {"code"},
 		"client_id":            {clientID},
 		"redirect_uri":         {redirectURI},
+		"scope":                {"openid profile email"},
 		"state":                {state},
 		"code_challenge":       {testCodeChallenge},
 		"code_challenge_method": {"S256"},
@@ -137,6 +138,7 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form.Set("username", username)
 	form.Set("password", password)
 	form.Set("redirect_uri", redirectURI)
+	form.Set("scope", "openid profile email")
 	form.Set("state", state)
 	form.Set("client_id", clientID)
 	form.Set("code_challenge", testCodeChallenge)
