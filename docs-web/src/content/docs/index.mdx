@@ -1,5 +1,5 @@
 ---
-title: Self-hosted OAuth2 / OpenID Connect Identity Provider
+title: Self-hosted OAuth2 / OIDC Identity Provider
 template: splash
 hero:
   tagline: Simple. Safe. Self-hosted. Identity on your terms.
@@ -22,7 +22,7 @@ import { Card, CardGrid, LinkButton } from "@astrojs/starlight/components";
 
 ## What is Autentico?
 
-Autentico is a self-hosted OAuth 2.0 / OpenID Connect Identity Provider built with Go. It handles the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration, all in a single binary backed by SQLite.
+Autentico is a self-hosted OAuth 2.0 / OIDC Identity Provider designed for operational simplicity. It covers the full authentication lifecycle: login, MFA, passkeys, session management, token issuance, and administration. All in a single binary with zero external dependencies.
 
 A typical self-hosted Identity Provider involves a database server, a cache layer, multiple processes, and everything that comes with keeping them running. Autentico removes that stack: just one binary and one database file. If you have multiple projects, point them all at one instance and centralize your users, sessions, and security in one place. The simplicity is operational, not protocol-level.
 
