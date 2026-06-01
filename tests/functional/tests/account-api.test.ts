@@ -67,3 +67,30 @@ describe('Account API — audience enforcement', () => {
     expect(resp.status).toBe(403);
   });
 });
+
+describe('Account API — scope enforcement', () => {
+  it('rejects token with only openid scope', async () => {
+    const tokens = await obtainAccountToken('admin', 'Password123!', 'openid');
+
+    const resp = await getResponse(`${BASE_URL}/account/api/profile`, tokens.access_token);
+    expect(resp.status).toBe(403);
+    const body = await resp.json();
+    expect(body.error).toBe('insufficient_scope');
+  });
+
+  it('rejects token with openid profile (missing email)', async () => {
+    const tokens = await obtainAccountToken('admin', 'Password123!', 'openid profile');
+
+    const resp = await getResponse(`${BASE_URL}/account/api/profile`, tokens.access_token);
+    expect(resp.status).toBe(403);
+    const body = await resp.json();
+    expect(body.error).toBe('insufficient_scope');
+  });
+
+  it('accepts token with openid profile email', async () => {
+    const tokens = await obtainAccountToken('admin', 'Password123!', 'openid profile email');
+
+    const resp = await getResponse(`${BASE_URL}/account/api/profile`, tokens.access_token);
+    expect(resp.status).toBe(200);
+  });
+});
