@@ -112,7 +112,7 @@ export default function ClientsPage() {
           : undefined,
       ellipsis: true,
       render: (name: string) => (
-        <Text copyable={{ text: name }}>
+        <Text copyable={{ text: name }} ellipsis>
           {name}
         </Text>
       ),
@@ -130,7 +130,7 @@ export default function ClientsPage() {
           : undefined,
       ellipsis: true,
       render: (id: string) => (
-        <Text copyable={{ text: id }}>
+        <Text copyable={{ text: id }} ellipsis>
           {id}
         </Text>
       ),

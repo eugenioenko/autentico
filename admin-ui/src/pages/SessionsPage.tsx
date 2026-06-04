@@ -473,7 +473,7 @@ export default function SessionsPage() {
       key: "email",
       ellipsis: true,
       render: (email: string) => (
-        <Typography.Text copyable={{ text: email }}>
+        <Typography.Text copyable={{ text: email }} ellipsis>
           {email}
         </Typography.Text>
       ),

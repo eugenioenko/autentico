@@ -112,7 +112,7 @@ export default function DeletionRequestsTab() {
       sorter: true,
       ellipsis: true,
       render: (email: string) => (
-        <Text copyable={{ text: email }}>
+        <Text copyable={{ text: email }} ellipsis>
           {email}
         </Text>
       ),
