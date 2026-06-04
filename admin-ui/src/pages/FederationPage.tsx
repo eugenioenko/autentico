@@ -105,7 +105,6 @@ export default function FederationPage() {
       key: "name",
       sorter: true,
       sortOrder: sortOrder("name"),
-      ellipsis: true,
       render: (name: string) => (
         <Text copyable={{ text: name }} ellipsis>
           {name}
@@ -118,7 +117,6 @@ export default function FederationPage() {
       key: "issuer",
       sorter: true,
       sortOrder: sortOrder("issuer"),
-      ellipsis: true,
       render: (issuer: string) => (
         <Text copyable={{ text: issuer }} ellipsis>
           {issuer}
@@ -131,7 +129,6 @@ export default function FederationPage() {
       key: "client_id",
       sorter: true,
       sortOrder: sortOrder("client_id"),
-      ellipsis: true,
       render: (id: string) => (
         <Text copyable={{ text: id }} ellipsis>
           {id}

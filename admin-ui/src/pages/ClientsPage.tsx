@@ -110,7 +110,6 @@ export default function ClientsPage() {
             ? "descend"
             : "ascend"
           : undefined,
-      ellipsis: true,
       render: (name: string) => (
         <Text copyable={{ text: name }} ellipsis>
           {name}
@@ -128,7 +127,6 @@ export default function ClientsPage() {
             ? "descend"
             : "ascend"
           : undefined,
-      ellipsis: true,
       render: (id: string) => (
         <Text copyable={{ text: id }} ellipsis>
           {id}

@@ -192,7 +192,6 @@ export default function UsersPage() {
       dataIndex: "email",
       key: "email",
       sorter: true,
-      ellipsis: true,
       render: (email: string) => (
         <Typography.Text copyable={{ text: email }} ellipsis>
           {email}

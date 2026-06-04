@@ -216,7 +216,6 @@ export default function AuditLogPage() {
       title: "Target",
       key: "target",
       width: 200,
-      ellipsis: true,
       render: (_: unknown, record: AuditLogEntry) => {
         if (!record.target_type && !record.target_id)
           return <Text type="secondary">—</Text>;

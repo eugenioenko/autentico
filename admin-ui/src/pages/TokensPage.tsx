@@ -184,7 +184,6 @@ export default function TokensPage() {
       title: "Email",
       dataIndex: "email",
       key: "email",
-      ellipsis: true,
       render: (email: string) =>
         email ? (
           <Typography.Text copyable={{ text: email }} ellipsis>
