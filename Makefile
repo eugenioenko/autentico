@@ -1,5 +1,7 @@
 # Variables
 APP_NAME=autentico
+VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS=-s -w -X github.com/eugenioenko/autentico/pkg/cli.Version=$(VERSION)
 SWAG=$(shell go env GOPATH)/bin/swag
 
 # Default target
@@ -7,11 +9,11 @@ all: build
 
 # Build Go binary
 build-go:
-	go build -o $(APP_NAME) main.go
+	go build -ldflags="$(LDFLAGS)" -o $(APP_NAME) main.go
 
 # Build admin UI + account UI + Go binary
 build: admin-ui-build account-ui-build
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(APP_NAME) main.go
 	@echo ""
 	@echo "Build complete. Binary: ./$(APP_NAME)"
 	@echo ""
@@ -74,7 +76,7 @@ account-ui-build:
 
 # Fast build: skip tsc type-checking in UI builds
 fast: admin-ui-build-fast account-ui-build-fast
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(APP_NAME) main.go
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(APP_NAME) main.go
 	@echo ""
 	@echo "Fast build complete. Binary: ./$(APP_NAME)"
 	@echo ""
