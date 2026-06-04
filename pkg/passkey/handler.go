@@ -485,6 +485,168 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"redirect": redirectURL})
 }
 
+// HandleDiscoverableLoginBegin starts a discoverable (usernameless) passkey login ceremony.
+// No username is required — the authenticator identifies the user via a resident credential.
+func HandleDiscoverableLoginBegin(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+
+	if !authzsig.Verify(authzsig.AuthorizeParams{
+		ClientID:            q.Get("client_id"),
+		RedirectURI:         q.Get("redirect_uri"),
+		Scope:               q.Get("scope"),
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
+		State:               q.Get("state"),
+	}, q.Get("authorize_sig")) {
+		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
+		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
+		return
+	}
+
+	loginState := LoginState{
+		RedirectURI:         q.Get("redirect_uri"),
+		State:               q.Get("state"),
+		ClientID:            q.Get("client_id"),
+		Scope:               q.Get("scope"),
+		Nonce:               q.Get("nonce"),
+		CodeChallenge:       q.Get("code_challenge"),
+		CodeChallengeMethod: q.Get("code_challenge_method"),
+	}
+	stateJSON, err := json.Marshal(loginState)
+	if err != nil {
+		slog.Error("passkey: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	wauthn, err := NewWebAuthn()
+	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	challengeID, err := authcode.GenerateSecureCode()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	var assertion *protocol.CredentialAssertion
+	var session *webauthn.SessionData
+	if q.Get("mediation") == "conditional" {
+		assertion, session, err = wauthn.BeginDiscoverableMediatedLogin(protocol.MediationConditional)
+	} else {
+		assertion, session, err = wauthn.BeginDiscoverableLogin()
+	}
+	if err != nil {
+		slog.Error("passkey: failed to begin discoverable login", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	sessionJSON, _ := json.Marshal(session)
+	challenge := PasskeyChallenge{
+		ID:            challengeID,
+		ChallengeData: string(sessionJSON),
+		Type:          "discoverable-authentication",
+		LoginState:    string(stateJSON),
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}
+	if err := CreatePasskeyChallenge(challenge); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"type":         "discoverable-authentication",
+		"challenge_id": challengeID,
+		"options":      assertion,
+	})
+}
+
+// HandleDiscoverableLoginFinish completes a discoverable (usernameless) passkey login ceremony.
+func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
+	challengeID := r.URL.Query().Get("challenge_id")
+	if challengeID == "" {
+		writeJSONError(w, http.StatusBadRequest, "missing challenge_id")
+		return
+	}
+
+	challenge, err := PasskeyChallengeByIDIncludingExpired(challengeID)
+	if err != nil || challenge.Type != "discoverable-authentication" {
+		writeJSONError(w, http.StatusBadRequest, "invalid challenge")
+		return
+	}
+	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
+		writeJSONError(w, http.StatusBadRequest, "challenge expired")
+		return
+	}
+
+	var session webauthn.SessionData
+	if err := json.Unmarshal([]byte(challenge.ChallengeData), &session); err != nil {
+		slog.Error("passkey: failed to parse session data", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	wauthn, err := NewWebAuthn()
+	if err != nil {
+		slog.Error("passkey: failed to initialize WebAuthn", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	handler := func(rawID, userHandle []byte) (webauthn.User, error) {
+		userID := string(userHandle)
+		usr, err := user.UserByID(userID)
+		if err != nil {
+			return nil, fmt.Errorf("user not found")
+		}
+		creds, _ := PasskeyCredentialsByUserID(usr.ID)
+		if len(creds) == 0 {
+			return nil, fmt.Errorf("no passkey credentials")
+		}
+		return WebAuthnUser{
+			ID:          []byte(usr.ID),
+			Name:        usr.Username,
+			Credentials: CredentialsToWebAuthn(creds),
+		}, nil
+	}
+
+	resolvedUser, credential, err := wauthn.FinishPasskeyLogin(handler, session, r)
+	if err != nil {
+		slog.Warn("passkey: discoverable authentication failed", "request_id", reqid.Get(r.Context()), "error", err, "ip", utils.GetClientIP(r))
+		audit.Log(audit.EventPasskeyLoginFailed, nil, audit.TargetUser, "", nil, utils.GetClientIP(r))
+		writeJSONError(w, http.StatusUnauthorized, "authentication_failed")
+		return
+	}
+
+	usr, err := user.UserByID(string(resolvedUser.WebAuthnID()))
+	if err != nil {
+		slog.Error("passkey: failed to load resolved user", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
+	_ = UpdatePasskeyCredential(credentialID, *credential)
+	_ = MarkPasskeyChallengeUsed(challenge.ID)
+	audit.Log(audit.EventPasskeyLoginSuccess, usr, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
+
+	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
+	if err != nil {
+		slog.Error("passkey: failed to complete auth flow", "request_id", reqid.Get(r.Context()), "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"redirect": redirectURL})
+}
+
 // completeAuthFlow creates an IdP session and auth code, returning the redirect URL.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, loginStateJSON string) (string, error) {
 	var loginState LoginState

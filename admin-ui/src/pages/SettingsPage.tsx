@@ -114,6 +114,7 @@ const tip = makeTip({
   theme_tagline: "Optional tagline shown below the logo on login pages and in emails.",
   email_footer_text: "Optional text shown in the email footer (e.g. copyright, company address). Supports multiple lines.",
   passkey_rp_name: "Relying Party name shown during passkey creation/usage.",
+  passkey_login_mode: "How passkeys are presented on the login page. Username First: user enters username first. Discoverable: button triggers usernameless login. Conditional: browser auto-surfaces passkeys via autofill. Passkey Only: no username field, only passkey login.",
   magic_link_enabled: "Allow users to sign in via a magic link sent to their email, without entering a password. Requires SMTP.",
   magic_link_expiration: "How long a magic link remains valid (e.g. 15m, 30m).",
 }, "https://autentico.top/configuration/runtime-settings");
@@ -176,6 +177,23 @@ export default function SettingsPage() {
   const emailVerifyWithoutSmtp = (requireEmailVerification === true || requireEmailVerification === "true") && !smtpHost;
   const magicLinkEnabled = Form.useWatch("magic_link_enabled", form);
   const magicLinkWithoutSmtp = (magicLinkEnabled === true || magicLinkEnabled === "true") && !smtpHost;
+  const authMode = Form.useWatch("auth_mode", form);
+  const passkeyLoginMode = Form.useWatch("passkey_login_mode", form);
+  const profileFieldEmail = Form.useWatch("profile_field_email", form);
+  const passkeyModeWithoutPasskeys = passkeyLoginMode && passkeyLoginMode !== "username_first" && authMode === "password";
+  const passkeyOnlyWithPasswordFallback = passkeyLoginMode === "passkey_only" && authMode === "password_and_passkey";
+
+  const authModeDescriptions: Record<string, string> = {
+    password: "Users log in with username and password only. Passkey options are disabled on the login page.",
+    password_and_passkey: "Users can log in with either password or passkey. Both options are shown on the login page.",
+    passkey_only: "Users log in with passkeys only. Password and username fields are hidden from the login page.",
+  };
+  const passkeyLoginModeDescriptions: Record<string, string> = {
+    username_first: "User enters their username first, then authenticates with their registered passkey.",
+    discoverable: "A \"Sign in with passkey\" button lets users log in without entering a username. The browser shows all passkeys registered for this site.",
+    conditional: "The browser automatically surfaces registered passkeys in the username field's autofill dropdown when the login page loads.",
+    passkey_only: "Only passkey login is available — no username or password fields are shown. Requires Authentication Mode set to Passkey Only to fully hide the username field.",
+  };
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -332,6 +350,14 @@ export default function SettingsPage() {
                       <Select.Option value="passkey_only">Passkey Only</Select.Option>
                     </Select>
                   </Form.Item>
+                  {authMode && authModeDescriptions[authMode] && form.isFieldTouched("auth_mode") && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={authModeDescriptions[authMode]}
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
 
                   <Form.Item
                     label="Email Field Behavior"
@@ -345,6 +371,15 @@ export default function SettingsPage() {
                       <Select.Option value="is_username">Username is Email</Select.Option>
                     </Select>
                   </Form.Item>
+                  {profileFieldEmail === "is_username" && form.isFieldTouched("profile_field_email") && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Compatibility warning"
+                      description="When enabled, the username field is replaced by the email field. Existing users must have valid email addresses as their usernames for login to work. Users with non-email usernames will be unable to log in."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
 
                   <Form.Item name="allow_self_signup" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
@@ -425,6 +460,55 @@ export default function SettingsPage() {
                   >
                     <DurationInput />
                   </Form.Item>
+
+                  <Divider />
+
+                  <Title level={5} style={{ marginTop: 0 }}>Passkeys</Title>
+                  <Form.Item
+                    label="Passkey RP Name"
+                    name="passkey_rp_name"
+                    tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input />
+                  </Form.Item>
+                  <Form.Item
+                    label="Passkey Login Mode"
+                    name="passkey_login_mode"
+                    tooltip={{ title: tip("passkey_login_mode"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Select>
+                      <Select.Option value="username_first">Username First</Select.Option>
+                      <Select.Option value="discoverable">Discoverable</Select.Option>
+                      <Select.Option value="conditional">Conditional (Autofill)</Select.Option>
+                      <Select.Option value="passkey_only">Passkey Only</Select.Option>
+                    </Select>
+                  </Form.Item>
+                  {passkeyLoginMode && passkeyLoginModeDescriptions[passkeyLoginMode] && form.isFieldTouched("passkey_login_mode") && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={passkeyLoginModeDescriptions[passkeyLoginMode]}
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
+                  {passkeyModeWithoutPasskeys && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Passkey login is disabled"
+                      description="Authentication Mode is set to Password Only. Set it to Password & Passkey or Passkey Only for this setting to take effect."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
+                  {passkeyOnlyWithPasswordFallback && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="Password login is still enabled"
+                      description="The username field will remain visible for password fallback. Set Authentication Mode to Passkey Only to fully hide it."
+                      style={{ marginBottom: 16 }}
+                    />
+                  )}
                 </TabContent>
               ),
             },
@@ -479,16 +563,6 @@ export default function SettingsPage() {
                     <DurationInput />
                   </Form.Item>
 
-                  <Divider />
-
-                  <Title level={5} style={{ marginTop: 0 }}>Passkeys</Title>
-                  <Form.Item
-                    label="Passkey RP Name"
-                    name="passkey_rp_name"
-                    tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input />
-                  </Form.Item>
                 </TabContent>
               ),
             },

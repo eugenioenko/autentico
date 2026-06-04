@@ -27,6 +27,7 @@ var defaults = map[string]string{
 	"account_lockout_duration":       "15m",
 	"auth_mode":                      "password",
 	"passkey_rp_name":                "Autentico",
+	"passkey_login_mode":             "username_first",
 	"trust_device_enabled":           "false",
 	"trust_device_expiration":        "720h",
 	"cleanup_interval":               "6h",
@@ -179,6 +180,9 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["passkey_rp_name"]; ok {
 		cfg.PasskeyRPName = v
+	}
+	if v, ok := all["passkey_login_mode"]; ok {
+		cfg.PasskeyLoginMode = v
 	}
 	if v, ok := all["trust_device_enabled"]; ok {
 		cfg.TrustDeviceEnabled = parseBool(v, false)

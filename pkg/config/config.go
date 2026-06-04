@@ -95,6 +95,7 @@ type Config struct {
 	AuthAccountLockoutDurationStr      string
 	AuthMode                           string
 	PasskeyRPName                      string
+	PasskeyLoginMode                   string
 	TrustDeviceEnabled                 bool
 	TrustDeviceExpiration              time.Duration
 	TrustDeviceExpirationStr           string
@@ -179,6 +180,7 @@ var defaultConfig = Config{
 	AuthAccountLockoutDurationStr:      "15m",
 	AuthMode:                           "password",
 	PasskeyRPName:                      "Autentico",
+	PasskeyLoginMode:                   "username_first",
 	TrustDeviceEnabled:                 false,
 	TrustDeviceExpiration:              30 * 24 * time.Hour,
 	TrustDeviceExpirationStr:           "720h",

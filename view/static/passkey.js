@@ -43,6 +43,41 @@ async function doPasskeyAuth(data, oauthPath) {
   window.location.href = result.redirect;
 }
 
+async function doDiscoverablePasskeyAuth(data, oauthPath, mediation, signal) {
+  const opts = data.options.publicKey;
+  opts.challenge = b64urlToBuffer(opts.challenge);
+  const getOpts = { publicKey: opts };
+  if (mediation) { getOpts.mediation = mediation; }
+  if (signal) { getOpts.signal = signal; }
+  let cred;
+  try {
+    cred = await navigator.credentials.get(getOpts);
+  } catch (e) {
+    if (e.name === 'AbortError') { throw e; }
+    showPasskeyError('Passkey cancelled or not available.');
+    return;
+  }
+  const body = {
+    id: cred.id,
+    rawId: bufferToB64url(cred.rawId),
+    type: cred.type,
+    response: {
+      clientDataJSON: bufferToB64url(cred.response.clientDataJSON),
+      authenticatorData: bufferToB64url(cred.response.authenticatorData),
+      signature: bufferToB64url(cred.response.signature),
+      userHandle: cred.response.userHandle ? bufferToB64url(cred.response.userHandle) : null,
+    },
+  };
+  const finishResp = await fetch(oauthPath + '/passkey/discoverable/finish?challenge_id=' + data.challenge_id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await finishResp.json();
+  if (!finishResp.ok) { showPasskeyError(result.error || 'Authentication failed'); return; }
+  window.location.href = result.redirect;
+}
+
 async function doPasskeyRegister(data, oauthPath) {
   const opts = data.options.publicKey;
   opts.challenge = b64urlToBuffer(opts.challenge);

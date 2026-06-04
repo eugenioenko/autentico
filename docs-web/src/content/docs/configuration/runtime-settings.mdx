@@ -225,6 +225,18 @@ Default: `Autentico`
 
 WebAuthn relying party name displayed in the browser's passkey prompt.
 
+### `passkey_login_mode`
+Default: `username_first`
+
+Controls how passkeys are presented on the login page. Only applies when `auth_mode` includes passkeys (`password_and_passkey` or `passkey_only`). One of:
+
+- **`username_first`** — User enters their username first, then authenticates with their registered passkey. This is the default and most compatible mode.
+- **`discoverable`** — A "Sign in with passkey" button triggers a usernameless login. The browser/authenticator shows all passkeys registered for this site without needing a username. Works best with platform authenticators (Apple, Windows Hello) and hardware security keys.
+- **`conditional`** — The browser automatically surfaces registered passkeys in the username field's autofill dropdown when the login page loads. This is the most seamless experience for users with password managers that support passkeys. The username and password fields remain available as fallback.
+- **`passkey_only`** — No username or password fields are shown. Only discoverable passkey login is available. Requires `auth_mode` set to `passkey_only` to fully hide the username field; if `auth_mode` is `password_and_passkey`, the username field remains visible for password fallback.
+
+See [Passkeys — Login modes](/authentication/passkeys/#login-modes) for detailed guidance on choosing a mode.
+
 ---
 
 ## Input validation
