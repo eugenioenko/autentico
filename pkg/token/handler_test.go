@@ -14,6 +14,7 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 
@@ -1307,4 +1308,78 @@ func TestHandleToken_RefreshTokenGrant_ClientMismatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rr2.Code)
 	assert.Contains(t, rr2.Body.String(), "invalid_grant")
+}
+
+// TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity verifies that
+// a refresh_token grant resets the IdP session's last_activity_at, so the idle
+// sweeper measures inactivity from the last token refresh rather than the
+// original login. See https://github.com/eugenioenko/autentico/issues/376
+func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Bootstrap.AuthRefreshTokenCookieOnly = false
+	})
+
+	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
+	require.NoError(t, err)
+
+	// Create an IdP session with last_activity_at set far in the past.
+	idpID := "idp-idle-test"
+	err = idpsession.CreateIdpSession(idpsession.IdpSession{
+		ID:     idpID,
+		UserID: usr.ID,
+	})
+	require.NoError(t, err)
+
+	staleTime := time.Now().Add(-2 * time.Hour)
+	_, err = db.GetDB().Exec(
+		`UPDATE idp_sessions SET last_activity_at = ? WHERE id = ?`,
+		staleTime, idpID,
+	)
+	require.NoError(t, err)
+
+	// Issue tokens via authorization_code linked to the IdP session.
+	code := authcode.AuthCode{
+		Code:         "idle-test-code",
+		UserID:       usr.ID,
+		RedirectURI:  "http://localhost/callback",
+		Scope:        "openid profile email",
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+		IdpSessionID: idpID,
+	}
+	require.NoError(t, authcode.CreateAuthCode(code))
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("code", "idle-test-code")
+	form.Add("redirect_uri", "http://localhost/callback")
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleToken(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var tokenResp TokenResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &tokenResp))
+
+	// Refresh the token.
+	form2 := url.Values{}
+	form2.Add("grant_type", "refresh_token")
+	form2.Add("refresh_token", tokenResp.RefreshToken)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr2 := httptest.NewRecorder()
+	HandleToken(rr2, req2)
+	require.Equal(t, http.StatusOK, rr2.Code)
+
+	// Verify last_activity_at was updated to roughly now (within 5s).
+	var lastActivity time.Time
+	err = db.GetDB().QueryRow(
+		`SELECT last_activity_at FROM idp_sessions WHERE id = ?`, idpID,
+	).Scan(&lastActivity)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), lastActivity, 5*time.Second,
+		"refresh_token grant must update idp_sessions.last_activity_at")
 }
