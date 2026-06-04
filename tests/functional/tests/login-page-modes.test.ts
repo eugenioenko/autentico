@@ -40,10 +40,10 @@ describe('Login page — auth_mode=password (default)', () => {
     expect(html).toContain('id="password"');
   });
 
-  it('shows Log In button', async () => {
+  it('shows Log In button with correct text', async () => {
     const html = await fetchLoginPage();
     expect(html).toContain('type="submit"');
-    expect(html).toContain('Log In');
+    expect(html).toContain('>Log In<');
   });
 
   it('does not show passkey button', async () => {
@@ -53,7 +53,7 @@ describe('Login page — auth_mode=password (default)', () => {
 
   it('does not show "or" divider', async () => {
     const html = await fetchLoginPage();
-    expect(html).not.toContain('auth-divider');
+    expect(html).not.toContain('"auth-divider">or<');
   });
 });
 
@@ -65,13 +65,18 @@ describe('Login page — auth_mode=password_and_passkey', () => {
 
       expect(html).toContain('id="username"');
       expect(html).toContain('id="password"');
-      expect(html).toContain('Log In');
+      expect(html).toContain('>Log In<');
       expect(html).toContain('id="passkey-login-btn"');
+    });
+
+    it('passkey button says "Sign in with passkey"', async () => {
+      const html = await fetchLoginPage();
+      expect(html).toContain('Sign in with passkey');
     });
 
     it('shows "or" divider between login and passkey buttons', async () => {
       const html = await fetchLoginPage();
-      expect(html).toContain('auth-divider');
+      expect(html).toContain('"auth-divider">or<');
     });
 
     it('passkey button is secondary', async () => {
@@ -124,12 +129,13 @@ describe('Login page — auth_mode=passkey_only', () => {
       expect(html).not.toContain('id="password"');
     });
 
-    it('shows passkey button as primary', async () => {
+    it('shows passkey button as primary with correct text', async () => {
       const html = await fetchLoginPage();
       const btnMatch = html.match(/<button[^>]*class="([^"]*)"[^>]*id="passkey-login-btn"/);
       expect(btnMatch).toBeTruthy();
       expect(btnMatch![1]).toContain('auth-btn');
       expect(btnMatch![1]).not.toContain('auth-btn-secondary');
+      expect(html).toContain('Sign in with passkey');
     });
 
     it('does not show Log In button', async () => {
@@ -139,7 +145,7 @@ describe('Login page — auth_mode=passkey_only', () => {
 
     it('does not show "or" divider', async () => {
       const html = await fetchLoginPage();
-      expect(html).not.toContain('auth-divider');
+      expect(html).not.toContain('"auth-divider">or<');
     });
   });
 
