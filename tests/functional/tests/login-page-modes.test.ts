@@ -50,6 +50,11 @@ describe('Login page — auth_mode=password (default)', () => {
     const html = await fetchLoginPage();
     expect(html).not.toContain('id="passkey-login-btn"');
   });
+
+  it('does not show "or" divider', async () => {
+    const html = await fetchLoginPage();
+    expect(html).not.toContain('"auth-divider">or<');
+  });
 });
 
 describe('Login page — auth_mode=password_and_passkey', () => {
