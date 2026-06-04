@@ -347,7 +347,7 @@ These live in the `settings` database table and are loaded into memory at startu
 | `mfa_method`                     | `totp` \| `email`                                      | `totp`           |
 | `trust_device_enabled`           | Allow users to bypass MFA on trusted devices           | `false`          |
 | `trust_device_expiration`        | Trusted device token lifetime                          | `720h` (30 days) |
-| `sso_session_idle_timeout`       | IdP session idle timeout (`0` = disabled)              | `4h`             |
+| `sso_session_idle_timeout`       | IdP session idle timeout (`0` = disabled); resets on login and token refresh | `4h`             |
 | `sso_session_max_age`            | Absolute max session lifetime (`0` = disabled)         | `720h` (30 days) |
 | `allow_self_signup`              | Allow end users to register their own accounts         | `false`          |
 | `account_lockout_max_attempts`   | Failed logins before account lock                      | `5`              |
@@ -383,7 +383,7 @@ Each registered client can override a subset of global settings. Unset fields fa
 | `authorization_code_expiration` | Auth code TTL                                                   |
 | `allowed_audiences`             | Additional `aud` values in tokens for this client               |
 | `allow_self_signup`             | Override self-signup for this client's login page               |
-| `sso_session_idle_timeout`      | Override idle timeout for sessions originating from this client |
+| `sso_session_idle_timeout`      | Override idle timeout for this client's login page (not enforced by the background cleanup sweep, which uses the global value) |
 | `trust_device_enabled`          | Enable or disable trusted devices for this client               |
 | `trust_device_expiration`       | Trust duration for this client's users                          |
 

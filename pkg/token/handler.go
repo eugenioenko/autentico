@@ -12,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -276,6 +277,9 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		if priorIdp != nil {
 			idpSessionID = *priorIdp
+			// Treat token refresh as user activity so the idle sweeper
+			// measures inactivity from last use, not from original login.
+			_ = idpsession.UpdateLastActivity(idpSessionID)
 		}
 		// RFC 6819 §5.2.2.3 / OAuth 2.1 §6.1: rotate refresh token — revoke old, issue new.
 		// The old token is invalidated so it cannot be reused. If a revoked token is
