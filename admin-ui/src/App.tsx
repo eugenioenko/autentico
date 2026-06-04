@@ -1,20 +1,39 @@
 import { lazy, Suspense, useMemo } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, theme } from "antd";
-import { AuthProvider, RequireAuth } from "oidc-js-react";
+import { AuthProvider, RequireAuth, useAuth } from "oidc-js-react";
 import type { OidcConfig } from "oidc-js-react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import AuthBridge from "./components/AuthBridge";
 import AdminLayout from "./layouts/AdminLayout";
 
+function parseJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 function ProtectedRoute() {
   const { pathname } = useLocation();
+  const { tokens } = useAuth();
+
+  if (tokens.access) {
+    const payload = parseJwtPayload(tokens.access);
+    if (payload && payload.role !== "admin") {
+      return <Navigate to="/access-denied" replace />;
+    }
+  }
+
   return <RequireAuth key={pathname}><Outlet /></RequireAuth>;
 }
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const CallbackPage = lazy(() => import("./pages/CallbackPage"));
+const AccessDeniedPage = lazy(() => import("./pages/AccessDeniedPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const ClientsPage = lazy(() => import("./pages/ClientsPage"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
@@ -88,6 +107,7 @@ function ThemedApp() {
             <Routes>
               <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
               <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
+              <Route path="/access-denied" element={<Suspense fallback={null}><AccessDeniedPage /></Suspense>} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<AdminLayout />}>
                   <Route index element={<DashboardPage />} />

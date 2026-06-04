@@ -36,6 +36,11 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
     const retryCount = originalRequest._retryCount ?? 0;
 
+    if (error.response?.status === 403) {
+      window.location.href = "/admin/access-denied";
+      return new Promise(() => {});
+    }
+
     if (error.response?.status !== 401 || retryCount >= MAX_RETRIES) {
       return Promise.reject(error);
     }
