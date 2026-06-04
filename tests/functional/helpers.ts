@@ -17,6 +17,11 @@ let cachedAdminToken: string | null = null;
 // Client with ROPC enabled, created on first use
 let ropcClientID: string | null = null;
 
+export function resetState(): void {
+  cachedAdminToken = null;
+  ropcClientID = null;
+}
+
 export async function postForm(url: string, data: Record<string, string>, bearer?: string): Promise<Response> {
   const body = new URLSearchParams(data);
   const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
