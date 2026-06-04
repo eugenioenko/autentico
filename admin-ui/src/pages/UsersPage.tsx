@@ -194,7 +194,7 @@ export default function UsersPage() {
       sorter: true,
       ellipsis: true,
       render: (email: string) => (
-        <Typography.Text copyable={{ text: email }} ellipsis>
+        <Typography.Text copyable={{ text: email }}>
           {email}
         </Typography.Text>
       ),

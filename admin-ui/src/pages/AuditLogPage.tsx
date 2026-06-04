@@ -205,7 +205,7 @@ export default function AuditLogPage() {
       width: 160,
       render: (username: string) =>
         username ? (
-          <Text copyable={{ text: username }} ellipsis>
+          <Text copyable={{ text: username }}>
             {username}
           </Text>
         ) : (
@@ -223,7 +223,7 @@ export default function AuditLogPage() {
         if (!record.target_id)
           return <Text>{record.target_type}</Text>;
         return (
-          <Text copyable={{ text: record.target_id }} ellipsis>
+          <Text copyable={{ text: record.target_id }}>
             {record.target_type}: {record.target_id}
           </Text>
         );

@@ -187,7 +187,7 @@ export default function TokensPage() {
       ellipsis: true,
       render: (email: string) =>
         email ? (
-          <Typography.Text copyable={{ text: email }} ellipsis>
+          <Typography.Text copyable={{ text: email }}>
             {email}
           </Typography.Text>
         ) : (
