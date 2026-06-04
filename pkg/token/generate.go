@@ -67,6 +67,7 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"sid":       sessionID,
 		"acr":       acrForUser(user),
 		"scope":     scope,
+		"role":      user.Role,
 	}
 
 	// OIDC Core §5.4: only embed profile claims when "profile" scope was requested.

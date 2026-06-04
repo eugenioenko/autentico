@@ -36,6 +36,145 @@ func TestGenerateTokens(t *testing.T) {
 	assert.WithinDuration(t, time.Now().Add(config.Values.AuthRefreshTokenExpiration), tokens.RefreshExpiresAt, time.Minute)
 }
 
+func TestGenerateTokens_AccessTokenClaimSet(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+	config.Values.AuthAccessTokenAudience = []string{}
+
+	testUser := user.User{
+		ID:              "user-1",
+		Username:        "testuser",
+		Email:           "testuser@example.com",
+		IsEmailVerified: true,
+		Role:            "user",
+	}
+
+	tokens, err := GenerateTokens(testUser, "my-client", "openid profile email", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	expectedKeys := []string{
+		"exp", "iat", "auth_time", "jti", "iss", "aud", "sub",
+		"typ", "azp", "sid", "acr", "scope", "role",
+		"name", "preferred_username",
+		"email", "email_verified",
+	}
+	for _, k := range expectedKeys {
+		assert.Contains(t, claims, k, "access token must contain claim %q", k)
+	}
+	assert.Len(t, claims, len(expectedKeys), "access token must contain exactly %d claims, got %d — update this test if adding new claims", len(expectedKeys), len(claims))
+
+	assert.Equal(t, "user-1", claims["sub"])
+	assert.Equal(t, "http://localhost/oauth2", claims["iss"])
+	assert.Equal(t, "my-client", claims["azp"])
+	assert.Equal(t, "Bearer", claims["typ"])
+	assert.Equal(t, "1", claims["acr"])
+	assert.Equal(t, "openid profile email", claims["scope"])
+	assert.Equal(t, "user", claims["role"])
+	assert.Equal(t, "testuser", claims["name"])
+	assert.Equal(t, "testuser", claims["preferred_username"])
+	assert.Equal(t, "testuser@example.com", claims["email"])
+	assert.Equal(t, true, claims["email_verified"])
+}
+
+func TestGenerateTokens_AccessTokenClaimSet_MinimalScope(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AuthRefreshTokenSecret = "test-secret"
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+	config.Values.AuthAccessTokenAudience = []string{}
+
+	testUser := user.User{
+		ID:       "user-1",
+		Username: "testuser",
+		Email:    "testuser@example.com",
+		Role:     "admin",
+	}
+
+	tokens, err := GenerateTokens(testUser, "my-client", "openid", config.Get())
+	require.NoError(t, err)
+
+	parsed, err := jwt.Parse(tokens.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return key.GetPublicKey(), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+
+	expectedKeys := []string{
+		"exp", "iat", "auth_time", "jti", "iss", "aud", "sub",
+		"typ", "azp", "sid", "acr", "scope", "role",
+	}
+	for _, k := range expectedKeys {
+		assert.Contains(t, claims, k, "access token must contain claim %q", k)
+	}
+	assert.Len(t, claims, len(expectedKeys), "access token with openid-only scope must contain exactly %d claims", len(expectedKeys))
+
+	assert.Equal(t, "admin", claims["role"])
+	assert.Nil(t, claims["name"], "name must not be present without profile scope")
+	assert.Nil(t, claims["email"], "email must not be present without email scope")
+}
+
+func TestGenerateIDToken_ClaimSet(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{
+		ID:              "user-1",
+		Username:        "testuser",
+		GivenName:       "Test",
+		FamilyName:      "User",
+		Email:           "testuser@example.com",
+		IsEmailVerified: true,
+	}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "test-nonce", "openid profile email", "my-client", time.Now(), "fake-access-token")
+	require.NoError(t, err)
+	claims := parseIDTokenClaims(t, idToken)
+
+	expectedKeys := []string{
+		"iss", "sub", "aud", "exp", "iat", "auth_time", "sid", "acr",
+		"nonce", "at_hash", "azp",
+		"name", "preferred_username", "given_name", "family_name",
+		"email", "email_verified",
+	}
+	for _, k := range expectedKeys {
+		assert.Contains(t, claims, k, "ID token must contain claim %q", k)
+	}
+	assert.Len(t, claims, len(expectedKeys), "ID token must contain exactly %d claims, got %d — update this test if adding new claims", len(expectedKeys), len(claims))
+}
+
+func TestGenerateIDToken_ClaimSet_MinimalScope(t *testing.T) {
+	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
+	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
+
+	testUser := user.User{
+		ID:       "user-1",
+		Username: "testuser",
+	}
+
+	idToken, err := GenerateIDToken(testUser, "session-1", "", "openid", "my-client", time.Now(), "")
+	require.NoError(t, err)
+	claims := parseIDTokenClaims(t, idToken)
+
+	expectedKeys := []string{
+		"iss", "sub", "aud", "exp", "iat", "auth_time", "sid", "acr", "azp",
+	}
+	for _, k := range expectedKeys {
+		assert.Contains(t, claims, k, "ID token must contain claim %q", k)
+	}
+	assert.Len(t, claims, len(expectedKeys), "ID token with openid-only scope must contain exactly %d claims", len(expectedKeys))
+
+	assert.Nil(t, claims["nonce"], "nonce must not be present when empty")
+	assert.Nil(t, claims["at_hash"], "at_hash must not be present without access token")
+	assert.Nil(t, claims["name"], "name must not be present without profile scope")
+	assert.Nil(t, claims["email"], "email must not be present without email scope")
+}
+
 func TestGenerateIDToken_WithNonce(t *testing.T) {
 	config.Values.AuthAccessTokenExpiration = 15 * time.Minute
 	config.Bootstrap.AppAuthIssuer = "http://localhost/oauth2"
