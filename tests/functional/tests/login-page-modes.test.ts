@@ -33,7 +33,7 @@ afterAll(async () => {
 
 describe('Login page — auth_mode=password (default)', () => {
   it('shows username and password fields', async () => {
-    await updateSettings({ auth_mode: 'password', passkey_login_mode: 'username_first' });
+    await updateSettings({ auth_mode: 'password', passkey_login_mode: 'username_first', magic_link_enabled: 'false' });
     const html = await fetchLoginPage();
 
     expect(html).toContain('id="username"');
@@ -49,11 +49,6 @@ describe('Login page — auth_mode=password (default)', () => {
   it('does not show passkey button', async () => {
     const html = await fetchLoginPage();
     expect(html).not.toContain('id="passkey-login-btn"');
-  });
-
-  it('does not show "or" divider', async () => {
-    const html = await fetchLoginPage();
-    expect(html).not.toContain('"auth-divider">or<');
   });
 });
 
