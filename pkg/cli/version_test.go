@@ -13,5 +13,4 @@ func TestRunVersion(t *testing.T) {
 
 func TestVersionNotEmpty(t *testing.T) {
 	assert.NotEmpty(t, Version)
-	assert.Contains(t, Version, "v.")
 }

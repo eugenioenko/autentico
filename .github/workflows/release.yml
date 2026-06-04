@@ -57,11 +57,12 @@ jobs:
 
       - name: Build binaries
         run: |
-          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o autentico-linux-amd64   main.go
-          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o autentico-linux-arm64   main.go
-          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o autentico-darwin-amd64  main.go
-          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o autentico-darwin-arm64  main.go
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o autentico-windows-amd64.exe main.go
+          LDFLAGS="-s -w -X github.com/eugenioenko/autentico/pkg/cli.Version=${GITHUB_REF_NAME}"
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="$LDFLAGS" -o autentico-linux-amd64   main.go
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -ldflags="$LDFLAGS" -o autentico-linux-arm64   main.go
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="$LDFLAGS" -o autentico-darwin-amd64  main.go
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="$LDFLAGS" -o autentico-darwin-arm64  main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o autentico-windows-amd64.exe main.go
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -112,5 +113,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
