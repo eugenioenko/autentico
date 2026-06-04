@@ -18,9 +18,10 @@ func PasskeyChallengeByIDIncludingExpired(id string) (*PasskeyChallenge, error) 
 		FROM passkey_challenges WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, id)
+	var userIDPtr *string
 	err := row.Scan(
 		&c.ID,
-		&c.UserID,
+		&userIDPtr,
 		&c.ChallengeData,
 		&c.Type,
 		&c.LoginState,
@@ -33,6 +34,9 @@ func PasskeyChallengeByIDIncludingExpired(id string) (*PasskeyChallenge, error) 
 			return nil, fmt.Errorf("passkey challenge not found")
 		}
 		return nil, fmt.Errorf("failed to get passkey challenge: %w", err)
+	}
+	if userIDPtr != nil {
+		c.UserID = *userIDPtr
 	}
 	return &c, nil
 }

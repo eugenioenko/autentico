@@ -738,6 +738,180 @@ func TestHandleLoginBegin_TamperedSig(t *testing.T) {
 	assert.Contains(t, resp["error"], "tampered")
 }
 
+// --- HandleDiscoverableLoginBegin ---
+
+func TestHandleDiscoverableLoginBegin_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginBegin(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "discoverable-authentication", resp["type"])
+	assert.NotEmpty(t, resp["challenge_id"])
+	assert.NotNil(t, resp["options"])
+}
+
+func TestHandleDiscoverableLoginBegin_ConditionalMediation(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid&mediation=conditional"),
+		nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginBegin(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Equal(t, "discoverable-authentication", resp["type"])
+
+	opts, ok := resp["options"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "conditional", opts["mediation"])
+}
+
+func TestHandleDiscoverableLoginBegin_TamperedSig(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/oauth2/passkey/discoverable/begin?authorize_sig=tampered&client_id=c1&redirect_uri=http://localhost/cb&scope=openid&state=s1",
+		nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginBegin(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "tampered")
+}
+
+func TestHandleDiscoverableLoginBegin_CreatesChallenge(t *testing.T) {
+	testutils.WithTestDB(t)
+	withPasskeyConfig(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginBegin(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+
+	challengeID, _ := resp["challenge_id"].(string)
+	require.NotEmpty(t, challengeID)
+
+	challenge, err := PasskeyChallengeByIDIncludingExpired(challengeID)
+	require.NoError(t, err)
+	assert.Equal(t, "discoverable-authentication", challenge.Type)
+	assert.Equal(t, "", challenge.UserID)
+	assert.False(t, challenge.Used)
+}
+
+// --- HandleDiscoverableLoginFinish ---
+
+func TestHandleDiscoverableLoginFinish_MissingChallengeID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish", nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "missing challenge_id")
+}
+
+func TestHandleDiscoverableLoginFinish_InvalidChallengeID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish?challenge_id=nonexistent", nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "invalid challenge")
+}
+
+func TestHandleDiscoverableLoginFinish_WrongType(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+
+	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
+		ID:            "auth-for-discoverable",
+		UserID:        "user-1",
+		ChallengeData: sampleChallengeData(),
+		Type:          "authentication",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish?challenge_id=auth-for-discoverable", nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "invalid challenge")
+}
+
+func TestHandleDiscoverableLoginFinish_ExpiredChallenge(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
+		ID:            "expired-discoverable",
+		ChallengeData: sampleChallengeData(),
+		Type:          "discoverable-authentication",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(-1 * time.Minute),
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish?challenge_id=expired-discoverable", nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "expired")
+}
+
+func TestHandleDiscoverableLoginFinish_AlreadyUsed(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
+		ID:            "used-discoverable",
+		ChallengeData: sampleChallengeData(),
+		Type:          "discoverable-authentication",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+		Used:          true,
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish?challenge_id=used-discoverable", nil)
+	rr := httptest.NewRecorder()
+	HandleDiscoverableLoginFinish(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	var resp map[string]string
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+	assert.Contains(t, resp["error"], "expired")
+}
+
 func TestCredentialsToWebAuthn_InvalidJSON(t *testing.T) {
 	creds := []PasskeyCredential{
 		{

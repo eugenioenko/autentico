@@ -80,7 +80,7 @@ const PasskeyCard: React.FC = () => {
         title="Passkeys"
         description="Biometrics or security keys for passwordless login."
         action={
-          <Button onClick={() => setShowAddPrompt(true)} disabled={isAdding}>
+          <Button onClick={() => setShowAddPrompt(true)} disabled={isAdding} data-testid="add-passkey-btn">
             {isAdding ? 'Registering…' : 'Add Passkey'}
           </Button>
         }

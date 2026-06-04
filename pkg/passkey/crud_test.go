@@ -321,6 +321,48 @@ func TestPasskeyByID(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// --- Nullable UserID (discoverable login) ---
+
+func TestCreatePasskeyChallenge_NullableUserID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	challenge := PasskeyChallenge{
+		ID:            "discoverable-challenge-1",
+		ChallengeData: sampleChallengeData(),
+		Type:          "discoverable-authentication",
+		LoginState:    `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid"}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+		Used:          false,
+	}
+
+	err := CreatePasskeyChallenge(challenge)
+	assert.NoError(t, err)
+
+	var userID *string
+	err = db.GetDB().QueryRow(`SELECT user_id FROM passkey_challenges WHERE id = ?`, "discoverable-challenge-1").Scan(&userID)
+	assert.NoError(t, err)
+	assert.Nil(t, userID, "user_id should be NULL for discoverable challenges")
+}
+
+func TestPasskeyChallengeByIDIncludingExpired_NullUserID(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	challenge := PasskeyChallenge{
+		ID:            "discoverable-read-1",
+		ChallengeData: sampleChallengeData(),
+		Type:          "discoverable-authentication",
+		LoginState:    `{}`,
+		ExpiresAt:     time.Now().Add(5 * time.Minute),
+	}
+	require.NoError(t, CreatePasskeyChallenge(challenge))
+
+	result, err := PasskeyChallengeByIDIncludingExpired("discoverable-read-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "discoverable-read-1", result.ID)
+	assert.Equal(t, "", result.UserID, "UserID should be empty string when DB value is NULL")
+	assert.Equal(t, "discoverable-authentication", result.Type)
+}
+
 // --- UpdatePasskeyName ---
 
 func TestUpdatePasskeyName(t *testing.T) {

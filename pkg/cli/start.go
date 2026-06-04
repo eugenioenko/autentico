@@ -144,6 +144,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle(oauth+"/mfa/", rateLimited(csrfProtected(mfa.HandleMfa)))
 	mux.Handle("GET "+oauth+"/passkey/login/begin", rateLimitedFunc(passkey.HandleLoginBegin))
 	mux.Handle("POST "+oauth+"/passkey/login/finish", rateLimitedFunc(passkey.HandleLoginFinish))
+	mux.Handle("GET "+oauth+"/passkey/discoverable/begin", rateLimitedFunc(passkey.HandleDiscoverableLoginBegin))
+	mux.Handle("POST "+oauth+"/passkey/discoverable/finish", rateLimitedFunc(passkey.HandleDiscoverableLoginFinish))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
 	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
 	mux.Handle("GET "+oauth+"/verify-email", rateLimited(csrfProtected(emailverification.HandleVerifyEmail)))

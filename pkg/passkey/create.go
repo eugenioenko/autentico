@@ -11,9 +11,13 @@ func CreatePasskeyChallenge(challenge PasskeyChallenge) error {
 		INSERT INTO passkey_challenges (id, user_id, challenge_data, type, login_state, expires_at, used)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
+	var userID *string
+	if challenge.UserID != "" {
+		userID = &challenge.UserID
+	}
 	_, err := db.GetDB().Exec(query,
 		challenge.ID,
-		challenge.UserID,
+		userID,
 		challenge.ChallengeData,
 		challenge.Type,
 		challenge.LoginState,
