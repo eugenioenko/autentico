@@ -22,6 +22,7 @@ import type { DeletionRequestResponse } from "../../api/deletion";
 import type { ListParams } from "../../api/users";
 import { useTableScrollY } from "../../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/table";
+import CopyText from "../CopyText";
 
 const { Text } = Typography;
 
@@ -112,9 +113,7 @@ export default function DeletionRequestsTab() {
       sorter: true,
       ellipsis: true,
       render: (email: string) => (
-        <Text copyable={{ text: email }} ellipsis>
-          {email}
-        </Text>
+        <CopyText text={email} />
       ),
     },
     {
@@ -242,9 +241,7 @@ export default function DeletionRequestsTab() {
               {detailRequest.email}
             </Descriptions.Item>
             <Descriptions.Item label="User ID">
-              <Text copyable={{ text: detailRequest.user_id }}>
-                {detailRequest.user_id}
-              </Text>
+              <CopyText text={detailRequest.user_id} />
             </Descriptions.Item>
             <Descriptions.Item label="Reason">
               {detailRequest.reason ?? "No reason provided"}

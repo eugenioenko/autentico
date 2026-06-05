@@ -23,6 +23,7 @@ import type { AdminTokenResponse } from "../types/token";
 import GrantChips from "../components/GrantChips";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import CopyText from "../components/CopyText";
 
 function formatDate(date: string | null): string {
   if (!date) return "—";
@@ -167,9 +168,7 @@ export default function TokensPage() {
       key: "id",
       width: 140,
       render: (id: string) => (
-        <Typography.Text copyable={{ text: id }} style={{ fontSize: 13 }}>
-          {id.slice(0, 12) + "..."}
-        </Typography.Text>
+        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
       ),
     },
     {
@@ -187,9 +186,7 @@ export default function TokensPage() {
       ellipsis: true,
       render: (email: string) =>
         email ? (
-          <Typography.Text copyable={{ text: email }} ellipsis>
-            {email}
-          </Typography.Text>
+          <CopyText text={email} />
         ) : (
           "—"
         ),

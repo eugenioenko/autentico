@@ -25,8 +25,7 @@ import ClientDetail from "../components/clients/ClientDetail";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import GrantChips from "../components/GrantChips";
-
-const { Text } = Typography;
+import CopyText from "../components/CopyText";
 
 
 export default function ClientsPage() {
@@ -112,9 +111,7 @@ export default function ClientsPage() {
           : undefined,
       ellipsis: true,
       render: (name: string) => (
-        <Text copyable={{ text: name }} ellipsis>
-          {name}
-        </Text>
+        <CopyText text={name} />
       ),
     },
     {
@@ -130,9 +127,7 @@ export default function ClientsPage() {
           : undefined,
       ellipsis: true,
       render: (id: string) => (
-        <Text copyable={{ text: id }} ellipsis>
-          {id}
-        </Text>
+        <CopyText text={id} />
       ),
     },
     {

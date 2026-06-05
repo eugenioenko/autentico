@@ -22,6 +22,7 @@ import type { AuditLogEntry } from "../types/audit";
 import type { ListParams } from "../api/users";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import CopyText from "../components/CopyText";
 
 const { Text } = Typography;
 
@@ -205,9 +206,7 @@ export default function AuditLogPage() {
       width: 160,
       render: (username: string) =>
         username ? (
-          <Text copyable={{ text: username }} ellipsis>
-            {username}
-          </Text>
+          <CopyText text={username} />
         ) : (
           <Text type="secondary">—</Text>
         ),
@@ -223,9 +222,9 @@ export default function AuditLogPage() {
         if (!record.target_id)
           return <Text>{record.target_type}</Text>;
         return (
-          <Text copyable={{ text: record.target_id }} ellipsis>
+          <CopyText text={record.target_id}>
             {record.target_type}: {record.target_id}
-          </Text>
+          </CopyText>
         );
       },
     },

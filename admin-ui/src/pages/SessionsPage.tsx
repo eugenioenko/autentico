@@ -38,6 +38,7 @@ import type {
 import { describeUserAgent } from "../lib/utils";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import CopyText from "../components/CopyText";
 
 function formatDate(date: string | null): string {
   if (!date) return "—";
@@ -168,9 +169,7 @@ function SessionsView({
       key: "id",
       width: 160,
       render: (id: string) => (
-        <Typography.Text copyable={{ text: id }} style={{ fontSize: 13 }}>
-          {id.slice(0, 12) + "..."}
-        </Typography.Text>
+        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
       ),
     },
     {
@@ -455,9 +454,7 @@ export default function SessionsPage() {
       key: "id",
       width: 140,
       render: (id: string) => (
-        <Typography.Text copyable={{ text: id }} style={{ fontSize: 13 }}>
-          {id.slice(0, 12) + "..."}
-        </Typography.Text>
+        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
       ),
     },
     {
@@ -473,9 +470,7 @@ export default function SessionsPage() {
       key: "email",
       ellipsis: true,
       render: (email: string) => (
-        <Typography.Text copyable={{ text: email }} ellipsis>
-          {email}
-        </Typography.Text>
+        <CopyText text={email} />
       ),
     },
     {
