@@ -24,8 +24,7 @@ import FederationCreateForm from "../components/federation/FederationCreateForm"
 import FederationEditForm from "../components/federation/FederationEditForm";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
-
-const { Text } = Typography;
+import CopyText from "../components/CopyText";
 
 export default function FederationPage() {
   const { message } = App.useApp();
@@ -107,9 +106,7 @@ export default function FederationPage() {
       sortOrder: sortOrder("name"),
       ellipsis: true,
       render: (name: string) => (
-        <Text copyable={{ text: name }} ellipsis>
-          {name}
-        </Text>
+        <CopyText text={name} />
       ),
     },
     {
@@ -120,9 +117,7 @@ export default function FederationPage() {
       sortOrder: sortOrder("issuer"),
       ellipsis: true,
       render: (issuer: string) => (
-        <Text copyable={{ text: issuer }} ellipsis>
-          {issuer}
-        </Text>
+        <CopyText text={issuer} />
       ),
     },
     {
@@ -133,9 +128,7 @@ export default function FederationPage() {
       sortOrder: sortOrder("client_id"),
       ellipsis: true,
       render: (id: string) => (
-        <Text copyable={{ text: id }} ellipsis>
-          {id}
-        </Text>
+        <CopyText text={id} />
       ),
     },
     {

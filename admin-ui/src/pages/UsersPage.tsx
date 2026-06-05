@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Typography,
   Table,
   Button,
   Tag,
@@ -39,6 +38,7 @@ import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
+import CopyText from "../components/CopyText";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
@@ -194,9 +194,7 @@ export default function UsersPage() {
       sorter: true,
       ellipsis: true,
       render: (email: string) => (
-        <Typography.Text copyable={{ text: email }} ellipsis>
-          {email}
-        </Typography.Text>
+        <CopyText text={email} />
       ),
     },
     {
