@@ -368,3 +368,99 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
 }
+
+// HandleLookupUsers godoc
+// @Summary Batch lookup users by identifiers
+// @Description Resolves a list of user IDs, emails, and/or usernames into full user profiles in a single call. Maximum 100 identifiers total across all fields per request. Designed for external systems (e.g. ABAC policy engines) that need to resolve known identifiers into user data. Returns both matched users and any identifiers that could not be found.
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Param body body LookupUsersRequest true "Lookup request with IDs, emails, and/or usernames"
+// @Security AdminAuth
+// @Success 200 {object} model.ApiResponse[LookupUsersResponse]
+// @Failure 400 {object} model.AuthErrorResponse
+// @Failure 500 {object} model.AuthErrorResponse
+// @Router /admin/api/users/lookup [post]
+func HandleLookupUsers(w http.ResponseWriter, r *http.Request) {
+	var req LookupUsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		return
+	}
+
+	totalIdentifiers := len(req.IDs) + len(req.Emails) + len(req.Usernames)
+	if totalIdentifiers == 0 {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "At least one identifier (id, email, or username) is required")
+		return
+	}
+	if totalIdentifiers > LookupMaxIdentifiers {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request",
+			fmt.Sprintf("Too many identifiers: %d exceeds maximum of %d", totalIdentifiers, LookupMaxIdentifiers))
+		return
+	}
+
+	for i := range req.Emails {
+		req.Emails[i] = strings.ToLower(strings.TrimSpace(req.Emails[i]))
+	}
+	for i := range req.IDs {
+		req.IDs[i] = strings.TrimSpace(req.IDs[i])
+	}
+	for i := range req.Usernames {
+		req.Usernames[i] = strings.TrimSpace(req.Usernames[i])
+	}
+
+	users, err := LookupUsers(req.IDs, req.Emails, req.Usernames)
+	if err != nil {
+		slog.Error("user: failed to lookup users", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to lookup users")
+		return
+	}
+
+	foundIDs := make(map[string]bool)
+	foundEmails := make(map[string]bool)
+	foundUsernames := make(map[string]bool)
+	userIDs := make([]string, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+		foundIDs[u.ID] = true
+		foundEmails[strings.ToLower(u.Email)] = true
+		foundUsernames[u.Username] = true
+	}
+
+	groupMap, _ := group.GroupNamesByUserIDs(userIDs)
+
+	items := make([]UserResponse, 0, len(users))
+	for _, u := range users {
+		resp := u.ToResponse()
+		if names, ok := groupMap[u.ID]; ok {
+			resp.Groups = names
+		}
+		items = append(items, resp)
+	}
+
+	notFound := LookupNotFound{
+		IDs:       make([]string, 0),
+		Emails:    make([]string, 0),
+		Usernames: make([]string, 0),
+	}
+	for _, id := range req.IDs {
+		if !foundIDs[id] {
+			notFound.IDs = append(notFound.IDs, id)
+		}
+	}
+	for _, email := range req.Emails {
+		if !foundEmails[email] {
+			notFound.Emails = append(notFound.Emails, email)
+		}
+	}
+	for _, username := range req.Usernames {
+		if !foundUsernames[username] {
+			notFound.Usernames = append(notFound.Usernames, username)
+		}
+	}
+
+	utils.SuccessResponse(w, LookupUsersResponse{
+		Items:    items,
+		NotFound: notFound,
+	})
+}

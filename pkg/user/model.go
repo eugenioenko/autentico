@@ -205,6 +205,25 @@ func validateURLScheme(value string) error {
 	return nil
 }
 
+type LookupUsersRequest struct {
+	IDs       []string `json:"ids"`
+	Emails    []string `json:"emails"`
+	Usernames []string `json:"usernames"`
+}
+
+type LookupNotFound struct {
+	IDs       []string `json:"ids"`
+	Emails    []string `json:"emails"`
+	Usernames []string `json:"usernames"`
+}
+
+type LookupUsersResponse struct {
+	Items    []UserResponse `json:"items"`
+	NotFound LookupNotFound `json:"not_found"`
+}
+
+const LookupMaxIdentifiers = 100
+
 func ValidateUserUpdateRequest(input UserUpdateRequest) error {
 	if input.Username != "" {
 		if err := validation.Validate(input.Username, validation.Length(config.Get().ValidationMinUsernameLength, config.Get().ValidationMaxUsernameLength)); err != nil {

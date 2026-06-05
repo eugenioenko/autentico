@@ -185,6 +185,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST /admin/api/users/{id}/reactivate", adminAPI(user.HandleReactivateUser))
 	mux.Handle("POST /admin/api/users/{id}/unlock", adminAPI(user.HandleUnlockUser))
 	mux.Handle("POST /admin/api/users/{id}/revoke-sessions", adminAPI(user.HandleRevokeUserSessions))
+	mux.Handle("POST /admin/api/users/lookup", adminAPI(user.HandleLookupUsers))
 	mux.Handle("GET /admin/api/clients", adminAPI(client.HandleAdminListClients))
 	mux.Handle("POST /admin/api/clients", adminAPI(client.HandleRegister))
 	mux.Handle("GET /admin/api/clients/{client_id}", adminAPI(client.HandleGetClient))

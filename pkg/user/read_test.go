@@ -71,6 +71,79 @@ func TestUserExistsByEmail(t *testing.T) {
 	assert.False(t, UserExistsByEmail("notexists@test.com"))
 }
 
+func TestLookupUsers_ByIDs(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("alice", "pass", "alice@test.com")
+	u2, _ := CreateUser("bob", "pass", "bob@test.com")
+	_, _ = CreateUser("charlie", "pass", "charlie@test.com")
+
+	users, err := LookupUsers([]string{u1.ID, u2.ID}, nil, nil)
+	assert.NoError(t, err)
+	assert.Len(t, users, 2)
+}
+
+func TestLookupUsers_ByEmails(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = CreateUser("alice", "pass", "alice@test.com")
+	_, _ = CreateUser("bob", "pass", "bob@test.com")
+
+	users, err := LookupUsers(nil, []string{"ALICE@TEST.COM", "bob@test.com"}, nil)
+	assert.NoError(t, err)
+	assert.Len(t, users, 2)
+}
+
+func TestLookupUsers_ByUsernames(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	_, _ = CreateUser("alice", "pass", "alice@test.com")
+	_, _ = CreateUser("bob", "pass", "bob@test.com")
+
+	users, err := LookupUsers(nil, nil, []string{"alice", "bob"})
+	assert.NoError(t, err)
+	assert.Len(t, users, 2)
+}
+
+func TestLookupUsers_Mixed_Deduplicates(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("alice", "pass", "alice@test.com")
+
+	users, err := LookupUsers([]string{u1.ID}, []string{"alice@test.com"}, []string{"alice"})
+	assert.NoError(t, err)
+	assert.Len(t, users, 1)
+}
+
+func TestLookupUsers_NotFound(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	users, err := LookupUsers([]string{"nonexistent-id"}, []string{"no@one.com"}, []string{"ghost"})
+	assert.NoError(t, err)
+	assert.Empty(t, users)
+}
+
+func TestLookupUsers_Empty(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	users, err := LookupUsers(nil, nil, nil)
+	assert.NoError(t, err)
+	assert.Nil(t, users)
+}
+
+func TestLookupUsers_ExcludesDeactivated(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("active", "pass", "active@test.com")
+	u2, _ := CreateUser("deactivated", "pass", "deactivated@test.com")
+	_, _ = db.GetDB().Exec("UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ?", u2.ID)
+
+	users, err := LookupUsers([]string{u1.ID, u2.ID}, nil, nil)
+	assert.NoError(t, err)
+	assert.Len(t, users, 1)
+	assert.Equal(t, u1.ID, users[0].ID)
+}
+
 func TestCountUsers(t *testing.T) {
 	testutils.WithTestDB(t)
 
