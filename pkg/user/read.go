@@ -178,6 +178,59 @@ func GetVerificationTokenInfo(tokenHash string) (userID string, expiresAt time.T
 	return
 }
 
+func LookupUsers(ids, emails, usernames []string) ([]*User, error) {
+	if len(ids) == 0 && len(emails) == 0 && len(usernames) == 0 {
+		return nil, nil
+	}
+
+	var conditions []string
+	var args []any
+
+	if len(ids) > 0 {
+		placeholders := make([]string, len(ids))
+		for i, id := range ids {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		conditions = append(conditions, "users.id IN ("+strings.Join(placeholders, ",")+")")
+	}
+
+	if len(emails) > 0 {
+		placeholders := make([]string, len(emails))
+		for i, email := range emails {
+			placeholders[i] = "?"
+			args = append(args, strings.ToLower(email))
+		}
+		conditions = append(conditions, "LOWER(users.email) IN ("+strings.Join(placeholders, ",")+")")
+	}
+
+	if len(usernames) > 0 {
+		placeholders := make([]string, len(usernames))
+		for i, username := range usernames {
+			placeholders[i] = "?"
+			args = append(args, username)
+		}
+		conditions = append(conditions, "users.username IN ("+strings.Join(placeholders, ",")+")")
+	}
+
+	query := `SELECT` + userSelectColumns + `FROM users WHERE users.deactivated_at IS NULL AND (` + strings.Join(conditions, " OR ") + `)`
+	rows, err := db.GetDB().Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup users: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var users []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 // UserExistsByEmail returns true if any non-deactivated user has the given email,
 // regardless of email verification status. Used to prevent duplicate email assignment.
 func UserExistsByEmail(email string) bool {

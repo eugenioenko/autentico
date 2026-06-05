@@ -543,3 +543,135 @@ func TestHandleListUsers_DbError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.NotContains(t, rr.Body.String(), "SQL")
 }
+
+// --- HandleLookupUsers tests ---
+
+func TestHandleLookupUsers_InvalidBody(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBufferString("not-json"))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Invalid request payload")
+}
+
+func TestHandleLookupUsers_EmptyRequest(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	body, _ := json.Marshal(LookupUsersRequest{})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "At least one identifier")
+}
+
+func TestHandleLookupUsers_TooManyIdentifiers(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	ids := make([]string, LookupMaxIdentifiers+1)
+	for i := range ids {
+		ids[i] = "id-" + string(rune('a'+i%26))
+	}
+	body, _ := json.Marshal(LookupUsersRequest{IDs: ids})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Too many identifiers")
+}
+
+func TestHandleLookupUsers_Success(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("alice", "pass123", "alice@test.com")
+	u2, _ := CreateUser("bob", "pass123", "bob@test.com")
+
+	body, _ := json.Marshal(LookupUsersRequest{
+		IDs:       []string{u1.ID},
+		Emails:    []string{"bob@test.com"},
+		Usernames: []string{"nonexistent"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp model.ApiResponse[LookupUsersResponse]
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.Len(t, resp.Data.Items, 2)
+	assert.Empty(t, resp.Data.NotFound.IDs)
+	assert.Empty(t, resp.Data.NotFound.Emails)
+	assert.Equal(t, []string{"nonexistent"}, resp.Data.NotFound.Usernames)
+
+	foundUsernames := make(map[string]bool)
+	for _, item := range resp.Data.Items {
+		foundUsernames[item.Username] = true
+	}
+	assert.True(t, foundUsernames["alice"])
+	assert.True(t, foundUsernames["bob"])
+	_ = u2
+}
+
+func TestHandleLookupUsers_PartialMatch(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("found", "pass123", "found@test.com")
+
+	body, _ := json.Marshal(LookupUsersRequest{
+		IDs:    []string{u1.ID, "missing-id"},
+		Emails: []string{"gone@test.com"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp model.ApiResponse[LookupUsersResponse]
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, "found", resp.Data.Items[0].Username)
+	assert.Equal(t, []string{"missing-id"}, resp.Data.NotFound.IDs)
+	assert.Equal(t, []string{"gone@test.com"}, resp.Data.NotFound.Emails)
+}
+
+func TestHandleLookupUsers_DeactivatedExcluded(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	u1, _ := CreateUser("active", "pass123", "active@test.com")
+	u2, _ := CreateUser("gone", "pass123", "gone@test.com")
+	_, _ = db.GetDB().Exec("UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ?", u2.ID)
+
+	body, _ := json.Marshal(LookupUsersRequest{
+		IDs: []string{u1.ID, u2.ID},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp model.ApiResponse[LookupUsersResponse]
+	err := json.Unmarshal(rr.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.Len(t, resp.Data.Items, 1)
+	assert.Equal(t, "active", resp.Data.Items[0].Username)
+	assert.Equal(t, []string{u2.ID}, resp.Data.NotFound.IDs)
+}
+
+func TestHandleLookupUsers_DbError(t *testing.T) {
+	testutils.WithTestDB(t)
+	db.CloseDB()
+
+	body, _ := json.Marshal(LookupUsersRequest{IDs: []string{"some-id"}})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/lookup", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleLookupUsers(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "SQL")
+	assert.NotContains(t, rr.Body.String(), "constraint")
+	assert.NotContains(t, rr.Body.String(), "database")
+	assert.Contains(t, rr.Body.String(), "Failed to lookup users")
+}
