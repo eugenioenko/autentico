@@ -14,7 +14,7 @@
 ## Findings
 
 15 issues were surfaced and resolved during the certification effort. They are
-documented in detail in [`openid.md`](../../openid.md) at the repo root — this file
+documented in detail in [`openid.md`](../openid.md) at the repo root — this file
 exists to anchor the date and result in the audit index.
 
 ## What passed
@@ -26,4 +26,4 @@ discovery document correctness, userinfo, client authentication variants
 ## See also
 
 - Conformance setup instructions: `CLAUDE.md` § OIDC Conformance Testing
-- Spec-compliance review phases: [`rfc/rfc.md`](../../rfc/rfc.md)
+- Spec-compliance review phases: [`rfc/rfc.md`](../rfc/rfc.md)
