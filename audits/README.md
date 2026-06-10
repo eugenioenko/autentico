@@ -59,6 +59,7 @@ Then:
 | 2026-04-03 | OWASP ZAP | scan | 0 FAIL / 112 PASS / 4 WARN after fixes (PR #146) |
 | 2026-04-08 | sectool MCP + Claude Code | audit | 5 findings (1 HIGH), all fixed; 23 passed tests |
 | 2026-04-23 | claude-opus-4-6 | cve-test-audit | 45 CVE-derived attack tests, all passed, no code changes needed (PR #252) |
+| 2026-05-09 | claude-sonnet-4-6 / claude-opus-4-6 | compliance-review | 13-phase item-by-item spec review (2026-03-28 → 05-09), all specs annotated + tested (see `rfc/rfc.md`) |
 | 2026-06-10 | claude-fable-5 | security-review | 4 open hardening items, 2 false positives disproved |
 
 Keep this index updated when adding a file.
