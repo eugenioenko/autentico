@@ -6,7 +6,6 @@ toolchain go1.24.2
 
 require (
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/go-webauthn/webauthn v0.15.0
 	github.com/golang-jwt/jwt/v5 v5.3.0

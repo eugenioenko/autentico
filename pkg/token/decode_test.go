@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,7 +41,7 @@ func TestDecodeToken_ExpiredToken(t *testing.T) {
 
 	_, err = DecodeRefreshToken(signedToken, secretKey)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "token has expired")
+	assert.ErrorIs(t, err, jwt.ErrTokenExpired)
 }
 
 func TestDecodeToken_InvalidSignature(t *testing.T) {
