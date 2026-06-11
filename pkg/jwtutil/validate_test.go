@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -114,27 +114,29 @@ func TestValidateAudience_NoRequiredAudiences(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// Expiry validation moved from a Valid() method to the jwt/v5 validator —
+// ValidateAccessToken passes WithExpirationRequired, mirrored here.
 func TestAccessTokenClaims_Valid(t *testing.T) {
 	claims := &AccessTokenClaims{
 		ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
 	}
-	assert.NoError(t, claims.Valid())
+	assert.NoError(t, jwt.NewValidator(jwt.WithExpirationRequired()).Validate(claims))
 }
 
 func TestAccessTokenClaims_MissingExp(t *testing.T) {
 	claims := &AccessTokenClaims{
 		ExpiresAt: 0,
 	}
-	err := claims.Valid()
+	err := jwt.NewValidator(jwt.WithExpirationRequired()).Validate(claims)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "token missing exp")
+	assert.ErrorIs(t, err, jwt.ErrTokenRequiredClaimMissing)
 }
 
 func TestAccessTokenClaims_Expired(t *testing.T) {
 	claims := &AccessTokenClaims{
 		ExpiresAt: time.Now().Add(-1 * time.Hour).Unix(),
 	}
-	err := claims.Valid()
+	err := jwt.NewValidator(jwt.WithExpirationRequired()).Validate(claims)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "token has expired")
+	assert.ErrorIs(t, err, jwt.ErrTokenExpired)
 }

@@ -1,11 +1,12 @@
 package token
 
 import (
-	"fmt"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Token represents a token record in the database
@@ -40,6 +41,7 @@ type TokenRequest struct {
 }
 
 type RefreshTokenClaims struct {
+	jwtutil.ZeroClaims
 	UserID    string `json:"sub"` // The ID of the user associated with the refresh token
 	SessionID string `json:"sid"` // The session ID for which the refresh token is issued
 	ClientID  string `json:"azp"` // The client the refresh token was issued to
@@ -47,11 +49,10 @@ type RefreshTokenClaims struct {
 	ExpiresAt int64  `json:"exp"` // The timestamp when the refresh token will expire
 }
 
-func (r *RefreshTokenClaims) Valid() error {
-	if time.Unix(r.ExpiresAt, 0).Before(time.Now()) {
-		return fmt.Errorf("token has expired")
-	}
-	return nil
+// GetExpirationTime returns exp unconditionally so a missing exp (zero value)
+// parses as 1970 and fails validation as expired.
+func (r *RefreshTokenClaims) GetExpirationTime() (*jwt.NumericDate, error) {
+	return jwt.NewNumericDate(time.Unix(r.ExpiresAt, 0)), nil
 }
 
 func ValidateTokenRequest(input TokenRequest) error {

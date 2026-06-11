@@ -3,7 +3,7 @@ package token
 import (
 	"fmt"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func DecodeRefreshToken(tokenString string, secretKey string) (*RefreshTokenClaims, error) {

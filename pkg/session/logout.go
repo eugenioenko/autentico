@@ -5,12 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/view"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // HandleLogout godoc
@@ -42,14 +43,14 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 // idTokenHintClaims holds the claims we care about from an id_token_hint.
-// Valid() always returns nil so that expired ID tokens are accepted per the spec.
+// ZeroClaims provides the jwt/v5 getters; parsing uses WithoutClaimsValidation
+// so that expired ID tokens are accepted per the spec.
 type idTokenHintClaims struct {
+	jwtutil.ZeroClaims
 	Subject  string `json:"sub"`
 	ClientID string `json:"azp"` // authorized party
 	RawAud   interface{}
 }
-
-func (c *idTokenHintClaims) Valid() error { return nil }
 
 func (c *idTokenHintClaims) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
@@ -89,9 +90,11 @@ func parseIDTokenHint(hint string) *idTokenHintClaims {
 		return nil
 	}
 	claims := &idTokenHintClaims{}
+	// RP-Initiated Logout 1.0 §2: the OP SHOULD accept ID Tokens even when the
+	// exp time has passed — skip claims validation, signature is still verified.
 	_, err := jwt.ParseWithClaims(hint, claims, func(t *jwt.Token) (interface{}, error) {
 		return key.GetPublicKey(), nil
-	})
+	}, jwt.WithoutClaimsValidation())
 	if err != nil {
 		return nil
 	}

@@ -2,13 +2,15 @@ package jwtutil
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/key"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AccessTokenClaims struct {
+	ZeroClaims
 	UserID    string   `json:"sub"`
 	Email     string   `json:"email"`
 	SessionID string   `json:"sid"`
@@ -19,14 +21,11 @@ type AccessTokenClaims struct {
 	Scope     string   `json:"scope"`
 }
 
-func (a *AccessTokenClaims) Valid() error {
+func (a *AccessTokenClaims) GetExpirationTime() (*jwt.NumericDate, error) {
 	if a.ExpiresAt == 0 {
-		return fmt.Errorf("token missing exp")
+		return nil, nil
 	}
-	if a.ExpiresAt < jwt.TimeFunc().Unix() {
-		return fmt.Errorf("token has expired")
-	}
-	return nil
+	return jwt.NewNumericDate(time.Unix(a.ExpiresAt, 0)), nil
 }
 
 // ExtractAzp parses a JWT without signature verification and returns the "azp"
@@ -34,11 +33,10 @@ func (a *AccessTokenClaims) Valid() error {
 // before performing ownership checks. Returns "" if the claim is absent or the
 // token is malformed — callers should treat missing azp as "skip the check".
 func ExtractAzp(tokenString string) string {
-	parser := jwt.Parser{SkipClaimsValidation: true}
 	claims := jwt.MapClaims{}
 	// Parse without key function — we only need the claims, not verification.
 	// The token has already been validated or will be looked up in the DB.
-	_, _, err := parser.ParseUnverified(tokenString, claims)
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, claims)
 	if err != nil {
 		return ""
 	}
@@ -73,7 +71,7 @@ func ValidateAccessToken(tokenString string) (*AccessTokenClaims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return publicKey, nil
-	})
+	}, jwt.WithExpirationRequired())
 	if err != nil {
 		return nil, err
 	}
