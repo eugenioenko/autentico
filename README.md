@@ -1071,6 +1071,10 @@ Contributions are welcome. Before starting significant work, open an issue to al
 3. Add or update tests — `make test` must pass
 4. Submit a pull request with a clear description of the change and its motivation
 
+## Acknowledgments
+
+- [@jentfoo](https://github.com/jentfoo) — security research and vulnerability reporting
+
 ---
 
 ## License
