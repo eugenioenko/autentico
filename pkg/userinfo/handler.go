@@ -58,7 +58,7 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	// RFC 6750 §2.2: MUST NOT accept a request using more than one method
 	realm := config.GetBootstrap().AppAuthIssuer
 	if headerToken != "" && bodyToken != "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request must not pass the access token using more than one method")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "请求不得通过多种方式传递访问令牌")
 		return
 	}
 	accessToken := headerToken
@@ -73,30 +73,30 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	// Validate the access token cryptographically
 	_, err := jwtutil.ValidateAccessToken(accessToken)
 	if err != nil {
-		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token is invalid or expired")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "令牌无效或已过期")
 		return
 	}
 
 	tok, err := introspect.IntrospectToken(accessToken)
 	if err != nil {
-		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "无效或已过期的令牌")
 		return
 	}
 
 	sess, err := session.SessionByAccessToken(tok.AccessToken)
 	if err != nil || sess == nil || sess.DeactivatedAt != nil {
-		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "会话已被停用")
 		return
 	}
 
 	if tok.UserID == nil {
-		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has no associated user")
+		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "令牌没有关联的用户")
 		return
 	}
 
 	user, err := user.UserByID(*tok.UserID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Unable to fetch user information")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "无法获取用户信息")
 		return
 	}
 

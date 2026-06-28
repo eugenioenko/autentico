@@ -2,10 +2,10 @@
 <form class="auth-card" method="POST" action="{{.FormAction}}">
   <div class="auth-header">
     {{template "logo" .}}
-    <h1 class="auth-title" data-testid="onboard-title">Autentico Admin Setup</h1>
+    <h1 class="auth-title" data-testid="onboard-title">Autentico 管理员设置</h1>
     {{if .ThemeTagline}}<p class="auth-tagline">{{.ThemeTagline}}</p>{{end}}
   </div>
-  <p class="auth-text-muted">Create the first administrator account to start using Auténtico.</p>
+  <p class="auth-text-muted">创建首个管理员账户以开始使用 Autentico。</p>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
@@ -16,25 +16,25 @@
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
-    <label class="auth-label" for="username">Email</label>
+    <label class="auth-label" for="username">邮箱</label>
     <input class="auth-input" type="email" id="username" name="username" required autocomplete="email" placeholder="admin@example.com" />
     {{else}}
-    <label class="auth-label" for="username">Administrator Username</label>
+    <label class="auth-label" for="username">管理员用户名</label>
     <input class="auth-input" type="text" id="username" name="username" required autocomplete="username" value="admin" />
     {{end}}
   </div>
   {{if or (eq .ProfileFieldEmail "optional") (eq .ProfileFieldEmail "required")}}
   <div class="auth-field">
-    <label class="auth-label" for="email">Email{{if eq .ProfileFieldEmail "required"}} <span style="color:var(--color-danger-bg)">*</span>{{end}}</label>
+    <label class="auth-label" for="email">邮箱{{if eq .ProfileFieldEmail "required"}} <span style="color:var(--color-danger-bg)">*</span>{{end}}</label>
     <input class="auth-input" type="email" id="email" name="email" autocomplete="email" {{if eq .ProfileFieldEmail "required"}}required{{end}} />
   </div>
   {{end}}
   <div class="auth-field">
-    <label class="auth-label" for="password">Administrator Password</label>
+    <label class="auth-label" for="password">管理员密码</label>
     <input class="auth-input" type="password" id="password" name="password" required autocomplete="new-password" minlength="6" maxlength="64" />
   </div>
   <div class="auth-field">
-    <label class="auth-label" for="confirm_password">Confirm Password</label>
+    <label class="auth-label" for="confirm_password">确认密码</label>
     <input class="auth-input" type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password" />
   </div>
   {{if .Error}}
@@ -42,6 +42,6 @@
   {{else}}
   <div class="auth-error" role="alert" style="display:none"></div>
   {{end}}
-  <button class="auth-btn" type="submit">Complete Setup</button>
+  <button class="auth-btn" type="submit">完成设置</button>
 </form>
 {{end}}

@@ -37,7 +37,7 @@ export default function CopyText({ text, children }: CopyTextProps) {
         {children ?? (text || "—")}
       </span>
       {text && (
-        <Tooltip title={copied ? "Copied" : "Copy"}>
+        <Tooltip title={copied ? "已复制" : "复制"}>
           <Typography.Link
             onClick={handleCopy}
             style={{ flexShrink: 0, fontSize: "inherit", lineHeight: 1 }}

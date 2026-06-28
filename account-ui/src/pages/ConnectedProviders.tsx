@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { IconLink } from '@tabler/icons-react';
 import api from '../api';
@@ -16,6 +17,7 @@ interface ConnectedProvider {
 }
 
 const ConnectedProvidersPage: React.FC = () => {
+  const { t } = useTranslation();
   const { data: providers, refetch } = useQuery({
     queryKey: ['connected-providers'],
     queryFn: () => api.get('/connected-providers').then((res) => res.data.data),
@@ -28,14 +30,14 @@ const ConnectedProvidersPage: React.FC = () => {
       await api.delete(`/connected-providers/${id}`);
       refetch();
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to disconnect provider.'));
+      setError(extractError(err, t('connectedProviders.disconnectFailed')));
     }
   };
 
   return (
     <Card
-      title="Connected Providers"
-      description="External identity providers linked to your account."
+      title={t('connectedProviders.title')}
+      description={t('connectedProviders.providersDescription')}
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
       <div className="divide-y divide-theme-fg/10 mt-1">
@@ -49,7 +51,7 @@ const ConnectedProvidersPage: React.FC = () => {
                 <p className="text-sm font-semibold">{p.provider_name}</p>
                 {p.email && <p className="text-xs text-theme-muted">{p.email}</p>}
                 <p className="text-[11px] text-theme-muted mt-0.5">
-                  Connected {new Date(p.created_at).toLocaleDateString()}
+                  {t('connectedProviders.connectedAt')} {new Date(p.created_at).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -58,12 +60,12 @@ const ConnectedProvidersPage: React.FC = () => {
               onClick={() => handleDisconnect(p.id)}
               className="flex-shrink-0"
             >
-              Disconnect
+              {t('connectedProviders.disconnect')}
             </Button>
           </div>
         ))}
         {(!providers || providers.length === 0) && (
-          <p className="text-sm text-theme-muted py-4">No external providers connected to your account.</p>
+          <p className="text-sm text-theme-muted py-4">{t('connectedProviders.noProvidersMessage')}</p>
         )}
       </div>
     </Card>

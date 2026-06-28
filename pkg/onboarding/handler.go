@@ -41,13 +41,13 @@ func HandleOnboardDirect(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		handleOnboardDirectPost(w, r)
 	default:
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
+		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "方法不允许")
 	}
 }
 
 func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "请求负载必须是 application/x-www-form-urlencoded 格式")
 		return
 	}
 
@@ -58,7 +58,7 @@ func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
 
 	if password != confirmPassword {
-		renderOnboard(w, r, params, "Passwords do not match")
+		renderOnboard(w, r, params, "两次输入的密码不一致")
 		return
 	}
 
@@ -76,7 +76,7 @@ func handleOnboardDirectPost(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.CreateUser(username, password, email)
 	if err != nil {
-		renderOnboard(w, r, params, "Could not create administrator account.")
+		renderOnboard(w, r, params, "无法创建管理员账户。")
 		return
 	}
 

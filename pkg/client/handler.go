@@ -33,7 +33,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// (Go's json.Decoder silently ignores unknown fields by default.)
 	var request ClientCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
@@ -58,11 +58,11 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A client with that ID already exists")
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "该ID的客户端已存在")
 			return
 		}
 		slog.Error("client: failed to create client", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create client")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "创建客户端失败")
 		return
 	}
 
@@ -85,13 +85,13 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 	clientID := r.PathValue("client_id")
 	if clientID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少客户端ID")
 		return
 	}
 
 	c, err := ClientByClientIDIncludingDisabled(clientID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "客户端未找到")
 		return
 	}
 
@@ -115,13 +115,13 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	clientID := r.PathValue("client_id")
 	if clientID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少客户端ID")
 		return
 	}
 
 	var request ClientUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
@@ -142,11 +142,11 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	err := UpdateClient(clientID, request)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "客户端未找到")
 			return
 		}
 		slog.Error("client: failed to update client", "error", err, "client_id", clientID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update client")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "更新客户端失败")
 		return
 	}
 
@@ -168,18 +168,18 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 func HandleDeleteClient(w http.ResponseWriter, r *http.Request) {
 	clientID := r.PathValue("client_id")
 	if clientID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Client ID is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少客户端ID")
 		return
 	}
 
 	err := DeleteClient(clientID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "客户端未找到")
 			return
 		}
 		slog.Error("client: failed to delete client", "error", err, "client_id", clientID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete client")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除客户端失败")
 		return
 	}
 	if _, err := db.GetDB().Exec(`DELETE FROM user_consents WHERE client_id = ?`, clientID); err != nil {
@@ -215,7 +215,7 @@ func HandleAdminListClients(w http.ResponseWriter, r *http.Request) {
 	clients, total, err := ListClientsWithParams(params)
 	if err != nil {
 		slog.Error("client: failed to list clients", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list clients")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出客户端失败")
 		return
 	}
 

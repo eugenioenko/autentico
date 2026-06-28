@@ -100,7 +100,7 @@ func TestHandleMagicLink_GET_RendersForm(t *testing.T) {
 	HandleMagicLink(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Send sign-in link")
+	assert.Contains(t, rr.Body.String(), "发送登录链接")
 }
 
 func TestHandleMagicLink_GET_Disabled(t *testing.T) {
@@ -182,7 +182,7 @@ func TestHandleMagicLink_POST_NoUser_ShowsSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	assert.Contains(t, body, "sent")
+	assert.Contains(t, body, "我们已发送")
 	assert.NotContains(t, body, "not found")
 }
 
@@ -213,7 +213,7 @@ func TestHandleMagicLink_POST_ValidUser_CreatesToken(t *testing.T) {
 	HandleMagicLink(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 
 	var count int
 	err = db.GetDB().QueryRow(`SELECT COUNT(*) FROM magic_link_tokens WHERE user_id = ?`, u.ID).Scan(&count)
@@ -246,7 +246,7 @@ func TestHandleMagicLink_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
 	HandleMagicLink(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 
 	var count int
 	err = db.GetDB().QueryRow(`SELECT COUNT(*) FROM magic_link_tokens WHERE user_id = ?`, u.ID).Scan(&count)
@@ -308,7 +308,7 @@ func TestHandleMagicLinkVerify_InvalidToken(t *testing.T) {
 	HandleMagicLinkVerify(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid or has already been used")
+	assert.Contains(t, rr.Body.String(), "无效或已被使用")
 }
 
 func TestHandleMagicLinkVerify_ExpiredToken(t *testing.T) {

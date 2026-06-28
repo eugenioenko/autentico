@@ -5,10 +5,10 @@
 
   {{if eq .Mode "expired"}}
     <div class="auth-error" role="alert">{{.Error}}</div>
-    <a class="auth-btn" href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a>
+    <a class="auth-btn" href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">返回登录</a>
 
   {{else if eq .Mode "sent"}}
-    <p class="auth-text">If an account with that email exists, we've sent a sign-in link and code.</p>
+    <p class="auth-text">如果该邮箱对应的账户存在，我们已发送一封包含登录链接和验证码的邮件。</p>
     {{if .Error}}
     <div class="auth-error" role="alert">{{.Error}}</div>
     {{end}}
@@ -24,15 +24,15 @@
       <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
       <input type="hidden" name="email" value="{{.Email}}" />
       <div class="auth-field">
-        <label class="auth-label" for="code">Enter code from email</label>
+        <label class="auth-label" for="code">输入邮件验证码</label>
         <input class="auth-input" type="text" id="code" name="code" required autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:1.25rem;" />
       </div>
-      <button class="auth-btn" type="submit">Verify code</button>
+      <button class="auth-btn" type="submit">验证验证码</button>
     </form>
-    <div class="auth-link" style="margin-top:15px;"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a></div>
+    <div class="auth-link" style="margin-top:15px;"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">返回登录</a></div>
 
   {{else}}
-    <p class="auth-text-muted">Enter your email and we'll send you a link to sign in.</p>
+    <p class="auth-text-muted">输入您的邮箱，我们将向您发送登录链接。</p>
     {{if .Error}}
     <div class="auth-error" role="alert">{{.Error}}</div>
     {{end}}
@@ -47,11 +47,11 @@
       <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
       <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
       <div class="auth-field">
-        <label class="auth-label" for="email">Email</label>
+        <label class="auth-label" for="email">邮箱</label>
         <input class="auth-input" type="email" id="email" name="email" required autocomplete="email" />
       </div>
-      <button class="auth-btn" type="submit">Send sign-in link</button>
-      <div class="auth-link" style="margin-top:15px;"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a></div>
+      <button class="auth-btn" type="submit">发送登录链接</button>
+      <div class="auth-link" style="margin-top:15px;"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">返回登录</a></div>
     </form>
   {{end}}
 </div>

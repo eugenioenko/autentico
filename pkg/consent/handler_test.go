@@ -81,7 +81,7 @@ func TestHandleConsent_Get_ValidRequest_RendersConsentPage(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	assert.Contains(t, body, "Authorize Access")
+	assert.Contains(t, body, "授权访问")
 	assert.Contains(t, body, "consent_sig")
 	assert.Contains(t, body, "Test Client")
 }

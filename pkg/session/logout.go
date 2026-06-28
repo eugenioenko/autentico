@@ -213,7 +213,7 @@ func renderLogoutSuccess(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := view.ParseTemplate("logout_success")
 	if err != nil {
 		slog.Error("session: failed to parse logout_success template", "error", err)
-		http.Error(w, "You have been signed out.", http.StatusOK)
+		http.Error(w, "您已退出登录。", http.StatusOK)
 		return
 	}
 	data := map[string]any{

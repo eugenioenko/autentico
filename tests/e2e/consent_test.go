@@ -150,7 +150,7 @@ func TestConsentFlow_Allow_IssuesAuthCode(t *testing.T) {
 
 	htmlBody := followToConsentPage(t, ts, location)
 	assert.Contains(t, htmlBody, "Consent Test Client", "consent page should show client name")
-	assert.Contains(t, htmlBody, "Authorize Access", "consent page should show authorization title")
+	assert.Contains(t, htmlBody, "授权访问", "consent page should show authorization title")
 
 	allowResp := postConsentForm(t, ts, htmlBody, "allow")
 	defer func() { _ = allowResp.Body.Close() }()

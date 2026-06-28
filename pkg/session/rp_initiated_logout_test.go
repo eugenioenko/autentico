@@ -51,7 +51,7 @@ func TestHandleRpInitiatedLogout_NoParams_ShowsLogoutPage(t *testing.T) {
 	HandleRpInitiatedLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestHandleRpInitiatedLogout_ClearsIdpSessionCookie(t *testing.T) {
@@ -188,7 +188,7 @@ func TestHandleRpInitiatedLogout_UnregisteredPostLogoutRedirectURI_ShowsLogoutPa
 	HandleRpInitiatedLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unregistered URI must be rejected, fallback to logout page")
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestHandleRpInitiatedLogout_UnknownClientID_ShowsLogoutPage(t *testing.T) {
@@ -204,7 +204,7 @@ func TestHandleRpInitiatedLogout_UnknownClientID_ShowsLogoutPage(t *testing.T) {
 	HandleRpInitiatedLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestHandleRpInitiatedLogout_ClientIdFromIdTokenHint(t *testing.T) {
@@ -259,6 +259,6 @@ func TestHandleRpInitiatedLogout_InvalidIdTokenHint_StillLoggedOut(t *testing.T)
 
 	// Should still show logout page gracefully (no 4xx)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 

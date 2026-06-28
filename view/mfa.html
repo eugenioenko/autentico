@@ -1,13 +1,13 @@
-{{define "title"}}{{.ThemeTitle}} - Verification{{end}}
+{{define "title"}}{{.ThemeTitle}} - 验证{{end}}
 
 {{define "content"}}
 <form class="auth-card" method="POST" action="{{authURL "/mfa"}}">
   {{template "logo" .}}
-  <h1 class="auth-title">Verification</h1>
+  <h1 class="auth-title">验证</h1>
   {{if eq .Method "email"}}
-  <p class="auth-text">Enter the code from your email</p>
+  <p class="auth-text">输入邮件中的验证码</p>
   {{else}}
-  <p class="auth-text">Your account requires additional verification. Enter the 6-digit code from your authenticator app.</p>
+  <p class="auth-text">您的账户需要额外的验证。请输入身份验证器应用中的6位验证码。</p>
   {{end}}
   {{ .csrfField }}
   <input type="hidden" name="challenge_id" value="{{.ChallengeID}}" />
@@ -18,26 +18,26 @@
   <div class="auth-error" role="alert">{{.Error}}</div>
   {{end}}
   <div class="auth-field">
-    <label class="auth-label" for="code">{{if eq .Method "email"}}Code{{else}}Enter code from app{{end}}</label>
+    <label class="auth-label" for="code">{{if eq .Method "email"}}验证码{{else}}输入应用验证码{{end}}</label>
     <input class="auth-input" type="text" id="code" name="code" required maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" inputmode="numeric" placeholder="000000" style="text-align:center;letter-spacing:6px;font-size:1.25rem;" />
   </div>
   {{if .TrustDeviceEnabled}}
   <div class="auth-checkbox">
     <input type="checkbox" id="trust_device" name="trust_device" />
-    <label for="trust_device">Trust this device for {{.TrustDeviceDays}} days</label>
+    <label for="trust_device">信任此设备 {{.TrustDeviceDays}} 天</label>
   </div>
   {{end}}
-  <button class="auth-btn" type="submit">Verify</button>
+  <button class="auth-btn" type="submit">验证</button>
   {{if eq .Method "email"}}
-  <a class="auth-btn-secondary" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}" style="margin-top:0.75rem;">Resend code</a>
+  <a class="auth-btn-secondary" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}" style="margin-top:0.75rem;">重新发送验证码</a>
   {{end}}
   {{if .CanSwitch}}
   {{if eq .Method "email"}}
     {{if .UserTotpVerified}}
-    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=totp">Verify using authenticator app</a>
+    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=totp">使用身份验证器应用验证</a>
     {{end}}
   {{else}}
-    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=email">Verify using email</a>
+    <a class="auth-btn-text" href="{{authURL "/mfa"}}?challenge_id={{.ChallengeID}}&switch_to=email">使用邮箱验证</a>
   {{end}}
   {{end}}
 </form>

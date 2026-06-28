@@ -30,7 +30,7 @@ func HandleListGroups(w http.ResponseWriter, r *http.Request) {
 	groups, total, err := ListGroupsWithParams(params)
 	if err != nil {
 		slog.Error("group: failed to list groups", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list groups")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出组失败")
 		return
 	}
 	utils.SuccessResponse(w, model.ListResponse[GroupResponse]{
@@ -52,7 +52,7 @@ func HandleListGroups(w http.ResponseWriter, r *http.Request) {
 func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 	var request GroupCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 	if err := ValidateGroupCreateRequest(request); err != nil {
@@ -62,11 +62,11 @@ func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 	response, err := CreateGroup(request.Name, request.Description)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A group with that name already exists")
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "该名称的组已存在")
 			return
 		}
 		slog.Error("group: failed to create group", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create group")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "创建组失败")
 		return
 	}
 	utils.SuccessResponse(w, response, http.StatusCreated)
@@ -84,12 +84,12 @@ func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 func HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID")
 		return
 	}
 	g, err := GroupByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "组未找到")
 		return
 	}
 	utils.SuccessResponse(w, g.ToResponse(), http.StatusOK)
@@ -110,12 +110,12 @@ func HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID")
 		return
 	}
 	var req GroupUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 	if err := ValidateGroupUpdateRequest(req); err != nil {
@@ -124,21 +124,21 @@ func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := UpdateGroup(id, req); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "组未找到")
 			return
 		}
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A group with that name already exists")
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "该名称的组已存在")
 			return
 		}
 		slog.Error("group: failed to update group", "error", err, "group_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update group")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "更新组失败")
 		return
 	}
 	g, err := GroupByID(id)
 	if err != nil {
 		slog.Error("group: failed to read group after update", "error", err, "group_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read group")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取组失败")
 		return
 	}
 	utils.SuccessResponse(w, g.ToResponse(), http.StatusOK)
@@ -156,16 +156,16 @@ func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 func HandleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID")
 		return
 	}
 	if err := DeleteGroup(id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "组未找到")
 			return
 		}
 		slog.Error("group: failed to delete group", "error", err, "group_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete group")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除组失败")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "group deleted"}, http.StatusOK)
@@ -182,17 +182,17 @@ func HandleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 func HandleListMembers(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 	if groupID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID")
 		return
 	}
 	if _, err := GroupByID(groupID); err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Group not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "组未找到")
 		return
 	}
 	members, err := MembersByGroupID(groupID)
 	if err != nil {
 		slog.Error("group: failed to list members", "error", err, "group_id", groupID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list members")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出成员失败")
 		return
 	}
 	utils.SuccessResponse(w, members, http.StatusOK)
@@ -213,29 +213,29 @@ func HandleListMembers(w http.ResponseWriter, r *http.Request) {
 func HandleAddMember(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 	if groupID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID")
 		return
 	}
 	var req GroupMemberRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 	if req.UserID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user_id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少 user_id")
 		return
 	}
 	if err := AddMember(groupID, req.UserID); err != nil {
 		if strings.Contains(err.Error(), "already a member") {
-			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "User is already a member of this group")
+			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "用户已是该组的成员")
 			return
 		}
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User or group not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户或组未找到")
 			return
 		}
 		slog.Error("group: failed to add member", "error", err, "group_id", groupID, "user_id", req.UserID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to add member")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "添加成员失败")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "member added"}, http.StatusCreated)
@@ -255,16 +255,16 @@ func HandleRemoveMember(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 	userID := r.PathValue("user_id")
 	if groupID == "" || userID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing group id or user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少组ID或用户ID")
 		return
 	}
 	if err := RemoveMember(groupID, userID); err != nil {
 		if strings.Contains(err.Error(), "not a member") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User is not a member of this group")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户不是该组的成员")
 			return
 		}
 		slog.Error("group: failed to remove member", "error", err, "group_id", groupID, "user_id", userID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to remove member")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "移除成员失败")
 		return
 	}
 	utils.SuccessResponse(w, map[string]string{"message": "member removed"}, http.StatusOK)
@@ -287,7 +287,7 @@ func HandleGetUserGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := GroupsByUserID(userID)
 	if err != nil {
 		slog.Error("group: failed to list groups for user", "error", err, "user_id", userID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list groups")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出组失败")
 		return
 	}
 	utils.SuccessResponse(w, groups, http.StatusOK)

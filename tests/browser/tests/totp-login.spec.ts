@@ -116,7 +116,7 @@ test("password login requires TOTP", async ({ page }) => {
 
   // Should see TOTP verification (not enrollment)
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
-  await expect(page.locator("text=Setup Authenticator")).not.toBeVisible();
+  await expect(page.locator("text=设置身份验证器")).not.toBeVisible();
 
   const code = generateTOTP(totpSecret);
   await page.fill("#code", code);
@@ -140,10 +140,10 @@ test("magic link login requires TOTP", async ({ browser }) => {
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
 
   // Use magic link
-  await page.click("text=Sign in with email link");
+  await page.click("text=使用邮箱链接登录");
   await expect(page.locator("#email")).toBeVisible({ timeout: TIMEOUT });
   await page.fill("#email", USER_EMAIL);
-  await page.click('button:has-text("Send sign-in link")');
+  await page.click('button:has-text("发送登录链接")');
 
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
 
@@ -160,11 +160,11 @@ test("magic link login requires TOTP", async ({ browser }) => {
   expect(mlCode).toBeTruthy();
 
   await page.fill("#code", mlCode!);
-  await page.click('button:has-text("Verify code")');
+  await page.click('button:has-text("验证验证码")');
 
   // Should see TOTP verification — magic link doesn't skip TOTP
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
-  await expect(page.locator("text=Setup Authenticator")).not.toBeVisible();
+  await expect(page.locator("text=设置身份验证器")).not.toBeVisible();
 
   const totpCode = generateTOTP(totpSecret);
   await page.fill("#code", totpCode);

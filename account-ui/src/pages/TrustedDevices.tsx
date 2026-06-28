@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { IconDevices } from '@tabler/icons-react';
 import api from '../api';
@@ -16,6 +17,7 @@ interface TrustedDevice {
 }
 
 const TrustedDevicesPage: React.FC = () => {
+  const { t } = useTranslation();
   const { data: devices, refetch } = useQuery({
     queryKey: ['trusted-devices'],
     queryFn: () => api.get('/trusted-devices').then((res) => res.data.data),
@@ -28,14 +30,14 @@ const TrustedDevicesPage: React.FC = () => {
       await api.delete(`/trusted-devices/${id}`);
       refetch();
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to revoke trusted device.'));
+      setError(extractError(err, t('trustedDevices.revokeFailed')));
     }
   };
 
   return (
     <Card
-      title="Trusted Devices"
-      description="Devices that skip two-factor authentication prompts."
+      title={t('trustedDevices.title')}
+      description={t('trustedDevices.skipMfa')}
     >
       {error && <Alert type="danger" message={error} className="mb-3" />}
       <div className="divide-y divide-theme-fg/10 mt-1">
@@ -46,22 +48,22 @@ const TrustedDevicesPage: React.FC = () => {
                 <IconDevices size={15} className="text-theme-fg" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">{d.device_name || 'Unknown Device'}</p>
+                <p className="text-sm font-semibold">{d.device_name || t('trustedDevices.unknownDevice')}</p>
                 <p className="text-xs text-theme-muted">
-                  Last used {new Date(d.last_used_at).toLocaleDateString()}
+                  {t('trustedDevices.lastUsed')} {new Date(d.last_used_at).toLocaleDateString()}
                 </p>
                 <p className="text-[11px] text-theme-muted mt-0.5">
-                  Expires {new Date(d.expires_at).toLocaleDateString()}
+                  {t('trustedDevices.expiresAt')} {new Date(d.expires_at).toLocaleDateString()}
                 </p>
               </div>
             </div>
             <Button variant="danger" onClick={() => handleRevoke(d.id)} className="flex-shrink-0">
-              Revoke
+              {t('trustedDevices.revoke')}
             </Button>
           </div>
         ))}
         {(!devices || devices.length === 0) && (
-          <p className="text-sm text-theme-muted py-4">No trusted devices. You'll always be prompted for 2FA.</p>
+          <p className="text-sm text-theme-muted py-4">{t('trustedDevices.noDevicesMessage')}</p>
         )}
       </div>
     </Card>

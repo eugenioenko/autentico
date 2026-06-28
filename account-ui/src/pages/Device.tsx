@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { IconDevices, IconCheck, IconX } from '@tabler/icons-react';
 import { useAuth } from 'oidc-js-react';
 import api from '../api';
@@ -14,16 +15,8 @@ interface DeviceInfo {
   scope: string;
 }
 
-const scopeDescriptions: Record<string, string> = {
-  openid: 'Verify your identity',
-  profile: 'View your profile information',
-  email: 'View your email address',
-  address: 'View your address',
-  phone: 'View your phone number',
-  offline_access: 'Stay signed in between sessions',
-};
-
 export default function DevicePage() {
+  const { t } = useTranslation();
   const { code } = useParams<{ code: string }>();
   const { user } = useAuth();
   const [status, setStatus] = useState<Status>('input');
@@ -31,6 +24,15 @@ export default function DevicePage() {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const scopeDescriptions: Record<string, string> = {
+    openid: t('device.verifyIdentity'),
+    profile: t('device.viewProfile'),
+    email: t('device.viewEmail'),
+    address: t('device.viewAddress'),
+    phone: t('device.viewPhone'),
+    offline_access: t('device.offlineAccess'),
+  };
 
   useEffect(() => {
     if (code) {
@@ -47,7 +49,7 @@ export default function DevicePage() {
       setUserCode(data.user_code);
       setStatus('confirm');
     } catch (err: any) {
-      const msg = err?.response?.data?.error_description || err?.response?.data?.message || 'Invalid or expired code';
+      const msg = err?.response?.data?.error_description || err?.response?.data?.message || t('device.invalidCode');
       setError(msg);
       setStatus('error');
     }
@@ -65,7 +67,7 @@ export default function DevicePage() {
       await api.post('/device/authorize', { user_code: userCode });
       setStatus('authorized');
     } catch (err: any) {
-      const msg = err?.response?.data?.error_description || 'Failed to authorize device';
+      const msg = err?.response?.data?.error_description || t('device.authorizationFailed');
       setError(msg);
       setStatus('error');
     } finally {
@@ -79,7 +81,7 @@ export default function DevicePage() {
       await api.post('/device/deny', { user_code: userCode });
       setStatus('denied');
     } catch (err: any) {
-      const msg = err?.response?.data?.error_description || 'Failed to deny device';
+      const msg = err?.response?.data?.error_description || t('device.denyFailed');
       setError(msg);
       setStatus('error');
     } finally {
@@ -96,9 +98,9 @@ export default function DevicePage() {
           <>
             <div className="text-center space-y-2">
               <IconDevices size={40} className="mx-auto text-theme-primary-bg" />
-              <h1 className="text-xl font-semibold text-theme-fg">Link a Device</h1>
+              <h1 className="text-xl font-semibold text-theme-fg">{t('device.linkDevice')}</h1>
               <p className="text-sm text-theme-muted">
-                Enter the code displayed on your device.
+                {t('device.enterCode')}
               </p>
             </div>
             <form onSubmit={handleSubmitCode} className="space-y-6">
@@ -115,7 +117,7 @@ export default function DevicePage() {
                 disabled={!userCode.trim()}
                 className="w-full px-4 py-2.5 rounded-brand text-sm font-medium bg-theme-primary-bg text-theme-primary-fg hover:opacity-90 transition-all disabled:opacity-50"
               >
-                Continue
+                {t('common.continue')}
               </button>
             </form>
           </>
@@ -131,13 +133,13 @@ export default function DevicePage() {
           <>
             <div className="text-center space-y-2">
               <IconDevices size={40} className="mx-auto text-theme-primary-bg" />
-              <h1 className="text-xl font-semibold text-theme-fg">Authorize Device</h1>
+              <h1 className="text-xl font-semibold text-theme-fg">{t('device.authorizeDevice')}</h1>
             </div>
             <div className="space-y-4">
               <p className="text-sm text-theme-fg text-center">
-                <span className="font-semibold">{deviceInfo.client_name}</span> is requesting access to your account
+                <span className="font-semibold">{deviceInfo.client_name}</span> {t('device.requestAccess')}
                 {user?.claims?.preferred_username ? (
-                  <> as <span className="font-semibold">{String(user.claims.preferred_username)}</span></>
+                  <> {t('device.signedInAs')} <span className="font-semibold">{String(user.claims.preferred_username)}</span></>
                 ) : null}.
               </p>
               <p className="text-2xl text-theme-fg text-center font-mono tracking-widest">{deviceInfo.user_code}</p>
@@ -157,14 +159,14 @@ export default function DevicePage() {
                 disabled={submitting}
                 className="flex-1 px-4 py-2.5 rounded-brand text-sm font-medium border border-theme-border text-theme-fg hover:bg-theme-body transition-all disabled:opacity-50"
               >
-                Deny
+                {t('common.deny')}
               </button>
               <button
                 onClick={handleAuthorize}
                 disabled={submitting}
                 className="flex-1 px-4 py-2.5 rounded-brand text-sm font-medium bg-theme-primary-bg text-theme-primary-fg hover:opacity-90 transition-all disabled:opacity-50"
               >
-                Allow
+                {t('common.allow')}
               </button>
             </div>
           </>
@@ -175,9 +177,9 @@ export default function DevicePage() {
             <div className="w-12 h-12 rounded-full bg-theme-success-bg flex items-center justify-center mx-auto">
               <IconCheck size={24} className="text-theme-success-fg" />
             </div>
-            <h1 className="text-xl font-semibold text-theme-fg">Device Authorized</h1>
+            <h1 className="text-xl font-semibold text-theme-fg">{t('device.authorized')}</h1>
             <p className="text-sm text-theme-muted">
-              You can return to your device. This page can be closed.
+              {t('device.returnToDevice')}
             </p>
           </div>
         )}
@@ -187,9 +189,9 @@ export default function DevicePage() {
             <div className="w-12 h-12 rounded-full bg-theme-danger-bg flex items-center justify-center mx-auto">
               <IconX size={24} className="text-theme-danger-fg" />
             </div>
-            <h1 className="text-xl font-semibold text-theme-fg">Access Denied</h1>
+            <h1 className="text-xl font-semibold text-theme-fg">{t('device.accessDenied')}</h1>
             <p className="text-sm text-theme-muted">
-              The device will not be granted access.
+              {t('device.willNotBeGranted')}
             </p>
           </div>
         )}
@@ -201,7 +203,7 @@ export default function DevicePage() {
               onClick={() => { setStatus('input'); setError(''); }}
               className="w-full px-4 py-2.5 rounded-brand text-sm font-medium bg-theme-primary-bg text-theme-primary-fg hover:opacity-90 transition-all"
             >
-              Try Again
+              {t('common.retry')}
             </button>
           </div>
         )}

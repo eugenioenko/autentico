@@ -71,12 +71,12 @@ describe('Login page — auth_mode=password_and_passkey', () => {
 
     it('passkey button says "Sign in with passkey"', async () => {
       const html = await fetchLoginPage();
-      expect(html).toContain('Sign in with passkey');
+      expect(html).toContain('使用通行密钥登录');
     });
 
-    it('shows "or" divider between login and passkey buttons', async () => {
+    it('shows "或" divider between login and passkey buttons', async () => {
       const html = await fetchLoginPage();
-      expect(html).toContain('"auth-divider">or<');
+      expect(html).toContain('"auth-divider">或<');
     });
 
     it('passkey button is secondary', async () => {
@@ -135,12 +135,12 @@ describe('Login page — auth_mode=passkey_only', () => {
       expect(btnMatch).toBeTruthy();
       expect(btnMatch![1]).toContain('auth-btn');
       expect(btnMatch![1]).not.toContain('auth-btn-secondary');
-      expect(html).toContain('Sign in with passkey');
+      expect(html).toContain('使用通行密钥登录');
     });
 
     it('does not show Log In button', async () => {
       const html = await fetchLoginPage();
-      expect(html).not.toContain('>Log In<');
+      expect(html).not.toContain('>登录<');
     });
 
     it('does not show "or" divider', async () => {

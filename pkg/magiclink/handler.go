@@ -98,11 +98,11 @@ func renderMagicLink(w http.ResponseWriter, r *http.Request, mode string, params
 func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if !cfg.MagicLinkEnabled {
-		view.RenderError(w, r, http.StatusNotFound, "Magic link login is not enabled.")
+		view.RenderError(w, r, http.StatusNotFound, "魔法链接登录未启用。")
 		return
 	}
 	if cfg.SmtpHost == "" {
-		view.RenderError(w, r, http.StatusServiceUnavailable, "Email is not configured.")
+		view.RenderError(w, r, http.StatusServiceUnavailable, "邮件服务未配置。")
 		return
 	}
 
@@ -131,7 +131,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	emailAddr := r.FormValue("email")
 
 	if emailAddr == "" {
-		renderMagicLink(w, r, "form", params, authorizeSigValue, "Please enter your email address.", nil)
+		renderMagicLink(w, r, "form", params, authorizeSigValue, "请输入您的邮箱地址。", nil)
 		return
 	}
 
@@ -148,7 +148,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 		State:               params.State,
 	}, authorizeSigValue) {
 		slog.Warn("magiclink: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest, "Authorization request parameters have been tampered with.")
+		view.RenderError(w, r, http.StatusBadRequest, "授权请求参数已被篡改。")
 		return
 	}
 
@@ -205,7 +205,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if !cfg.MagicLinkEnabled {
-		view.RenderError(w, r, http.StatusNotFound, "Magic link login is not enabled.")
+		view.RenderError(w, r, http.StatusNotFound, "魔法链接登录未启用。")
 		return
 	}
 
@@ -214,7 +214,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	rawToken := r.URL.Query().Get("token")
 
 	if rawToken == "" {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Invalid or missing magic link.", nil)
+		renderMagicLink(w, r, "expired", params, authorizeSigValue, "魔法链接无效或缺失。", nil)
 		return
 	}
 
@@ -222,7 +222,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 	userID, expiresAt, usedAt, err := getMagicLinkTokenInfo(tokenHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link is invalid or has already been used.", nil)
+			renderMagicLink(w, r, "expired", params, authorizeSigValue, "此魔法链接无效或已被使用。", nil)
 			return
 		}
 		slog.Error("magiclink: failed to look up token", "request_id", reqid.Get(r.Context()), "error", err)
@@ -250,7 +250,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if !cfg.MagicLinkEnabled {
-		view.RenderError(w, r, http.StatusNotFound, "Magic link login is not enabled.")
+		view.RenderError(w, r, http.StatusNotFound, "魔法链接登录未启用。")
 		return
 	}
 
@@ -314,7 +314,7 @@ func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, p
 		State:               params.State,
 	}, authorizeSigValue) {
 		slog.Warn("magiclink: authorize parameter signature mismatch on verify", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest, "Authorization request parameters have been tampered with.")
+		view.RenderError(w, r, http.StatusBadRequest, "授权请求参数已被篡改。")
 		return
 	}
 

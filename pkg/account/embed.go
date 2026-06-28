@@ -17,7 +17,7 @@ func Handler() http.Handler {
 	sub, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "Account UI not built. Run 'make build' or 'make account-ui-build'.", http.StatusNotFound)
+			http.Error(w, "帐户界面未构建。请运行 'make build' 或 'make account-ui-build'。", http.StatusNotFound)
 		})
 	}
 	fileServer := http.FileServer(http.FS(sub))

@@ -23,6 +23,7 @@ import type { ListParams } from "../../api/users";
 import { useTableScrollY } from "../../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/table";
 import CopyText from "../CopyText";
+import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
 
@@ -31,6 +32,7 @@ function formatDate(date: string): string {
 }
 
 export default function DeletionRequestsTab() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -53,18 +55,18 @@ export default function DeletionRequestsTab() {
   const handleApprove = async (id: string) => {
     try {
       await approve.mutateAsync(id);
-      message.success("User deleted successfully");
+      message.success(t("users.userDeletedSuccess"));
     } catch {
-      message.error("Failed to approve deletion");
+      message.error(t("users.approveFailed"));
     }
   };
 
   const handleCancel = async (id: string) => {
     try {
       await cancel.mutateAsync(id);
-      message.success("Request dismissed");
+      message.success(t("users.requestDismissed"));
     } catch {
-      message.error("Failed to dismiss request");
+      message.error(t("users.dismissFailed"));
     }
   };
 
@@ -100,14 +102,14 @@ export default function DeletionRequestsTab() {
 
   const columns: ColumnsType<DeletionRequestResponse> = [
     {
-      title: "Username",
+      title: t("users.username"),
       dataIndex: "username",
       key: "username",
       sorter: true,
       ellipsis: true,
     },
     {
-      title: "Email",
+      title: t("users.email"),
       dataIndex: "email",
       key: "email",
       sorter: true,
@@ -117,7 +119,7 @@ export default function DeletionRequestsTab() {
       ),
     },
     {
-      title: "Reason",
+      title: t("common.reason"),
       dataIndex: "reason",
       key: "reason",
       ellipsis: true,
@@ -128,11 +130,11 @@ export default function DeletionRequestsTab() {
             {reason}
           </Text>
         ) : (
-          <Tag>No reason</Tag>
+          <Tag>{t("users.noReason")}</Tag>
         ),
     },
     {
-      title: "Requested",
+      title: t("users.requestedAt"),
       dataIndex: "requested_at",
       key: "requested_at",
       sorter: true,
@@ -149,20 +151,20 @@ export default function DeletionRequestsTab() {
             items: [
               {
                 key: "view",
-                label: "View details",
+                label: t("users.viewDetails"),
                 onClick: () => setDetailRequest(record),
               },
               {
                 key: "approve",
                 label: (
                   <Popconfirm
-                    title="Approve deletion?"
-                    description="This will permanently delete the user account. This action cannot be undone."
+                    title={t("users.approveDeletion")}
+                    description={t("users.approveDeletionDesc")}
                     onConfirm={() => handleApprove(record.id)}
-                    okText="Delete"
+                    okText={t("users.approveAction")}
                     okButtonProps={{ danger: true }}
                   >
-                    <span style={{ color: "#ff4d4f" }}>Approve deletion</span>
+                    <span style={{ color: "#ff4d4f" }}>{t("users.approveDeletionAction")}</span>
                   </Popconfirm>
                 ),
               },
@@ -170,12 +172,12 @@ export default function DeletionRequestsTab() {
                 key: "dismiss",
                 label: (
                   <Popconfirm
-                    title="Dismiss request?"
-                    description="The user account will be kept and the request removed."
+                    title={t("users.dismissRequest")}
+                    description={t("users.dismissRequestDesc")}
                     onConfirm={() => handleCancel(record.id)}
-                    okText="Dismiss"
+                    okText={t("users.dismissAction")}
                   >
-                    <span>Dismiss request</span>
+                    <span>{t("users.dismissRequestAction")}</span>
                   </Popconfirm>
                 ),
               },
@@ -193,7 +195,7 @@ export default function DeletionRequestsTab() {
     <>
       <div style={{ marginBottom: 16, flexShrink: 0 }}>
         <Input.Search
-          placeholder="Search username, email, or reason..."
+          placeholder={t("users.searchDeletionRequests")}
           allowClear
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
@@ -220,33 +222,33 @@ export default function DeletionRequestsTab() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} requests`,
+            showTotal: (total) => t("users.totalRequests", { total }),
           }}
-          locale={{ emptyText: "No pending deletion requests" }}
+          locale={{ emptyText: t("users.noPendingDeletionRequests") }}
         />
       </div>
 
       <Drawer
-        title="Deletion Request"
+        title={t("users.deletionRequest")}
         open={!!detailRequest}
         onClose={() => setDetailRequest(null)}
         width={480}
       >
         {detailRequest && (
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Username">
+            <Descriptions.Item label={t("users.username")}>
               {detailRequest.username}
             </Descriptions.Item>
-            <Descriptions.Item label="Email">
+            <Descriptions.Item label={t("users.email")}>
               {detailRequest.email}
             </Descriptions.Item>
-            <Descriptions.Item label="User ID">
+            <Descriptions.Item label={t("sessions.userId")}>
               <CopyText text={detailRequest.user_id} />
             </Descriptions.Item>
-            <Descriptions.Item label="Reason">
-              {detailRequest.reason ?? "No reason provided"}
+            <Descriptions.Item label={t("common.reason")}>
+              {detailRequest.reason ?? t("users.noReasonProvided")}
             </Descriptions.Item>
-            <Descriptions.Item label="Requested at">
+            <Descriptions.Item label={t("users.requestedAt")}>
               {formatDate(detailRequest.requested_at)}
             </Descriptions.Item>
           </Descriptions>

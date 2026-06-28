@@ -40,7 +40,7 @@ func TestHandleVerifyEmail_InvalidToken(t *testing.T) {
 	HandleVerifyEmail(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid or has already been used")
+	assert.Contains(t, rr.Body.String(), "无效或已被使用")
 }
 
 func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
@@ -158,7 +158,7 @@ func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
 	HandleResendVerification(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "already verified")
+	assert.Contains(t, rr.Body.String(), "邮箱已验证")
 }
 
 func TestHandleResendVerification_ValidUser_StoresNewToken(t *testing.T) {

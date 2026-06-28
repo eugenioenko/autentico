@@ -26,9 +26,11 @@ import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import GrantChips from "../components/GrantChips";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 
 export default function ClientsPage() {
+  const { t } = useTranslation();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -99,7 +101,7 @@ export default function ClientsPage() {
 
   const columns: ColumnsType<ClientInfoResponse> = [
     {
-      title: "Name",
+      title: t("common.name"),
       dataIndex: "client_name",
       key: "client_name",
       sorter: true,
@@ -115,7 +117,7 @@ export default function ClientsPage() {
       ),
     },
     {
-      title: "Client ID",
+      title: t("clients.clientId"),
       dataIndex: "client_id",
       key: "client_id",
       sorter: true,
@@ -131,7 +133,7 @@ export default function ClientsPage() {
       ),
     },
     {
-      title: "Type",
+      title: t("common.type"),
       dataIndex: "client_type",
       key: "client_type",
       sorter: true,
@@ -142,8 +144,8 @@ export default function ClientsPage() {
             : "ascend"
           : undefined,
       filters: [
-        { text: "Confidential", value: "confidential" },
-        { text: "Public", value: "public" },
+        { text: t("clients.filterConfidential"), value: "confidential" },
+        { text: t("clients.filterPublic"), value: "public" },
       ],
       filterMultiple: false,
       render: (type: string) => (
@@ -151,29 +153,29 @@ export default function ClientsPage() {
       ),
     },
     {
-      title: "Grants",
+      title: t("clients.grantType"),
       dataIndex: "grant_types",
       key: "grant_types",
       width: 140,
       render: (types: string[]) => <GrantChips grants={types ?? []} />,
     },
     {
-      title: "Status",
+      title: t("common.status"),
       dataIndex: "is_active",
       key: "is_active",
       filters: [
-        { text: "Active", value: "1" },
-        { text: "Inactive", value: "0" },
+        { text: t("clients.filterActive"), value: "1" },
+        { text: t("clients.filterInactive"), value: "0" },
       ],
       filterMultiple: false,
       render: (active: boolean) => (
         <Tag color={active ? "success" : "error"}>
-          {active ? "Active" : "Inactive"}
+          {active ? t("common.active") : t("common.inactive")}
         </Tag>
       ),
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       render: (_, record) => (
         <Space>
@@ -195,7 +197,7 @@ export default function ClientsPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load clients" />;
+    return <Alert type="error" message={t("clients.failedToLoadClients")} />;
   }
 
   return (
@@ -208,11 +210,11 @@ export default function ClientsPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Clients
+          {t("clients.title")}
         </Typography.Title>
         <Space>
           <Input.Search
-            placeholder="Search name or client ID..."
+            placeholder={t("clients.searchClients")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -224,7 +226,7 @@ export default function ClientsPage() {
             icon={<PlusOutlined />}
             onClick={() => setCreateOpen(true)}
           >
-            Create Client
+            {t("clients.createClient")}
           </Button>
         </Space>
       </Space>
@@ -250,7 +252,7 @@ export default function ClientsPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} clients`,
+            showTotal: (total) => t("clients.totalClients", { total }),
           }}
         />
       </div>

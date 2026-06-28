@@ -1,10 +1,10 @@
-{{define "title"}}{{.ThemeTitle}} - Authorization{{end}}
+{{define "title"}}{{.ThemeTitle}} - 授权{{end}}
 
 {{define "content"}}
 <form class="auth-card" method="POST" action="{{authURL "/consent"}}">
   {{template "logo" .}}
-  <h1 class="auth-title">Authorize Access</h1>
-  <p class="auth-text-muted"><strong>{{.ClientName}}</strong> is requesting access to your account</p>
+  <h1 class="auth-title">授权访问</h1>
+  <p class="auth-text-muted"><strong>{{.ClientName}}</strong> 正在请求访问您的账户</p>
   {{ .csrfField }}
   <input type="hidden" name="state" value="{{.State}}" />
   <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}" />
@@ -20,7 +20,7 @@
     <li class="consent-scope-item">{{.Description}}</li>
     {{end}}
   </ul>
-  <button class="auth-btn" type="submit" name="action" value="allow">Allow</button>
-  <button class="auth-btn-secondary" type="submit" name="action" value="deny" style="margin-top:0.75rem;">Deny</button>
+  <button class="auth-btn" type="submit" name="action" value="allow">允许</button>
+  <button class="auth-btn-secondary" type="submit" name="action" value="deny" style="margin-top:0.75rem;">拒绝</button>
 </form>
 {{end}}

@@ -7,17 +7,17 @@
     {{if .Error}}
       <div class="auth-error" role="alert">{{.Error}}</div>
     {{else}}
-      <p class="auth-text">To activate your account, we need to verify your email address.</p>
-      <p class="auth-text">Check your inbox and click the verification link to continue.</p>
+      <p class="auth-text">为激活您的账户，我们需要验证您的邮箱地址。</p>
+      <p class="auth-text">请检查收件箱并点击验证链接继续。</p>
     {{end}}
 
   {{else if eq .Mode "blocked"}}
-    <p class="auth-text-muted">Your email address is not yet verified. Check your inbox for the verification link.</p>
+    <p class="auth-text-muted">您的邮箱地址尚未验证。请检查收件箱中的验证链接。</p>
 
   {{else if eq .Mode "expired"}}
     <p class="auth-text-muted">
-      {{if .Error}}{{.Error}}{{else}}This verification link has expired.{{end}}
-      Request a new one below.
+      {{if .Error}}{{.Error}}{{else}}此验证链接已过期。{{end}}
+      请在下方申请新链接。
     </p>
   {{end}}
 
@@ -33,10 +33,10 @@
       <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
       <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
       <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
-      <button class="auth-btn" type="submit">Resend verification email</button>
+      <button class="auth-btn" type="submit">重新发送验证邮件</button>
     </form>
   {{end}}
 
-  <div class="auth-link"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a></div>
+  <div class="auth-link"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">返回登录</a></div>
 </div>
 {{end}}

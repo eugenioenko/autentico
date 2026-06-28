@@ -124,7 +124,7 @@ func TestLogout_E2E(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Contains(t, string(body), "signed out")
+	assert.Contains(t, string(body), "成功退出登录")
 }
 
 func TestAuthorize_RendersLoginPage(t *testing.T) {

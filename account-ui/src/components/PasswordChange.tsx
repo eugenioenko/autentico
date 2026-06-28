@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api';
 import Modal from './Modal';
 import Button from './Button';
@@ -10,6 +11,7 @@ interface PasswordChangeModalProps {
 }
 
 const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,7 +23,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
     e.preventDefault();
     setError('');
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match.');
+      setError(t('profile.passwordMismatch'));
       return;
     }
     setIsSubmitting(true);
@@ -29,7 +31,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
       await api.post('/password', { current_password: currentPassword, new_password: newPassword });
       setSuccess(true);
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to update password.'));
+      setError(extractError(err, t('profile.passwordUpdateFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -37,11 +39,11 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
 
   if (success) {
     return (
-      <Modal title="Change Password" onClose={onClose}>
+      <Modal title={t('profile.changePassword')} onClose={onClose}>
         <div className="space-y-4">
-          <Alert type="success" message="Password updated successfully." />
+          <Alert type="success" message={t('profile.passwordUpdateSuccess')} />
           <Button className="w-full" onClick={onClose}>
-            Done
+            {t('common.done')}
           </Button>
         </div>
       </Modal>
@@ -49,10 +51,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
   }
 
   return (
-    <Modal title="Change Password" onClose={onClose}>
+    <Modal title={t('profile.changePassword')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label>Current Password</label>
+          <label>{t('profile.currentPassword')}</label>
           <input
             type="password"
             value={currentPassword}
@@ -61,7 +63,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
           />
         </div>
         <div>
-          <label>New Password</label>
+          <label>{t('profile.newPassword')}</label>
           <input
             type="password"
             value={newPassword}
@@ -69,7 +71,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
           />
         </div>
         <div>
-          <label>Confirm New Password</label>
+          <label>{t('profile.confirmNewPassword')}</label>
           <input
             type="password"
             value={confirmPassword}
@@ -79,10 +81,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
         {error && <Alert type="danger" message={error} />}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword} className="flex-1">
-            {isSubmitting ? 'Updating…' : 'Update Password'}
+            {isSubmitting ? t('common.updating') : t('profile.updatePassword')}
           </Button>
         </div>
       </form>

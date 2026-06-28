@@ -48,7 +48,7 @@ func TestHandleMfa_GetEnroll(t *testing.T) {
 	HandleMfa(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Setup Authenticator")
+	assert.Contains(t, rr.Body.String(), "设置身份验证器")
 }
 
 func TestHandleMfa_Post_Success(t *testing.T) {

@@ -31,7 +31,7 @@ import (
 func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	usr := middleware.UserFromContext(r.Context())
 	if usr == nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "需要认证")
 		return
 	}
 
@@ -41,7 +41,7 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	if config.Get().AllowSelfServiceDeletion {
 		if err := HardDeleteUser(usr.ID); err != nil {
 			slog.Error("deletion: failed to delete user (self-service)", "error", err, "user_id", usr.ID)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete account")
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除账户失败")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -52,11 +52,11 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	existing, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
 		slog.Error("deletion: failed to check existing request", "error", err, "user_id", usr.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to process deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "处理注销请求失败")
 		return
 	}
 	if existing != nil {
-		utils.WriteErrorResponse(w, http.StatusConflict, "already_requested", "A deletion request is already pending")
+		utils.WriteErrorResponse(w, http.StatusConflict, "already_requested", "已有注销请求正在处理中")
 		return
 	}
 
@@ -68,7 +68,7 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	req, err := CreateDeletionRequest(usr.ID, reason)
 	if err != nil {
 		slog.Error("deletion: failed to create deletion request", "error", err, "user_id", usr.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "创建注销请求失败")
 		return
 	}
 	utils.SuccessResponse(w, req.ToResponse(), http.StatusCreated)
@@ -85,14 +85,14 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	usr := middleware.UserFromContext(r.Context())
 	if usr == nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "需要认证")
 		return
 	}
 
 	req, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
 		slog.Error("deletion: failed to get deletion request", "error", err, "user_id", usr.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "获取注销请求失败")
 		return
 	}
 	if req == nil {
@@ -114,24 +114,24 @@ func HandleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
 func HandleCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	usr := middleware.UserFromContext(r.Context())
 	if usr == nil {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "需要认证")
 		return
 	}
 
 	req, err := DeletionRequestByUserID(usr.ID)
 	if err != nil {
 		slog.Error("deletion: failed to get deletion request for cancel", "error", err, "user_id", usr.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "获取注销请求失败")
 		return
 	}
 	if req == nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "No pending deletion request found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "未找到待处理的注销请求")
 		return
 	}
 
 	if err := CancelDeletionRequest(req.ID); err != nil {
 		slog.Error("deletion: failed to cancel deletion request", "error", err, "request_id", req.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to cancel deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "取消注销请求失败")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -165,7 +165,7 @@ func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
 	requests, total, err := ListDeletionRequestsWithParams(params, dateWhere, dateArgs)
 	if err != nil {
 		slog.Error("deletion: failed to list deletion requests", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list deletion requests")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出注销请求失败")
 		return
 	}
 
@@ -195,24 +195,24 @@ func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
 func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing request id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少请求ID")
 		return
 	}
 
 	req, err := DeletionRequestByID(id)
 	if err != nil {
 		slog.Error("deletion: failed to get deletion request", "error", err, "request_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to get deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "获取注销请求失败")
 		return
 	}
 	if req == nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Deletion request not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "注销请求未找到")
 		return
 	}
 
 	if err := HardDeleteUser(req.UserID); err != nil {
 		slog.Error("deletion: failed to delete user (admin approve)", "error", err, "user_id", req.UserID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除用户失败")
 		return
 	}
 	audit.Log(audit.EventDeletionApproved, audit.ActorFromRequest(r), audit.TargetUser, req.UserID, nil, utils.GetClientIP(r))
@@ -232,17 +232,17 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 func HandleAdminCancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing request id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少请求ID")
 		return
 	}
 
 	if err := CancelDeletionRequest(id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Deletion request not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "注销请求未找到")
 			return
 		}
 		slog.Error("deletion: failed to cancel deletion request (admin)", "error", err, "request_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to cancel deletion request")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "取消注销请求失败")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

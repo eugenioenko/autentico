@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { IconChevronRight } from '@tabler/icons-react';
 import api from '../api';
@@ -8,6 +9,7 @@ import StatusDot from '../components/StatusDot';
 import { cn } from '../lib/utils';
 
 const Dashboard: React.FC = () => {
+  const { t } = useTranslation();
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: () => api.get('/profile').then((res) => res.data.data),
@@ -20,11 +22,11 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-4" data-testid="account-dashboard">
       <Card
-        title="Account Security"
+        title={t('dashboard.accountSecurity')}
         action={
           <Link to="/security">
             <Button variant="primary">
-              Manage <IconChevronRight size={13} />
+              {t('dashboard.manage')} <IconChevronRight size={13} />
             </Button>
           </Link>
         }
@@ -32,28 +34,28 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center gap-2 mt-1">
           <StatusDot active={!!mfa?.totp_enabled} />
           <span className="text-sm">
-            Two-factor authentication{' '}
+            {t('security.twoFactorAuth')}{' '}
             <span className={cn('font-semibold', mfa?.totp_enabled ? 'text-theme-success' : 'text-theme-muted')}>
-              {mfa?.totp_enabled ? 'enabled' : 'not configured'}
+              {mfa?.totp_enabled ? t('dashboard.enabled') : t('dashboard.notConfigured')}
             </span>
           </span>
         </div>
       </Card>
 
       <Card
-        title="Profile"
+        title={t('profile.title')}
         action={
           <Link to="/profile">
             <Button variant="primary">
-              Update <IconChevronRight size={13} />
+              {t('common.update')} <IconChevronRight size={13} />
             </Button>
           </Link>
         }
       >
         <dl className="space-y-3 mt-1">
           {[
-            { label: 'Username', value: profile?.username },
-            { label: 'Email', value: profile?.email || '—' },
+            { label: t('profile.username'), value: profile?.username },
+            { label: t('profile.email'), value: profile?.email || '—' },
           ].map((row) => (
             <div key={row.label} className="flex justify-between items-center">
               <dt className="text-sm text-theme-muted">{row.label}</dt>

@@ -45,7 +45,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
 		slog.Warn("introspect: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "客户端认证失败")
 		return
 	}
 	if authenticatedClient == nil {
@@ -57,19 +57,19 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		// resource server making the request." We restrict bearer auth to admin
 		// users only to prevent arbitrary users from inspecting other users' tokens.
 		if r.Header.Get("Authorization") == "" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "需要客户端认证")
 			return
 		}
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
 			slog.Warn("introspect: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer 令牌无效、已过期或其会话已被撤销")
 			return
 		}
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
 			slog.Warn("introspect: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
-			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token introspection")
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "使用 Bearer 令牌进行内省需要管理员权限")
 			return
 		}
 	}
@@ -77,7 +77,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	var req IntrospectRequest
 
 	if r.Body == nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request body is empty")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "请求体为空")
 		return
 	}
 
@@ -86,21 +86,21 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
 		if err := r.ParseForm(); err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "表单数据无效")
 			return
 		}
 		// RFC 7662 §2.1: "token" parameter is REQUIRED
 		req.Token = r.FormValue("token")
 	} else {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 			return
 		}
 	}
 
 	// RFC 7662 §2.1: "token" is REQUIRED
 	if req.Token == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "令牌为必填项")
 		return
 	}
 

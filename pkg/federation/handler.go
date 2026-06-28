@@ -58,14 +58,14 @@ func HandleFederationIcon(w http.ResponseWriter, r *http.Request) {
 func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
 	if providerID == "" {
-		http.Error(w, "missing provider id", http.StatusBadRequest)
+		http.Error(w, "缺少提供商ID", http.StatusBadRequest)
 		return
 	}
 
 	provider, err := FederationProviderByID(providerID)
 	if err != nil || !provider.Enabled {
 		slog.Warn("federation: provider not found or disabled", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
-		http.Error(w, "federation provider not found", http.StatusNotFound)
+		http.Error(w, "联邦认证提供商未找到", http.StatusNotFound)
 		return
 	}
 
@@ -73,7 +73,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	nonce, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("federation: failed to generate nonce", "request_id", reqid.Get(r.Context()), "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
 
@@ -91,7 +91,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	signedState, err := SignState(state)
 	if err != nil {
 		slog.Error("federation: failed to sign state", "request_id", reqid.Get(r.Context()), "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
 
@@ -100,7 +100,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	oidcProvider, err := oidc.NewProvider(safeCtx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)
-		http.Error(w, "federation provider unavailable", http.StatusBadGateway)
+		http.Error(w, "联邦认证提供商不可用", http.StatusBadGateway)
 		return
 	}
 
@@ -121,7 +121,7 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
 	if providerID == "" {
-		http.Error(w, "missing provider id", http.StatusBadRequest)
+		http.Error(w, "缺少提供商ID", http.StatusBadRequest)
 		return
 	}
 	q := r.URL.Query()
@@ -131,27 +131,27 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 
 	if rawState == "" || code == "" {
 		slog.Warn("federation: missing state or code in callback", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
-		http.Error(w, "invalid callback", http.StatusBadRequest)
+		http.Error(w, "无效的回调", http.StatusBadRequest)
 		return
 	}
 
 	state, err := VerifyState(rawState)
 	if err != nil {
 		slog.Warn("federation: invalid state signature", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "invalid state", http.StatusBadRequest)
+		http.Error(w, "无效的状态", http.StatusBadRequest)
 		return
 	}
 
 	if state.ProviderID != providerID {
 		slog.Warn("federation: provider_id mismatch in state", "request_id", reqid.Get(r.Context()), "expected", providerID, "got", state.ProviderID)
-		http.Error(w, "invalid state", http.StatusBadRequest)
+		http.Error(w, "无效的状态", http.StatusBadRequest)
 		return
 	}
 
 	provider, err := FederationProviderByID(providerID)
 	if err != nil || !provider.Enabled {
 		slog.Warn("federation: provider not found or disabled in callback", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
-		http.Error(w, "federation provider not found", http.StatusNotFound)
+		http.Error(w, "联邦认证提供商未找到", http.StatusNotFound)
 		return
 	}
 
@@ -160,7 +160,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	oidcProvider, err := oidc.NewProvider(ctx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider in callback", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)
-		http.Error(w, "federation provider unavailable", http.StatusBadGateway)
+		http.Error(w, "联邦认证提供商不可用", http.StatusBadGateway)
 		return
 	}
 
@@ -175,14 +175,14 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	token, err := oauth2Cfg.Exchange(ctx, code)
 	if err != nil {
 		slog.Warn("federation: failed to exchange code", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		http.Error(w, "认证失败", http.StatusUnauthorized)
 		return
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
 		slog.Warn("federation: no id_token in response", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
-		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		http.Error(w, "认证失败", http.StatusUnauthorized)
 		return
 	}
 
@@ -190,7 +190,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		slog.Warn("federation: id_token verification failed", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		http.Error(w, "认证失败", http.StatusUnauthorized)
 		return
 	}
 
@@ -201,21 +201,21 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		slog.Error("federation: failed to extract claims", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
 
 	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified)
 	if err != nil {
 		slog.Error("federation: failed to resolve user", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
 		return
 	}
 	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "federation", "provider", providerID), utils.GetClientIP(r))
 
 	if err := completeAuthFlow(w, r, usr, state); err != nil {
 		slog.Error("federation: failed to complete auth flow", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		http.Error(w, "服务器错误", http.StatusInternalServerError)
 	}
 }
 

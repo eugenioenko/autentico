@@ -12,13 +12,13 @@ export async function magicLinkLogin(browser: Browser) {
   await page.goto(`${BASE_URL}/account/`);
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
 
-  // Click "Sign in with email link"
-  await page.click("text=Sign in with email link");
+  // Click "使用邮箱链接登录"
+  await page.click("text=使用邮箱链接登录");
   await expect(page.locator("#email")).toBeVisible({ timeout: TIMEOUT });
 
   // Fill email and submit
   await page.fill("#email", ADMIN_EMAIL);
-  await page.click('button:has-text("Send sign-in link")');
+  await page.click('button:has-text("发送登录链接")');
 
   // Should see the code input
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
@@ -37,7 +37,7 @@ export async function magicLinkLogin(browser: Browser) {
 
   // Enter the code and verify
   await page.fill("#code", code!);
-  await page.click('button:has-text("Verify code")');
+  await page.click('button:has-text("验证验证码")');
 
   // Should land on account dashboard — no additional MFA prompt
   await expect(page.getByTestId("account-dashboard")).toBeVisible({

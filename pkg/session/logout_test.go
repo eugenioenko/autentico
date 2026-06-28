@@ -61,7 +61,7 @@ func TestHandleLogout_NoParams_ShowsLogoutPage(t *testing.T) {
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestHandleLogout_POST_ClearsIdpSessionCookieWithHint(t *testing.T) {
@@ -254,7 +254,7 @@ func TestHandleLogout_POST_OtherDevicesSurvive(t *testing.T) {
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 
 	// Current device's session cascade-deactivated.
 	var deactivatedAt sql.NullTime
@@ -331,7 +331,7 @@ func TestHandleLogout_POST_UnregisteredRedirectURI_ShowsLogoutPage(t *testing.T)
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unregistered URI must be rejected, fallback to logout page")
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestHandleLogout_POST_BasicAuthWithIdTokenHint(t *testing.T) {
@@ -448,7 +448,7 @@ func TestRpInitiatedLogout_ClientIdMismatch_NoRedirect(t *testing.T) {
 	HandleRpInitiatedLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "client_id mismatch must prevent redirect")
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }
 
 func TestRpInitiatedLogout_ClientIdMismatch_POST_NoRedirect(t *testing.T) {
@@ -480,5 +480,5 @@ func TestRpInitiatedLogout_ClientIdMismatch_POST_NoRedirect(t *testing.T) {
 	HandleLogout(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "client_id mismatch must prevent redirect on POST")
-	assert.Contains(t, rr.Body.String(), "signed out")
+	assert.Contains(t, rr.Body.String(), "成功退出登录")
 }

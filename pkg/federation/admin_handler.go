@@ -34,7 +34,7 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 
 	providers, total, err := ListFederationProvidersWithParams(params)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list federation providers")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出联邦认证提供商失败")
 		return
 	}
 
@@ -58,12 +58,12 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	var req FederationProviderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
 	if req.ID == "" || req.Name == "" || req.Issuer == "" || req.ClientID == "" || req.ClientSecret == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "id, name, issuer, client_id, and client_secret are required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "id、name、issuer、client_id 和 client_secret 为必填项")
 		return
 	}
 
@@ -88,10 +88,10 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 
 	if err := CreateFederationProvider(p); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A federation provider with that ID already exists")
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "该ID的联邦认证提供商已存在")
 			return
 		}
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create federation provider")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "创建联邦认证提供商失败")
 		return
 	}
 
@@ -111,12 +111,12 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少提供商ID")
 		return
 	}
 	p, err := FederationProviderByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "联邦认证提供商未找到")
 		return
 	}
 	utils.WriteApiResponse(w, toProviderResponse(*p), http.StatusOK)
@@ -136,22 +136,22 @@ func HandleGetProvider(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少提供商ID")
 		return
 	}
 	if _, err := FederationProviderByID(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "联邦认证提供商未找到")
 		return
 	}
 
 	var req FederationProviderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
 	if req.Name == "" || req.Issuer == "" || req.ClientID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "name, issuer, and client_id are required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "name、issuer 和 client_id 为必填项")
 		return
 	}
 
@@ -161,7 +161,7 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := UpdateFederationProvider(id, req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update federation provider")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "更新联邦认证提供商失败")
 		return
 	}
 
@@ -180,16 +180,16 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing provider id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少提供商ID")
 		return
 	}
 	if _, err := FederationProviderByID(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "Federation provider not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "联邦认证提供商未找到")
 		return
 	}
 
 	if err := DeleteFederationProvider(id); err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete federation provider")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除联邦认证提供商失败")
 		return
 	}
 	audit.Log(audit.EventFederationDeleted, audit.ActorFromRequest(r), audit.TargetFederation, id, nil, utils.GetClientIP(r))

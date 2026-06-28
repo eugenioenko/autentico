@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typography, App } from "antd";
 import { useUpdateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProvider, FederationProviderUpdateRequest } from "../../types/federation";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   open: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function FederationEditForm({ open, provider, onClose }: Props) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateProvider = useUpdateFederationProvider();
@@ -31,10 +33,10 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
     if (!provider) return;
     try {
       await updateProvider.mutateAsync({ id: provider.id, data: values });
-      message.success("Federation provider updated");
+      message.success(t("federation.providerUpdated"));
       onClose();
     } catch {
-      message.error("Failed to update federation provider");
+      message.error(t("federation.updateProviderFailed"));
     }
   };
 
@@ -44,19 +46,19 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
 
   return (
     <Drawer
-      title="Edit Federation Provider"
+      title={t("federation.editFederationProvider")}
       open={open}
       onClose={onClose}
       width={520}
       extra={
         <Space>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button
             type="primary"
             onClick={() => form.submit()}
             loading={updateProvider.isPending}
           >
-            Save
+            {t("common.save")}
           </Button>
         </Space>
       }
@@ -65,11 +67,11 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
         <Alert
           type="info"
           style={{ marginBottom: 20 }}
-          message="Redirect URI for this provider"
+          message={t("federation.redirectUriForProvider")}
           description={
             <Space direction="vertical" size={4}>
               <Typography.Text>
-                Register this redirect URI in your identity provider's developer console:
+                {t("federation.redirectUriDesc")}
               </Typography.Text>
               <Typography.Text code copyable>
                 {callbackURL}
@@ -82,18 +84,18 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
           name="name"
-          label="Display Name"
-          rules={[{ required: true, message: "Name is required" }]}
+          label={t("federation.displayName")}
+          rules={[{ required: true, message: t("federation.nameRequired") }]}
         >
           <Input />
         </Form.Item>
 
         <Form.Item
           name="issuer"
-          label="Issuer URL"
+          label={t("federation.issuerUrl")}
           rules={[
-            { required: true, message: "Issuer is required" },
-            { type: "url", message: "Must be a valid URL" },
+            { required: true, message: t("federation.issuerRequired") },
+            { type: "url", message: t("federation.mustBeValidUrl") },
           ]}
         >
           <Input />
@@ -101,29 +103,29 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
 
         <Form.Item
           name="client_id"
-          label="Client ID"
-          rules={[{ required: true, message: "Client ID is required" }]}
+          label={t("federation.clientIdLabel")}
+          rules={[{ required: true, message: t("federation.clientIdRequired") }]}
         >
           <Input />
         </Form.Item>
 
         <Form.Item
           name="client_secret"
-          label="Client Secret"
-          extra="Leave empty to keep the existing secret."
+          label={t("federation.clientSecretLabel")}
+          extra={t("federation.leaveEmptyToKeepSecret")}
         >
-          <Input.Password placeholder="Leave empty to keep unchanged" />
+          <Input.Password placeholder={t("federation.leaveEmptyToKeepCurrent")} />
         </Form.Item>
 
-        <Form.Item name="icon_svg" label="Icon SVG">
+        <Form.Item name="icon_svg" label={t("federation.iconSvg")}>
           <Input.TextArea rows={3} />
         </Form.Item>
 
-        <Form.Item name="sort_order" label="Sort Order" extra="Lower numbers appear first on the login page.">
+        <Form.Item name="sort_order" label={t("federation.sortOrder")} extra={t("federation.sortOrderExtra")}>
           <InputNumber min={0} style={{ width: "100%" }} />
         </Form.Item>
 
-        <Form.Item name="enabled" label="Enabled" valuePropName="checked">
+        <Form.Item name="enabled" label={t("common.enabled")} valuePropName="checked">
           <Switch />
         </Form.Item>
       </Form>

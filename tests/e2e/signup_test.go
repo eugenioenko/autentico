@@ -339,7 +339,7 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 
 	respBody, _ := io.ReadAll(redirectResp.Body)
 	assert.Equal(t, http.StatusOK, redirectResp.StatusCode, "should render signup form with error")
-	assert.Contains(t, string(respBody), "Passwords do not match")
+	assert.Contains(t, string(respBody), "密码不一致")
 }
 
 func TestSelfSignup_DuplicateUser(t *testing.T) {
@@ -402,7 +402,7 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 
 	respBody, _ := io.ReadAll(redirectResp.Body)
 	assert.Equal(t, http.StatusOK, redirectResp.StatusCode, "should render signup form with error")
-	assert.Contains(t, string(respBody), "Could not create account")
+	assert.Contains(t, string(respBody), "无法创建账户")
 }
 
 // TestSelfSignup_UsernameIsEmail verifies that when ValidationUsernameIsEmail is true

@@ -155,5 +155,5 @@ func TestRpInitiatedLogout_UnregisteredURIShowsLogoutPage(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "unregistered URI must be rejected, fallback to logout page")
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "signed out")
+	assert.Contains(t, string(body), "成功退出登录")
 }

@@ -103,7 +103,7 @@ func RenderVerifyEmail(w http.ResponseWriter, r *http.Request, mode, username st
 func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	rawToken := r.URL.Query().Get("token")
 	if rawToken == "" {
-		http.Error(w, "Missing token", http.StatusBadRequest)
+		http.Error(w, "缺少令牌", http.StatusBadRequest)
 		return
 	}
 
@@ -129,7 +129,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		State:               params.State,
 	}, params.AuthorizeSig) {
 		slog.Warn("verify-email: authorize parameter signature mismatch")
-		RenderVerifyEmail(w, r, "expired", "", params, "Invalid verification link. Please log in again.")
+		RenderVerifyEmail(w, r, "expired", "", params, "验证链接无效，请重新登录。")
 		return
 	}
 
@@ -137,11 +137,11 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	userID, expiresAt, err := user.GetVerificationTokenInfo(tokenHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			RenderVerifyEmail(w, r, "expired", "", params, "This verification link is invalid or has already been used.")
+			RenderVerifyEmail(w, r, "expired", "", params, "此验证链接无效或已被使用。")
 			return
 		}
 		slog.Error("verify-email: failed to look up token", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "expired", "", params, "Something went wrong. Please request a new verification link.")
+		RenderVerifyEmail(w, r, "expired", "", params, "出现错误，请重新获取验证链接。")
 		return
 	}
 
@@ -151,13 +151,13 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		if usr != nil {
 			username = usr.Username
 		}
-		RenderVerifyEmail(w, r, "expired", username, params, "This verification link has expired.")
+		RenderVerifyEmail(w, r, "expired", username, params, "此验证链接已过期。")
 		return
 	}
 
 	if err := user.MarkEmailVerified(userID); err != nil {
 		slog.Error("verify-email: failed to mark email verified", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "expired", "", params, "Something went wrong. Please request a new verification link.")
+		RenderVerifyEmail(w, r, "expired", "", params, "出现错误，请重新获取验证链接。")
 		return
 	}
 
@@ -167,7 +167,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	authCodeStr, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("verify-email: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
+		RenderVerifyEmail(w, r, "expired", "", params, "验证成功但登录失败，请手动登录。")
 		return
 	}
 
@@ -187,7 +187,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	if err = authcode.CreateAuthCode(code); err != nil {
 		slog.Error("verify-email: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
+		RenderVerifyEmail(w, r, "expired", "", params, "验证成功但登录失败，请手动登录。")
 		return
 	}
 
@@ -198,7 +198,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 // HandleResendVerification handles POST /oauth2/resend-verification
 func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		RenderVerifyEmail(w, r, "expired", "", OAuthParams{}, "Invalid request. Please try again.")
+		RenderVerifyEmail(w, r, "expired", "", OAuthParams{}, "无效的请求，请重试。")
 		return
 	}
 
@@ -224,7 +224,7 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usr.IsEmailVerified {
-		RenderVerifyEmail(w, r, "sent", username, params, "Your email is already verified. You can now log in.")
+		RenderVerifyEmail(w, r, "sent", username, params, "您的邮箱已验证，现在可以登录了。")
 		return
 	}
 
@@ -236,14 +236,14 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 	rawToken, tokenHash, err := GenerateToken()
 	if err != nil {
 		slog.Error("resend-verification: failed to generate token", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
+		RenderVerifyEmail(w, r, "sent", username, params, "出现错误，请重试。")
 		return
 	}
 
 	expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
 	if err := user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt); err != nil {
 		slog.Error("resend-verification: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
+		RenderVerifyEmail(w, r, "sent", username, params, "出现错误，请重试。")
 		return
 	}
 

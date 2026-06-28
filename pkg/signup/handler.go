@@ -53,7 +53,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseForm(); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "请求负载必须是 application/x-www-form-urlencoded 格式")
 		return
 	}
 
@@ -79,12 +79,12 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		State:               params.State,
 	}, params.AuthorizeSig) {
 		slog.Warn("signup: authorize parameter signature mismatch", "client_id", params.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "授权请求参数已被篡改")
 		return
 	}
 
 	if !utils.IsValidRedirectURI(params.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的重定向URI")
 		return
 	}
 
@@ -98,7 +98,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if password != confirmPassword {
-		redirectSignupError(w, r, params, "Passwords do not match")
+		redirectSignupError(w, r, params, "两次输入的密码不一致")
 		return
 	}
 
@@ -140,7 +140,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 	for field, visibility := range fieldVisibility {
 		if visibility == "required" && profileFields[field] == "" {
-			redirectSignupError(w, r, params, "Please fill in all required fields")
+			redirectSignupError(w, r, params, "请填写所有必填字段")
 			return
 		}
 	}
@@ -165,7 +165,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.CreateUser(username, password, emailAddr)
 	if err != nil {
-		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
+		redirectSignupError(w, r, params, "无法创建账户，用户名可能已被占用。")
 		return
 	}
 	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
@@ -209,7 +209,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	authCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("signup: failed to generate auth code", "error", err)
-		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupError(w, r, params, "出现错误，请重试。")
 		return
 	}
 
@@ -229,7 +229,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	if err = authcode.CreateAuthCode(code); err != nil {
 		slog.Error("signup: failed to create auth code", "error", err)
-		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
+		redirectSignupError(w, r, params, "出现错误，请重试。")
 		return
 	}
 

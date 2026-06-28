@@ -72,7 +72,7 @@ describe('Magic Link — disabled by default', () => {
     const resp = await fetch(authorizeURL(), { redirect: 'manual' });
     expect(resp.status).toBe(200);
     const body = await resp.text();
-    expect(body).not.toContain('Sign in with email link');
+    expect(body).not.toContain('使用邮箱链接登录');
   });
 });
 
@@ -100,7 +100,7 @@ describe('Magic Link — enabled', () => {
     const resp = await fetch(authorizeURL(), { redirect: 'manual' });
     expect(resp.status).toBe(200);
     const body = await resp.text();
-    expect(body).toContain('Sign in with email link');
+    expect(body).toContain('使用邮箱链接登录');
   });
 
   it('POST /magic-link with empty email shows validation error', async () => {

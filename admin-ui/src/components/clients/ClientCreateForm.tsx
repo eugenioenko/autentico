@@ -23,6 +23,7 @@ import {
 import { useCreateClient } from "../../hooks/useClients";
 import type { ClientCreateRequest, ClientResponse } from "../../types/client";
 import { tip, overrideTip } from "./clientTips";
+import { useTranslation } from "react-i18next";
 
 interface ClientCreateFormProps {
   open: boolean;
@@ -67,6 +68,7 @@ export default function ClientCreateForm({
   open,
   onClose,
 }: ClientCreateFormProps) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const createClient = useCreateClient();
@@ -84,37 +86,38 @@ export default function ClientCreateForm({
       onClose();
       if (result.client_secret) {
         setSecretModal(result);
+        message.success(t("clients.clientCreated"));
       } else {
-        message.success("Client created successfully");
+        message.success(t("clients.clientCreated"));
       }
     } catch {
-      message.error("Failed to create client");
+      message.error(t("clients.createClientFailed"));
     }
   };
 
   const handleCopySecret = () => {
     if (secretModal?.client_secret) {
       navigator.clipboard.writeText(secretModal.client_secret);
-      message.success("Secret copied to clipboard");
+      message.success(t("clients.secretCopied"));
     }
   };
 
   return (
     <>
       <Drawer
-        title="Create Client"
+        title={t("clients.createClient")}
         open={open}
         onClose={onClose}
         width={520}
         extra={
           <Space>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{t("common.cancel")}</Button>
             <Button
               type="primary"
               onClick={() => form.submit()}
               loading={createClient.isPending}
             >
-              Create
+              {t("common.create")}
             </Button>
           </Space>
         }
@@ -135,24 +138,24 @@ export default function ClientCreateForm({
         >
           <Form.Item
             name="client_name"
-            label="Client Name"
-            rules={[{ required: true, message: "Client name is required" }]}
+            label={t("clients.clientName")}
+            rules={[{ required: true, message: t("clients.clientNameRequired") }]}
             tooltip={{ title: tip("client_name"), icon: <ExclamationCircleOutlined /> }}
           >
-            <Input placeholder="My Application" />
+            <Input placeholder={t("clients.clientNamePlaceholder")} />
           </Form.Item>
 
           <Form.Item
             name="client_id"
-            label="Client ID"
+            label={t("clients.clientId")}
             tooltip={{ title: tip("client_id"), icon: <ExclamationCircleOutlined /> }}
           >
-            <Input placeholder="my-custom-client-id" autoComplete="off" />
+            <Input placeholder={t("clients.clientIdPlaceholder")} autoComplete="off" />
           </Form.Item>
 
           <Form.Item
             name="client_type"
-            label="Client Type"
+            label={t("clients.clientType")}
             tooltip={{ title: tip("client_type"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select options={CLIENT_TYPE_OPTIONS} />
@@ -163,10 +166,10 @@ export default function ClientCreateForm({
               form.getFieldValue("client_type") === "confidential" ? (
                 <Form.Item
                   name="client_secret"
-                  label="Client Secret"
+                  label={t("clients.clientSecret")}
                   tooltip={{ title: tip("client_secret"), icon: <ExclamationCircleOutlined /> }}
                 >
-                  <Input.Password placeholder="Auto-generated if left empty" autoComplete="new-password" />
+                  <Input.Password placeholder={t("clients.leaveEmptyAutoGenerate")} autoComplete="new-password" />
                 </Form.Item>
               ) : null
             }
@@ -178,7 +181,7 @@ export default function ClientCreateForm({
               {
                 validator: async (_, uris) => {
                   if (!uris || uris.length === 0) {
-                    return Promise.reject("At least one redirect URI required");
+                    return Promise.reject(t("clients.responseTypeRequired"));
                   }
                 },
               },
@@ -189,7 +192,7 @@ export default function ClientCreateForm({
                 {fields.map((field) => (
                   <Form.Item
                     key={field.key}
-                    label={field.name === 0 ? "Redirect URIs" : undefined}
+                    label={field.name === 0 ? t("clients.redirectUris") : undefined}
                     required={field.name === 0}
                     tooltip={field.name === 0 ? { title: tip("redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
                   >
@@ -198,12 +201,12 @@ export default function ClientCreateForm({
                         {...field}
                         noStyle
                         rules={[
-                          { required: true, message: "URI is required" },
-                          { type: "url", message: "Must be a valid URL" },
+                          { required: true, message: t("clients.uriRequired") },
+                          { type: "url", message: t("clients.mustBeValidUrl") },
                         ]}
                       >
                         <Input
-                          placeholder="https://example.com/callback"
+                          placeholder={t("clients.redirectUriPlaceholder")}
                           style={{ width: "100%" }}
                         />
                       </Form.Item>
@@ -223,7 +226,7 @@ export default function ClientCreateForm({
                     block
                     icon={<PlusOutlined />}
                   >
-                    Add Redirect URI
+                    {t("clients.addRedirectUri")}
                   </Button>
                   <Form.ErrorList errors={errors} />
                 </Form.Item>
@@ -237,7 +240,7 @@ export default function ClientCreateForm({
                 {fields.map((field) => (
                   <Form.Item
                     key={field.key}
-                    label={field.name === 0 ? "Post-Logout Redirect URIs" : undefined}
+                    label={field.name === 0 ? t("clients.postLogoutRedirectUri") : undefined}
                     tooltip={field.name === 0 ? { title: tip("post_logout_redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
                   >
                     <Space.Compact style={{ width: "100%" }}>
@@ -245,12 +248,12 @@ export default function ClientCreateForm({
                         {...field}
                         noStyle
                         rules={[
-                          { required: true, message: "URI is required" },
-                          { type: "url", message: "Must be a valid URL" },
+                          { required: true, message: t("clients.uriRequired") },
+                          { type: "url", message: t("clients.mustBeValidUrl") },
                         ]}
                       >
                         <Input
-                          placeholder="https://example.com/logout-callback"
+                          placeholder={t("clients.postLogoutRedirectUriPlaceholder")}
                           style={{ width: "100%" }}
                         />
                       </Form.Item>
@@ -262,7 +265,7 @@ export default function ClientCreateForm({
                   </Form.Item>
                 ))}
                 <Form.Item
-                  label={fields.length === 0 ? "Post-Logout Redirect URIs" : undefined}
+                  label={fields.length === 0 ? t("clients.postLogoutRedirectUri") : undefined}
                   tooltip={fields.length === 0 ? { title: tip("post_logout_redirect_uris"), icon: <ExclamationCircleOutlined /> } : undefined}
                 >
                   <Button
@@ -271,7 +274,7 @@ export default function ClientCreateForm({
                     block
                     icon={<PlusOutlined />}
                   >
-                    Add Post-Logout Redirect URI
+                    {t("clients.addPostLogoutRedirectUri")}
                   </Button>
                 </Form.Item>
               </>
@@ -280,7 +283,7 @@ export default function ClientCreateForm({
 
           <Form.Item
             name="grant_types"
-            label="Grant Types"
+            label={t("clients.grantType")}
             tooltip={{ title: tip("grant_types"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select mode="multiple" options={GRANT_TYPE_OPTIONS} />
@@ -288,7 +291,7 @@ export default function ClientCreateForm({
 
           <Form.Item
             name="response_types"
-            label="Response Types"
+            label={t("clients.responseType")}
             tooltip={{ title: tip("response_types"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select mode="multiple" options={RESPONSE_TYPE_OPTIONS} />
@@ -296,19 +299,19 @@ export default function ClientCreateForm({
 
           <Form.Item
             name="scopes"
-            label="Scopes"
+            label={t("clients.scope")}
             tooltip={{ title: tip("scopes"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select
               mode="tags"
               options={SCOPE_OPTIONS}
-              placeholder="Select or type scopes..."
+              placeholder={t("clients.scope") + "..."}
             />
           </Form.Item>
 
           <Form.Item
             name="token_endpoint_auth_method"
-            label="Token Endpoint Auth Method"
+            label={t("clients.tokenEndpointAuthMethod")}
             tooltip={{ title: tip("token_endpoint_auth_method"), icon: <ExclamationCircleOutlined /> }}
           >
             <Select options={AUTH_METHOD_OPTIONS} />
@@ -320,43 +323,43 @@ export default function ClientCreateForm({
             items={[
               {
                 key: "overrides",
-                label: <Typography.Text strong>Configuration Overrides</Typography.Text>,
+                label: <Typography.Text strong>{t("clients.overridesLabel")}</Typography.Text>,
                 children: (
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Form.Item
-                      label="Access Token Expiration"
+                      label={t("settings.accessTokenExpiration")}
                       name="access_token_expiration"
                       tooltip={{ title: overrideTip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Input placeholder="Global default (e.g. 15m)" />
+                      <Input placeholder={t("clients.globalDefaultPlaceholder")} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Refresh Token Expiration"
+                      label={t("settings.refreshTokenExpiration")}
                       name="refresh_token_expiration"
                       tooltip={{ title: overrideTip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Input placeholder="Global default (e.g. 720h)" />
+                      <Input placeholder={t("clients.globalDefaultPlaceholder")} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Auth Code Expiration"
+                      label={t("settings.authorizationCodeExpiration")}
                       name="authorization_code_expiration"
                       tooltip={{ title: overrideTip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Input placeholder="Global default (e.g. 10m)" />
+                      <Input placeholder={t("clients.globalDefaultPlaceholder")} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Allowed Audiences"
+                      label={t("clients.allowedAudiences")}
                       name="allowed_audiences"
                       tooltip={{ title: overrideTip("allowed_audiences"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Select mode="tags" placeholder="Add audiences..." />
+                      <Select mode="tags" placeholder={t("clients.allowedAudiences") + "..."} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Allow Self Signup"
+                      label={t("settings.allowSelfSignup")}
                       name="allow_self_signup"
                       valuePropName="checked"
                       tooltip={{ title: overrideTip("allow_self_signup"), icon: <ExclamationCircleOutlined /> }}
@@ -365,15 +368,15 @@ export default function ClientCreateForm({
                     </Form.Item>
 
                     <Form.Item
-                      label="SSO Session Idle Timeout"
+                      label={t("clients.ssoIdleTimeout")}
                       name="sso_session_idle_timeout"
                       tooltip={{ title: overrideTip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Input placeholder="Global default (e.g. 30m)" />
+                      <Input placeholder={t("clients.globalDefaultPlaceholder")} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Trust Device Enabled"
+                      label={t("clients.trustedDevice")}
                       name="trust_device_enabled"
                       valuePropName="checked"
                       tooltip={{ title: overrideTip("trust_device_enabled"), icon: <ExclamationCircleOutlined /> }}
@@ -382,18 +385,18 @@ export default function ClientCreateForm({
                     </Form.Item>
 
                     <Form.Item
-                      label="Trust Device Expiration"
+                      label={t("clients.trustedDeviceTtl")}
                       name="trust_device_expiration"
                       tooltip={{ title: overrideTip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
                     >
-                      <Input placeholder="Global default (e.g. 720h)" />
+                      <Input placeholder={t("clients.globalDefaultPlaceholder")} />
                     </Form.Item>
 
                     <Form.Item
-                      label="Consent Required"
+                      label={t("clients.consentRequired")}
                       name="consent_required"
                       valuePropName="checked"
-                      tooltip={{ title: "When enabled, users must grant consent before this client can access their information", icon: <ExclamationCircleOutlined /> }}
+                      tooltip={{ title: t("clients.consentRequiredTooltip"), icon: <ExclamationCircleOutlined /> }}
                     >
                       <Switch />
                     </Form.Item>
@@ -406,36 +409,36 @@ export default function ClientCreateForm({
       </Drawer>
 
       <Modal
-        title="Client Created Successfully"
+        title={t("clients.clientCreatedTitle")}
         open={!!secretModal}
         onOk={() => setSecretModal(null)}
         onCancel={() => setSecretModal(null)}
         footer={[
           <Button key="copy" icon={<CopyOutlined />} onClick={handleCopySecret}>
-            Copy Secret
+            {t("common.copySecret")}
           </Button>,
           <Button
             key="ok"
             type="primary"
             onClick={() => setSecretModal(null)}
           >
-            Done
+            {t("common.done")}
           </Button>,
         ]}
       >
         <Alert
           type="warning"
-          message="Save this secret now. It will not be shown again."
+          message={t("clients.copySecretNowWarning")}
           style={{ marginBottom: 16 }}
         />
         <Typography.Paragraph>
-          <strong>Client ID:</strong>
+          <strong>{t("clients.clientIdLabel")}</strong>
         </Typography.Paragraph>
         <Typography.Paragraph copyable code>
           {secretModal?.client_id}
         </Typography.Paragraph>
         <Typography.Paragraph>
-          <strong>Client Secret:</strong>
+          <strong>{t("clients.clientSecretLabel")}</strong>
         </Typography.Paragraph>
         <Typography.Paragraph copyable code>
           {secretModal?.client_secret}

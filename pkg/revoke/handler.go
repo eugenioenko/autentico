@@ -29,7 +29,7 @@ import (
 func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	// RFC 7009 §2.1: revocation request is an HTTP POST with form-encoded body
 	if r.Method != http.MethodPost {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "仅允许 POST 方法")
 		return
 	}
 
@@ -40,39 +40,39 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
 		slog.Warn("revoke: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "客户端认证失败")
 		return
 	}
 	if authenticatedClient == nil {
 		// RFC 7662 §2.1 / RFC 6750: alternatively accept an admin Bearer token
 		if r.Header.Get("Authorization") == "" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "需要客户端认证")
 			return
 		}
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
 			slog.Warn("revoke: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer 令牌无效、已过期或其会话已被撤销")
 			return
 		}
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
 			slog.Warn("revoke: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
-			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token revocation")
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "使用 Bearer 令牌撤销需要管理员权限")
 			return
 		}
 	}
 
 	err = r.ParseForm()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "表单数据无效")
 		return
 	}
 
 	// RFC 7009 §2.1: "token" parameter is REQUIRED
 	tokenID := r.FormValue("token")
 	if tokenID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Token is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "令牌为必填项")
 		return
 	}
 

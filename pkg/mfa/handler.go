@@ -47,25 +47,25 @@ func HandleMfa(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		handleMfaPost(w, r)
 	default:
-		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Method not allowed")
+		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "方法不允许")
 	}
 }
 
 func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
 	if challengeID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing challenge_id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少 challenge_id")
 		return
 	}
 
 	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
 	if err != nil {
-		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
+		redirectToLoginWithError(w, r, nil, "验证会话未找到，请重新登录。")
 		return
 	}
 
 	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "验证会话已过期，请重新登录。")
 		return
 	}
 
@@ -79,7 +79,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
 			slog.Error("mfa: failed to get user for TOTP challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+			redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 			return
 		}
 
@@ -87,7 +87,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 			if cfg.MfaMethod != "totp" {
 				slog.Warn("mfa: TOTP challenge for unenrolled user with mfa_method!=totp",
 					"request_id", reqid.Get(r.Context()), "user_id", challenge.UserID, "mfa_method", cfg.MfaMethod)
-				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 				return
 			}
 			renderEnrollPage(w, r, challenge, usr, cfg, "")
@@ -99,19 +99,19 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		usr, err := user.UserByID(challenge.UserID)
 		if err != nil {
 			slog.Error("mfa: failed to get user for email OTP challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+			redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 			return
 		}
 		isResend := challenge.OtpSentAt != nil
 		const otpCooldown = 60 * time.Second
 		if isResend && time.Since(*challenge.OtpSentAt) < otpCooldown {
-			renderVerifyPage(w, r, challenge, cfg, "", "Code was already sent. Please check your email.")
+			renderVerifyPage(w, r, challenge, cfg, "", "验证码已发送，请检查您的邮箱。")
 			return
 		}
 		otp, err := GenerateEmailOTP()
 		if err != nil {
 			slog.Error("mfa: failed to generate email OTP", "request_id", reqid.Get(r.Context()), "error", err)
-			renderVerifyPage(w, r, challenge, cfg, "Failed to generate verification code. Please try again.", "")
+			renderVerifyPage(w, r, challenge, cfg, "生成验证码失败，请重试。", "")
 			return
 		}
 		hashedOTP := utils.HashSHA256(otp)
@@ -119,11 +119,11 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		_ = UpdateChallengeCode(challenge.ID, hashedOTP)
 		if err := email.SendEmailOTP(usr.Email, otp); err != nil {
 			slog.Error("mfa: failed to send verification email", "request_id", reqid.Get(r.Context()), "error", err)
-			renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.", "")
+			renderVerifyPage(w, r, challenge, cfg, "发送验证码失败，请重试。", "")
 			return
 		}
 		if isResend {
-			renderVerifyPage(w, r, challenge, cfg, "", "A new code has been sent to your email")
+			renderVerifyPage(w, r, challenge, cfg, "", "新的验证码已发送到您的邮箱")
 			return
 		}
 	}
@@ -133,7 +133,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 
 func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again.")
+		redirectToLoginWithError(w, r, nil, "无效的请求，请重新登录。")
 		return
 	}
 
@@ -142,18 +142,18 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	totpSecret := r.FormValue("totp_secret")
 
 	if challengeID == "" || code == "" {
-		redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again.")
+		redirectToLoginWithError(w, r, nil, "无效的请求，请重新登录。")
 		return
 	}
 
 	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
 	if err != nil {
-		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
+		redirectToLoginWithError(w, r, nil, "验证会话未找到，请重新登录。")
 		return
 	}
 
 	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "验证会话已过期，请重新登录。")
 		return
 	}
 
@@ -162,7 +162,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
 		slog.Error("mfa: failed to get user for verification", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return
 	}
 
@@ -171,18 +171,18 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		if !usr.TotpVerified {
 			// Enrollment flow: validate against the secret from the form
 			if totpSecret == "" {
-				renderEnrollPage(w, r, challenge, usr, cfg, "Missing TOTP secret")
+				renderEnrollPage(w, r, challenge, usr, cfg, "缺少 TOTP 密钥")
 				return
 			}
 			if !ValidateTotpCode(totpSecret, code) {
 				slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
-				renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code")
+				renderEnrollPage(w, r, challenge, usr, cfg, "验证码无效")
 				return
 			}
 			if err := user.SaveTotpSecret(usr.ID, totpSecret); err != nil {
 				slog.Error("mfa: failed to save TOTP secret", "request_id", reqid.Get(r.Context()), "error", err)
-				renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again.")
+				renderEnrollPage(w, r, challenge, usr, cfg, "保存认证器失败，请重试。")
 				return
 			}
 			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
@@ -194,10 +194,10 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 				if challenge.FailedAttempts+1 >= 5 {
 					_ = MarkChallengeUsed(challenge.ID)
-					redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
+					redirectToLoginWithError(w, r, challenge, "尝试次数过多，请重新登录。")
 					return
 				}
-				renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
+				renderVerifyPage(w, r, challenge, cfg, "验证码无效", "")
 				return
 			}
 		}
@@ -209,14 +209,14 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "email"), utils.GetClientIP(r))
 			if challenge.FailedAttempts+1 >= 5 {
 				_ = MarkChallengeUsed(challenge.ID)
-				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
+				redirectToLoginWithError(w, r, challenge, "尝试次数过多，请重新登录。")
 				return
 			}
-			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
+			renderVerifyPage(w, r, challenge, cfg, "验证码无效", "")
 			return
 		}
 	default:
-		redirectToLoginWithError(w, r, challenge, "Unknown authentication method. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "未知的认证方式，请重新登录。")
 		return
 	}
 
@@ -247,7 +247,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	var loginState LoginState
 	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
 		slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "会话已过期，请重新登录。")
 		return
 	}
 
@@ -272,7 +272,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	authorizationCode, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("mfa: failed to generate authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return
 	}
 
@@ -292,7 +292,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	if err := authcode.CreateAuthCode(ac); err != nil {
 		slog.Error("mfa: failed to create authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return
 	}
 
@@ -313,7 +313,7 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 			usr, err := user.UserByID(challenge.UserID)
 			if err != nil {
 				slog.Error("mfa: failed to get user for method switch", "request_id", reqid.Get(r.Context()), "error", err)
-				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+				redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 				return true
 			}
 			if usr.TotpVerified {
@@ -332,13 +332,13 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 
 	if err := MarkChallengeUsed(challenge.ID); err != nil {
 		slog.Error("mfa: failed to mark old challenge as used during switch", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return true
 	}
 	newChallengeID, err := authcode.GenerateSecureCode()
 	if err != nil {
 		slog.Error("mfa: failed to generate challenge ID for switch", "request_id", reqid.Get(r.Context()), "error", err)
-		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
+		renderVerifyPage(w, r, challenge, cfg, "出现错误，请重试。", "")
 		return true
 	}
 	newChallenge := MfaChallenge{
@@ -350,7 +350,7 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 	}
 	if err := CreateMfaChallenge(newChallenge); err != nil {
 		slog.Error("mfa: failed to create switched challenge", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return true
 	}
 	mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
@@ -400,14 +400,14 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 	secret, otpauthURL, err := GenerateTotpSecret(usr.Username, cfg.Theme.Title)
 	if err != nil {
 		slog.Error("mfa: failed to generate TOTP secret", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return
 	}
 
 	png, err := qrcode.Encode(otpauthURL, qrcode.Medium, 200)
 	if err != nil {
 		slog.Error("mfa: failed to generate QR code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		redirectToLoginWithError(w, r, challenge, "出现错误，请重新登录。")
 		return
 	}
 	qrDataURI := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)

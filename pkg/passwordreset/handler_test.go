@@ -96,7 +96,7 @@ func TestHandleForgotPassword_GET_RendersForm(t *testing.T) {
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Send reset link")
+	assert.Contains(t, rr.Body.String(), "发送重置链接")
 }
 
 func TestHandleForgotPassword_POST_NoUser_ShowsSuccess(t *testing.T) {
@@ -118,7 +118,7 @@ func TestHandleForgotPassword_POST_NoUser_ShowsSuccess(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	// Should NOT leak that user doesn't exist — shows success message
 	body := rr.Body.String()
-	assert.Contains(t, body, "sent")
+	assert.Contains(t, body, "我们已发送")
 	assert.NotContains(t, body, "not found")
 }
 
@@ -146,7 +146,7 @@ func TestHandleForgotPassword_POST_UserNoEmail_ShowsSuccess(t *testing.T) {
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 }
 
 func TestHandleForgotPassword_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
@@ -170,7 +170,7 @@ func TestHandleForgotPassword_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) 
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 
 	// No token should have been created
 	var count int
@@ -200,7 +200,7 @@ func TestHandleForgotPassword_POST_UnverifiedEmail_LookupByEmail_NoTokenCreated(
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 
 	var count int
 	err = db.GetDB().QueryRow(`SELECT COUNT(*) FROM password_reset_tokens WHERE user_id = ?`, u.ID).Scan(&count)
@@ -222,7 +222,7 @@ func TestHandleForgotPassword_POST_EmptyIdentifier(t *testing.T) {
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Please enter")
+	assert.Contains(t, rr.Body.String(), "请输入")
 }
 
 func TestHandleForgotPassword_POST_ValidUser_CreatesToken(t *testing.T) {
@@ -250,7 +250,7 @@ func TestHandleForgotPassword_POST_ValidUser_CreatesToken(t *testing.T) {
 	HandleForgotPassword(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "sent")
+	assert.Contains(t, rr.Body.String(), "我们已发送")
 
 	// Verify a token was created in the DB
 	var count int

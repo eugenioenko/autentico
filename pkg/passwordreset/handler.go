@@ -117,7 +117,7 @@ func HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	identifier := r.FormValue("identifier")
 
 	if identifier == "" {
-		renderForgotPassword(w, r, "form", params, "Please enter your username or email.")
+		renderForgotPassword(w, r, "form", params, "请输入您的用户名或邮箱。")
 		return
 	}
 
@@ -179,7 +179,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		params := paramsFromRequest(r, r.URL.Query().Get)
 		rawToken := r.URL.Query().Get("token")
 		if rawToken == "" {
-			renderResetPassword(w, r, "expired", "", params, "Invalid or missing reset link.")
+			renderResetPassword(w, r, "expired", "", params, "重置链接无效或缺失。")
 			return
 		}
 
@@ -187,7 +187,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		tokenHash := utils.HashSHA256(rawToken)
 		_, expiresAt, usedAt, err := getResetTokenInfo(tokenHash)
 		if err != nil || usedAt != nil || time.Now().After(expiresAt) {
-			renderResetPassword(w, r, "expired", "", params, "This password reset link has expired or has already been used.")
+			renderResetPassword(w, r, "expired", "", params, "此密码重置链接已过期或已被使用。")
 			return
 		}
 
@@ -207,7 +207,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	confirmPassword := r.FormValue("confirm_password")
 
 	if rawToken == "" {
-		renderResetPassword(w, r, "expired", "", params, "Invalid or missing reset token.")
+		renderResetPassword(w, r, "expired", "", params, "重置令牌无效或缺失。")
 		return
 	}
 
@@ -215,7 +215,7 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	// Validate passwords match
 	if password != confirmPassword {
-		renderResetPassword(w, r, "form", rawToken, params, "Passwords do not match.")
+		renderResetPassword(w, r, "form", rawToken, params, "两次输入的密码不一致。")
 		return
 	}
 
@@ -223,11 +223,11 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	cfg := config.Get()
 	if len(password) < cfg.ValidationMinPasswordLength {
 		renderResetPassword(w, r, "form", rawToken, params,
-			fmt.Sprintf("Password must be at least %d characters.", cfg.ValidationMinPasswordLength))
+			fmt.Sprintf("密码至少需要 %d 个字符。", cfg.ValidationMinPasswordLength))
 		return
 	}
 	if len(password) > cfg.ValidationMaxPasswordLength {
-		renderResetPassword(w, r, "form", rawToken, params, "Password is too long.")
+		renderResetPassword(w, r, "form", rawToken, params, "密码过长。")
 		return
 	}
 
@@ -236,28 +236,28 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	userID, expiresAt, usedAt, err := getResetTokenInfo(tokenHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			renderResetPassword(w, r, "expired", "", params, "This password reset link is invalid or has already been used.")
+			renderResetPassword(w, r, "expired", "", params, "此密码重置链接无效或已被使用。")
 			return
 		}
 		slog.Error("reset-password: failed to look up token", "request_id", reqID, "error", err)
-		renderResetPassword(w, r, "expired", "", params, "Something went wrong. Please request a new reset link.")
+		renderResetPassword(w, r, "expired", "", params, "出现错误，请重新申请重置链接。")
 		return
 	}
 
 	if usedAt != nil {
-		renderResetPassword(w, r, "expired", "", params, "This password reset link has already been used.")
+		renderResetPassword(w, r, "expired", "", params, "此密码重置链接已被使用。")
 		return
 	}
 
 	if time.Now().After(expiresAt) {
-		renderResetPassword(w, r, "expired", "", params, "This password reset link has expired.")
+		renderResetPassword(w, r, "expired", "", params, "此密码重置链接已过期。")
 		return
 	}
 
 	// Update the user's password
 	if err := user.UpdateUser(userID, user.UserUpdateRequest{Password: password}); err != nil {
 		slog.Error("reset-password: failed to update password", "request_id", reqID, "error", err)
-		renderResetPassword(w, r, "form", rawToken, params, "Failed to update password. Please try again.")
+		renderResetPassword(w, r, "form", rawToken, params, "更新密码失败，请重试。")
 		return
 	}
 

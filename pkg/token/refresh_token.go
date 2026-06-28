@@ -39,33 +39,33 @@ func extractACR(tokenString string) string {
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
 	err := ValidateTokenRequestRefresh(request)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "刷新令牌无效或已过期")
 		return nil, err
 	}
 
 	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
 		slog.Warn("token: invalid refresh token", "error", err)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "刷新令牌无效或已过期")
 		return nil, err
 	}
 
 	if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
 		slog.Warn("token: refresh token expired")
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token has expired")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "刷新令牌已过期")
 		return nil, err
 	}
 
 	sess, err := session.SessionByIDIncludingDeactivated(authToken.SessionID)
 	if err != nil {
 		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Failed to retrieve session")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "获取会话失败")
 		return nil, err
 	}
 
 	if sess == nil || sess.DeactivatedAt != nil {
 		slog.Warn("token: refresh token session deactivated", "session_id", authToken.SessionID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Session has been deactivated")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "会话已被停用")
 		return nil, fmt.Errorf("session has been deactivated")
 	}
 
@@ -73,7 +73,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	// presenting a refresh token issued to a different client MUST be rejected.
 	if authToken.ClientID != "" && request.ClientID != "" && authToken.ClientID != request.ClientID {
 		slog.Warn("token: refresh token client mismatch", "token_client", authToken.ClientID, "request_client", request.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token was not issued to this client")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "刷新令牌不是为此客户端签发的")
 		return nil, fmt.Errorf("refresh token client mismatch")
 	}
 
@@ -92,14 +92,14 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		); err != nil {
 			slog.Error("token: failed to revoke all user tokens after replay detection", "error", err, "user_id", authToken.UserID)
 		}
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "令牌已被撤销")
 		return nil, fmt.Errorf("token has been revoked")
 	}
 
 	usr, err := user.UserByID(authToken.UserID)
 	if err != nil {
 		slog.Error("token: failed to retrieve user for refresh token", "error", err, "user_id", authToken.UserID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to retrieve user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "获取用户信息失败")
 		return nil, err
 	}
 
@@ -113,7 +113,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 			acr := extractACR(storedAccessToken)
 			if acr != "2" {
 				slog.Warn("token: refresh rejected — session was not MFA-authenticated", "user_id", usr.ID, "acr", acr)
-				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "Session was not authenticated with MFA. Please re-login.")
+				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "会话未通过MFA认证，请重新登录。")
 				return nil, fmt.Errorf("session not MFA-authenticated")
 			}
 		}

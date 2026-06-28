@@ -64,7 +64,7 @@ func validateDurationSettings(updates map[string]string) error {
 func HandleGetSettings(w http.ResponseWriter, _ *http.Request) {
 	all, err := GetAllSettings()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read settings")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取设置失败")
 		return
 	}
 	delete(all, "private_key")
@@ -86,7 +86,7 @@ func HandleGetSettings(w http.ResponseWriter, _ *http.Request) {
 func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var updates map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
@@ -104,7 +104,7 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 
 	for k, v := range updates {
 		if err := SetSetting(k, v); err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update settings")
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "更新设置失败")
 			return
 		}
 	}
@@ -147,7 +147,7 @@ type settingsPreviewResponse struct {
 func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
 	all, err := GetAllSettings()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read settings")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取设置失败")
 		return
 	}
 	delete(all, "onboarded")
@@ -171,13 +171,13 @@ func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
 func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
 	var payload settingsExport
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
 	current, err := GetAllSettings()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read current settings")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取当前设置失败")
 		return
 	}
 
@@ -211,7 +211,7 @@ func HandleImportPreview(w http.ResponseWriter, r *http.Request) {
 func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	var payload settingsExport
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的JSON数据")
 		return
 	}
 
@@ -230,7 +230,7 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if err := SetSetting(k, v); err != nil {
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to apply settings")
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "应用设置失败")
 			return
 		}
 	}
@@ -258,13 +258,13 @@ func HandleTestSmtp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usr.Email == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "no_email", "Admin account has no registered email address. Add an email to your profile before testing SMTP.")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "no_email", "管理员账户没有注册邮箱地址，请在测试SMTP前为您的账户添加邮箱。")
 		return
 	}
 
 	if err := email.SendTestEmail(usr.Email); err != nil {
 		slog.Error("settings: SMTP test failed", "error", err, "email", usr.Email)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", "Failed to send test email. Check SMTP configuration.")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "smtp_error", "测试邮件发送失败，请检查SMTP配置。")
 		return
 	}
 

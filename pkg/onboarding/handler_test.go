@@ -92,7 +92,7 @@ func TestHandleOnboardDirect_Post_PasswordMismatch(t *testing.T) {
 	HandleOnboardDirect(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Passwords do not match")
+	assert.Contains(t, rr.Body.String(), "密码不一致")
 }
 
 func TestHandleOnboardDirect_Post_ValidationError(t *testing.T) {

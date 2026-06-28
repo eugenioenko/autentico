@@ -30,14 +30,14 @@ import (
 func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var request UserCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 	request.Username = strings.TrimSpace(request.Username)
 	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
 	err := ValidateUserCreateRequest(request)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("User validation error. %v", err))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("用户验证失败：%v", err))
 		return
 	}
 	if config.Get().ProfileFieldEmail == "is_username" && request.Email == "" {
@@ -47,11 +47,11 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	response, err := CreateUser(request.Username, request.Password, request.Email)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A user with that username or email already exists")
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "该用户名或邮箱已存在")
 			return
 		}
 		slog.Error("user: failed to create user", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "创建用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -72,12 +72,12 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	result, err := UserByID(id)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
@@ -98,12 +98,12 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	var req UserUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
@@ -120,7 +120,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	err := UpdateUser(id, req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到")
 			return
 		}
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
@@ -128,7 +128,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		slog.Error("user: failed to update user", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "更新用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -136,7 +136,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	result, err := UserByID(id)
 	if err != nil {
 		slog.Error("user: failed to read user after update", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取用户失败")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
@@ -157,18 +157,18 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	// Check user exists (including deactivated users)
 	u, err := UserByIDIncludingDeactivated(id)
 	if err != nil || u == nil {
-		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+		utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到")
 		return
 	}
 	if err := HardDeleteUser(id); err != nil {
 		slog.Error("user: failed to delete user", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "删除用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -191,17 +191,17 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	err := DeactivateUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or already deactivated")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到或已停用")
 			return
 		}
 		slog.Error("user: failed to deactivate user", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to deactivate user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "停用用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -223,12 +223,12 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 func HandleRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	if err := RevokeAllUserAccess(id); err != nil {
 		slog.Error("user: failed to revoke sessions", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to revoke sessions")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "撤销会话失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -251,17 +251,17 @@ func HandleRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
 func HandleReactivateUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	err := ReactivateUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or not deactivated")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到或未被停用")
 			return
 		}
 		slog.Error("user: failed to reactivate user", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to reactivate user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "重新激活用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -305,7 +305,7 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	users, total, err := ListUsersWithParams(params, dateWhere, dateArgs)
 	if err != nil {
 		slog.Error("user: failed to list users", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list users")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "列出用户失败")
 		return
 	}
 
@@ -345,17 +345,17 @@ func HandleListUsers(w http.ResponseWriter, r *http.Request) {
 func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing user id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "缺少用户ID")
 		return
 	}
 	err := UnlockUser(id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
+			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "用户未找到")
 			return
 		}
 		slog.Error("user: failed to unlock user", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to unlock user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "解锁用户失败")
 		return
 	}
 	admin := audit.ActorFromRequest(r)
@@ -363,7 +363,7 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 	result, err := UserByID(id)
 	if err != nil {
 		slog.Error("user: failed to read user after unlock", "error", err, "user_id", id)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read user")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "读取用户失败")
 		return
 	}
 	utils.SuccessResponse(w, result.ToResponse(), http.StatusOK)
@@ -384,18 +384,18 @@ func HandleUnlockUser(w http.ResponseWriter, r *http.Request) {
 func HandleLookupUsers(w http.ResponseWriter, r *http.Request) {
 	var req LookupUsersRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request payload")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的请求数据")
 		return
 	}
 
 	totalIdentifiers := len(req.IDs) + len(req.Emails) + len(req.Usernames)
 	if totalIdentifiers == 0 {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "At least one identifier (id, email, or username) is required")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "至少需要提供一个标识符（ID、邮箱或用户名）")
 		return
 	}
 	if totalIdentifiers > LookupMaxIdentifiers {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request",
-			fmt.Sprintf("Too many identifiers: %d exceeds maximum of %d", totalIdentifiers, LookupMaxIdentifiers))
+			fmt.Sprintf("标识符数量过多：%d 超过了最大限制 %d", totalIdentifiers, LookupMaxIdentifiers))
 		return
 	}
 
@@ -412,7 +412,7 @@ func HandleLookupUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := LookupUsers(req.IDs, req.Emails, req.Usernames)
 	if err != nil {
 		slog.Error("user: failed to lookup users", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to lookup users")
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "查找用户失败")
 		return
 	}
 

@@ -691,7 +691,7 @@ func TestHandleAuthorize_AllowSelfSignup(t *testing.T) {
 	HandleAuthorize(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Create account")
+	assert.Contains(t, rr.Body.String(), "创建账户")
 }
 
 // OIDC Core §3.1.2.1: prompt=create renders the signup form directly

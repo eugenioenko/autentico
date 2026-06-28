@@ -32,6 +32,7 @@ import apiClient from "../api/client";
 import DurationInput from "../components/DurationInput";
 import RetentionInput from "../components/RetentionInput";
 import { makeTip } from "../lib/tips";
+import { useTranslation } from "react-i18next";
 
 const { Title, Text } = Typography;
 
@@ -145,7 +146,7 @@ function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v:
             style={{ width: 160 }}
             value={link.label}
             onChange={(e) => handleChange(i, "label", e.target.value)}
-            placeholder="Label"
+            placeholder="标签"
           />
           <Input
             style={{ width: 320 }}
@@ -157,7 +158,7 @@ function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v:
         </Space>
       ))}
       <Button type="dashed" icon={<PlusOutlined />} onClick={() => update([...links, { label: "", url: "" }])} style={{ width: "100%" }}>
-        Add Link
+        添加链接
       </Button>
     </Space>
   );
@@ -165,6 +166,7 @@ function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v:
 
 export default function SettingsPage() {
   const { message } = App.useApp();
+  const { t } = useTranslation();
   const { data: settings, isLoading, error } = useSettings();
   const updateSettings = useUpdateSettings();
   const queryClient = useQueryClient();
@@ -216,7 +218,7 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      message.error("Failed to export settings");
+      message.error("导出设置失败");
     } finally {
       setExportLoading(false);
     }
@@ -239,7 +241,7 @@ export default function SettingsPage() {
     try {
       parsed = JSON.parse(backupText);
     } catch {
-      message.error("Invalid JSON — check the pasted content");
+      message.error("无效的 JSON — 请检查粘贴的内容");
       return;
     }
     setPreviewLoading(true);
@@ -248,7 +250,7 @@ export default function SettingsPage() {
       setPreviewData(res.data.data as PreviewResponse);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      message.error(axiosErr.response?.data?.error_description ?? "Preview failed");
+      message.error(axiosErr.response?.data?.error_description ?? "预览失败");
     } finally {
       setPreviewLoading(false);
     }
@@ -259,19 +261,19 @@ export default function SettingsPage() {
     try {
       parsed = JSON.parse(backupText);
     } catch {
-      message.error("Invalid JSON");
+      message.error("无效的 JSON");
       return;
     }
     setApplyLoading(true);
     try {
       await apiClient.post("/admin/api/settings/import/apply", parsed);
-      message.success("Settings imported successfully");
+      message.success("设置已成功导入");
       setPreviewData(null);
       setBackupText("");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      message.error(axiosErr.response?.data?.error_description ?? "Import failed");
+      message.error(axiosErr.response?.data?.error_description ?? "导入失败");
     } finally {
       setApplyLoading(false);
     }
@@ -281,10 +283,10 @@ export default function SettingsPage() {
     setTestingSmtp(true);
     try {
       await apiClient.post("/admin/api/settings/test-smtp");
-      message.success("Test email sent — check your inbox");
+      message.success("测试邮件已发送 — 请检查收件箱");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      const msg = axiosErr.response?.data?.error_description ?? "Failed to send test email";
+      const msg = axiosErr.response?.data?.error_description ?? "发送测试邮件失败";
       message.error(msg);
     } finally {
       setTestingSmtp(false);
@@ -308,14 +310,14 @@ export default function SettingsPage() {
       });
 
       await updateSettings.mutateAsync(processed);
-      message.success("Settings updated successfully");
+      message.success("设置已成功更新");
     } catch {
-      message.error("Failed to update settings");
+      message.error("更新设置失败");
     }
   };
 
   if (isLoading) return <Spin size="large" />;
-  if (error) return <Alert type="error" message="Failed to load settings" />;
+  if (error) return <Alert type="error" message="加载设置失败" />;
 
   return (
     <div className="settings-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -329,25 +331,25 @@ export default function SettingsPage() {
       >
       <div style={{ flex: 1, overflow: "auto", padding: "0 0 16px" }}>
       <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <Title level={2} style={{ marginBottom: 0 }}>System Settings</Title>
+      <Title level={2} style={{ marginBottom: 0 }}>{t("settings.systemSettings")}</Title>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
           items={[
             {
               key: "1",
-              label: "Login & Registration",
+              label: t("settings.loginAndRegistration"),
               children: (
                 <TabContent>
                   <Form.Item
-                    label="Authentication Mode"
+                    label={t("settings.authMode")}
                     name="auth_mode"
                     tooltip={{ title: tip("auth_mode"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="password">Password Only</Select.Option>
-                      <Select.Option value="password_and_passkey">Password & Passkey</Select.Option>
-                      <Select.Option value="passkey_only">Passkey Only</Select.Option>
+                      <Select.Option value="password">{t("settings.passwordOnly")}</Select.Option>
+                      <Select.Option value="password_and_passkey">{t("settings.passwordAndPasskey")}</Select.Option>
+                      <Select.Option value="passkey_only">{t("settings.passkeyOnly")}</Select.Option>
                     </Select>
                   </Form.Item>
                   {authMode && authModeDescriptions[authMode] && form.isFieldTouched("auth_mode") && (
@@ -360,61 +362,61 @@ export default function SettingsPage() {
                   )}
 
                   <Form.Item
-                    label="Email Field Behavior"
+                    label={t("settings.emailFieldBehavior")}
                     name="profile_field_email"
                     tooltip={{ title: tip("profile_field_email"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                      <Select.Option value="is_username">Username is Email</Select.Option>
+                      <Select.Option value="hidden">{t("settings.hidden")}</Select.Option>
+                      <Select.Option value="optional">{t("common.optional")}</Select.Option>
+                      <Select.Option value="required">{t("common.required")}</Select.Option>
+                      <Select.Option value="is_username">{t("settings.usernameIsEmail")}</Select.Option>
                     </Select>
                   </Form.Item>
                   {profileFieldEmail === "is_username" && form.isFieldTouched("profile_field_email") && (
                     <Alert
                       type="warning"
                       showIcon
-                      message="Compatibility warning"
-                      description="When enabled, the username field is replaced by the email field. Existing users must have valid email addresses as their usernames for login to work. Users with non-email usernames will be unable to log in."
+                      message={t("settings.compatibilityWarning")}
+                      description={t("settings.compatibilityWarningDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
 
                   <Form.Item name="allow_self_signup" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Allow Self Signup{' '}
+                    {t("settings.allowSelfSignup")}{' '}
                       <Tooltip title={tip("allow_self_signup")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Form.Item name="allow_username_change" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Allow Username Change{' '}
+                    {t("settings.allowUsernameChange")}{' '}
                       <Tooltip title={tip("allow_username_change")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Form.Item name="allow_email_change" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Allow Email Change{' '}
+                    {t("settings.allowEmailChange")}{' '}
                       <Tooltip title={tip("allow_email_change")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Form.Item name="allow_self_service_deletion" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Allow Self-Service Deletion{' '}
+                    {t("settings.allowSelfServiceDeletion")}{' '}
                       <Tooltip title={tip("allow_self_service_deletion")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Email Verification</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.emailVerification")}</Title>
                   <Form.Item name="require_email_verification" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Require Email Verification{' '}
+                      {t("settings.requireEmailVerification")}{' '}
                       <Tooltip title={tip("require_email_verification")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
@@ -422,13 +424,13 @@ export default function SettingsPage() {
                     <Alert
                       type="warning"
                       showIcon
-                      message="SMTP not configured"
-                      description="Email verification requires a configured SMTP server. Go to the SMTP tab to set it up."
+                      message={t("settings.smtpNotConfigured")}
+                      description={t("settings.smtpNotConfiguredDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
                   <Form.Item
-                    label="Verification Link Expiration"
+                    label={t("settings.verificationLinkExpiry")}
                     name="email_verification_expiration"
                     tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -437,10 +439,10 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Magic Link Login</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.magicLinkLogin")}</Title>
                   <Form.Item name="magic_link_enabled" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Magic Link Enabled{' '}
+                      {t("settings.magicLinkEnabled")}{' '}
                       <Tooltip title={tip("magic_link_enabled")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
@@ -448,13 +450,13 @@ export default function SettingsPage() {
                     <Alert
                       type="warning"
                       showIcon
-                      message="SMTP not configured"
-                      description="Magic link login requires a configured SMTP server. Make sure SMTP is properly configured."
+                      message="SMTP 未配置"
+                      description={t("settings.magicLinkSmtpNotConfiguredDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
                   <Form.Item
-                    label="Magic Link Expiration"
+                    label={t("settings.magicLinkExpiry")}
                     name="magic_link_expiration"
                     tooltip={{ title: tip("magic_link_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -463,24 +465,24 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Passkeys</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.passkeys")}</Title>
                   <Form.Item
-                    label="Passkey RP Name"
+                    label={t("settings.passkeyRpName")}
                     name="passkey_rp_name"
                     tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input />
                   </Form.Item>
                   <Form.Item
-                    label="Passkey Login Mode"
+                    label={t("settings.passkeyLoginMode")}
                     name="passkey_login_mode"
                     tooltip={{ title: tip("passkey_login_mode"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="username_first">Username First</Select.Option>
-                      <Select.Option value="discoverable">Discoverable</Select.Option>
-                      <Select.Option value="conditional">Conditional (Autofill)</Select.Option>
-                      <Select.Option value="passkey_only">Passkey Only</Select.Option>
+                      <Select.Option value="username_first">{t("settings.usernameFirst")}</Select.Option>
+                      <Select.Option value="discoverable">{t("settings.discoverable")}</Select.Option>
+                      <Select.Option value="conditional">{t("settings.conditional")}</Select.Option>
+                      <Select.Option value="passkey_only">{t("settings.passkeyOnly")}</Select.Option>
                     </Select>
                   </Form.Item>
                   {passkeyLoginMode && passkeyLoginModeDescriptions[passkeyLoginMode] && form.isFieldTouched("passkey_login_mode") && (
@@ -495,8 +497,8 @@ export default function SettingsPage() {
                     <Alert
                       type="warning"
                       showIcon
-                      message="Passkey login is disabled"
-                      description="Authentication Mode is set to Password Only. Set it to Password & Passkey or Passkey Only for this setting to take effect."
+                      message={t("settings.passkeyLoginDisabled")}
+                      description={t("settings.passkeyLoginDisabledDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
@@ -504,8 +506,8 @@ export default function SettingsPage() {
                     <Alert
                       type="info"
                       showIcon
-                      message="Password login is still enabled"
-                      description="The username field will remain visible for password fallback. Set Authentication Mode to Passkey Only to fully hide it."
+                      message={t("settings.passwordLoginStillEnabled")}
+                      description={t("settings.passwordLoginStillEnabledDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
@@ -514,49 +516,49 @@ export default function SettingsPage() {
             },
             {
               key: "2",
-              label: "MFA & Trusted Devices",
+              label: t("settings.mfa"),
               children: (
                 <TabContent>
                   <Form.Item name="require_mfa" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Require MFA{' '}
+                      {t("settings.requireMfa")}{' '}
                       <Tooltip title={tip("require_mfa")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Form.Item
-                    label="MFA Method"
+                    label={t("settings.mfaMethod")}
                     name="mfa_method"
                     tooltip={{ title: tip("mfa_method"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="totp">TOTP (Authenticator App)</Select.Option>
-                      <Select.Option value="email">Email OTP</Select.Option>
-                      <Select.Option value="both">Both (Prefer TOTP)</Select.Option>
+                      <Select.Option value="totp">{t("settings.totpAuthenticatorApp")}</Select.Option>
+                      <Select.Option value="email">{t("settings.emailOtp")}</Select.Option>
+                      <Select.Option value="both">{t("settings.bothPreferTotp")}</Select.Option>
                     </Select>
                   </Form.Item>
                   {emailMfaWithoutSmtp && (
                     <Alert
                       type="warning"
                       showIcon
-                      message="SMTP not configured"
-                      description="Email OTP requires a configured SMTP server. Go to the SMTP tab to set it up, otherwise email MFA will fail at login."
+                      message="SMTP 未配置"
+                      description={t("settings.emailOtpSmtpNotConfiguredDesc")}
                       style={{ marginBottom: 16 }}
                     />
                   )}
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Trusted Devices</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.trustedDevices")}</Title>
                   <Form.Item name="trust_device_enabled" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Trust Device Enabled{' '}
+                      {t("settings.trustedDeviceEnabled")}{' '}
                       <Tooltip title={tip("trust_device_enabled")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
 
                   <Form.Item
-                    label="Trust Device Expiration"
+                    label={t("settings.trustedDeviceExpiry")}
                     name="trust_device_expiration"
                     tooltip={{ title: tip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -568,25 +570,25 @@ export default function SettingsPage() {
             },
             {
               key: "3",
-              label: "Sessions & Tokens",
+              label: t("settings.sessionsAndTokens"),
               children: (
                 <TabContent>
-                  <Title level={5} style={{ marginTop: 0 }}>SSO Sessions</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.ssoSession")}</Title>
                   <Form.Item name="sso_enabled" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      SSO Enabled{' '}
+                      {t("settings.ssoEnabled")}{' '}
                       <Tooltip title={tip("sso_enabled")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
                   <Form.Item
-                    label="SSO Session Idle Timeout"
+                    label={t("settings.ssoSessionIdleTimeout")}
                     name="sso_session_idle_timeout"
                     tooltip={{ title: tip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <DurationInput />
                   </Form.Item>
                   <Form.Item
-                    label="SSO Session Max Age"
+                    label={t("settings.ssoSessionMaxAge")}
                     name="sso_session_max_age"
                     tooltip={{ title: tip("sso_session_max_age"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -595,23 +597,23 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Token Expiration</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.tokenExpiry")}</Title>
                   <Form.Item
-                    label="Access Token"
+                    label={t("settings.accessToken")}
                     name="access_token_expiration"
                     tooltip={{ title: tip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <DurationInput />
                   </Form.Item>
                   <Form.Item
-                    label="Refresh Token"
+                    label={t("settings.refreshToken")}
                     name="refresh_token_expiration"
                     tooltip={{ title: tip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <DurationInput />
                   </Form.Item>
                   <Form.Item
-                    label="Auth Code"
+                    label={t("settings.authorizationCode")}
                     name="authorization_code_expiration"
                     tooltip={{ title: tip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -622,20 +624,20 @@ export default function SettingsPage() {
             },
             {
               key: "4",
-              label: "Security",
+              label: t("settings.securitySettings"),
               children: (
                 <TabContent>
-                  <Title level={5} style={{ marginTop: 0 }}>User Validation</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.userValidation")}</Title>
                   <Space size="large">
                     <Form.Item
-                      label="Min Username"
+                      label={t("settings.minUsername")}
                       name="validation_min_username_length"
                       tooltip={{ title: tip("validation_min_username_length"), icon: <ExclamationCircleOutlined /> }}
                     >
                       <InputNumber min={1} />
                     </Form.Item>
                     <Form.Item
-                      label="Max Username"
+                      label={t("settings.maxUsername")}
                       name="validation_max_username_length"
                       tooltip={{ title: tip("validation_max_username_length"), icon: <ExclamationCircleOutlined /> }}
                     >
@@ -645,14 +647,14 @@ export default function SettingsPage() {
 
                   <Space size="large">
                     <Form.Item
-                      label="Min Password"
+                      label={t("settings.minPassword")}
                       name="validation_min_password_length"
                       tooltip={{ title: tip("validation_min_password_length"), icon: <ExclamationCircleOutlined /> }}
                     >
                       <InputNumber min={1} />
                     </Form.Item>
                     <Form.Item
-                      label="Max Password"
+                      label={t("settings.maxPassword")}
                       name="validation_max_password_length"
                       tooltip={{ title: tip("validation_max_password_length"), icon: <ExclamationCircleOutlined /> }}
                     >
@@ -662,16 +664,16 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Account Lockout</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.accountLockout")}</Title>
                   <Form.Item
-                    label="Max Failed Attempts"
+                    label={t("settings.maxFailedAttempts")}
                     name="account_lockout_max_attempts"
                     tooltip={{ title: tip("account_lockout_max_attempts"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <InputNumber min={0} />
                   </Form.Item>
                   <Form.Item
-                    label="Lockout Duration"
+                    label={t("settings.lockoutDuration")}
                     name="account_lockout_duration"
                     tooltip={{ title: tip("account_lockout_duration"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -680,10 +682,10 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>PKCE</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.pkce")}</Title>
                   <Form.Item name="pkce_enforce_s256" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Enforce S256 Code Challenge{' '}
+                      {t("settings.enforceS256")}{' '}
                       <Tooltip title={tip("pkce_enforce_s256")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
@@ -691,7 +693,7 @@ export default function SettingsPage() {
                     <Alert
                       type="warning"
                       showIcon
-                      message="Security Warning"
+                      message={t("settings.securityWarning")}
                       description={
                         <>
                           Clients may now use{" "}
@@ -708,9 +710,9 @@ export default function SettingsPage() {
 
                   <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Audit Log</Title>
+                  <Title level={5} style={{ marginTop: 0 }}>{t("settings.auditLogRetention")}</Title>
                   <Form.Item
-                    label="Audit Log Retention"
+                    label={t("settings.auditLogRetentionLabel")}
                     name="audit_log_retention"
                     tooltip={{ title: tip("audit_log_retention"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -721,39 +723,39 @@ export default function SettingsPage() {
             },
             {
               key: "5",
-              label: "SMTP",
+              label: t("settings.smtp"),
               children: (
                 <TabContent>
                   <Form.Item
-                    label="SMTP Host"
+                    label={t("settings.smtpHost")}
                     name="smtp_host"
                     tooltip={{ title: tip("smtp_host"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="smtp.example.com" />
                   </Form.Item>
                   <Form.Item
-                    label="SMTP Port"
+                    label={t("settings.smtpPort")}
                     name="smtp_port"
                     tooltip={{ title: tip("smtp_port"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="587" />
                   </Form.Item>
                   <Form.Item
-                    label="SMTP Username"
+                    label={t("settings.smtpUsername")}
                     name="smtp_username"
                     tooltip={{ title: tip("smtp_username"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input autoComplete="off" />
                   </Form.Item>
                   <Form.Item
-                    label="SMTP Password"
+                    label={t("settings.smtpPassword")}
                     name="smtp_password"
                     tooltip={{ title: tip("smtp_password"), icon: <ExclamationCircleOutlined /> }}
                   >
-                    <Input.Password placeholder="Leave empty to keep current" autoComplete="new-password" />
+                    <Input.Password placeholder={t("settings.leaveEmptyKeepCurrent")} autoComplete="new-password" />
                   </Form.Item>
                   <Form.Item
-                    label="SMTP From Address"
+                    label={t("settings.smtpFrom")}
                     name="smtp_from"
                     tooltip={{ title: tip("smtp_from"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -761,7 +763,7 @@ export default function SettingsPage() {
                   </Form.Item>
                   <Form.Item label=" " colon={false}>
                     <Button onClick={handleTestSmtp} loading={testingSmtp} disabled={!smtpHost}>
-                      Send Test Email
+                      {t("settings.sendTestEmail")}
                     </Button>
                   </Form.Item>
                 </TabContent>
@@ -769,19 +771,19 @@ export default function SettingsPage() {
             },
             {
               key: "6",
-              label: "Profile Fields",
+              label: t("settings.profileFields"),
               children: (
                 <TabContent>
                   <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
-                    Control which profile fields are shown on the signup form and the
-                    self-service account portal. <strong>Hidden</strong> fields are never
-                    displayed. <strong>Optional</strong> fields are shown but not required.{" "}
-                    <strong>Required</strong> fields must be filled before the account is created.
+                    控制哪些资料字段显示在注册表单和自助服务账户门户中。
+                    <strong>隐藏</strong> 的字段不显示。
+                    <strong>可选</strong> 的字段显示但不强制要求。{" "}
+                    <strong>必填</strong> 的字段必须在创建账户前填写。
                   </Text>
 
                   <Form.Item name="signup_show_optional_fields" valuePropName="checked" getValueProps={boolProp}>
                     <Checkbox>
-                      Show Optional Fields on Signup{' '}
+                      注册时显示可选字段{' '}
                       <Tooltip title={tip("signup_show_optional_fields")}><ExclamationCircleOutlined /></Tooltip>
                     </Checkbox>
                   </Form.Item>
@@ -789,146 +791,146 @@ export default function SettingsPage() {
                   <Divider />
 
                   <Form.Item
-                    label="First Name"
+                    label="名字"
                     name="profile_field_given_name"
                     tooltip={{ title: tip("profile_field_given_name"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Last Name"
+                    label={t("settings.familyName")}
                     name="profile_field_family_name"
                     tooltip={{ title: tip("profile_field_family_name"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Middle Name"
+                    label={t("settings.middleName")}
                     name="profile_field_middle_name"
                     tooltip={{ title: tip("profile_field_middle_name"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Nickname"
+                    label={t("settings.nickname")}
                     name="profile_field_nickname"
                     tooltip={{ title: tip("profile_field_nickname"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Phone Number"
+                    label={t("settings.phoneNumber")}
                     name="profile_field_phone"
                     tooltip={{ title: tip("profile_field_phone"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Profile Picture"
+                    label={t("settings.picture")}
                     name="profile_field_picture"
                     tooltip={{ title: tip("profile_field_picture"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Website"
+                    label={t("settings.website")}
                     name="profile_field_website"
                     tooltip={{ title: tip("profile_field_website"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Profile Page URL"
+                    label={t("settings.profileUrl")}
                     name="profile_field_profile"
                     tooltip={{ title: tip("profile_field_profile"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Gender"
+                    label={t("settings.gender")}
                     name="profile_field_gender"
                     tooltip={{ title: tip("profile_field_gender"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Birthdate"
+                    label={t("settings.birthdate")}
                     name="profile_field_birthdate"
                     tooltip={{ title: tip("profile_field_birthdate"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Locale"
+                    label={t("settings.locale")}
                     name="profile_field_locale"
                     tooltip={{ title: tip("profile_field_locale"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Address"
+                    label={t("settings.address")}
                     name="profile_field_address"
                     tooltip={{ title: tip("profile_field_address"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
+                      <Select.Option value="hidden">隐藏</Select.Option>
+                      <Select.Option value="optional">可选</Select.Option>
+                      <Select.Option value="required">必填</Select.Option>
                     </Select>
                   </Form.Item>
                 </TabContent>
@@ -936,19 +938,17 @@ export default function SettingsPage() {
             },
             {
               key: "7",
-              label: "Branding",
+              label: t("settings.branding"),
               children: (
                 <TabContent>
                   <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
-                    Customize the appearance of login, signup, account pages, and
-                    transactional emails. Set a page title, logo, brand color, and
-                    tagline. Use custom CSS to further match your brand. Footer links
-                    appear below the login form and in emails. Changes apply to all
-                    user-facing pages and emails served by the identity provider.
+                    自定义登录、注册、账户页面和事务邮件的外观。设置页面标题、Logo、品牌颜色和标语。
+                    使用自定义 CSS 进一步匹配您的品牌。页脚链接显示在登录表单下方和邮件中。
+                    更改将影响由此身份提供商服务的所有面向用户的页面和邮件。
                   </Text>
 
                   <Form.Item
-                    label="Page Title"
+                    label="页面标题"
                     name="theme_title"
                     tooltip={{ title: tip("theme_title"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -962,7 +962,7 @@ export default function SettingsPage() {
                     <Input placeholder="https://..." />
                   </Form.Item>
                   <Form.Item
-                    label="Custom CSS"
+                    label="自定义 CSS"
                     name="theme_css_inline"
                     tooltip={{ title: tip("theme_css_inline"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -974,21 +974,21 @@ export default function SettingsPage() {
                     />
                   </Form.Item>
                   <Form.Item
-                    label="Brand Color"
+                    label="品牌颜色"
                     name="theme_brand_color"
                     tooltip={{ title: tip("theme_brand_color"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="#18181b" />
                   </Form.Item>
                   <Form.Item
-                    label="Tagline"
+                    label="标语"
                     name="theme_tagline"
                     tooltip={{ title: tip("theme_tagline"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <Input placeholder="Simple. Safe. Self-hosted." />
                   </Form.Item>
                   <Form.Item
-                    label="Email Footer Text"
+                    label="邮件页脚文本"
                     name="email_footer_text"
                     tooltip={{ title: tip("email_footer_text"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -1000,7 +1000,7 @@ export default function SettingsPage() {
                   </Form.Item>
                   <Divider />
                   <Form.Item
-                    label="Footer Links"
+                    label="页脚链接"
                     name="footer_links"
                     tooltip={{ title: tip("footer_links"), icon: <ExclamationCircleOutlined /> }}
                   >
@@ -1011,30 +1011,30 @@ export default function SettingsPage() {
             },
             {
               key: "8",
-              label: "Backup",
+              label: t("settings.backup"),
               children: (
                 <TabContent>
                   <Space direction="vertical" size="middle" style={{ display: "flex" }}>
                     <div>
-                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Export</Title>
+                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>导出</Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                        Download all settings as a JSON file.
+                        将所有设置下载为 JSON 文件。
                       </Text>
                       <Button
                         icon={<DownloadOutlined />}
                         loading={exportLoading}
                         onClick={handleExport}
                       >
-                        Download Settings
+                        下载设置
                       </Button>
                     </div>
 
                     <Divider />
 
                     <div>
-                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Import</Title>
+                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>导入</Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                        Paste a settings JSON file below or upload one. Preview changes before applying.
+                        粘贴或上传设置 JSON 文件。应用前预览更改。
                       </Text>
                       <Space style={{ marginBottom: 8 }}>
                         <input
@@ -1048,7 +1048,7 @@ export default function SettingsPage() {
                           icon={<UploadOutlined />}
                           onClick={() => fileInputRef.current?.click()}
                         >
-                          Upload File
+                          上传文件
                         </Button>
                       </Space>
                       <Input.TextArea
@@ -1057,7 +1057,7 @@ export default function SettingsPage() {
                           setBackupText(e.target.value);
                           setPreviewData(null);
                         }}
-                        placeholder='Paste settings JSON here or upload a file…'
+                        placeholder="在此粘贴设置 JSON 或上传文件…"
                         rows={8}
                         style={{ fontFamily: "monospace", fontSize: 12 }}
                       />
@@ -1068,7 +1068,7 @@ export default function SettingsPage() {
                             loading={previewLoading}
                             disabled={!backupText.trim()}
                           >
-                            Preview Import
+                            预览导入
                           </Button>
                           {previewData && (
                             <Button
@@ -1076,7 +1076,7 @@ export default function SettingsPage() {
                               onClick={handleApply}
                               loading={applyLoading}
                             >
-                              Apply Import
+                              应用导入
                             </Button>
                           )}
                         </Space>
@@ -1089,7 +1089,7 @@ export default function SettingsPage() {
                           <Alert
                             type="warning"
                             showIcon
-                            message="Unknown keys will be skipped"
+                            message="未知键将被跳过"
                             description={
                               <Space wrap>
                                 {previewData.unknown.map((k) => (
@@ -1109,25 +1109,25 @@ export default function SettingsPage() {
                           }
                           columns={[
                             {
-                              title: "Setting",
+                              title: "设置",
                               dataIndex: "key",
                               key: "key",
                               width: "35%",
                               render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code>,
                             },
                             {
-                              title: "Current Value",
+                              title: "当前值",
                               dataIndex: "current",
                               key: "current",
                               width: "32%",
                               render: (v: string) => (
                                 <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
-                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
+                                  {v || <em style={{ opacity: 0.4 }}>空</em>}
                                 </span>
                               ),
                             },
                             {
-                              title: "New Value",
+                              title: "新值",
                               dataIndex: "incoming",
                               key: "incoming",
                               width: "32%",
@@ -1142,7 +1142,7 @@ export default function SettingsPage() {
                                         : undefined,
                                   }}
                                 >
-                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
+                                  {v || <em style={{ opacity: 0.4 }}>空</em>}
                                 </span>
                               ),
                             },
@@ -1169,7 +1169,7 @@ export default function SettingsPage() {
               loading={updateSettings.isPending}
               size="large"
             >
-              Save All Settings
+              保存所有设置
             </Button>
           </div>
         )}

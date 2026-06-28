@@ -94,7 +94,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
 	assert.Contains(t, loc, "prompt=create")
-	assert.Contains(t, loc, "error=Passwords+do+not+match")
+	assert.Contains(t, loc, "error=%E4%B8%A4%E6%AC%A1%E8%BE%93%E5%85%A5%E7%9A%84%E5%AF%86%E7%A0%81%E4%B8%8D%E4%B8%80%E8%87%B4")
 }
 
 func TestHandleSignup_Post_ValidationError(t *testing.T) {

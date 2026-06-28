@@ -49,7 +49,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseForm()
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "请求负载必须是 application/x-www-form-urlencoded 格式")
 		return
 	}
 
@@ -67,7 +67,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if config.Get().AuthMode == "passkey_only" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Password login is disabled; use passkey authentication")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "密码登录已禁用；请使用通行密钥认证")
 		return
 	}
 
@@ -83,13 +83,13 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		State:               request.State,
 	}, authorizeSig) {
 		slog.Warn("login: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "授权请求参数已被篡改")
 		return
 	}
 
 	// Validate redirect_uri format first
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "无效的重定向URI")
 		return
 	}
 
@@ -97,38 +97,38 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("login: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "未知的客户端ID")
 		return
 	}
 	if !registeredClient.IsActive {
 		slog.Warn("login: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Client is inactive")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "客户端未激活")
 		return
 	}
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
 		slog.Warn("login: redirect_uri not registered for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "重定向URI不在此客户端的允许列表中")
 		return
 	}
 
 	// Reject any scope that the client is not allowed to use
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("login: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "此客户端不允许使用所请求的一个或多个权限范围")
 		return
 	}
 
 	err = ValidateLoginRequest(request)
 	if err != nil {
-		redirectToLogin(w, r, request, fmt.Sprintf("user credentials error. %v", err))
+		redirectToLogin(w, r, request, fmt.Sprintf("用户凭证错误：%v", err))
 		return
 	}
 
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
-		loginError := "Invalid username or password"
+		loginError := "用户名或密码无效"
 		if errors.Is(err, user.ErrAccountLocked) {
-			loginError = "Account is temporarily locked due to too many failed login attempts"
+			loginError = "账户因登录尝试次数过多已被暂时锁定"
 			slog.Warn("login: account locked", "request_id", reqid.Get(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
 		}
 		detail := audit.Detail("username", request.Username, "reason", loginError)
@@ -174,7 +174,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 				method = "totp"
 			} else {
 				slog.Error("login: email MFA required but SMTP is not configured", "request_id", reqid.Get(r.Context()))
-				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
+				redirectToLogin(w, r, request, "邮箱验证不可用，请联系支持。")
 				return
 			}
 		}
@@ -194,14 +194,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		stateJSON, err := json.Marshal(loginState)
 		if err != nil {
 			slog.Error("login: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, request, "出现错误，请重试。")
 			return
 		}
 
 		challengeID, err := authcode.GenerateSecureCode()
 		if err != nil {
 			slog.Error("login: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, request, "出现错误，请重试。")
 			return
 		}
 
@@ -215,7 +215,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 		if err := mfa.CreateMfaChallenge(challenge); err != nil {
 			slog.Error("login: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
+			redirectToLogin(w, r, request, "出现错误，请重试。")
 			return
 		}
 

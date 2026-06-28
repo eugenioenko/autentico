@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 import { extractError } from '../lib/utils';
@@ -16,6 +17,7 @@ interface DeletionRequest {
 }
 
 const DangerZoneCard: React.FC = () => {
+  const { t } = useTranslation();
   const settings = useSettings();
   const queryClient = useQueryClient();
 
@@ -34,7 +36,7 @@ const DangerZoneCard: React.FC = () => {
       setCancelError('');
     },
     onError: (err: unknown) => {
-      setCancelError(extractError(err, 'Failed to cancel request.'));
+      setCancelError(extractError(err, t('account.cancelFailed')));
     },
   });
 
@@ -42,16 +44,16 @@ const DangerZoneCard: React.FC = () => {
     <>
       {showModal && <AccountDeletionModal onClose={() => setShowModal(false)} />}
       <Card
-        title="Danger Zone"
+        title={t('account.dangerZone')}
         description={
           settings.allow_self_service_deletion
-            ? 'Permanently delete your account. This action cannot be undone.'
-            : 'Request account deletion. An admin will review and process your request.'
+            ? t('account.permanentlyDelete')
+            : t('account.requestDeletionDescription')
         }
         action={
           !deletionRequest ? (
             <Button variant="danger" onClick={() => setShowModal(true)}>
-              Delete Account
+              {t('account.deleteAccount')}
             </Button>
           ) : undefined
         }
@@ -59,15 +61,14 @@ const DangerZoneCard: React.FC = () => {
         {deletionRequest && (
           <div className="space-y-4">
             <div className="rounded-xl bg-theme-danger-bg border border-theme-danger-bg px-4 py-3 text-sm text-theme-danger-fg">
-              A deletion request was submitted on{' '}
-              <strong>{new Date(deletionRequest.requested_at).toLocaleDateString()}</strong>.
+              {t('account.deletionRequestedAt', { date: new Date(deletionRequest.requested_at).toLocaleDateString() })}
               {settings.allow_self_service_deletion
-                ? ' Your account has been deleted.'
-                : ' An admin will review and process your request. Your account remains active until then.'}
+                ? t('account.accountDeleted')
+                : t('account.pendingReviewMessage')}
             </div>
             {deletionRequest.reason && (
               <p className="text-sm text-theme-muted">
-                <span className="font-medium">Reason:</span> {deletionRequest.reason}
+                <span className="font-medium">{t('account.reasonLabel')}</span> {deletionRequest.reason}
               </p>
             )}
             {cancelError && <Alert type="danger" message={cancelError} />}
@@ -77,7 +78,7 @@ const DangerZoneCard: React.FC = () => {
                 onClick={() => cancelMutation.mutate()}
                 disabled={cancelMutation.isPending}
               >
-                {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Deletion Request'}
+                {cancelMutation.isPending ? t('account.cancelling') : t('account.cancelDeletionRequest')}
               </Button>
             )}
           </div>

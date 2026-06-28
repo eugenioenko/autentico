@@ -46,7 +46,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
-			utils.WriteBearerUnauthorized(w, realm, "invalid_request", "Invalid Authorization header format")
+			utils.WriteBearerUnauthorized(w, realm, "invalid_request", "Authorization 请求头格式无效")
 			return
 		}
 
@@ -55,7 +55,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			slog.Warn("account_auth: invalid or expired token", "error", err, "ip", utils.GetClientIP(r))
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
-			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Invalid or expired token")
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "令牌无效或已过期")
 			return
 		}
 
@@ -65,7 +65,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		// Other clients can be granted access by adding "autentico-account" to their allowed_audiences.
 		if err := jwtutil.ValidateAudience(claims.Audience, []string{config.AccountClientID, config.AdminClientID}); err != nil {
 			slog.Warn("account_auth: token not issued for account API", "aud", claims.Audience, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "Token not issued for account API")
+			utils.WriteErrorResponse(w, http.StatusForbidden, "forbidden", "令牌不是为账户API签发的")
 			return
 		}
 
@@ -75,7 +75,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		// TODO #365: add per-field phone and address scope enforcement
 		if !hasRequiredScopes(claims.Scope, []string{"openid", "profile", "email"}) {
 			slog.Warn("account_auth: insufficient scope", "scope", claims.Scope, "ip", utils.GetClientIP(r))
-			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token requires openid, profile, and email scopes")
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "令牌需要 openid、profile 和 email 权限范围")
 			return
 		}
 
@@ -83,7 +83,7 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		if err != nil || usr == nil {
 			slog.Warn("account_auth: user not found", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
-			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "User not found")
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "用户不存在")
 			return
 		}
 
@@ -92,14 +92,14 @@ func AccountAuthMiddleware(next http.Handler) http.Handler {
 		if err != nil || sess == nil || sess.DeactivatedAt != nil {
 			slog.Warn("account_auth: deactivated session", "user_id", claims.UserID, "ip", utils.GetClientIP(r))
 			// RFC 6750 §3.1: MUST include WWW-Authenticate on 401 responses
-			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "会话已被停用")
 			return
 		}
 
 		// TokenByAccessToken filters revoked rows; any error is a rejection.
 		if _, err := token.TokenByAccessToken(tokenString); err != nil {
 			slog.Warn("account_auth: token lookup failed or revoked", "user_id", claims.UserID, "error", err, "ip", utils.GetClientIP(r))
-			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has been revoked")
+			utils.WriteBearerUnauthorized(w, realm, "invalid_token", "令牌已被撤销")
 			return
 		}
 
