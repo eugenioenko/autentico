@@ -2,11 +2,13 @@ import { useEffect } from "react";
 import { useSearchParams, Navigate } from "react-router-dom";
 import { Alert, Spin, Space, Typography } from "antd";
 import { useAuth } from "oidc-js-react";
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
   const { isAuthenticated, actions } = useAuth();
   const [searchParams] = useSearchParams();
   const errorParam = searchParams.get("error");
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isAuthenticated || errorParam) return;
@@ -30,17 +32,17 @@ export default function LoginPage() {
       {errorParam ? (
         <Space direction="vertical" align="center" size="large">
           <Alert
-            message="Authentication Failed"
+            message={t("login.authFailed")}
             description={decodeURIComponent(errorParam)}
             type="error"
             showIcon
           />
           <Typography.Link onClick={() => actions.login()}>
-            Try again
+            {t("login.tryAgain")}
           </Typography.Link>
         </Space>
       ) : (
-        <Spin size="large" tip="Redirecting to login..." />
+        <Spin size="large" tip={t("login.redirecting")} />
       )}
     </div>
   );

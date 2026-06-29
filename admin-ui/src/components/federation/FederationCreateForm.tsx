@@ -3,6 +3,7 @@ import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typogra
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useCreateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProviderCreateRequest } from "../../types/federation";
+import { useTranslation, Trans } from "react-i18next";
 
 interface Props {
   open: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function FederationCreateForm({ open, onClose }: Props) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const createProvider = useCreateFederationProvider();
@@ -18,44 +20,46 @@ export default function FederationCreateForm({ open, onClose }: Props) {
   const handleSubmit = async (values: FederationProviderCreateRequest) => {
     try {
       await createProvider.mutateAsync(values);
-      message.success("Federation provider created");
+      message.success(t("federation.providerCreated"));
       form.resetFields();
       setSlug("");
       onClose();
     } catch {
-      message.error("Failed to create federation provider");
+      message.error(t("federation.createProviderFailed"));
     }
   };
 
   return (
     <Drawer
-      title="Add Federation Provider"
+      title={t("federation.addFederationProvider")}
       open={open}
       onClose={onClose}
       width={520}
       extra={
         <Space>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button
             type="primary"
             onClick={() => form.submit()}
             loading={createProvider.isPending}
           >
-            Create
+            {t("common.create")}
           </Button>
         </Space>
       }
-    >
+      >
       <Alert
         type="info"
         icon={<InfoCircleOutlined />}
         showIcon
         style={{ marginBottom: 20 }}
-        message="How to set up a provider"
+        message={t("federation.howToSetup")}
         description={
           <Space direction="vertical" size={4}>
             <Typography.Text>
-              Set a <strong>Provider ID</strong> below, register this redirect URI in your provider's console, then paste the credentials here.
+              <Trans i18nKey="federation.howToSetupDesc">
+                Set the <strong>Provider ID</strong> below, register this redirect URI in the provider's developer console, then paste the credentials here.
+              </Trans>
             </Typography.Text>
             <Typography.Text code copyable={!!slug}>
               {slug
@@ -74,15 +78,15 @@ export default function FederationCreateForm({ open, onClose }: Props) {
       >
         <Form.Item
           name="id"
-          label="Provider ID"
-          extra="URL-safe slug used in the redirect URI. Cannot be changed after creation."
+          label={t("federation.providerId")}
+          extra={t("federation.providerIdExtra")}
           rules={[
-            { required: true, message: "Provider ID is required" },
-            { pattern: /^[a-z0-9-]+$/, message: "Only lowercase letters, numbers, and hyphens" },
+            { required: true, message: t("federation.providerIdRequired") },
+            { pattern: /^[a-z0-9-]+$/, message: t("federation.providerIdPattern") },
           ]}
         >
           <Input
-            placeholder="e.g. google, microsoft, okta"
+            placeholder={t("federation.providerIdPlaceholder")}
             autoComplete="federation-provider-id"
             onChange={(e) => setSlug(e.target.value.trim())}
           />
@@ -90,49 +94,49 @@ export default function FederationCreateForm({ open, onClose }: Props) {
 
         <Form.Item
           name="name"
-          label="Display Name"
-          rules={[{ required: true, message: "Name is required" }]}
+          label={t("federation.displayName")}
+          rules={[{ required: true, message: t("federation.nameRequired") }]}
         >
-          <Input placeholder="Google" />
+          <Input placeholder={t("federation.namePlaceholder")} />
         </Form.Item>
 
         <Form.Item
           name="issuer"
-          label="Issuer URL"
-          extra="The OIDC discovery base URL (without /.well-known/openid-configuration)"
+          label={t("federation.issuerUrl")}
+          extra={t("federation.issuerUrlExtra")}
           rules={[
-            { required: true, message: "Issuer is required" },
-            { type: "url", message: "Must be a valid URL" },
+            { required: true, message: t("federation.issuerRequired") },
+            { type: "url", message: t("federation.mustBeValidUrl") },
           ]}
         >
-          <Input placeholder="https://accounts.google.com" />
+          <Input placeholder={t("federation.issuerPlaceholder")} />
         </Form.Item>
 
         <Form.Item
           name="client_id"
-          label="Client ID"
-          rules={[{ required: true, message: "Client ID is required" }]}
+          label={t("federation.clientIdLabel")}
+          rules={[{ required: true, message: t("federation.clientIdRequired") }]}
         >
-          <Input placeholder="123456789-abc.apps.googleusercontent.com" autoComplete="federation-client-id" />
+          <Input placeholder={t("federation.clientIdPlaceholder")} autoComplete="federation-client-id" />
         </Form.Item>
 
         <Form.Item
           name="client_secret"
-          label="Client Secret"
-          rules={[{ required: true, message: "Client secret is required" }]}
+          label={t("federation.clientSecretLabel")}
+          rules={[{ required: true, message: t("federation.clientSecretRequired") }]}
         >
-          <Input.Password placeholder="Client secret from your provider" autoComplete="new-password" />
+          <Input.Password placeholder={t("federation.clientSecretPlaceholder")} autoComplete="new-password" />
         </Form.Item>
 
-        <Form.Item name="icon_svg" label="Icon SVG" extra="Paste SVG markup for the provider button icon (optional).">
+        <Form.Item name="icon_svg" label={t("federation.iconSvg")} extra={t("federation.iconSvgExtra")}>
           <Input.TextArea rows={3} placeholder='<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>' />
         </Form.Item>
 
-        <Form.Item name="sort_order" label="Sort Order" extra="Lower numbers appear first on the login page.">
+        <Form.Item name="sort_order" label={t("federation.sortOrder")} extra={t("federation.sortOrderExtra")}>
           <InputNumber min={0} style={{ width: "100%" }} />
         </Form.Item>
 
-        <Form.Item name="enabled" label="Enabled" valuePropName="checked">
+        <Form.Item name="enabled" label={t("common.enabled")} valuePropName="checked">
           <Switch />
         </Form.Item>
       </Form>

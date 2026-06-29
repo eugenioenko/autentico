@@ -39,12 +39,14 @@ import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
 }
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -84,18 +86,18 @@ export default function UsersPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteUser.mutateAsync(id);
-      message.success("User deactivated");
+      message.success(t("users.userDisabled"));
     } catch {
-      message.error("Failed to deactivate user");
+      message.error(t("users.disableUserFailed"));
     }
   };
 
   const handleUnlock = async (id: string) => {
     try {
       await unlockUserMutation.mutateAsync(id);
-      message.success("User unlocked");
+      message.success(t("users.userUnlocked"));
     } catch {
-      message.error("Failed to unlock user");
+      message.error(t("users.unlockUserFailed"));
     }
   };
 
@@ -181,14 +183,14 @@ export default function UsersPage() {
 
   const columns: ColumnsType<UserResponseExt> = [
     {
-      title: "Username",
+      title: t("users.username"),
       dataIndex: "username",
       key: "username",
       sorter: true,
       ellipsis: true,
     },
     {
-      title: "Email",
+      title: t("users.email"),
       dataIndex: "email",
       key: "email",
       sorter: true,
@@ -198,13 +200,13 @@ export default function UsersPage() {
       ),
     },
     {
-      title: "Role",
+      title: t("users.role"),
       dataIndex: "role",
       key: "role",
       sorter: true,
       filters: [
-        { text: "Admin", value: "admin" },
-        { text: "User", value: "user" },
+        { text: t("users.admin"), value: "admin" },
+        { text: t("users.user"), value: "user" },
       ],
       filterMultiple: false,
       render: (role: string) => (
@@ -212,56 +214,56 @@ export default function UsersPage() {
       ),
     },
     {
-      title: "MFA",
+      title: t("users.mfa"),
       dataIndex: "totp_verified",
       key: "mfa",
       filters: [
-        { text: "Enrolled", value: "1" },
-        { text: "No", value: "0" },
+        { text: t("users.filterRegistered"), value: "1" },
+        { text: t("users.filterNo"), value: "0" },
       ],
       filterMultiple: false,
       render: (verified: boolean) => (
         <Tag color={verified ? "success" : "default"}>
-          {verified ? "Enrolled" : "No"}
+          {verified ? t("users.filterRegistered") : t("users.filterNo")}
         </Tag>
       ),
     },
     {
-      title: "Verified",
+      title: t("users.verified"),
       dataIndex: "is_email_verified",
       key: "verified",
       filters: [
-        { text: "Yes", value: "1" },
-        { text: "No", value: "0" },
+        { text: t("users.filterYes"), value: "1" },
+        { text: t("users.filterNo"), value: "0" },
       ],
       filterMultiple: false,
       render: (verified: boolean) => (
         <Tag color={verified ? "success" : "warning"}>
-          {verified ? "Yes" : "No"}
+          {verified ? t("users.filterYes") : t("users.filterNo")}
         </Tag>
       ),
     },
     {
-      title: "Status",
+      title: t("common.status"),
       key: "status",
       render: (_, record) => {
         if (isLocked(record)) {
-          return <Tag color="orange">Locked</Tag>;
+          return <Tag color="orange">{t("users.lockedStatus")}</Tag>;
         }
         if (record.failed_login_attempts && record.failed_login_attempts > 0) {
           return (
             <Tooltip
-              title={`${record.failed_login_attempts} failed attempt(s)`}
+              title={t("users.failedAttempts", { count: record.failed_login_attempts })}
             >
-              <Tag color="gold">{record.failed_login_attempts} failed</Tag>
+              <Tag color="gold">{t("users.failedFormat", { count: record.failed_login_attempts })}</Tag>
             </Tooltip>
           );
         }
-        return <Tag color="green">Active</Tag>;
+        return <Tag color="green">{t("common.active")}</Tag>;
       },
     },
     {
-      title: "Groups",
+      title: t("users.groups"),
       key: "groups",
       filters: (groups?.items ?? []).map((g) => ({ text: g.name, value: g.name })),
       filterMultiple: false,
@@ -271,7 +273,7 @@ export default function UsersPage() {
       ),
     },
     {
-      title: "Created",
+      title: t("users.createdAt"),
       dataIndex: "created_at",
       key: "created_at",
       sorter: true,
@@ -279,15 +281,15 @@ export default function UsersPage() {
         date ? new Date(date).toLocaleDateString() : "-",
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       render: (_, record) => (
         <Space>
           <Popconfirm
-            title="Deactivate this user?"
-            description="The user will no longer be able to log in."
+            title={t("users.disableUser")}
+            description={t("users.disableDesc")}
             onConfirm={() => handleDelete(record.id!)}
-            okText="Deactivate"
+            okText={t("users.disableAction")}
             okButtonProps={{ danger: true }}
           >
             <Button type="text" size="small" danger icon={<StopOutlined />} />
@@ -312,10 +314,10 @@ export default function UsersPage() {
           />
           {isLocked(record) && (
             <Popconfirm
-              title="Unlock this user?"
-              description="This will reset failed login attempts and remove the lockout."
+              title={t("users.unlockUser")}
+              description={t("users.unlockDesc")}
               onConfirm={() => handleUnlock(record.id!)}
-              okText="Unlock"
+              okText={t("users.unlockAction")}
             >
               <Button
                 type="text"
@@ -330,7 +332,7 @@ export default function UsersPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load users" />;
+    return <Alert type="error" message={t("users.failedToLoadUsers")} />;
   }
 
   const deletionCount = deletionRequests?.total ?? 0;
@@ -338,13 +340,13 @@ export default function UsersPage() {
   const tabItems = [
     {
       key: "users",
-      label: "Users",
+      label: t("users.usersTab"),
     },
     {
       key: "deletions",
       label: (
         <Badge count={deletionCount} size="small" offset={[8, 0]}>
-          Deletion Requests
+          {t("users.deletionRequestsTab")}
         </Badge>
       ),
     },
@@ -370,7 +372,7 @@ export default function UsersPage() {
                 allowClear
               />
               <Input.Search
-                placeholder="Search users..."
+                placeholder={t("users.searchUsers")}
                 allowClear
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
@@ -382,7 +384,7 @@ export default function UsersPage() {
                 icon={<PlusOutlined />}
                 onClick={() => setCreateOpen(true)}
               >
-                Create User
+                {t("users.createUser")}
               </Button>
             </Space>
           </Space>
@@ -401,7 +403,7 @@ export default function UsersPage() {
                 total: data?.total ?? 0,
                 showSizeChanger: true,
                 pageSizeOptions: PAGE_SIZE_OPTIONS,
-                showTotal: (total) => `${total} users`,
+                showTotal: (total) => t("users.totalUsers", { total }),
               }}
             />
           </div>

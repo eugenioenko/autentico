@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 import Modal from './Modal';
@@ -13,6 +14,7 @@ interface AccountDeletionModalProps {
 }
 
 const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const settings = useSettings();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -35,24 +37,24 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
       onClose();
     },
     onError: (err: unknown) => {
-      setError(extractError(err, 'Failed to submit request.'));
+      setError(extractError(err, t('account.submitRequestFailed')));
     },
   });
 
   return (
     <Modal
-      title={settings.allow_self_service_deletion ? 'Delete Account' : 'Request Account Deletion'}
+      title={settings.allow_self_service_deletion ? t('account.selfServiceDeletion') : t('account.requestDeletion')}
       onClose={onClose}
     >
       <div className="space-y-4">
         <p className="text-sm text-theme-muted">
           {settings.allow_self_service_deletion
-            ? 'Are you sure you want to permanently delete your account? This cannot be undone.'
-            : 'A deletion request will be submitted for admin review.'}
+            ? t('account.confirmSelfServiceDeletion')
+            : t('account.submitForReview')}
         </p>
         <div>
           <label>
-            Type <span className="font-bold">{username}</span> to confirm
+            {t('account.typeToConfirmWithUsername', { username: username })}
           </label>
           <input
             type="text"
@@ -64,12 +66,12 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
         </div>
         <div>
           <label>
-            Reason <span className="text-theme-muted font-normal">(optional)</span>
+            {t('account.reason')} <span className="text-theme-muted font-normal">{t('account.reasonOptional')}</span>
           </label>
           <textarea
             className="w-full rounded-xl border border-theme-fg/20 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-theme-highlight bg-theme-bg text-theme-fg"
             rows={3}
-            placeholder="Tell us why you want to delete your account…"
+            placeholder={t('account.reasonPlaceholder')}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
@@ -77,7 +79,7 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
         {error && <Alert type="danger" message={error} />}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger"
@@ -86,10 +88,10 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
             className="flex-1"
           >
             {mutation.isPending
-              ? 'Submitting…'
+              ? t('account.submitting')
               : settings.allow_self_service_deletion
-                ? 'Delete Account'
-                : 'Submit Request'}
+                ? t('account.deleteAccount')
+                : t('account.submitRequest')}
           </Button>
         </div>
       </div>

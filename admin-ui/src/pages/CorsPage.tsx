@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Typography, Input, Button, Alert, Space, Spin, Card, App } from "antd";
 import { SaveOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
+import { useTranslation, Trans } from "react-i18next";
 
 const { Title, Paragraph, Text } = Typography;
 
 export default function CorsPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
@@ -44,9 +46,9 @@ export default function CorsPage() {
       await updateSettings.mutateAsync({
         cors_allowed_origins: cleaned.join(","),
       });
-      message.success("CORS settings saved");
+      message.success(t("cors.corsSaved"));
     } catch {
-      message.error("Failed to save CORS settings");
+      message.error(t("cors.corsSaveFailed"));
     }
   };
 
@@ -56,17 +58,17 @@ export default function CorsPage() {
 
   return (
     <div style={{ maxWidth: 720, flex: 1, overflow: "auto" }}>
-      <Title level={3}>CORS (Cross-Origin Resource Sharing)</Title>
+      <Title level={3}>{t("cors.title")}</Title>
       <Paragraph type="secondary">
-        Configure which origins are allowed to make cross-origin requests to
-        Autentico. Use <Text code>*</Text> to allow all origins. Remove all
-        entries to disable CORS entirely.
+        <Trans i18nKey="cors.description">
+          Configure which origins are allowed to make cross-origin requests to Autentico. Use <Text code>*</Text> to allow all origins. Remove all entries to fully disable CORS.
+        </Trans>
       </Paragraph>
 
       <Card>
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
           <div>
-            <Text strong>Allowed Origins</Text>
+            <Text strong>{t("cors.allowedOrigins")}</Text>
           </div>
 
           {origins.map((origin, index) => (
@@ -91,15 +93,15 @@ export default function CorsPage() {
             onClick={handleAdd}
             style={{ width: "100%" }}
           >
-            Add Origin
+            {t("cors.addOrigin")}
           </Button>
 
           {hasWildcard && (
             <Alert
               type="warning"
               showIcon
-              message="Wildcard origin enabled"
-              description="Using * allows any website to make cross-origin requests to your Autentico instance. This is suitable for development but not recommended for production."
+              message={t("cors.wildcardEnabled")}
+              description={t("cors.wildcardDesc")}
             />
           )}
 
@@ -107,8 +109,8 @@ export default function CorsPage() {
             <Alert
               type="info"
               showIcon
-              message="CORS is disabled"
-              description="No origins are configured. Cross-origin browser requests will be blocked unless a reverse proxy handles CORS."
+              message={t("cors.corsDisabled")}
+              description={t("cors.corsDisabledDesc")}
             />
           )}
 
@@ -119,7 +121,7 @@ export default function CorsPage() {
               loading={updateSettings.isPending}
               onClick={handleSave}
             >
-              Save
+              {t("common.save")}
             </Button>
           </div>
         </Space>

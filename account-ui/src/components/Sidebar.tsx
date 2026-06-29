@@ -1,21 +1,26 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   IconUser, IconShield, IconKey, IconHistory, IconLogout,
   IconX, IconDevices, IconLink,
 } from '@tabler/icons-react';
 import { cn } from '../lib/utils';
 import SidebarItem from './SidebarItem';
+import LanguageSwitcher from './LanguageSwitcher';
 import { useSettings } from '../context/SettingsContext';
 
-const navItems = [
-  { to: '/', icon: IconShield, label: 'Overview' },
-  { to: '/profile', icon: IconUser, label: 'Profile' },
-  { to: '/security', icon: IconKey, label: 'Security' },
-  { to: '/sessions', icon: IconHistory, label: 'Sessions' },
-  { to: '/trusted-devices', icon: IconDevices, label: 'Trusted Devices' },
-  { to: '/connected-providers', icon: IconLink, label: 'Connected Providers' },
-];
+function useNavItems() {
+  const { t } = useTranslation();
+  return [
+    { to: '/', icon: IconShield, label: t('menu.overview') },
+    { to: '/profile', icon: IconUser, label: t('menu.profile') },
+    { to: '/security', icon: IconKey, label: t('menu.security') },
+    { to: '/sessions', icon: IconHistory, label: t('menu.sessions') },
+    { to: '/trusted-devices', icon: IconDevices, label: t('menu.trustedDevices') },
+    { to: '/connected-providers', icon: IconLink, label: t('menu.connectedProviders') },
+  ];
+}
 
 interface SidebarProps {
   open: boolean;
@@ -28,6 +33,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, onLogout }) => {
   const location = useLocation();
   const settings = useSettings();
+  const { t } = useTranslation();
+  const navItems = useNavItems();
 
   return (
     <aside
@@ -41,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
         <div className="flex items-center gap-2">
           <img
             src={settings.theme_logo_url || '/account/favicon.svg'}
-            alt="Logo"
+            alt={settings.theme_title}
             className="h-6 w-6 object-contain"
           />
           <span className="text-theme-accent-fg font-bold tracking-tight">{settings.theme_title}</span>
@@ -67,6 +74,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
       </nav>
 
       <div className="px-3 py-4 border-t border-theme-accent-fg/30 space-y-1">
+        <div className="px-1 pb-2">
+          <LanguageSwitcher />
+        </div>
         <div className="flex items-center gap-2.5 px-3 py-2.5">
           <div className="w-8 h-8 rounded-full bg-theme-accent-fg flex items-center justify-center text-theme-accent-bg text-xs font-bold flex-shrink-0">
             {initials}
@@ -75,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
             <p className="text-sm font-semibold text-theme-accent-fg truncate leading-snug">
               {username}
             </p>
-            <p className="text-[11px] text-theme-accent-fg/40 leading-snug">Personal account</p>
+            <p className="text-[11px] text-theme-accent-fg/40 leading-snug">{t('menu.personalAccount')}</p>
           </div>
         </div>
         <button
@@ -84,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-theme-accent-fg/70 hover:text-theme-accent-fg hover:bg-theme-accent-fg/10 rounded-brand transition-colors"
         >
           <IconLogout size={15} />
-          Sign out
+          {t('menu.signOut')}
         </button>
       </div>
     </aside>

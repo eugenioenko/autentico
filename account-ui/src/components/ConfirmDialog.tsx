@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import Button from './Button';
 
@@ -15,23 +16,26 @@ interface ConfirmDialogProps {
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   variant = 'primary',
   onConfirm,
   onCancel,
-}) => (
-  <Modal title={title} onClose={onCancel}>
-    <p className="text-sm text-theme-muted mb-5">{message}</p>
-    <div className="flex justify-end gap-2">
-      <Button variant="ghost" onClick={onCancel}>
-        {cancelLabel}
-      </Button>
-      <Button variant={variant} onClick={onConfirm}>
-        {confirmLabel}
-      </Button>
-    </div>
-  </Modal>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <Modal title={title} onClose={onCancel}>
+      <p className="text-sm text-theme-muted mb-5">{message}</p>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          {cancelLabel ?? t('common.cancel')}
+        </Button>
+        <Button variant={variant} onClick={onConfirm}>
+          {confirmLabel ?? t('common.confirm')}
+        </Button>
+      </div>
+    </Modal>
+  );
+};
 
 export default ConfirmDialog;

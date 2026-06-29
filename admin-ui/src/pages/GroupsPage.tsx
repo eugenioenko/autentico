@@ -37,6 +37,7 @@ import type { ListParams } from "../api/users";
 import type { Group, GroupMember } from "../types/group";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { useTranslation } from "react-i18next";
 
 function GroupMembersView({
   group,
@@ -45,6 +46,7 @@ function GroupMembersView({
   group: Group;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -95,11 +97,11 @@ function GroupMembersView({
         )
       );
       message.success(
-        `Added ${selectedUserIds.length} member${selectedUserIds.length > 1 ? "s" : ""}`
+        t("groups.addedCount", { count: selectedUserIds.length })
       );
       setSelectedUserIds([]);
     } catch {
-      message.error("Failed to add members");
+      message.error(t("groups.addMembersFailed"));
     } finally {
       setAdding(false);
     }
@@ -108,9 +110,9 @@ function GroupMembersView({
   const handleRemove = async (userId: string) => {
     try {
       await removeMember.mutateAsync({ groupId: group.id, userId });
-      message.success("Member removed");
+      message.success(t("groups.memberRemoved"));
     } catch {
-      message.error("Failed to remove member");
+      message.error(t("groups.removeMemberFailed"));
     }
   };
 
@@ -120,10 +122,10 @@ function GroupMembersView({
   });
 
   const columns: ColumnsType<GroupMember> = [
-    { title: "Username", dataIndex: "username", key: "username" },
-    { title: "Email", dataIndex: "email", key: "email" },
+    { title: t("users.username"), dataIndex: "username", key: "username" },
+    { title: t("users.email"), dataIndex: "email", key: "email" },
     {
-      title: "Added",
+      title: t("groups.addedAt"),
       dataIndex: "created_at",
       key: "created_at",
       render: (val: string) => new Date(val).toLocaleDateString(),
@@ -134,9 +136,9 @@ function GroupMembersView({
       width: 50,
       render: (_, record) => (
         <Popconfirm
-          title="Remove this member?"
+          title={t("groups.removeMemberConfirm")}
           onConfirm={() => handleRemove(record.user_id)}
-          okText="Remove"
+          okText={t("groups.removeAction")}
           okButtonProps={{ danger: true }}
         >
           <Button
@@ -155,10 +157,10 @@ function GroupMembersView({
       <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-            Back to Groups
+            {t("groups.backToGroupList")}
           </Button>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            Members of {group.name}
+            {t("groups.membersOf", { group: group.name })}
           </Typography.Title>
         </Space>
       </Space>
@@ -171,12 +173,12 @@ function GroupMembersView({
 
       <div style={{ marginTop: 12, flexShrink: 0 }}>
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-          Add members
+          {t("groups.addMembers")}
         </Typography.Text>
         <Space.Compact style={{ maxWidth: 480 }}>
           <AutoComplete
             style={{ width: 320 }}
-            placeholder="Search users to add"
+            placeholder={t("groups.searchUsersToAdd")}
             options={userOptions}
             value={userSearch}
             onSearch={handleUserSearch}
@@ -190,7 +192,7 @@ function GroupMembersView({
             loading={adding}
             disabled={selectedUserIds.length === 0}
           >
-            Add{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
+            {t("common.add")}{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
           </Button>
         </Space.Compact>
         {selectedUsers.length > 0 && (
@@ -224,6 +226,7 @@ function GroupMembersView({
 }
 
 export default function GroupsPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -251,11 +254,11 @@ export default function GroupsPage() {
   const handleCreate = async (values: { name: string; description?: string }) => {
     try {
       await createGroup.mutateAsync(values);
-      message.success("Group created");
+      message.success(t("groups.groupCreated"));
       setCreateOpen(false);
       createForm.resetFields();
     } catch {
-      message.error("Failed to create group");
+      message.error(t("groups.createGroupFailed"));
     }
   };
 
@@ -263,20 +266,20 @@ export default function GroupsPage() {
     if (!editGroup) return;
     try {
       await updateGroup.mutateAsync({ id: editGroup.id, data: values });
-      message.success("Group updated");
+      message.success(t("groups.groupUpdated"));
       setEditGroup(null);
       editForm.resetFields();
     } catch {
-      message.error("Failed to update group");
+      message.error(t("groups.updateGroupFailed"));
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteGroupMutation.mutateAsync(id);
-      message.success("Group deleted");
+      message.success(t("groups.groupDeleted"));
     } catch {
-      message.error("Failed to delete group");
+      message.error(t("groups.deleteGroupFailed"));
     }
   };
 
@@ -317,41 +320,41 @@ export default function GroupsPage() {
 
   const columns: ColumnsType<Group> = [
     {
-      title: "Name",
+      title: t("common.name"),
       dataIndex: "name",
       key: "name",
       sorter: true,
     },
     {
-      title: "Description",
+      title: t("common.description"),
       dataIndex: "description",
       key: "description",
       ellipsis: true,
     },
     {
-      title: "Members",
+      title: t("groups.memberCount"),
       dataIndex: "member_count",
       key: "member_count",
       width: 100,
     },
     {
-      title: "Created",
+      title: t("common.created"),
       dataIndex: "created_at",
       key: "created_at",
       sorter: true,
       render: (val: string) => new Date(val).toLocaleDateString(),
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       width: 120,
       render: (_, record) => (
         <Space>
           <Popconfirm
-            title="Delete this group?"
-            description="All memberships will be removed."
+            title={t("groups.deleteGroupConfirm")}
+            description={t("groups.deleteGroupDesc")}
             onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
+            okText={t("common.delete")}
             okButtonProps={{ danger: true }}
           >
             <Button
@@ -385,18 +388,18 @@ export default function GroupsPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load groups" />;
+    return <Alert type="error" message={t("groups.failedToLoadGroups")} />;
   }
 
   return (
     <>
       <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Groups
+          {t("groups.title")}
         </Typography.Title>
         <Space>
           <Input.Search
-            placeholder="Search groups..."
+            placeholder={t("groups.searchGroups")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -408,7 +411,7 @@ export default function GroupsPage() {
             icon={<PlusOutlined />}
             onClick={() => setCreateOpen(true)}
           >
-            Create Group
+            {t("groups.createGroup")}
           </Button>
         </Space>
       </Space>
@@ -427,14 +430,13 @@ export default function GroupsPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} groups`,
+            showTotal: (total) => t("groups.totalGroups", { total }),
           }}
         />
       </div>
 
-      {/* Create Modal */}
       <Modal
-        title="Create Group"
+        title={t("groups.createGroupTitle")}
         open={createOpen}
         onCancel={() => {
           setCreateOpen(false);
@@ -446,27 +448,26 @@ export default function GroupsPage() {
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item
             name="name"
-            label="Name"
+            label={t("common.name")}
             rules={[
-              { required: true, message: "Name is required" },
+              { required: true, message: t("groups.groupNameRequired") },
               {
                 pattern: /^[a-zA-Z0-9_-]+$/,
-                message: "Only letters, numbers, hyphens, and underscores",
+                message: t("groups.groupNamePattern"),
               },
-              { max: 100, message: "Max 100 characters" },
+              { max: 100, message: t("groups.groupNameMax") },
             ]}
           >
-            <Input placeholder="e.g. admins" />
+            <Input placeholder={t("groups.groupNamePlaceholder")} />
           </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} placeholder="Optional description" />
+          <Form.Item name="description" label={t("common.description")}>
+            <Input.TextArea rows={3} placeholder={t("groups.optionalDescription")} />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* Edit Modal */}
       <Modal
-        title="Edit Group"
+        title={t("groups.editGroupTitle")}
         open={!!editGroup}
         onCancel={() => {
           setEditGroup(null);
@@ -478,18 +479,18 @@ export default function GroupsPage() {
         <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
           <Form.Item
             name="name"
-            label="Name"
+            label={t("common.name")}
             rules={[
               {
                 pattern: /^[a-zA-Z0-9_-]+$/,
-                message: "Only letters, numbers, hyphens, and underscores",
+                message: t("groups.groupNamePattern"),
               },
-              { max: 100, message: "Max 100 characters" },
+              { max: 100, message: t("groups.groupNameMax") },
             ]}
           >
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={t("common.description")}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
