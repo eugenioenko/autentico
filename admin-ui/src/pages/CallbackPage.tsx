@@ -47,7 +47,7 @@ export default function CallbackPage() {
         minHeight: "100vh",
       }}
     >
-      <Spin size="large" tip="Signing in..." />
+      <Spin size="large" tip="正在登录..." />
     </div>
   );
 }

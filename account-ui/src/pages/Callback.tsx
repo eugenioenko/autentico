@@ -1,13 +1,14 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from 'oidc-js-react';
 import Spinner from '../components/Spinner';
 import Alert from '../components/Alert';
 
 const Callback: React.FC = () => {
+  const { t } = useTranslation();
   const { error } = useAuth();
 
   if (error) {
-    // If onError already triggered a retry redirect, show spinner instead of error
     if (sessionStorage.getItem('oidc_retry')) {
       return (
         <div className="min-h-dvh flex items-center justify-center bg-theme-accent-bg">
@@ -23,7 +24,7 @@ const Callback: React.FC = () => {
             onClick={() => window.location.href = '/account'}
             className="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-brand text-sm font-medium bg-theme-primary-bg text-theme-primary-fg hover:opacity-90 transition-all"
           >
-            Try Again
+            {t('common.retry')}
           </button>
         </div>
       </div>

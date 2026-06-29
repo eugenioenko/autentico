@@ -16,9 +16,11 @@
     "antd": "^6.3.7",
     "axios": "^1.16.0",
     "dayjs": "^1.11.20",
+    "i18next": "^26.3.2",
     "oidc-js-react": "^1.1.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^7.15.0"
   },
   "devDependencies": {

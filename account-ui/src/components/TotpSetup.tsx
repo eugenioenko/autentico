@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import { IconCopy, IconCheck } from '@tabler/icons-react';
 import api from '../api';
@@ -13,6 +14,7 @@ interface TotpSetupModalProps {
 }
 
 const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState<'password' | 'loading' | 'qr' | 'verify'>('password');
   const [secret, setSecret] = useState('');
   const [qrData, setQrData] = useState('');
@@ -32,7 +34,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
         setStep('qr');
       })
       .catch((err) => {
-        setError(extractError(err, 'Failed to initialize TOTP setup'));
+        setError(extractError(err, t('security.totpSetupFailed')));
         setStep('password');
       });
   };
@@ -58,24 +60,24 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      setError(extractError(err, 'Invalid code. Please try again.'));
+      setError(extractError(err, t('security.invalidCode')));
     } finally {
       setIsVerifying(false);
     }
   };
 
   return (
-    <Modal title="Set Up Authenticator" onClose={onClose}>
+    <Modal title={t('security.setupAuthenticator')} onClose={onClose}>
           {step === 'password' && (
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <p className="text-sm text-theme-muted">
-                Enter your password to set up two-factor authentication.
+                {t('security.setupTotpMessage')}
               </p>
               <div>
-                <label>Password</label>
+                <label>{t('security.password')}</label>
                 <input
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder={t('security.enterPassword')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoFocus
@@ -84,10 +86,10 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
               {error && <Alert type="danger" message={error} />}
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" className="flex-1">
-                  Continue
+                  {t('common.continue')}
                 </Button>
               </div>
             </form>
@@ -102,7 +104,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
           {step === 'qr' && (
             <div className="space-y-5">
               <p className="text-sm text-theme-muted">
-                Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy).
+                {t('security.scanQrCode')}
               </p>
               {qrData && (
                 <div className="flex justify-center p-4 bg-theme-body rounded-xl">
@@ -110,7 +112,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
                 </div>
               )}
               <div>
-                <p className="text-xs text-theme-muted mb-1.5">Or enter this code manually:</p>
+                <p className="text-xs text-theme-muted mb-1.5">{t('security.orManualCode')}</p>
                 <div className="flex items-center gap-2 px-3 py-2 bg-theme-body rounded-lg border border-theme-fg/15">
                   <code className="flex-1 text-xs font-mono text-theme-fg break-all">{secret}</code>
                   <button onClick={handleCopy} className="flex-shrink-0 text-theme-muted hover:text-theme-fg transition-colors">
@@ -119,7 +121,7 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
                 </div>
               </div>
               <Button className="w-full" onClick={() => setStep('verify')}>
-                Continue
+                {t('common.continue')}
               </Button>
             </div>
           )}
@@ -127,10 +129,10 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
           {step === 'verify' && (
             <form onSubmit={handleVerify} className="space-y-4">
               <p className="text-sm text-theme-muted">
-                Enter the 6-digit code from your authenticator app to confirm setup.
+                {t('security.enterVerificationCode')}
               </p>
               <div>
-                <label>Verification Code</label>
+                <label>{t('security.verificationCode')}</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -145,10 +147,10 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
               {error && <Alert type="danger" message={error} />}
               <div className="flex gap-2">
                 <Button type="button" variant="ghost" onClick={() => setStep('qr')} className="flex-1">
-                  Back
+                  {t('common.back')}
                 </Button>
                 <Button type="submit" disabled={code.length !== 6 || isVerifying} className="flex-1">
-                  {isVerifying ? 'Verifying…' : 'Enable 2FA'}
+                  {isVerifying ? t('security.verifying') : t('security.enableTotp')}
                 </Button>
               </div>
             </form>

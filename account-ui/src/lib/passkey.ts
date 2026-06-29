@@ -30,7 +30,7 @@ export async function performPasskeyRegistration(data: {
   };
 
   const cred = await navigator.credentials.create({ publicKey }) as PublicKeyCredential;
-  if (!cred) throw new Error('No credential returned');
+  if (!cred) throw new Error('未返回凭证');
 
   const response = cred.response as AuthenticatorAttestationResponse;
   return {
