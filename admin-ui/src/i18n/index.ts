@@ -6,10 +6,18 @@ import zh from "./locales/zh.json";
 const STORAGE_KEY = "autentico-admin-lang";
 
 function getInitialLang(): string {
+  // First check localStorage for saved preference
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === "en" || saved === "zh") return saved;
-  // Default to Chinese (project primary audience)
-  return "zh";
+
+  // Detect browser language, fallback to en
+  const browserLang = navigator.language || navigator.languages?.[0] || "";
+  if (browserLang.startsWith("zh")) {
+    return "zh";
+  }
+
+  // Default to English
+  return "en";
 }
 
 i18n.use(initReactI18next).init({
