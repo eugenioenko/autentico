@@ -43,6 +43,13 @@ test:
 test-functional: build-go
 	cd tests/functional && pnpm install && pnpm test
 
+# Record and encode the README demo video (see tests/browser/demo/README.md)
+.PHONY: demo-video
+demo-video: build
+	cd tests/browser && npx tsx demo/record-demo.ts && demo/encode.sh
+	cp tests/browser/demo/out/autentico-demo.gif tests/browser/demo/out/autentico-demo.mp4 assets/
+	@echo "Demo assets updated in assets/"
+
 # Run e2e Go tests
 .PHONY: test-e2e
 test-e2e:

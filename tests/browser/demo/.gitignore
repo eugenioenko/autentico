@@ -1,0 +1,5 @@
+# Throwaway server instance (.env + SQLite database) created by record-demo.ts
+.run/
+
+# Recording and encoding artifacts. The versions that ship live in /assets.
+out/
