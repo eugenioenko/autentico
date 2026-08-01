@@ -47,7 +47,7 @@ test-functional: build-go
 .PHONY: demo-video
 demo-video: build
 	cd tests/browser && npx tsx demo/record-demo.ts && demo/encode.sh
-	cp tests/browser/demo/out/autentico-demo.gif tests/browser/demo/out/autentico-demo.mp4 assets/
+	cp tests/browser/demo/out/autentico-demo.webp tests/browser/demo/out/autentico-demo.mp4 assets/
 	@echo "Demo assets updated in assets/"
 
 # Run e2e Go tests

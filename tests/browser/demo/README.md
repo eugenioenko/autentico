@@ -26,8 +26,8 @@ UI changes rather than re-shooting by hand.
 make build                       # the recording drives the real ./autentico binary
 cd tests/browser
 npx tsx demo/record-demo.ts      # ~2 min; writes demo/out/autentico-demo.webm
-demo/encode.sh                   # writes .mp4, VP9 .webm and the .gif teaser
-cp demo/out/autentico-demo.{gif,mp4} ../../assets/
+demo/encode.sh                   # writes .webp, .mp4 and VP9 .webm
+cp demo/out/autentico-demo.{webp,mp4} ../../assets/
 ```
 
 `record-demo.ts` creates its own `.env` and SQLite database under `demo/.run/`
@@ -40,7 +40,7 @@ Stop anything already bound to 9999 first.
 | --- | --- |
 | `record-demo.ts` | `PACE`, `TYPE_DELAY`, `MOVE_MS`: global speed; per-scene `say(..., hold)` values |
 | `record-demo.ts` | `SIZE`: capture resolution (720p by default) |
-| `encode.sh` | `GIF_START` / `GIF_LEN`: which slice becomes the README teaser |
+| `encode.sh` | `WEBP_FPS` / `WEBP_WIDTH` / `WEBP_Q`: size and quality of the README hero |
 | `overlay.ts` | Cursor, caption bar, title cards and terminal card styling |
 
 ## Notes
