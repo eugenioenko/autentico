@@ -1,0 +1,26 @@
+language: en-US
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!**/*.lock"
+    - "!**/dist/**"
+    - "!**/node_modules/**"
+    - "!**/*.min.js"
+    - "!docs/swagger.json"
+    - "!docs/swagger.yaml"
+    - "!docs/docs.go"
+    - "!admin-ui/tsconfig.tsbuildinfo"
+
+chat:
+  auto_reply: true
