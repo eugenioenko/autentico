@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+env:
+  GO_VERSION: "1.25"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -17,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: ${{ env.GO_VERSION }}
       - name: Create UI placeholders
         run: |
           mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
@@ -36,7 +39,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.0
+          go-version: ${{ env.GO_VERSION }}
       - name: Check formatting
         run: gofmt -l -e .
 
@@ -48,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.0
+          go-version: ${{ env.GO_VERSION }}
       - name: Install pnpm
         uses: pnpm/action-setup@v4
       - name: Set up Node
@@ -76,7 +79,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.0
+          go-version: ${{ env.GO_VERSION }}
       - name: Create UI placeholders
         run: |
           mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
@@ -94,7 +97,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.0
+          go-version: ${{ env.GO_VERSION }}
       - name: Create UI placeholders
         run: |
           mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
@@ -168,7 +171,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23.0
+          go-version: ${{ env.GO_VERSION }}
       - name: Check for uncommitted changes after go mod tidy
         run: |
           go mod tidy

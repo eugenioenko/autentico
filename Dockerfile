@@ -1,5 +1,5 @@
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 # Install Node.js 22.x and pnpm 9 (needed for admin-ui build)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
