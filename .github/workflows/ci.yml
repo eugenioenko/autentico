@@ -144,24 +144,28 @@ jobs:
           name: autentico-binary
       - name: Make binary executable
         run: chmod +x autentico
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: tests/browser/pnpm-lock.yaml
       - name: Install browser test dependencies
         working-directory: tests/browser
-        run: npm install
+        run: pnpm install
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+          key: playwright-${{ hashFiles('tests/browser/pnpm-lock.yaml') }}
       - name: Install Playwright browsers
         working-directory: tests/browser
-        run: npx playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium --with-deps
       - name: Run smoke tests
         working-directory: tests/browser
-        run: npx playwright test
+        run: pnpm exec playwright test
 
   tidy-check:
     runs-on: ubuntu-latest
