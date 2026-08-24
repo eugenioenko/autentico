@@ -13,6 +13,7 @@ import {
 } from "antd";
 import { useUpdateUser } from "../../hooks/useUsers";
 import type { UserResponseExt, UserUpdateRequest } from "../../types/user";
+import { useTranslation } from "react-i18next";
 
 interface UserEditFormProps {
   open: boolean;
@@ -20,19 +21,20 @@ interface UserEditFormProps {
   onClose: () => void;
 }
 
-const ROLE_OPTIONS = [
-  { label: "User", value: "user" },
-  { label: "Admin", value: "admin" },
-];
-
 export default function UserEditForm({
   open,
   user,
   onClose,
 }: UserEditFormProps) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateUser = useUpdateUser();
+
+  const ROLE_OPTIONS = [
+    { label: t("users.user"), value: "user" },
+    { label: t("users.admin"), value: "admin" },
+  ];
 
   useEffect(() => {
     if (user && open) {
@@ -68,28 +70,28 @@ export default function UserEditForm({
     if (!user?.id) return;
     try {
       await updateUser.mutateAsync({ id: user.id, data: values });
-      message.success("User updated successfully");
+      message.success(t("users.userUpdated"));
       onClose();
     } catch {
-      message.error("Failed to update user");
+      message.error(t("users.updateUserFailed"));
     }
   };
 
   return (
     <Drawer
-      title={`Edit User: ${user?.username ?? ""}`}
+      title={`${t("users.editUser")}: ${user?.username ?? ""}`}
       open={open}
       onClose={onClose}
       width={480}
       extra={
         <Space>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button
             type="primary"
             onClick={() => form.submit()}
             loading={updateUser.isPending}
           >
-            Save
+            {t("common.save")}
           </Button>
         </Space>
       }
@@ -97,86 +99,86 @@ export default function UserEditForm({
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
           name="username"
-          label="Username"
-          rules={[{ required: true, message: "Username is required" }]}
+          label={t("users.username")}
+          rules={[{ required: true, message: t("users.usernameRequired") }]}
         >
           <Input />
         </Form.Item>
 
         <Form.Item
           name="email"
-          label="Email"
-          rules={[{ type: "email", message: "Must be a valid email" }]}
+          label={t("users.email")}
+          rules={[{ type: "email", message: t("users.mustBeValidEmail") }]}
         >
           <Input />
         </Form.Item>
 
-        <Form.Item name="role" label="Role">
+        <Form.Item name="role" label={t("users.role")}>
           <Select options={ROLE_OPTIONS} />
         </Form.Item>
 
         <Form.Item
           name="password"
-          label="New Password"
-          extra="Leave empty to keep current password"
+          label={t("users.newPassword")}
+          extra={t("users.leaveEmptyKeepCurrent")}
         >
-          <Input.Password placeholder="Enter new password" autoComplete="new-password" />
+          <Input.Password placeholder={t("users.enterNewPassword")} autoComplete="new-password" />
         </Form.Item>
 
         <Divider />
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Profile
+          {t("common.profile")}
         </Typography.Text>
 
-        <Form.Item name="given_name" label="First Name">
+        <Form.Item name="given_name" label={t("settings.givenName")}>
           <Input />
         </Form.Item>
 
-        <Form.Item name="middle_name" label="Middle Name">
+        <Form.Item name="middle_name" label={t("settings.middleName")}>
           <Input />
         </Form.Item>
 
-        <Form.Item name="family_name" label="Last Name">
+        <Form.Item name="family_name" label={t("settings.familyName")}>
           <Input />
         </Form.Item>
 
-        <Form.Item name="nickname" label="Nickname">
+        <Form.Item name="nickname" label={t("settings.nickname")}>
           <Input />
         </Form.Item>
 
-        <Form.Item name="gender" label="Gender">
+        <Form.Item name="gender" label={t("settings.gender")}>
           <Input />
         </Form.Item>
 
-        <Form.Item name="birthdate" label="Birthdate">
+        <Form.Item name="birthdate" label={t("settings.birthdate")}>
           <Input placeholder="YYYY-MM-DD" />
         </Form.Item>
 
-        <Form.Item name="website" label="Website">
+        <Form.Item name="website" label={t("settings.website")}>
           <Input placeholder="https://..." />
         </Form.Item>
 
-        <Form.Item name="phone_number" label="Phone Number">
+        <Form.Item name="phone_number" label={t("settings.phoneNumber")}>
           <Input />
         </Form.Item>
 
         <Form.Item
           name="phone_number_verified"
-          label="Phone Verified"
+          label={t("users.phoneVerified")}
           valuePropName="checked"
         >
           <Switch />
         </Form.Item>
 
-        <Form.Item name="picture" label="Profile Picture URL">
+        <Form.Item name="picture" label={t("settings.picture")}>
           <Input placeholder="https://..." />
         </Form.Item>
 
-        <Form.Item name="profile" label="Profile Page URL">
+        <Form.Item name="profile" label={t("settings.profileUrl")}>
           <Input placeholder="https://..." />
         </Form.Item>
 
-        <Form.Item name="locale" label="Locale">
+        <Form.Item name="locale" label={t("settings.locale")}>
           <Input placeholder="en-US" />
         </Form.Item>
 
@@ -186,7 +188,7 @@ export default function UserEditForm({
 
         <Divider />
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Address
+          {t("common.address")}
         </Typography.Text>
 
         <Form.Item name="address_street" label="Street">
@@ -197,7 +199,7 @@ export default function UserEditForm({
           <Input />
         </Form.Item>
 
-        <Form.Item name="address_region" label="State / Region">
+        <Form.Item name="address_region" label="State/Region">
           <Input />
         </Form.Item>
 
@@ -211,12 +213,12 @@ export default function UserEditForm({
 
         <Divider />
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Status & Security
+          {t("common.statusAndSecurity")}
         </Typography.Text>
 
         <Form.Item
           name="is_email_verified"
-          label="Email Verified"
+          label={t("users.emailVerified")}
           valuePropName="checked"
         >
           <Switch />
@@ -224,9 +226,9 @@ export default function UserEditForm({
 
         <Form.Item
           name="totp_verified"
-          label="MFA Enrolled"
+          label={t("users.mfaEnrolled")}
           valuePropName="checked"
-          extra="Turning this off will reset the user's MFA setup."
+          extra={t("users.disablingResetsMfa")}
         >
           <Switch />
         </Form.Item>

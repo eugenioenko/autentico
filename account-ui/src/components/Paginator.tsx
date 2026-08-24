@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 
 interface PaginatorProps {
@@ -9,6 +10,7 @@ interface PaginatorProps {
 }
 
 const Paginator: React.FC<PaginatorProps> = ({ offset, limit, total, onPageChange }) => {
+  const { t } = useTranslation();
   if (total <= limit) return null;
 
   const page = Math.floor(offset / limit) + 1;
@@ -19,7 +21,7 @@ const Paginator: React.FC<PaginatorProps> = ({ offset, limit, total, onPageChang
   return (
     <div className="flex items-center justify-between pt-3">
       <p className="text-xs text-theme-muted">
-        {offset + 1}–{Math.min(offset + limit, total)} of {total}
+        {offset + 1}–{Math.min(offset + limit, total)} {t('common.of')} {total}
       </p>
       <div className="flex items-center gap-1">
         <button

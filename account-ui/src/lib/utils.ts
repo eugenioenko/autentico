@@ -13,14 +13,14 @@ export function extractError(err: unknown, fallback: string): string {
 // Tiny heuristic: turn a raw User-Agent string into "Browser on OS".
 // Not a full UA parser — a bundle-friendly best effort.
 export function describeUserAgent(ua: string): string {
-  if (!ua) return 'Unknown device';
-  let browser = 'Browser';
+  if (!ua) return '未知设备';
+  let browser = '浏览器';
   if (/edg\//i.test(ua)) browser = 'Edge';
   else if (/chrome\//i.test(ua) && !/chromium/i.test(ua)) browser = 'Chrome';
   else if (/firefox\//i.test(ua)) browser = 'Firefox';
   else if (/safari\//i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
   else if (/opr\//i.test(ua) || /opera/i.test(ua)) browser = 'Opera';
-  let os = 'Unknown OS';
+  let os = '未知操作系统';
   if (/windows nt/i.test(ua)) os = 'Windows';
   else if (/mac os x/i.test(ua)) os = 'macOS';
   else if (/android/i.test(ua)) os = 'Android';
@@ -30,7 +30,7 @@ export function describeUserAgent(ua: string): string {
 }
 
 export function formatActiveAppsCount(n: number): string {
-  if (n === 0) return 'No apps signed in';
-  if (n === 1) return '1 app signed in';
-  return `${n} apps signed in`;
+  if (n === 0) return '无已登录应用';
+  if (n === 1) return '1 个已登录应用';
+  return `${n} 个已登录应用`;
 }

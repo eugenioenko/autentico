@@ -6,6 +6,7 @@ import { useGroups, useAddMember, useRemoveMember } from "../../hooks/useGroups"
 import { getUserGroups } from "../../api/groups";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Group } from "../../types/group";
+import { useTranslation } from "react-i18next";
 
 interface UserGroupsDrawerProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface UserGroupsDrawerProps {
 }
 
 export default function UserGroupsDrawer({ open, userId, username, onClose }: UserGroupsDrawerProps) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const { data: allGroups } = useGroups();
   const addMember = useAddMember();
@@ -37,10 +39,10 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
         selectedGroupIds.map((groupId) => addMember.mutateAsync({ groupId, userId }))
       );
       queryClient.invalidateQueries({ queryKey: ["user-groups", userId] });
-      message.success(`Added to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? "s" : ""}`);
+      message.success(t("users.addedToGroups", { count: selectedGroupIds.length }));
       setSelectedGroupIds([]);
     } catch {
-      message.error("Failed to add groups");
+      message.error(t("users.addGroupsFailed"));
     } finally {
       setAdding(false);
     }
@@ -51,9 +53,9 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
     try {
       await removeMember.mutateAsync({ groupId, userId });
       queryClient.invalidateQueries({ queryKey: ["user-groups", userId] });
-      message.success("Group removed");
+      message.success(t("users.groupRemoved"));
     } catch {
-      message.error("Failed to remove group");
+      message.error(t("users.removeGroupFailed"));
     }
   };
 
@@ -61,17 +63,17 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
   const availableGroups = (allGroups?.items ?? []).filter((g) => !memberGroupIds.has(g.id));
 
   const columns: ColumnsType<Group> = [
-    { title: "Name", dataIndex: "name", key: "name" },
-    { title: "Description", dataIndex: "description", key: "description", ellipsis: true },
+    { title: t("common.name"), dataIndex: "name", key: "name" },
+    { title: t("common.description"), dataIndex: "description", key: "description", ellipsis: true },
     {
       title: "",
       key: "actions",
       width: 50,
       render: (_, record) => (
         <Popconfirm
-          title="Remove from this group?"
+          title={t("users.removeFromGroup")}
           onConfirm={() => handleRemove(record.id)}
-          okText="Remove"
+          okText={t("users.removeAction")}
           okButtonProps={{ danger: true }}
         >
           <Button type="text" size="small" danger icon={<UserDeleteOutlined />} />
@@ -82,7 +84,7 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
 
   return (
     <Drawer
-      title={`Groups for ${username}`}
+      title={t("users.groupsOf", { username })}
       open={open}
       onClose={() => { onClose(); setSelectedGroupIds([]); }}
       width={480}
@@ -90,13 +92,13 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
       <Space direction="vertical" size="middle" style={{ display: "flex" }}>
         <div>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-            Add to groups
+            {t("users.addToGroups")}
           </Typography.Text>
           <Space.Compact style={{ width: "100%" }}>
             <Select
               mode="multiple"
               style={{ width: "100%" }}
-              placeholder="Select groups to add"
+              placeholder={t("users.selectGroupsToAdd")}
               showSearch
               optionFilterProp="label"
               value={selectedGroupIds}
@@ -113,7 +115,7 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
               loading={adding}
               disabled={selectedGroupIds.length === 0}
             >
-              Add
+              {t("common.add")}
             </Button>
           </Space.Compact>
         </div>
@@ -125,7 +127,7 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
           loading={isLoading}
           pagination={false}
           size="small"
-          locale={{ emptyText: "Not a member of any group" }}
+          locale={{ emptyText: t("users.notMemberOfAnyGroup") }}
         />
       </Space>
     </Drawer>

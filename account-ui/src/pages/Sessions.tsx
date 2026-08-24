@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { IconDeviceDesktop, IconCircleCheck } from '@tabler/icons-react';
 import api from '../api';
@@ -27,6 +28,7 @@ interface SessionList {
 const PAGE_SIZE = 10;
 
 const SessionsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [offset, setOffset] = useState(0);
   const { data, refetch } = useQuery<SessionList>({
     queryKey: ['sessions', offset],
@@ -54,7 +56,7 @@ const SessionsPage: React.FC = () => {
       setOffset(0);
       refetch();
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to revoke other sessions.'));
+      setError(extractError(err, t('sessions.revokeFailed')));
     } finally {
       setRevokingAll(false);
     }
@@ -75,7 +77,7 @@ const SessionsPage: React.FC = () => {
         refetch();
       }, 1200);
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to revoke session.'));
+      setError(extractError(err, t('sessions.revokeSessionFailed')));
     }
   };
 
@@ -90,12 +92,12 @@ const SessionsPage: React.FC = () => {
   return (
     <>
       <Card
-        title="Active Sessions"
-        description="Browsers and devices where you are currently signed in."
+        title={t('sessions.activeSessions')}
+        description={t('sessions.description')}
         action={
           total > 1 ? (
             <Button onClick={() => setConfirmTarget('others')} disabled={revokingAll}>
-              {revokingAll ? 'Signing out…' : 'Sign out all other sessions'}
+              {revokingAll ? t('sessions.signingOut') : t('sessions.revokeAllOthers')}
             </Button>
           ) : undefined
         }
@@ -113,14 +115,14 @@ const SessionsPage: React.FC = () => {
                     <p className="text-sm font-semibold">{describeUserAgent(s.user_agent)}</p>
                     {s.is_current && (
                       <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-theme-accent-bg text-theme-accent-fg">
-                        Current
+                        {t('sessions.current')}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-theme-muted leading-snug">
-                    {s.ip_address || 'Unknown location'}
+                    {s.ip_address || t('sessions.unknownLocation')}
                     {' · '}
-                    Active {new Date(s.last_activity_at).toLocaleString()}
+                    {t('sessions.active')} {new Date(s.last_activity_at).toLocaleString()}
                   </p>
                   <p className="text-[11px] text-theme-muted mt-0.5">
                     {formatActiveAppsCount(s.active_apps_count)}
@@ -135,13 +137,13 @@ const SessionsPage: React.FC = () => {
                   onClick={() => handleRevoke(s)}
                   className="flex-shrink-0 text-xs"
                 >
-                  {s.is_current ? 'Sign out' : 'Revoke'}
+                  {s.is_current ? t('sessions.signOut') : t('sessions.revoke')}
                 </Button>
               )}
             </div>
           ))}
           {(!sessions || sessions.length === 0) && (
-            <p className="text-sm text-theme-muted py-4">No active sessions found.</p>
+            <p className="text-sm text-theme-muted py-4">{t('sessions.noSessions')}</p>
           )}
         </div>
         <Paginator offset={offset} limit={PAGE_SIZE} total={total} onPageChange={setOffset} />
@@ -149,9 +151,9 @@ const SessionsPage: React.FC = () => {
 
       {confirmTarget === 'others' && (
         <ConfirmDialog
-          title="Sign out all other sessions"
-          message="This will sign out all other devices. Your current session will stay active."
-          confirmLabel="Sign out all"
+          title={t('sessions.revokeAllOthersTitle')}
+          message={t('sessions.revokeAllOthersMessage')}
+          confirmLabel={t('sessions.revokeAll')}
           onConfirm={doRevokeOthers}
           onCancel={() => setConfirmTarget(null)}
         />
@@ -159,9 +161,9 @@ const SessionsPage: React.FC = () => {
 
       {confirmTarget !== null && confirmTarget !== 'others' && (
         <ConfirmDialog
-          title="Sign out current device"
-          message="You will be signed out immediately and redirected to the login page."
-          confirmLabel="Sign out"
+          title={t('sessions.revokeCurrentTitle')}
+          message={t('sessions.revokeCurrentMessage')}
+          confirmLabel={t('sessions.signOut')}
           variant="danger"
           onConfirm={() => doRevoke(confirmTarget)}
           onCancel={() => setConfirmTarget(null)}

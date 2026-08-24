@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { IconKey } from '@tabler/icons-react';
 import api from '../api';
@@ -11,6 +12,7 @@ import StatusDot from './StatusDot';
 import PasswordPrompt from './PasswordPrompt';
 
 const PasskeyCard: React.FC = () => {
+  const { t } = useTranslation();
   const { data: passkeys, refetch } = useQuery({
     queryKey: ['passkeys'],
     queryFn: () => api.get('/passkeys').then((res) => res.data.data),
@@ -34,9 +36,9 @@ const PasskeyCard: React.FC = () => {
       refetch();
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes('cancel')) {
-        setAddError('Passkey registration was cancelled.');
+        setAddError(t('security.passkeyRegistrationCancelled'));
       } else {
-        setAddError(extractError(err, 'Failed to add passkey.'));
+        setAddError(extractError(err, t('security.addPasskeyFailed')));
       }
     } finally {
       setIsAdding(false);
@@ -52,7 +54,7 @@ const PasskeyCard: React.FC = () => {
       await api.delete(`/passkeys/${id}`, { data: { current_password: password } });
       refetch();
     } catch (err: unknown) {
-      setDeleteError(extractError(err, 'Failed to delete passkey.'));
+      setDeleteError(extractError(err, t('security.deletePasskeyFailed')));
     }
   };
 
@@ -60,28 +62,28 @@ const PasskeyCard: React.FC = () => {
     <>
       {showAddPrompt && (
         <PasswordPrompt
-          title="Add Passkey"
-          message="Enter your password to register a new passkey."
-          confirmLabel="Continue"
+          title={t('security.addPasskey')}
+          message={t('security.passkeyRegisterMessage')}
+          confirmLabel={t('common.continue')}
           onConfirm={handleAdd}
           onCancel={() => setShowAddPrompt(false)}
         />
       )}
       {showDeletePrompt && (
         <PasswordPrompt
-          title="Remove Passkey"
-          message="Enter your password to remove this passkey."
-          confirmLabel="Remove"
+          title={t('security.removePasskey')}
+          message={t('security.passkeyRemoveMessage')}
+          confirmLabel={t('common.remove')}
           onConfirm={handleDelete}
           onCancel={() => setShowDeletePrompt(null)}
         />
       )}
       <Card
-        title="Passkeys"
-        description="Biometrics or security keys for passwordless login."
+        title={t('security.passkey')}
+        description={t('security.passkeyDescription')}
         action={
           <Button onClick={() => setShowAddPrompt(true)} disabled={isAdding} data-testid="add-passkey-btn">
-            {isAdding ? 'Registering…' : 'Add Passkey'}
+            {isAdding ? t('security.registering') : t('security.addPasskey')}
           </Button>
         }
       >
@@ -96,9 +98,9 @@ const PasskeyCard: React.FC = () => {
                     <IconKey size={14} className="text-theme-fg" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">{pk.name || 'Unnamed Passkey'}</p>
+                    <p className="text-sm font-semibold">{pk.name || t('security.unnamedPasskey')}</p>
                     <p className="text-xs text-theme-muted">
-                      Added {new Date(pk.created_at).toLocaleDateString()}
+                      {t('security.addedAt')} {new Date(pk.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -107,7 +109,7 @@ const PasskeyCard: React.FC = () => {
                   onClick={() => setShowDeletePrompt(pk.id)}
                   className="flex-shrink-0"
                 >
-                  Remove
+                  {t('common.remove')}
                 </Button>
               </div>
             ))}
@@ -115,7 +117,7 @@ const PasskeyCard: React.FC = () => {
         ) : (
           <div className="flex items-center gap-2 mt-1">
             <StatusDot active={false} />
-            <span className="text-sm text-theme-fg">No passkeys registered</span>
+            <span className="text-sm text-theme-fg">{t('security.noPasskeys')}</span>
           </div>
         )}
       </Card>

@@ -25,8 +25,10 @@ import FederationEditForm from "../components/federation/FederationEditForm";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 export default function FederationPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -48,9 +50,9 @@ export default function FederationPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteProvider.mutateAsync(id);
-      message.success("Provider deleted");
+      message.success(t("federation.providerDeleted"));
     } catch {
-      message.error("Failed to delete provider");
+      message.error(t("federation.deleteProviderFailed"));
     }
   };
 
@@ -99,7 +101,7 @@ export default function FederationPage() {
 
   const columns: ColumnsType<FederationProvider> = [
     {
-      title: "Name",
+      title: t("common.name"),
       dataIndex: "name",
       key: "name",
       sorter: true,
@@ -110,7 +112,7 @@ export default function FederationPage() {
       ),
     },
     {
-      title: "Issuer",
+      title: t("federation.issuer"),
       dataIndex: "issuer",
       key: "issuer",
       sorter: true,
@@ -121,7 +123,7 @@ export default function FederationPage() {
       ),
     },
     {
-      title: "Client ID",
+      title: t("federation.clientIdLabel"),
       dataIndex: "client_id",
       key: "client_id",
       sorter: true,
@@ -132,25 +134,25 @@ export default function FederationPage() {
       ),
     },
     {
-      title: "Status",
+      title: t("common.status"),
       dataIndex: "enabled",
       key: "enabled",
       sorter: true,
       sortOrder: sortOrder("enabled"),
       width: 100,
       filters: [
-        { text: "Enabled", value: "1" },
-        { text: "Disabled", value: "0" },
+        { text: t("common.enabled"), value: "1" },
+        { text: t("common.disabled"), value: "0" },
       ],
       filterMultiple: false,
       render: (enabled: boolean) => (
         <Tag color={enabled ? "success" : "default"}>
-          {enabled ? "Enabled" : "Disabled"}
+          {enabled ? t("common.enabled") : t("common.disabled")}
         </Tag>
       ),
     },
     {
-      title: "Order",
+      title: t("federation.sortOrder"),
       dataIndex: "sort_order",
       key: "sort_order",
       sorter: true,
@@ -158,16 +160,16 @@ export default function FederationPage() {
       width: 80,
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       width: 100,
       render: (_, record) => (
         <Space>
           <Popconfirm
-            title="Delete this provider?"
-            description="Users who signed in via this provider will keep their accounts but won't be able to log in with it again."
+            title={t("federation.deleteProviderConfirm")}
+            description={t("federation.deleteProviderDesc")}
             onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
+            okText={t("common.delete")}
             okButtonProps={{ danger: true }}
           >
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
@@ -184,7 +186,7 @@ export default function FederationPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load federation providers" />;
+    return <Alert type="error" message={t("federation.failedToLoadProviders")} />;
   }
 
   return (
@@ -197,11 +199,11 @@ export default function FederationPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Federation Providers
+          {t("federation.providers")}
         </Typography.Title>
         <Space>
           <Input.Search
-            placeholder="Search name, issuer, or client ID..."
+            placeholder={t("federation.searchProviders")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -213,7 +215,7 @@ export default function FederationPage() {
             icon={<PlusOutlined />}
             onClick={() => setCreateOpen(true)}
           >
-            Add Provider
+            {t("federation.addProvider")}
           </Button>
         </Space>
       </Space>
@@ -239,7 +241,7 @@ export default function FederationPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} providers`,
+            showTotal: (total) => t("federation.totalProviders", { total }),
           }}
         />
       </div>

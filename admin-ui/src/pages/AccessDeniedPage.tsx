@@ -14,11 +14,11 @@ export default function AccessDeniedPage() {
       >
         <Result
           status="403"
-          title="Unauthorized"
-          subTitle="Your account does not have administrator privileges."
+          title="未授权"
+          subTitle="您的账户没有管理员权限。"
           extra={
             <Button type="primary" href="/account/">
-              Go to Account Portal
+              前往账户门户
             </Button>
           }
         />

@@ -39,9 +39,10 @@ import { describeUserAgent } from "../lib/utils";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 function formatDate(date: string | null): string {
-  if (!date) return "—";
+  if (!date) return "\u2014";
   return new Date(date).toLocaleString();
 }
 
@@ -59,44 +60,45 @@ function OAuthSessionDetailDrawer({
   session: OAuthSessionResponse | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Drawer
-      title="Session Details"
+      title={t("sessions.sessionDetail")}
       open={!!session}
       onClose={onClose}
       width={480}
     >
       {session && (
         <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Session ID">{session.id}</Descriptions.Item>
-          <Descriptions.Item label="User ID">
+          <Descriptions.Item label={t("sessions.sessionId")}>{session.id}</Descriptions.Item>
+          <Descriptions.Item label={t("sessions.userId")}>
             {session.user_id}
           </Descriptions.Item>
-          <Descriptions.Item label="Status">
+          <Descriptions.Item label={t("common.status")}>
             {statusTag(session.status)}
           </Descriptions.Item>
-          <Descriptions.Item label="User Agent">
-            {session.user_agent || "—"}
+          <Descriptions.Item label={t("sessions.userAgent")}>
+            {session.user_agent || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="IP Address">
-            {session.ip_address || "—"}
+          <Descriptions.Item label={t("sessions.ipAddress")}>
+            {session.ip_address || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Location">
-            {session.location || "—"}
+          <Descriptions.Item label={t("sessions.location")}>
+            {session.location || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Device ID">
-            {session.device_id || "—"}
+          <Descriptions.Item label={t("sessions.deviceId")}>
+            {session.device_id || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Created">
+          <Descriptions.Item label={t("sessions.createdAt")}>
             {formatDate(session.created_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Expires">
+          <Descriptions.Item label={t("common.expires")}>
             {formatDate(session.expires_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Last Active">
+          <Descriptions.Item label={t("sessions.lastActivityAt")}>
             {formatDate(session.last_activity_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Deactivated">
+          <Descriptions.Item label={t("sessions.deactivatedAt")}>
             {formatDate(session.deactivated_at)}
           </Descriptions.Item>
         </Descriptions>
@@ -112,6 +114,7 @@ function SessionsView({
   idpSession: IdpSessionResponse;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -134,9 +137,9 @@ function SessionsView({
   const handleDeactivate = async (id: string) => {
     try {
       await deactivate.mutateAsync(id);
-      message.success("Session deactivated");
+      message.success(t("sessions.sessionDeactivated"));
     } catch {
-      message.error("Failed to deactivate session");
+      message.error(t("sessions.deactivateFailed"));
     }
   };
 
@@ -164,7 +167,7 @@ function SessionsView({
 
   const columns: ColumnsType<OAuthSessionResponse> = [
     {
-      title: "Session ID",
+      title: t("sessions.sessionId"),
       dataIndex: "id",
       key: "id",
       width: 160,
@@ -173,21 +176,21 @@ function SessionsView({
       ),
     },
     {
-      title: "IP Address",
+      title: t("sessions.ipAddress"),
       dataIndex: "ip_address",
       key: "ip_address",
       width: 140,
-      render: (ip: string) => ip || "—",
+      render: (ip: string) => ip || "\u2014",
     },
     {
-      title: "Status",
+      title: t("common.status"),
       dataIndex: "status",
       key: "status",
       width: 110,
       render: statusTag,
     },
     {
-      title: "Created",
+      title: t("sessions.createdAt"),
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
@@ -201,7 +204,7 @@ function SessionsView({
       render: formatDate,
     },
     {
-      title: "Expires",
+      title: t("common.expires"),
       dataIndex: "expires_at",
       key: "expires_at",
       width: 180,
@@ -215,16 +218,16 @@ function SessionsView({
       render: formatDate,
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       width: 80,
       render: (_, record) => (
         <Space>
           {record.status === "active" && (
             <Popconfirm
-              title="Deactivate this session?"
+              title={t("sessions.deactivateSession")}
               onConfirm={() => handleDeactivate(record.id)}
-              okText="Deactivate"
+              okText={t("sessions.deactivateAction")}
               okButtonProps={{ danger: true }}
             >
               <Button
@@ -257,10 +260,10 @@ function SessionsView({
       >
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-            Back to Sessions
+            {t("sessions.backToList")}
           </Button>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            Sessions for {idpSession.username || idpSession.user_id}
+            {t("sessions.sessionsBelongingTo", { user: idpSession.username || idpSession.user_id })}
           </Typography.Title>
         </Space>
       </Space>
@@ -269,7 +272,7 @@ function SessionsView({
         type="secondary"
         style={{ display: "block", marginTop: 8, flexShrink: 0 }}
       >
-        {describeUserAgent(idpSession.user_agent)} — {idpSession.ip_address}
+        {describeUserAgent(idpSession.user_agent)} \u2014 {idpSession.ip_address}
       </Typography.Text>
 
       <div
@@ -293,7 +296,7 @@ function SessionsView({
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} sessions`,
+            showTotal: (total) => t("sessions.totalSessions", { total }),
           }}
           size="small"
         />
@@ -314,38 +317,39 @@ function IdpSessionDetailDrawer({
   session: IdpSessionResponse | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Drawer
-      title="Device Session Details"
+      title={t("sessions.deviceSessionDetail")}
       open={!!session}
       onClose={onClose}
       width={480}
     >
       {session && (
         <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Session ID">{session.id}</Descriptions.Item>
-          <Descriptions.Item label="User ID">
+          <Descriptions.Item label={t("sessions.sessionId")}>{session.id}</Descriptions.Item>
+          <Descriptions.Item label={t("sessions.userId")}>
             {session.user_id}
           </Descriptions.Item>
-          <Descriptions.Item label="Username">
+          <Descriptions.Item label={t("users.username")}>
             {session.username}
           </Descriptions.Item>
-          <Descriptions.Item label="Email">
-            {session.email || "—"}
+          <Descriptions.Item label={t("users.email")}>
+            {session.email || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="User Agent">
-            {session.user_agent || "—"}
+          <Descriptions.Item label={t("sessions.userAgent")}>
+            {session.user_agent || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="IP Address">
-            {session.ip_address || "—"}
+          <Descriptions.Item label={t("sessions.ipAddress")}>
+            {session.ip_address || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Active Apps">
+          <Descriptions.Item label={t("sessions.activeAppsCount")}>
             {session.active_apps_count}
           </Descriptions.Item>
-          <Descriptions.Item label="Last Active">
+          <Descriptions.Item label={t("sessions.lastActivityAt")}>
             {formatDate(session.last_activity_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Signed In">
+          <Descriptions.Item label={t("sessions.loginAt")}>
             {formatDate(session.created_at)}
           </Descriptions.Item>
         </Descriptions>
@@ -355,6 +359,7 @@ function IdpSessionDetailDrawer({
 }
 
 export default function SessionsPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -381,9 +386,9 @@ export default function SessionsPage() {
   const handleForceLogout = async (id: string) => {
     try {
       await forceLogout.mutateAsync(id);
-      message.success("Device signed out");
+      message.success(t("sessions.deviceLoggedOut"));
     } catch {
-      message.error("Failed to sign out device");
+      message.error(t("sessions.logoutFailed"));
     }
   };
 
@@ -449,7 +454,7 @@ export default function SessionsPage() {
 
   const columns: ColumnsType<IdpSessionResponse> = [
     {
-      title: "Session ID",
+      title: t("sessions.sessionId"),
       dataIndex: "id",
       key: "id",
       width: 140,
@@ -458,14 +463,14 @@ export default function SessionsPage() {
       ),
     },
     {
-      title: "Username",
+      title: t("users.username"),
       dataIndex: "username",
       key: "username",
       width: 140,
       ellipsis: true,
     },
     {
-      title: "Email",
+      title: t("users.email"),
       dataIndex: "email",
       key: "email",
       ellipsis: true,
@@ -474,7 +479,7 @@ export default function SessionsPage() {
       ),
     },
     {
-      title: "Device",
+      title: t("common.device"),
       key: "device",
       width: 200,
       render: (_, record) => (
@@ -483,13 +488,13 @@ export default function SessionsPage() {
             {describeUserAgent(record.user_agent)}
           </div>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {record.ip_address || "Unknown IP"}
+            {record.ip_address || t("common.unknownIp")}
           </Typography.Text>
         </div>
       ),
     },
     {
-      title: "Sessions",
+      title: t("sessions.sessionsCount"),
       key: "sessions",
       width: 90,
       render: (_, record) => (
@@ -499,7 +504,7 @@ export default function SessionsPage() {
       ),
     },
     {
-      title: "Signed In",
+      title: t("sessions.loginAt"),
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
@@ -513,7 +518,7 @@ export default function SessionsPage() {
       render: formatDate,
     },
     {
-      title: "Last Active",
+      title: t("sessions.lastActivityAt"),
       dataIndex: "last_activity_at",
       key: "last_activity_at",
       width: 180,
@@ -527,16 +532,16 @@ export default function SessionsPage() {
       render: formatDate,
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       width: 120,
       render: (_, record) => (
         <Space>
           <Popconfirm
-            title="Force sign out this device?"
-            description="This will revoke all sessions and tokens from this device."
+            title={t("sessions.forceLogoutDevice")}
+            description={t("sessions.forceLogoutDesc")}
             onConfirm={() => handleForceLogout(record.id)}
-            okText="Sign Out"
+            okText={t("sessions.logoutAction")}
             okButtonProps={{ danger: true }}
           >
             <Button
@@ -564,7 +569,7 @@ export default function SessionsPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load sessions" />;
+    return <Alert type="error" message={t("sessions.failedToLoadSessions")} />;
   }
 
   return (
@@ -577,7 +582,7 @@ export default function SessionsPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Sessions
+          {t("sessions.title")}
         </Typography.Title>
         <Space>
           <Select
@@ -587,8 +592,8 @@ export default function SessionsPage() {
               if (dateRange) handleDateRange(dateRange, v);
             }}
             options={[
-              { label: "Last Active", value: "last_activity_at" },
-              { label: "Signed In", value: "created_at" },
+              { label: t("sessions.dateField.lastActivityAt"), value: "last_activity_at" },
+              { label: t("sessions.dateField.createdAt"), value: "created_at" },
             ]}
             style={{ width: 130 }}
           />
@@ -598,7 +603,7 @@ export default function SessionsPage() {
             allowClear
           />
           <Input.Search
-            placeholder="Search username, email, IP..."
+            placeholder={t("sessions.searchSessions")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -629,7 +634,7 @@ export default function SessionsPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} sessions`,
+            showTotal: (total) => t("sessions.totalSessions", { total }),
           }}
         />
       </div>

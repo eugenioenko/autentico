@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import Card from '../components/Card';
@@ -58,6 +59,7 @@ const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({ label, re
 );
 
 const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const settings = useSettings();
   const { data: profile, refetch } = useQuery({
     queryKey: ['profile'],
@@ -110,10 +112,10 @@ const ProfilePage: React.FC = () => {
     setIsUpdating(true);
     try {
       await api.put('/profile', payload);
-      setSuccess('Profile updated successfully.');
+      setSuccess(t('profile.updateSuccess'));
       refetch();
     } catch (err: unknown) {
-      setError(extractError(err, 'Failed to update profile.'));
+      setError(extractError(err, t('profile.updateFailed')));
     } finally {
       setIsUpdating(false);
     }
@@ -162,17 +164,17 @@ const ProfilePage: React.FC = () => {
     <>
     {showPasswordPrompt && (
       <PasswordPrompt
-        title="Confirm Password"
-        message="Enter your password to confirm this change."
-        confirmLabel="Save Changes"
+        title={t('profile.confirmPassword')}
+        message={t('profile.passwordConfirmMessage')}
+        confirmLabel={t('profile.saveChanges')}
         onConfirm={handlePasswordConfirm}
         onCancel={() => { setShowPasswordPrompt(false); setPendingPayload(null); }}
       />
     )}
-    <Card title="Personal Information" description="Update your profile details.">
+    <Card title={t('profile.personalInfo')} description={t('profile.updateDescription')}>
       <form onSubmit={handleUpdate} className="space-y-5 mt-2">
         <div>
-          <label>Username</label>
+          <label>{t('profile.username')}</label>
           {settings.allow_username_change ? (
             <input type="text" value={form.username} onChange={set('username')} />
           ) : (
@@ -180,102 +182,102 @@ const ProfilePage: React.FC = () => {
           )}
         </div>
         <div>
-          <label>Email Address</label>
+          <label>{t('profile.emailAddress')}</label>
           {settings.allow_email_change ? (
             <input type="email" value={form.email} onChange={set('email')} />
           ) : (
-            <p className="text-sm text-theme-fg py-1">{form.email || <span className="text-theme-muted">Not set</span>}</p>
+            <p className="text-sm text-theme-fg py-1">{form.email || <span className="text-theme-muted">{t('profile.notSet')}</span>}</p>
           )}
         </div>
 
         {showGivenName && (
           <div>
-            <FieldLabel label="First Name" required={req('given_name')} />
+            <FieldLabel label={t('profile.firstName')} required={req('given_name')} />
             <input type="text" value={form.given_name} onChange={set('given_name')} required={req('given_name')} />
           </div>
         )}
         {showFamilyName && (
           <div>
-            <FieldLabel label="Last Name" required={req('family_name')} />
+            <FieldLabel label={t('profile.lastName')} required={req('family_name')} />
             <input type="text" value={form.family_name} onChange={set('family_name')} required={req('family_name')} />
           </div>
         )}
         {showMiddleName && (
           <div>
-            <FieldLabel label="Middle Name" required={req('middle_name')} />
+            <FieldLabel label={t('profile.middleName')} required={req('middle_name')} />
             <input type="text" value={form.middle_name} onChange={set('middle_name')} required={req('middle_name')} />
           </div>
         )}
         {showNickname && (
           <div>
-            <FieldLabel label="Nickname" required={req('nickname')} />
+            <FieldLabel label={t('profile.nickname')} required={req('nickname')} />
             <input type="text" value={form.nickname} onChange={set('nickname')} required={req('nickname')} />
           </div>
         )}
         {showPhone && (
           <div>
-            <FieldLabel label="Phone Number" required={req('phone')} />
+            <FieldLabel label={t('profile.phone')} required={req('phone')} />
             <input type="tel" value={form.phone_number} onChange={set('phone_number')} required={req('phone')} />
           </div>
         )}
         {showPicture && (
           <div>
-            <FieldLabel label="Profile Picture URL" required={req('picture')} />
+            <FieldLabel label={t('profile.pictureUrl')} required={req('picture')} />
             <input type="url" value={form.picture} onChange={set('picture')} required={req('picture')} />
           </div>
         )}
         {showWebsite && (
           <div>
-            <FieldLabel label="Website" required={req('website')} />
+            <FieldLabel label={t('profile.website')} required={req('website')} />
             <input type="url" value={form.website} onChange={set('website')} required={req('website')} />
           </div>
         )}
         {showProfileURL && (
           <div>
-            <FieldLabel label="Profile Page URL" required={req('profile')} />
+            <FieldLabel label={t('profile.profileUrl')} required={req('profile')} />
             <input type="url" value={form.profile} onChange={set('profile')} required={req('profile')} />
           </div>
         )}
         {showGender && (
           <div>
-            <FieldLabel label="Gender" required={req('gender')} />
+            <FieldLabel label={t('profile.gender')} required={req('gender')} />
             <input type="text" value={form.gender} onChange={set('gender')} required={req('gender')} />
           </div>
         )}
         {showBirthdate && (
           <div>
-            <FieldLabel label="Birthdate" required={req('birthdate')} />
+            <FieldLabel label={t('profile.birthdate')} required={req('birthdate')} />
             <input type="date" value={form.birthdate} onChange={set('birthdate')} required={req('birthdate')} />
           </div>
         )}
         {showLocale && (
           <div>
-            <FieldLabel label="Locale" required={req('locale')} />
+            <FieldLabel label={t('profile.locale')} required={req('locale')} />
             <input type="text" placeholder="e.g. en-US" value={form.locale} onChange={set('locale')} required={req('locale')} />
           </div>
         )}
         {showAddress && (
           <>
             <div>
-              <FieldLabel label="Street Address" required={req('address')} />
+              <FieldLabel label={t('profile.streetAddress')} required={req('address')} />
               <input type="text" value={form.address_street} onChange={set('address_street')} required={req('address')} />
             </div>
             <div>
-              <FieldLabel label="City" required={req('address')} />
+              <FieldLabel label={t('profile.city')} required={req('address')} />
               <input type="text" value={form.address_locality} onChange={set('address_locality')} required={req('address')} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel label="State / Region" required={req('address')} />
+                <FieldLabel label={t('profile.region')} required={req('address')} />
                 <input type="text" value={form.address_region} onChange={set('address_region')} required={req('address')} />
               </div>
               <div>
-                <FieldLabel label="Postal Code" required={req('address')} />
+                <FieldLabel label={t('profile.postalCode')} required={req('address')} />
                 <input type="text" value={form.address_postal_code} onChange={set('address_postal_code')} required={req('address')} />
               </div>
             </div>
             <div>
-              <FieldLabel label="Country" required={req('address')} />
+              <FieldLabel label={t('profile.country')} required={req('address')} />
               <input type="text" value={form.address_country} onChange={set('address_country')} required={req('address')} />
             </div>
           </>
@@ -286,7 +288,7 @@ const ProfilePage: React.FC = () => {
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isUpdating}>
-            {isUpdating ? 'Saving…' : 'Save Changes'}
+            {isUpdating ? t('common.saving') : t('profile.saveChanges')}
           </Button>
         </div>
       </form>

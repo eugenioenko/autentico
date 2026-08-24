@@ -17,6 +17,7 @@ import {
 } from "../../hooks/useIdpSessions";
 import type { IdpSessionResponse } from "../../types/idpSession";
 import { describeUserAgent, formatActiveAppsCount } from "../../lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface UserSessionsDrawerProps {
   open: boolean;
@@ -35,6 +36,7 @@ export default function UserSessionsDrawer({
   username,
   onClose,
 }: UserSessionsDrawerProps) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const { data: sessions, isLoading } = useUserIdpSessions(
     open ? userId : null
@@ -46,24 +48,24 @@ export default function UserSessionsDrawer({
     if (!userId) return;
     try {
       await revokeAll.mutateAsync(userId);
-      message.success("All sessions revoked");
+      message.success(t("users.allSessionsRevoked"));
     } catch {
-      message.error("Failed to revoke sessions");
+      message.error(t("users.revokeSessionsFailed"));
     }
   };
 
   const handleForceLogout = async (id: string) => {
     try {
       await forceLogout.mutateAsync(id);
-      message.success("Device signed out");
+      message.success(t("sessions.deviceLoggedOut"));
     } catch {
-      message.error("Failed to sign out device");
+      message.error(t("sessions.logoutFailed"));
     }
   };
 
   const columns: ColumnsType<IdpSessionResponse> = [
     {
-      title: "Device",
+      title: t("common.device"),
       key: "device",
       render: (_, record) => (
         <div>
@@ -71,13 +73,13 @@ export default function UserSessionsDrawer({
             {describeUserAgent(record.user_agent)}
           </div>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {record.ip_address || "Unknown IP"}
+            {record.ip_address || t("common.unknownIp")}
           </Typography.Text>
         </div>
       ),
     },
     {
-      title: "Apps",
+      title: t("common.app"),
       key: "apps",
       width: 140,
       render: (_, record) => (
@@ -87,14 +89,14 @@ export default function UserSessionsDrawer({
       ),
     },
     {
-      title: "Last Active",
+      title: t("sessions.lastActivityAt"),
       dataIndex: "last_activity_at",
       key: "last_activity_at",
       width: 180,
       render: formatDate,
     },
     {
-      title: "Signed In",
+      title: t("sessions.loginAt"),
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
@@ -106,10 +108,10 @@ export default function UserSessionsDrawer({
       width: 50,
       render: (_, record) => (
         <Popconfirm
-          title="Force sign out this device?"
-          description="This will revoke all sessions and tokens from this device."
+          title={t("sessions.forceLogoutDevice")}
+          description={t("sessions.forceLogoutDesc")}
           onConfirm={() => handleForceLogout(record.id)}
-          okText="Sign Out"
+          okText={t("sessions.logoutAction")}
           okButtonProps={{ danger: true }}
         >
           <Button
@@ -125,7 +127,7 @@ export default function UserSessionsDrawer({
 
   return (
     <Drawer
-      title={`Sessions for ${username}`}
+      title={t("users.sessionsOf", { username })}
       open={open}
       onClose={onClose}
       width={720}
@@ -133,13 +135,13 @@ export default function UserSessionsDrawer({
       <Space direction="vertical" size="middle" style={{ display: "flex" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography.Text type="secondary">
-            Active devices where this user is signed in.
+            {t("users.activeDevicesForUser")}
           </Typography.Text>
           <Popconfirm
-            title="Revoke all sessions?"
-            description="This will revoke all tokens, sessions, and sign out every device for this user."
+            title={t("users.revokeAllSessions")}
+            description={t("users.revokeAllSessionsDesc")}
             onConfirm={handleRevokeAll}
-            okText="Revoke All"
+            okText={t("users.revokeAll")}
             okButtonProps={{ danger: true }}
           >
             <Button
@@ -149,7 +151,7 @@ export default function UserSessionsDrawer({
               loading={revokeAll.isPending}
               disabled={!sessions?.length}
             >
-              Revoke All Sessions
+              {t("users.revokeAllSessionsBtn")}
             </Button>
           </Popconfirm>
         </div>
@@ -161,7 +163,7 @@ export default function UserSessionsDrawer({
           loading={isLoading}
           pagination={false}
           size="small"
-          locale={{ emptyText: "No active sessions" }}
+          locale={{ emptyText: t("users.noActiveSessions") }}
         />
       </Space>
     </Drawer>

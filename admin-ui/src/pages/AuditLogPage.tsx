@@ -23,40 +23,9 @@ import type { ListParams } from "../api/users";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
-
-const EVENT_OPTIONS = [
-  { label: "All Events", value: "" },
-  { label: "Login Success", value: "login_success" },
-  { label: "Login Failed", value: "login_failed" },
-  { label: "MFA Success", value: "mfa_success" },
-  { label: "MFA Failed", value: "mfa_failed" },
-  { label: "Passkey Login Success", value: "passkey_login_success" },
-  { label: "Passkey Login Failed", value: "passkey_login_failed" },
-  { label: "Password Changed", value: "password_changed" },
-  { label: "Password Reset Requested", value: "password_reset_requested" },
-  { label: "Password Reset Completed", value: "password_reset_completed" },
-  { label: "User Created", value: "user_created" },
-  { label: "User Updated", value: "user_updated" },
-  { label: "User Deactivated", value: "user_deactivated" },
-  { label: "User Unlocked", value: "user_unlocked" },
-  { label: "MFA Enrolled", value: "mfa_enrolled" },
-  { label: "MFA Disabled", value: "mfa_disabled" },
-  { label: "Passkey Added", value: "passkey_added" },
-  { label: "Passkey Removed", value: "passkey_removed" },
-  { label: "Logout", value: "logout" },
-  { label: "Session Revoked", value: "session_revoked" },
-  { label: "Client Created", value: "client_created" },
-  { label: "Client Updated", value: "client_updated" },
-  { label: "Client Deleted", value: "client_deleted" },
-  { label: "Settings Updated", value: "settings_updated" },
-  { label: "Settings Imported", value: "settings_imported" },
-  { label: "Federation Created", value: "federation_created" },
-  { label: "Federation Updated", value: "federation_updated" },
-  { label: "Federation Deleted", value: "federation_deleted" },
-  { label: "Deletion Approved", value: "deletion_approved" },
-];
 
 const EVENT_COLORS: Record<string, string> = {
   login_success: "success",
@@ -89,15 +58,43 @@ const EVENT_COLORS: Record<string, string> = {
   deletion_approved: "error",
 };
 
+const EVENT_KEY_MAP: Record<string, string> = {
+  login_success: "auditLog.loginSuccess",
+  login_failed: "auditLog.loginFailed",
+  mfa_success: "auditLog.mfaSuccess",
+  mfa_failed: "auditLog.mfaFailed",
+  passkey_login_success: "auditLog.passkeyLoginSuccess",
+  passkey_login_failed: "auditLog.passkeyLoginFailed",
+  password_changed: "auditLog.passwordChanged",
+  password_reset_requested: "auditLog.passwordResetRequested",
+  password_reset_completed: "auditLog.passwordResetCompleted",
+  user_created: "auditLog.userCreated",
+  user_updated: "auditLog.userUpdated",
+  user_deactivated: "auditLog.userDeactivated",
+  user_unlocked: "auditLog.userUnlocked",
+  mfa_enrolled: "auditLog.mfaEnrolled",
+  mfa_disabled: "auditLog.mfaDisabled",
+  passkey_added: "auditLog.passkeyAdded",
+  passkey_removed: "auditLog.passkeyRemoved",
+  logout: "auditLog.logout",
+  session_revoked: "auditLog.sessionRevoked",
+  client_created: "auditLog.clientCreated",
+  client_updated: "auditLog.clientUpdated",
+  client_deleted: "auditLog.clientDeleted",
+  settings_updated: "auditLog.settingsUpdated",
+  settings_imported: "auditLog.settingsImported",
+  federation_created: "auditLog.federationCreated",
+  federation_updated: "auditLog.federationUpdated",
+  federation_deleted: "auditLog.federationDeleted",
+  deletion_approved: "auditLog.deletionApproved",
+};
+
 function formatDate(date: string): string {
   return new Date(date).toLocaleString();
 }
 
-function formatEvent(event: string): string {
-  return event.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export default function AuditLogPage() {
+  const { t } = useTranslation();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -121,6 +118,14 @@ export default function AuditLogPage() {
   );
 
   const { data, isLoading, error } = useAuditLogs(listParams);
+
+  const EVENT_OPTIONS = [
+    { label: t("auditLog.allEvents"), value: "" },
+    ...Object.entries(EVENT_KEY_MAP).map(([value, key]) => ({
+      label: t(key),
+      value,
+    })),
+  ];
 
   const handleTableChange = useCallback(
     (
@@ -184,7 +189,7 @@ export default function AuditLogPage() {
 
   const columns: ColumnsType<AuditLogEntry> = [
     {
-      title: "Event",
+      title: t("common.event"),
       dataIndex: "event",
       key: "event",
       width: 200,
@@ -196,11 +201,13 @@ export default function AuditLogPage() {
             : "ascend"
           : undefined,
       render: (event: string) => (
-        <Tag color={EVENT_COLORS[event] || "default"}>{formatEvent(event)}</Tag>
+        <Tag color={EVENT_COLORS[event] || "default"}>
+          {t(EVENT_KEY_MAP[event] || "common.noData")}
+        </Tag>
       ),
     },
     {
-      title: "Actor",
+      title: t("common.actor"),
       dataIndex: "actor_username",
       key: "actor_username",
       width: 160,
@@ -208,17 +215,17 @@ export default function AuditLogPage() {
         username ? (
           <CopyText text={username} />
         ) : (
-          <Text type="secondary">—</Text>
+          <Text type="secondary">\u2014</Text>
         ),
     },
     {
-      title: "Target",
+      title: t("common.target"),
       key: "target",
       width: 200,
       ellipsis: true,
       render: (_: unknown, record: AuditLogEntry) => {
         if (!record.target_type && !record.target_id)
-          return <Text type="secondary">—</Text>;
+          return <Text type="secondary">\u2014</Text>;
         if (!record.target_id)
           return <Text>{record.target_type}</Text>;
         return (
@@ -229,14 +236,14 @@ export default function AuditLogPage() {
       },
     },
     {
-      title: "IP",
+      title: t("common.ip"),
       dataIndex: "ip_address",
       key: "ip_address",
       width: 130,
-      render: (ip: string) => ip || <Text type="secondary">—</Text>,
+      render: (ip: string) => ip || <Text type="secondary">\u2014</Text>,
     },
     {
-      title: "Detail",
+      title: t("common.details"),
       dataIndex: "detail",
       key: "detail",
       ellipsis: true,
@@ -246,11 +253,11 @@ export default function AuditLogPage() {
             {detail}
           </Text>
         ) : (
-          <Text type="secondary">—</Text>
+          <Text type="secondary">\u2014</Text>
         ),
     },
     {
-      title: "Time",
+      title: t("common.time"),
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
@@ -278,7 +285,7 @@ export default function AuditLogPage() {
     },
   ];
 
-  if (error) return <Alert type="error" message="Failed to load audit logs" />;
+  if (error) return <Alert type="error" message={t("auditLog.failedToLoadAuditLog")} />;
 
   return (
     <>
@@ -290,7 +297,7 @@ export default function AuditLogPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Audit Log
+          {t("auditLog.title")}
         </Typography.Title>
         <Space>
           <Select
@@ -305,7 +312,7 @@ export default function AuditLogPage() {
             allowClear
           />
           <Input.Search
-            placeholder="Search actor, target, IP..."
+            placeholder={t("auditLog.searchAuditLog")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -319,8 +326,8 @@ export default function AuditLogPage() {
         <Alert
           type="info"
           showIcon
-          message="Audit logging is disabled"
-          description='To start recording events, set the audit log retention in Settings > Security & Validation > Audit Log (e.g. 720h for 30 days, or -1 to keep forever).'
+          message={t("auditLog.auditLogDisabled")}
+          description={t("auditLog.auditLogDisabledDesc")}
           style={{ marginTop: 16, flexShrink: 0 }}
         />
       )}
@@ -346,46 +353,46 @@ export default function AuditLogPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} events`,
+            showTotal: (total) => t("auditLog.totalEvents", { total }),
           }}
         />
       </div>
 
       <Drawer
-        title="Event Detail"
+        title={t("auditLog.eventDetail")}
         open={!!selectedEntry}
         onClose={() => setSelectedEntry(null)}
         width={480}
       >
         {selectedEntry && (
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="ID">
+            <Descriptions.Item label={t("common.id")}>
               {selectedEntry.id}
             </Descriptions.Item>
-            <Descriptions.Item label="Event">
+            <Descriptions.Item label={t("common.event")}>
               <Tag color={EVENT_COLORS[selectedEntry.event] || "default"}>
-                {formatEvent(selectedEntry.event)}
+                {t(EVENT_KEY_MAP[selectedEntry.event] || "common.noData")}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Time">
+            <Descriptions.Item label={t("common.time")}>
               {formatDate(selectedEntry.created_at)}
             </Descriptions.Item>
-            <Descriptions.Item label="Actor ID">
-              {selectedEntry.actor_id || "—"}
+            <Descriptions.Item label={t("auditLog.actorId")}>
+              {selectedEntry.actor_id || "\u2014"}
             </Descriptions.Item>
-            <Descriptions.Item label="Actor Username">
-              {selectedEntry.actor_username || "—"}
+            <Descriptions.Item label={t("auditLog.actorUsername")}>
+              {selectedEntry.actor_username || "\u2014"}
             </Descriptions.Item>
-            <Descriptions.Item label="Target Type">
-              {selectedEntry.target_type || "—"}
+            <Descriptions.Item label={t("auditLog.targetType")}>
+              {selectedEntry.target_type || "\u2014"}
             </Descriptions.Item>
-            <Descriptions.Item label="Target ID">
-              {selectedEntry.target_id || "—"}
+            <Descriptions.Item label={t("auditLog.targetId")}>
+              {selectedEntry.target_id || "\u2014"}
             </Descriptions.Item>
-            <Descriptions.Item label="IP Address">
-              {selectedEntry.ip_address || "—"}
+            <Descriptions.Item label={t("auditLog.ipAddress")}>
+              {selectedEntry.ip_address || "\u2014"}
             </Descriptions.Item>
-            <Descriptions.Item label="Detail">
+            <Descriptions.Item label={t("common.details")}>
               {selectedEntry.detail ? (
                 <pre
                   style={{
@@ -398,7 +405,7 @@ export default function AuditLogPage() {
                   {JSON.stringify(JSON.parse(selectedEntry.detail), null, 2)}
                 </pre>
               ) : (
-                "—"
+                "\u2014"
               )}
             </Descriptions.Item>
           </Descriptions>

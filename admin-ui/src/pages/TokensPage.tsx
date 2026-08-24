@@ -24,9 +24,10 @@ import GrantChips from "../components/GrantChips";
 import { useTableScrollY } from "../hooks/useTableScrollY";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import CopyText from "../components/CopyText";
+import { useTranslation } from "react-i18next";
 
 function formatDate(date: string | null): string {
-  if (!date) return "—";
+  if (!date) return "\u2014";
   return new Date(date).toLocaleString();
 }
 
@@ -43,36 +44,37 @@ function TokenDetailDrawer({
   token: AdminTokenResponse | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <Drawer title="Token Details" open={!!token} onClose={onClose} width={480}>
+    <Drawer title={t("tokens.tokenDetail")} open={!!token} onClose={onClose} width={480}>
       {token && (
         <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Token ID">{token.id}</Descriptions.Item>
-          <Descriptions.Item label="Status">
+          <Descriptions.Item label={t("tokens.tokenId")}>{token.id}</Descriptions.Item>
+          <Descriptions.Item label={t("common.status")}>
             {statusTag(token.status)}
           </Descriptions.Item>
-          <Descriptions.Item label="User ID">
-            {token.user_id || "—"}
+          <Descriptions.Item label={t("sessions.userId")}>
+            {token.user_id || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Username">
-            {token.username || "—"}
+          <Descriptions.Item label={t("users.username")}>
+            {token.username || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Email">
-            {token.email || "—"}
+          <Descriptions.Item label={t("users.email")}>
+            {token.email || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Grant Type">
+          <Descriptions.Item label={t("clients.grantType")}>
             <GrantChips grants={[token.grant_type]} />
           </Descriptions.Item>
-          <Descriptions.Item label="Scope">
-            {token.scope || "—"}
+          <Descriptions.Item label={t("clients.scope")}>
+            {token.scope || "\u2014"}
           </Descriptions.Item>
-          <Descriptions.Item label="Issued At">
+          <Descriptions.Item label={t("tokens.issuedAt")}>
             {formatDate(token.issued_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Access Token Expires">
+          <Descriptions.Item label={t("tokens.accessTokenExpires")}>
             {formatDate(token.access_token_expires_at)}
           </Descriptions.Item>
-          <Descriptions.Item label="Revoked At">
+          <Descriptions.Item label={t("tokens.revokedAt")}>
             {formatDate(token.revoked_at)}
           </Descriptions.Item>
         </Descriptions>
@@ -82,6 +84,7 @@ function TokenDetailDrawer({
 }
 
 export default function TokensPage() {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
@@ -106,9 +109,9 @@ export default function TokensPage() {
   const handleRevoke = async (id: string) => {
     try {
       await revoke.mutateAsync(id);
-      message.success("Token revoked");
+      message.success(t("tokens.tokenRevoked"));
     } catch {
-      message.error("Failed to revoke token");
+      message.error(t("tokens.revokeTokenFailed"));
     }
   };
 
@@ -163,7 +166,7 @@ export default function TokensPage() {
 
   const columns: ColumnsType<AdminTokenResponse> = [
     {
-      title: "Token ID",
+      title: t("tokens.tokenId"),
       dataIndex: "id",
       key: "id",
       width: 140,
@@ -172,15 +175,15 @@ export default function TokensPage() {
       ),
     },
     {
-      title: "Username",
+      title: t("users.username"),
       dataIndex: "username",
       key: "username",
       width: 140,
       ellipsis: true,
-      render: (username: string) => username || "—",
+      render: (username: string) => username || "\u2014",
     },
     {
-      title: "Email",
+      title: t("users.email"),
       dataIndex: "email",
       key: "email",
       ellipsis: true,
@@ -188,25 +191,25 @@ export default function TokensPage() {
         email ? (
           <CopyText text={email} />
         ) : (
-          "—"
+          "\u2014"
         ),
     },
     {
-      title: "Grant",
+      title: t("clients.grantType"),
       dataIndex: "grant_type",
       key: "grant_type",
       width: 100,
       render: (grant: string) => <GrantChips grants={[grant]} />,
     },
     {
-      title: "Status",
+      title: t("common.status"),
       dataIndex: "status",
       key: "status",
       width: 100,
       render: statusTag,
     },
     {
-      title: "Expires",
+      title: t("common.expires"),
       dataIndex: "access_token_expires_at",
       key: "access_token_expires_at",
       width: 180,
@@ -220,7 +223,7 @@ export default function TokensPage() {
       render: formatDate,
     },
     {
-      title: "Issued At",
+      title: t("tokens.issuedAt"),
       dataIndex: "issued_at",
       key: "issued_at",
       width: 180,
@@ -234,16 +237,16 @@ export default function TokensPage() {
       render: formatDate,
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       width: 80,
       render: (_, record) => (
         <Space>
           {record.status === "active" && (
             <Popconfirm
-              title="Revoke this token?"
+              title={t("tokens.revokeToken")}
               onConfirm={() => handleRevoke(record.id)}
-              okText="Revoke"
+              okText={t("tokens.revokeAction")}
               okButtonProps={{ danger: true }}
             >
               <Button
@@ -266,7 +269,7 @@ export default function TokensPage() {
   ];
 
   if (error) {
-    return <Alert type="error" message="Failed to load tokens" />;
+    return <Alert type="error" message={t("tokens.failedToLoadTokens")} />;
   }
 
   return (
@@ -279,7 +282,7 @@ export default function TokensPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Tokens
+          {t("tokens.title")}
         </Typography.Title>
         <Space>
           <DatePicker.RangePicker
@@ -288,7 +291,7 @@ export default function TokensPage() {
             allowClear
           />
           <Input.Search
-            placeholder="Search username, email..."
+            placeholder={t("tokens.searchTokens")}
             allowClear
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -319,7 +322,7 @@ export default function TokensPage() {
             total: data?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} tokens`,
+            showTotal: (total) => t("tokens.totalTokens", { total }),
           }}
           size="small"
         />

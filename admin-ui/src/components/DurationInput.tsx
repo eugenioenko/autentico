@@ -1,9 +1,9 @@
 import { InputNumber, Select, Space } from "antd";
 
 const units = [
-  { value: "s", label: "Seconds" },
-  { value: "m", label: "Minutes" },
-  { value: "h", label: "Hours" },
+  { value: "s", label: "秒" },
+  { value: "m", label: "分钟" },
+  { value: "h", label: "小时" },
 ];
 
 function parse(raw: string | undefined): { num: number | null; unit: string } {

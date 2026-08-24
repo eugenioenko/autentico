@@ -16,12 +16,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
 import { useAuth } from "oidc-js-react";
+import { useTranslation } from "react-i18next";
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useStats();
   const { tokens } = useAuth();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(tokens.access ? `Bearer ${tokens.access}` : "").then(() => {
@@ -37,14 +39,14 @@ export default function DashboardPage() {
   return (
     <Space direction="vertical" size="large" style={{ display: "flex" }}>
       <Typography.Title level={4} style={{ margin: 0 }} data-testid="admin-dashboard">
-        Dashboard
+        {t("dashboard.title")}
       </Typography.Title>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Users"
+              title={t("dashboard.totalUsers")}
               value={stats?.total_users ?? 0}
               prefix={<UserOutlined />}
             />
@@ -53,7 +55,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Active Clients"
+              title={t("dashboard.activeClients")}
               value={stats?.active_clients ?? 0}
               prefix={<AppstoreOutlined />}
             />
@@ -62,7 +64,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Active Devices"
+              title={t("dashboard.activeDevices")}
               value={stats?.active_devices ?? 0}
               prefix={<DesktopOutlined />}
             />
@@ -71,7 +73,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Active Tokens"
+              title={t("dashboard.activeTokens")}
               value={stats?.active_tokens ?? 0}
               prefix={<KeyOutlined />}
             />
@@ -80,7 +82,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Recent Logins (24h)"
+              title={t("dashboard.recentLogins24h")}
               value={stats?.recent_logins ?? 0}
               prefix={<LoginOutlined />}
             />
@@ -89,7 +91,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Failed Logins (24h)"
+              title={t("dashboard.failedLogins24h")}
               value={stats?.failed_logins_24h ?? 0}
               prefix={<WarningOutlined />}
               valueStyle={(stats?.failed_logins_24h ?? 0) > 0 ? { color: "#cf1322" } : undefined}
@@ -99,7 +101,7 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Locked Accounts"
+              title={t("dashboard.lockedAccounts")}
               value={stats?.locked_accounts ?? 0}
               prefix={<LockOutlined />}
               valueStyle={(stats?.locked_accounts ?? 0) > 0 ? { color: "#cf1322" } : undefined}
@@ -113,7 +115,7 @@ export default function DashboardPage() {
               onClick={() => navigate("/users?tab=deletions")}
             >
               <Statistic
-                title="Pending Deletions"
+                title={t("dashboard.pendingDeletions")}
                 value={stats?.pending_deletion_requests ?? 0}
                 prefix={<DeleteOutlined />}
                 valueStyle={{ color: "#cf1322" }}
@@ -123,28 +125,28 @@ export default function DashboardPage() {
         )}
       </Row>
 
-      <Card title="Quick Actions">
+      <Card title={t("dashboard.quickActions")}>
         <Space direction="vertical" style={{ width: "100%" }}>
           <Space>
             <Button
               icon={<PlusOutlined />}
               onClick={() => navigate("/users", { state: { create: true } })}
             >
-              Create User
+              {t("dashboard.createUser")}
             </Button>
             <Button
               icon={<PlusOutlined />}
               onClick={() => navigate("/clients", { state: { create: true } })}
             >
-              Create Client
+              {t("dashboard.createClient")}
             </Button>
           </Space>
-          <Typography.Text type="secondary">Access token for API / Swagger:</Typography.Text>
+          <Typography.Text type="secondary">{t("dashboard.apiSwaggerToken")}:</Typography.Text>
           <Button
             icon={copied ? <CheckOutlined /> : <CopyOutlined />}
             onClick={handleCopyToken}
           >
-            {copied ? "Copied!" : "Copy access token"}
+            {copied ? t("dashboard.copiedExcl") : t("dashboard.copyAccessToken")}
           </Button>
         </Space>
       </Card>

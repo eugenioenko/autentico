@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Card from './Card';
 import StatusDot from './StatusDot';
 
@@ -7,18 +8,19 @@ interface EmailOtpCardProps {
 }
 
 const EmailOtpCard: React.FC<EmailOtpCardProps> = ({ fallbackLabel }) => {
+  const { t } = useTranslation();
   return (
     <Card
-      title="Email One-Time Password"
+      title={t('security.emailOtp')}
       description={
         fallbackLabel
-          ? 'Email OTP — fallback when TOTP is not set up'
-          : 'A one-time code sent to your email at each login'
+          ? t('security.emailOtpFallback')
+          : t('security.emailOtpDescription')
       }
     >
       <div className="flex items-center gap-2 mt-1">
         <StatusDot active={true} />
-        <span className="text-sm text-theme-fg">Active — code sent to your email at login</span>
+        <span className="text-sm text-theme-fg">{t('security.emailOtpEnabled')}</span>
       </div>
     </Card>
   );

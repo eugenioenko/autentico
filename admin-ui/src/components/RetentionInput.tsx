@@ -30,9 +30,9 @@ export default function RetentionInput({ value, onChange }: Props) {
         onChange={handleModeChange}
         style={{ width: 240 }}
         options={[
-          { value: "disabled", label: "Disabled" },
-          { value: "forever", label: "Keep forever" },
-          { value: "custom", label: "Custom retention" },
+          { value: "disabled", label: "已禁用" },
+          { value: "forever", label: "永久保留" },
+          { value: "custom", label: "自定义保留期" },
         ]}
       />
       {mode === "custom" && (

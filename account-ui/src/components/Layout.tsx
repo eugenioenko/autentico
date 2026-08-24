@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth, RequireAuth } from 'oidc-js-react';
 import { IconMenu2 } from '@tabler/icons-react';
 import Sidebar from './Sidebar';
@@ -13,22 +14,23 @@ const SessionsPage = React.lazy(() => import('../pages/Sessions'));
 const TrustedDevicesPage = React.lazy(() => import('../pages/TrustedDevices'));
 const ConnectedProvidersPage = React.lazy(() => import('../pages/ConnectedProviders'));
 
-const pageTitles: Record<string, string> = {
-  '/': 'Overview',
-  '/profile': 'Profile',
-  '/security': 'Security',
-  '/sessions': 'Sessions',
-  '/trusted-devices': 'Trusted Devices',
-  '/connected-providers': 'Connected Providers',
-};
-
 const Layout: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
+  const pageTitles: Record<string, string> = {
+    '/': t('menu.overview'),
+    '/profile': t('menu.profile'),
+    '/security': t('menu.security'),
+    '/sessions': t('menu.sessions'),
+    '/trusted-devices': t('menu.trustedDevices'),
+    '/connected-providers': t('menu.connectedProviders'),
+  };
+
   const initials = (user?.claims?.preferred_username as string)?.[0]?.toUpperCase() || 'U';
-  const pageTitle = pageTitles[location.pathname] ?? 'Account';
+  const pageTitle = pageTitles[location.pathname] ?? t('common.account');
 
   return (
     <RequireAuth fallback={<div className="min-h-dvh flex items-center justify-center bg-theme-bg"><Spinner /></div>}>

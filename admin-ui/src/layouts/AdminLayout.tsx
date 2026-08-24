@@ -19,42 +19,48 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "oidc-js-react";
-import { useTheme } from "../context/ThemeContext";
+import { useTranslation } from "react-i18next";
 import ThemeToggle from "../components/ThemeToggle";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-const menuItems: any[] = [
-  { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/users", icon: <UserOutlined />, label: "Users" },
-  { key: "/groups", icon: <TeamOutlined />, label: "Groups" },
-  { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
-  { key: "/tokens", icon: <KeyOutlined />, label: "Tokens" },
-  { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
-  { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
-  { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
-  { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
-  { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
-  { type: "divider" },
-  {
-    type: "group",
-    label: "Resources",
-    children: [
-      { key: "/account", icon: <UserOutlined />, label: "Profile" },
-      { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
-      { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
-      { key: "/autentico-docs", icon: <FileTextOutlined />, label: "Autentico Docs" },
-    ],
-  },
-];
+function useMenuItems() {
+  const { t } = useTranslation();
+  const menuItems: any[] = [
+    { key: "/", icon: <DashboardOutlined />, label: t("menu.dashboard") },
+    { key: "/users", icon: <UserOutlined />, label: t("menu.users") },
+    { key: "/groups", icon: <TeamOutlined />, label: t("menu.groups") },
+    { key: "/sessions", icon: <DesktopOutlined />, label: t("menu.sessions") },
+    { key: "/tokens", icon: <KeyOutlined />, label: t("menu.tokens") },
+    { key: "/clients", icon: <AppstoreOutlined />, label: t("menu.clients") },
+    { key: "/federation", icon: <GlobalOutlined />, label: t("menu.federation") },
+    { key: "/audit-log", icon: <FileSearchOutlined />, label: t("menu.auditLog") },
+    { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
+    { key: "/settings", icon: <SettingOutlined />, label: t("menu.settings") },
+    { type: "divider" },
+    {
+      type: "group",
+      label: t("menu.resources"),
+      children: [
+        { key: "/account", icon: <UserOutlined />, label: t("menu.profile") },
+        { key: "/docs", icon: <FileTextOutlined />, label: t("menu.apiDocs") },
+        { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
+        { key: "/autentico-docs", icon: <FileTextOutlined />, label: "Autentico" },
+      ],
+    },
+  ];
+  return menuItems;
+}
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
-  const { mode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const menuItems = useMenuItems();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
@@ -71,7 +77,7 @@ export default function AdminLayout() {
   const userDropdownItems = [
     {
       key: "account",
-      label: "Profile",
+      label: t("menu.profile"),
       icon: <UserOutlined />,
       onClick: () => window.open("/account/", "_blank"),
     },
@@ -80,7 +86,7 @@ export default function AdminLayout() {
     },
     {
       key: "logout",
-      label: "Logout",
+      label: t("menu.logout"),
       icon: <LogoutOutlined />,
       danger: true,
       onClick: handleLogout,
@@ -88,7 +94,7 @@ export default function AdminLayout() {
   ];
 
   const username = (user?.claims?.preferred_username ?? user?.claims?.email ?? "User") as string;
-  const siderBg = mode === "dark" ? "#1a1a1a" : "#141414";
+  const siderBg = "#16162a";
 
   return (
     <Layout style={{ height: "100dvh", overflow: "hidden" }}>
@@ -167,13 +173,14 @@ export default function AdminLayout() {
             onClick={() => setCollapsed(!collapsed)}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <LanguageSwitcher />
             <ThemeToggle />
             <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
               <div data-testid="user-menu" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <Avatar
                   src={user?.claims?.picture as string | undefined}
                   icon={!user?.claims?.picture && <UserOutlined />}
-                  style={{ backgroundColor: "#ff7b00" }}
+                  style={{ backgroundColor: "#6366f1" }}
                 />
                 <Text>{username}</Text>
                 <DownOutlined style={{ fontSize: 11, opacity: 0.6 }} />
