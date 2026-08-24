@@ -27,7 +27,7 @@ jobs:
           mkdir -p pkg/account/dist && echo '<!doctype html>' > pkg/account/dist/index.html
       - name: Download golangci-lint binary
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b ./bin v2.1.5
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b ./bin v2.13.1
       - name: Run golangci-lint
         run: ./bin/golangci-lint run ./...
 
