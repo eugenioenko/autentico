@@ -12,12 +12,11 @@ import {
   Tabs,
   Collapse
 } from "antd";
-import { 
-  LogoutOutlined, 
-  ReloadOutlined, 
-  UserOutlined, 
-  KeyOutlined, 
-  InfoCircleOutlined 
+import {
+  LogoutOutlined,
+  ReloadOutlined,
+  UserOutlined,
+  InfoCircleOutlined
 } from "@ant-design/icons";
 import { useAuth } from "../context/AuthContext";
 
@@ -57,7 +56,7 @@ export default function DashboardPage() {
         <div style={{ color: 'white', fontSize: '1.5rem', fontWeight: 'bold' }}>Token Debugger</div>
         <Menu theme="dark" mode="horizontal" selectable={false}>
           <Menu.Item key="user" icon={<UserOutlined />}>
-            {user?.profile?.preferred_username || user?.profile?.email || 'User'}
+            {String(user?.profile?.preferred_username || user?.profile?.email || 'User')}
           </Menu.Item>
           <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={logout}>
             Logout
