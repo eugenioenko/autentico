@@ -1,8 +1,6 @@
 module github.com/eugenioenko/autentico
 
-go 1.24.0
-
-toolchain go1.24.2
+go 1.25.0
 
 require (
 	github.com/coreos/go-oidc/v3 v3.17.0
@@ -19,7 +17,7 @@ require (
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.4
 	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/crypto v0.43.0
+	golang.org/x/crypto v0.55.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.36.3
@@ -33,7 +31,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/spec v0.21.0 // indirect
@@ -53,8 +51,8 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
-	golang.org/x/net v0.45.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.61.13 // indirect
