@@ -57,7 +57,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
           cache-dependency-path: |
             admin-ui/pnpm-lock.yaml
@@ -122,7 +122,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
           cache-dependency-path: tests/functional/pnpm-lock.yaml
       - name: Install dependencies
@@ -149,7 +149,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
           cache-dependency-path: tests/browser/pnpm-lock.yaml
       - name: Install browser test dependencies
