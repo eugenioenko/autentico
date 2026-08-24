@@ -11,23 +11,23 @@
     "generate-types": "swagger2openapi ../docs/swagger.json -o /tmp/openapi3.json && openapi-typescript /tmp/openapi3.json -o src/types/api.d.ts"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.2.2",
-    "@tanstack/react-query": "^5.100.9",
-    "antd": "^6.3.7",
-    "axios": "^1.16.0",
-    "dayjs": "^1.11.20",
+    "@ant-design/icons": "^6.3.2",
+    "@tanstack/react-query": "^5.102.2",
+    "antd": "^6.6.1",
+    "axios": "^1.19.0",
+    "dayjs": "^1.11.23",
     "oidc-js-react": "^1.1.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "openapi-typescript": "^7.13.0",
     "swagger2openapi": "^7.0.8",
-    "typescript": "~6.0.3",
-    "vite": "^8.0.11"
+    "typescript": "~7.0.2",
+    "vite": "^8.2.2"
   }
 }
