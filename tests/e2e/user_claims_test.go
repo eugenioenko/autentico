@@ -131,6 +131,27 @@ func TestUserClaims_AbsentWithoutScope(t *testing.T) {
 	assert.Nil(t, atClaims["tier"])
 }
 
+func TestUserClaims_ScopeRejectedWhenNotAllowedForClient(t *testing.T) {
+	ts := startTestServer(t)
+	seedScopedClient(t) // scoped-e2e-client: scopes = "openid profile", no custom_claims
+	createTestUser(t, "ccscopeuser", "password123", "ccscope@test.com")
+
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", "scoped-e2e-client")
+	form.Set("username", "ccscopeuser")
+	form.Set("password", "password123")
+	form.Set("scope", "openid custom_claims")
+
+	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Contains(t, string(body), "invalid_scope")
+}
+
 func TestUserClaims_RefreshReReadsLive(t *testing.T) {
 	ts := startTestServer(t)
 	_, adminToken := createTestAdmin(t, ts, "ccadmin4", "password123", "ccadmin4@test.com")
