@@ -26,6 +26,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
 	"github.com/gorilla/csrf"
@@ -181,6 +182,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("PUT /admin/api/settings", middleware.AdminAuthMiddleware(http.HandlerFunc(appsettings.HandlePutSettings)))
 	mux.Handle("GET /admin/api/stats", middleware.AdminAuthMiddleware(http.HandlerFunc(admin.HandleStats)))
 	mux.Handle("GET /admin/api/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleListGroups)))
+	mux.Handle("GET /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleListUserClaims)))
+	mux.Handle("POST /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleUpsertUserClaim)))
+	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleDeleteUserClaim)))
 	mux.Handle("GET /admin/api/deletion-requests", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleListDeletionRequests)))
 
 	mux.Handle("POST /admin/api/federation/providers", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleCreateProvider)))

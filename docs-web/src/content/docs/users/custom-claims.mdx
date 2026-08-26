@@ -1,0 +1,114 @@
+---
+title: Custom Claims
+description: Assigning arbitrary key/value claims to users and emitting them in tokens via the custom_claims scope.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Custom claims let an admin attach arbitrary `name` / `value` pairs to a user. When the `custom_claims` scope is granted, those pairs are merged into the user's ID token, access token, and UserInfo response. Use them to carry application-specific attributes (tenant, tier, department, entitlements) that Autentico does not model natively.
+
+## Custom claims in tokens
+
+When the `custom_claims` scope is requested and granted, every custom claim assigned to the user is included in:
+
+- **Access tokens** -- as string values
+- **ID tokens** -- as string values
+- **UserInfo responses** -- as string fields
+
+Example token claims:
+
+```json
+{
+  "sub": "user-123",
+  "tier": "gold",
+  "region": "eu",
+  "scope": "openid custom_claims"
+}
+```
+
+<Aside type="tip">
+Add `custom_claims` to the client's allowed scopes and include it in the authorization request. If the client requests `custom_claims` but it is not in its allowed scopes, the request is rejected like any other disallowed scope. See [Scopes](/protocol/scopes/).
+</Aside>
+
+### Values are strings
+
+Every custom claim value is emitted as a JSON string -- `"tier": "gold"`, never `"tier": 3` or `"active": true`. Typed values (numbers, booleans, arrays) are not supported in this version.
+
+### Reserved names
+
+A custom claim may not shadow a standard or structural claim. The following names are rejected on write with `400 invalid_request`:
+
+`iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti`, `auth_time`, `nonce`, `at_hash`, `c_hash`, `azp`, `sid`, `acr`, `amr`, `typ`, `scope`, `client_id`, `token_type`, `active`, and every claim Autentico already emits: `name`, `preferred_username`, `given_name`, `family_name`, `middle_name`, `nickname`, `profile`, `picture`, `website`, `gender`, `birthdate`, `locale`, `zoneinfo`, `updated_at`, `email`, `email_verified`, `phone_number`, `phone_number_verified`, `address`, `groups`, `role`.
+
+Even if a reserved name is inserted directly into the database, the token builder never lets a custom claim overwrite a claim it has already set.
+
+### Naming
+
+Claim names must match `^[a-zA-Z_][a-zA-Z0-9_.:/-]*$` (bare names like `tier`, or collision-resistant namespaced names like `https://app.example.com/tier`). OIDC Core §5.1.2 recommends collision-resistant or private claim names for non-standard claims; bare names are acceptable when Autentico is used within a private subsystem.
+
+## Admin API endpoints
+
+All custom claim endpoints require admin authentication.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/admin/api/users/{id}/claims` | List a user's custom claims |
+| `POST` | `/admin/api/users/{id}/claims` | Create or update one custom claim |
+| `DELETE` | `/admin/api/users/{id}/claims/{name}` | Remove one custom claim |
+
+### List a user's claims
+
+```bash
+curl https://auth.example.com/admin/api/users/$USER_ID/claims \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "data": [
+    { "name": "region", "value": "eu", "updated_at": "2026-01-15T10:00:00Z" },
+    { "name": "tier", "value": "gold", "updated_at": "2026-01-15T10:00:00Z" }
+  ]
+}
+```
+
+### Create or update a claim
+
+```bash
+curl -X POST https://auth.example.com/admin/api/users/$USER_ID/claims \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "tier", "value": "gold"}'
+```
+
+| Field | Required | Validation |
+|---|---|---|
+| `name` | Yes | 1--128 characters, matches the name pattern, not a reserved name |
+| `value` | No | Up to 4096 characters |
+
+The operation is an upsert: posting an existing `name` again replaces its value. Returns `201 Created` on success, `404 Not Found` if the user does not exist, `400 invalid_request` for a reserved or malformed name.
+
+### Delete a claim
+
+```bash
+curl -X DELETE https://auth.example.com/admin/api/users/$USER_ID/claims/tier \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+For a namespaced claim name, pass it as the remaining path (`.../claims/https://app.example.com/tier`). Returns `404 Not Found` if the claim does not exist.
+
+## Database table
+
+### `user_claims` table
+
+| Column | Type | Description |
+|---|---|---|
+| `user_id` | TEXT | Foreign key to `users.id` |
+| `claim_name` | TEXT | The claim name |
+| `claim_value` | TEXT | The claim value (string) |
+| `created_at` | DATETIME | When the claim was created |
+| `updated_at` | DATETIME | Last update timestamp |
+
+The primary key is `(user_id, claim_name)` -- one row per pair. Deleting a user cascades to remove all of that user's custom claims.

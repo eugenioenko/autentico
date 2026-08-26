@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userclaim"
 )
 
 // acrForUser returns the Authentication Context Class Reference value.
@@ -92,6 +93,21 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 			accessClaims["groups"] = groupNames
 		}
 	}
+
+	// OIDC Core §5.1.2 / RFC 9068 §2.2.2: user-defined custom claims MAY be included
+	// alongside standard claims; they are gated behind the non-standard "custom_claims"
+	// scope and can never override a claim already set above (reserved names are also
+	// rejected at write time in pkg/userclaim).
+	if containsScope(scope, "custom_claims") {
+		if custom, err := userclaim.ClaimMapByUserID(user.ID); err == nil {
+			for name, value := range custom {
+				if _, taken := accessClaims[name]; !taken {
+					accessClaims[name] = value
+				}
+			}
+		}
+	}
+
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = bs.AuthJwkCertKeyID
 	signedAccessToken, err := accessToken.SignedString(key.GetPrivateKey())
@@ -192,6 +208,18 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	if containsScope(scope, "email") {
 		claims["email"] = user.Email
 		claims["email_verified"] = user.IsEmailVerified
+	}
+
+	// OIDC Core §5.1.2: additional (non-standard) claims MAY be included in the ID token.
+	// Gated behind the "custom_claims" scope; never overrides a standard claim set above.
+	if containsScope(scope, "custom_claims") {
+		if custom, err := userclaim.ClaimMapByUserID(user.ID); err == nil {
+			for name, value := range custom {
+				if _, taken := claims[name]; !taken {
+					claims[name] = value
+				}
+			}
+		}
 	}
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

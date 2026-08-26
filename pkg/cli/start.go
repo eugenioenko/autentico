@@ -50,6 +50,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
 	"github.com/eugenioenko/autentico/view"
@@ -211,6 +212,9 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST /admin/api/groups/{id}/members", adminAPI(group.HandleAddMember))
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", adminAPI(group.HandleRemoveMember))
 	mux.Handle("GET /admin/api/users/{id}/groups", adminAPI(group.HandleGetUserGroups))
+	mux.Handle("GET /admin/api/users/{id}/claims", adminAPI(userclaim.HandleListUserClaims))
+	mux.Handle("POST /admin/api/users/{id}/claims", adminAPI(userclaim.HandleUpsertUserClaim))
+	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", adminAPI(userclaim.HandleDeleteUserClaim))
 	mux.Handle("GET /admin/api/tokens", adminAPI(token.HandleListTokens))
 	mux.Handle("DELETE /admin/api/tokens/{id}", adminAPI(token.HandleRevokeToken))
 	mux.Handle("GET /admin/api/stats", adminAPI(admin.HandleStats))

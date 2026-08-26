@@ -554,6 +554,13 @@ definitions:
       message:
         type: string
     type: object
+  model.ApiResponse-user_LookupUsersResponse:
+    properties:
+      data:
+        $ref: '#/definitions/user.LookupUsersResponse'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
   model.AuthErrorResponse:
     properties:
       error:
@@ -840,6 +847,45 @@ definitions:
       token_type:
         type: string
     type: object
+  user.LookupNotFound:
+    properties:
+      emails:
+        items:
+          type: string
+        type: array
+      ids:
+        items:
+          type: string
+        type: array
+      usernames:
+        items:
+          type: string
+        type: array
+    type: object
+  user.LookupUsersRequest:
+    properties:
+      emails:
+        items:
+          type: string
+        type: array
+      ids:
+        items:
+          type: string
+        type: array
+      usernames:
+        items:
+          type: string
+        type: array
+    type: object
+  user.LookupUsersResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/user.UserResponse'
+        type: array
+      not_found:
+        $ref: '#/definitions/user.LookupNotFound'
+    type: object
   user.UserCreateRequest:
     properties:
       email:
@@ -964,6 +1010,22 @@ definitions:
       website:
         type: string
       zoneinfo:
+        type: string
+    type: object
+  userclaim.UserClaimRequest:
+    properties:
+      name:
+        type: string
+      value:
+        type: string
+    type: object
+  userclaim.UserClaimResponse:
+    properties:
+      name:
+        type: string
+      updated_at:
+        type: string
+      value:
         type: string
     type: object
 host: localhost:9999
@@ -2937,6 +2999,100 @@ paths:
       summary: Update a user
       tags:
       - admin-users
+  /admin/api/users/{id}/claims:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/userclaim.UserClaimResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: List custom claims for a user
+      tags:
+      - admin-user-claims
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Custom claim payload
+        in: body
+        name: claim
+        required: true
+        schema:
+          $ref: '#/definitions/userclaim.UserClaimRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Create or update a custom claim for a user
+      tags:
+      - admin-user-claims
+  /admin/api/users/{id}/claims/{name}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Claim name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Delete a custom claim from a user
+      tags:
+      - admin-user-claims
   /admin/api/users/{id}/deactivate:
     post:
       description: Soft-disables a user account, immediately revoking all tokens and
@@ -3094,6 +3250,42 @@ paths:
       security:
       - AdminAuth: []
       summary: Unlock user account
+      tags:
+      - admin-users
+  /admin/api/users/lookup:
+    post:
+      consumes:
+      - application/json
+      description: Resolves a list of user IDs, emails, and/or usernames into full
+        user profiles in a single call. Maximum 100 identifiers total across all fields
+        per request. Designed for external systems (e.g. ABAC policy engines) that
+        need to resolve known identifiers into user data. Returns both matched users
+        and any identifiers that could not be found.
+      parameters:
+      - description: Lookup request with IDs, emails, and/or usernames
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LookupUsersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-user_LookupUsersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - AdminAuth: []
+      summary: Batch lookup users by identifiers
       tags:
       - admin-users
   /healthz:

@@ -233,6 +233,19 @@ func TestHandleWellKnownConfig_GroupsScope(t *testing.T) {
 	assert.Contains(t, response.ScopesSupported, "groups", "groups must be in scopes_supported")
 }
 
+func TestHandleWellKnownConfig_CustomClaimsScope(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
+	rr := httptest.NewRecorder()
+
+	HandleWellKnownConfig(rr, req)
+
+	var response model.WellKnownConfigResponse
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	assert.Contains(t, response.ScopesSupported, "custom_claims", "custom_claims must be in scopes_supported")
+}
+
 func TestHandleWellKnownConfig_GroupsClaim(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", nil)
 	rr := httptest.NewRecorder()
