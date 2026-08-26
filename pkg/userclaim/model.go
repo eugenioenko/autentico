@@ -20,6 +20,12 @@ const maxClaimValueLength = 4096
 // JWT/OIDC claims whose meaning is fixed, plus every claim Autentico already emits
 // into its access tokens, ID tokens, or UserInfo responses. OIDC Core §5.1.2 /
 // RFC 9068 §2.2.2: additional claims must not collide with standard claims.
+//
+// Known gap: this does not block registered claims that Autentico happens not to
+// emit today (e.g. cnf, roles, entitlements, act). The token builder's
+// "never override an existing claim" guard does not cover these because Autentico
+// never sets them, so a relying party could treat an admin-set value as genuine.
+// Tracked in issue #399.
 var reservedClaimNames = map[string]bool{
 	// Structural JWT / OIDC claims
 	"iss": true, "sub": true, "aud": true, "exp": true, "iat": true, "nbf": true,
