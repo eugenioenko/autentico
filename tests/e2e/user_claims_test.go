@@ -87,6 +87,42 @@ func TestUserClaims_AdminCRUD(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp3.StatusCode)
 }
 
+// TestUserClaims_DeleteNamespacedName exercises the {name...} route through the
+// real mux: a namespaced claim name contains "//", which net/http.ServeMux
+// path-cleans and 301-redirects unless the client percent-encodes it.
+func TestUserClaims_DeleteNamespacedName(t *testing.T) {
+	ts := startTestServer(t)
+	_, adminToken := createTestAdmin(t, ts, "ccnsadmin", "password123", "ccns@test.com")
+	usr := createTestUser(t, "ccnsuser", "password123", "ccnsuser@test.com")
+
+	const name = "https://app.example.com/tier"
+	adminUpsertClaim(t, ts, adminToken, usr.ID, name, "gold")
+
+	req, _ := http.NewRequest("DELETE",
+		ts.BaseURL+"/admin/api/users/"+usr.ID+"/claims/"+url.PathEscape(name), nil)
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	claims := listUserClaims(t, ts, adminToken, usr.ID)
+	assert.Empty(t, claims)
+}
+
+func listUserClaims(t *testing.T, ts *TestServer, adminToken, userID string) []userclaim.UserClaimResponse {
+	t.Helper()
+	req, _ := http.NewRequest("GET", ts.BaseURL+"/admin/api/users/"+userID+"/claims", nil)
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	var listResp model.ApiResponse[[]userclaim.UserClaimResponse]
+	require.NoError(t, json.Unmarshal(body, &listResp))
+	return listResp.Data
+}
+
 func TestUserClaims_EmittedWithScope(t *testing.T) {
 	ts := startTestServer(t)
 	_, adminToken := createTestAdmin(t, ts, "ccadmin2", "password123", "ccadmin2@test.com")

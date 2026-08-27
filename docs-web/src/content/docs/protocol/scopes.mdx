@@ -83,4 +83,4 @@ The scopes are recorded on the authorization code and propagated to the token re
 
 When registering a client, set its allowed scopes via the `scopes` field. If omitted, the client defaults to `openid profile email`. The authorization request can request any subset of the client's allowed scopes.
 
-To emit custom claims, the client must include `custom_claims` in its `scopes` and request it; otherwise the request is rejected like any other disallowed scope.
+Custom claims are emitted only when the request includes the `custom_claims` scope. Omitting it is fine: the request succeeds and no custom claims are returned. Requesting it when the client's `scopes` do not list `custom_claims` is rejected like any other disallowed scope (`invalid_scope`).

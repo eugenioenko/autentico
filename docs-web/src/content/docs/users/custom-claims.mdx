@@ -54,7 +54,7 @@ All custom claim endpoints require admin authentication.
 |---|---|---|
 | `GET` | `/admin/api/users/{id}/claims` | List a user's custom claims |
 | `POST` | `/admin/api/users/{id}/claims` | Create or update one custom claim |
-| `DELETE` | `/admin/api/users/{id}/claims/{name}` | Remove one custom claim |
+| `DELETE` | `/admin/api/users/{id}/claims/{name...}` | Remove one custom claim |
 
 ### List a user's claims
 
@@ -97,7 +97,7 @@ curl -X DELETE https://auth.example.com/admin/api/users/$USER_ID/claims/tier \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-For a namespaced claim name, pass it as the remaining path (`.../claims/https://app.example.com/tier`). Returns `404 Not Found` if the claim does not exist.
+The name is the rest of the path. For a namespaced claim name, percent-encode the slashes as `%2F` (e.g. `.../claims/https:%2F%2Fapp.example.com%2Ftier`) — sent raw, the `//` is path-cleaned and the request is redirected. Returns `404 Not Found` if the claim does not exist.
 
 ## Database table
 

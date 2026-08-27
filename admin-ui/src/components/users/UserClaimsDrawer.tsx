@@ -84,7 +84,13 @@ export default function UserClaimsDrawer({
           okText="Remove"
           okButtonProps={{ danger: true }}
         >
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          <Button
+            type="text"
+            size="small"
+            danger
+            aria-label={`Remove claim ${record.name}`}
+            icon={<DeleteOutlined />}
+          />
         </Popconfirm>
       ),
     },
@@ -138,7 +144,7 @@ export default function UserClaimsDrawer({
             style={{ display: "block", marginTop: 8, fontSize: 12 }}
           >
             Emitted into tokens and UserInfo when the client is granted the{" "}
-            <code>custom_claims</code> scope. Standard claim names are rejected.
+            <code>custom_claims</code> scope.
           </Typography.Text>
         </div>
 

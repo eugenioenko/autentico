@@ -52,6 +52,12 @@ func TestValidateUserClaimRequest_ValueTooLong(t *testing.T) {
 	assert.Contains(t, err.Error(), "value is invalid")
 }
 
+func TestValidateUserClaimRequest_ValueLengthCountsRunesNotBytes(t *testing.T) {
+	// maxClaimValueLength multi-byte runes = 3x that in bytes; must still pass.
+	err := ValidateUserClaimRequest(UserClaimRequest{Name: "tier", Value: strings.Repeat("é", maxClaimValueLength)})
+	assert.NoError(t, err)
+}
+
 func TestIsReservedClaimName(t *testing.T) {
 	assert.True(t, IsReservedClaimName("sub"))
 	assert.True(t, IsReservedClaimName("  GROUPS  "))

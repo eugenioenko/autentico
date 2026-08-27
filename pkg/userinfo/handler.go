@@ -163,11 +163,14 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §5.3.2: additional (non-standard) claims MAY be returned from UserInfo.
 	// Gated behind the "custom_claims" scope; never overrides a standard claim set above.
 	if containsScope(scope, "custom_claims") {
-		if custom, err := userclaim.ClaimMapByUserID(*tok.UserID); err == nil {
-			for name, value := range custom {
-				if _, taken := response[name]; !taken {
-					response[name] = value
-				}
+		custom, err := userclaim.ClaimMapByUserID(*tok.UserID)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Unable to fetch user information")
+			return
+		}
+		for name, value := range custom {
+			if _, taken := response[name]; !taken {
+				response[name] = value
 			}
 		}
 	}

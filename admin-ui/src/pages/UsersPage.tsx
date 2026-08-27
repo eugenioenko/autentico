@@ -305,6 +305,7 @@ export default function UsersPage() {
             type="text"
             size="small"
             icon={<IdcardOutlined />}
+            aria-label={`Custom claims for ${record.username}`}
             onClick={() => setClaimsUser(record)}
           />
           <Button

@@ -293,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 21 tables (SchemaVersion 11):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables listed below (SchemaVersion 11):
 
 | Table | Purpose |
 |-------|---------|

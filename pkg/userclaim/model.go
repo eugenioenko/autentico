@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	validation "github.com/go-ozzo/ozzo-validation"
 )
@@ -80,7 +81,7 @@ func ValidateUserClaimRequest(input UserClaimRequest) error {
 	if IsReservedClaimName(input.Name) {
 		return fmt.Errorf("name is invalid: %q is a reserved claim name", input.Name)
 	}
-	if len(input.Value) > maxClaimValueLength {
+	if utf8.RuneCountInString(input.Value) > maxClaimValueLength {
 		return fmt.Errorf("value is invalid: must be at most %d characters", maxClaimValueLength)
 	}
 	return nil

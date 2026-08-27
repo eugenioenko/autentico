@@ -356,6 +356,9 @@ Composite primary key on `(user_id, claim_name)` -- one row per pair.
 | 5 | `005_nullable_token_user_id.go` | Rebuilds `tokens` table to make `user_id` nullable (for client_credentials grant) |
 | 6 | `006_idp_session_linkage.go` | Adds `idp_session_id` column to `auth_codes` and `sessions` tables |
 | 7 | `007_user_consents.go` | Adds `consent_required` column to `clients` and creates `user_consents` table |
+| 8 | `008_device_codes.go` | Creates `device_codes` table for the device authorization grant |
+| 9 | `009_magic_link_tokens.go` | Creates `magic_link_tokens` table for passwordless email login |
+| 10 | `010_nullable_passkey_challenge_user_id.go` | Rebuilds `passkey_challenges` to make `user_id` nullable (for discoverable login) |
 | 11 | `011_user_claims.go` | Creates `user_claims` table for custom per-user claims |
 
 ## Indexes
