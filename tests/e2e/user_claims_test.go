@@ -215,3 +215,69 @@ func TestUserClaims_RefreshReReadsLive(t *testing.T) {
 	atClaims := decodeJWTPayload(t, refreshed.AccessToken)
 	assert.Equal(t, "platinum", atClaims["tier"], "refreshed token must reflect the current claim value")
 }
+
+func TestUserClaims_DroppedOnRefreshDownscope(t *testing.T) {
+	ts := startTestServer(t)
+	_, adminToken := createTestAdmin(t, ts, "ccadmin5", "password123", "ccadmin5@test.com")
+	usr := createTestUser(t, "ccuser4", "password123", "ccuser4@test.com")
+
+	adminUpsertClaim(t, ts, adminToken, usr.ID, "tier", "gold")
+	tr := passwordToken(t, ts, "ccuser4", "password123", "openid custom_claims offline_access")
+
+	// Refresh narrowing the scope to drop custom_claims.
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
+	form.Set("refresh_token", tr.RefreshToken)
+	form.Set("scope", "openid")
+	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	require.Equal(t, http.StatusOK, resp.StatusCode, "refresh failed: %s", string(body))
+	var refreshed token.TokenResponse
+	require.NoError(t, json.Unmarshal(body, &refreshed))
+
+	assert.Nil(t, decodeJWTPayload(t, refreshed.AccessToken)["tier"],
+		"custom claims must be gone once custom_claims is dropped on refresh")
+	assert.Nil(t, decodeJWTPayload(t, refreshed.IDToken)["tier"])
+}
+
+func TestUserClaims_NotInIntrospectionResponse(t *testing.T) {
+	ts := startTestServer(t)
+	_, adminToken := createTestAdmin(t, ts, "ccadmin6", "password123", "ccadmin6@test.com")
+	usr := createTestUser(t, "ccuser5", "password123", "ccuser5@test.com")
+	adminUpsertClaim(t, ts, adminToken, usr.ID, "tier", "gold")
+
+	// ROPC on the confidential client so it can introspect its own token.
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("username", "ccuser5")
+	form.Set("password", "password123")
+	form.Set("scope", "openid custom_claims")
+	tokReq, _ := http.NewRequest("POST", ts.BaseURL+"/oauth2/token", strings.NewReader(form.Encode()))
+	tokReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokReq.SetBasicAuth("e2e-confidential", "e2e-secret")
+	tokResp, err := ts.Client.Do(tokReq)
+	require.NoError(t, err)
+	defer func() { _ = tokResp.Body.Close() }()
+	tb, _ := io.ReadAll(tokResp.Body)
+	require.Equal(t, http.StatusOK, tokResp.StatusCode, "token: %s", string(tb))
+	var tr token.TokenResponse
+	require.NoError(t, json.Unmarshal(tb, &tr))
+	require.Equal(t, "gold", decodeJWTPayload(t, tr.AccessToken)["tier"], "sanity: claim is in the token")
+
+	iForm := url.Values{}
+	iForm.Set("token", tr.AccessToken)
+	iReq, _ := http.NewRequest("POST", ts.BaseURL+"/oauth2/introspect", strings.NewReader(iForm.Encode()))
+	iReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	iReq.SetBasicAuth("e2e-confidential", "e2e-secret")
+	iResp, err := ts.Client.Do(iReq)
+	require.NoError(t, err)
+	defer func() { _ = iResp.Body.Close() }()
+	ib, _ := io.ReadAll(iResp.Body)
+	var introspect map[string]interface{}
+	require.NoError(t, json.Unmarshal(ib, &introspect))
+	assert.True(t, introspect["active"].(bool), "sanity: token is active: %s", string(ib))
+	assert.NotContains(t, introspect, "tier", "introspection must not surface custom claims")
+}

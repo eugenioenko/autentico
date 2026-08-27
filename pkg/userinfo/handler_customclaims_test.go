@@ -59,3 +59,30 @@ func TestHandleUserInfo_CustomClaims_AbsentWithoutScope(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
 	assert.NotContains(t, body, "tier")
 }
+
+func TestHandleUserInfo_CustomClaims_CannotOverrideStandardClaim(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	userID := xid.New().String()
+	_, err := db.GetDB().Exec(`INSERT INTO users (id, username, email, password) VALUES (?, 'ccuser3', 'cc3@example.com', 'pass')`, userID)
+	require.NoError(t, err)
+	// Direct insert bypasses write-time reserved-name rejection.
+	_, err = db.GetDB().Exec(`INSERT INTO user_claims (user_id, claim_name, claim_value) VALUES (?, 'sub', 'evil')`, userID)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(`INSERT INTO user_claims (user_id, claim_name, claim_value) VALUES (?, 'email', 'attacker@example.com')`, userID)
+	require.NoError(t, err)
+
+	token, err := generateTestTokensWithScope(userID, "openid email custom_claims")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	HandleUserInfo(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+	assert.Equal(t, userID, body["sub"], "custom claim must never override the real sub")
+	assert.Equal(t, "cc3@example.com", body["email"], "custom claim must never override the real email")
+}

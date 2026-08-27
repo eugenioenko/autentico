@@ -83,7 +83,7 @@ func startTestServer(t *testing.T) *TestServer {
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("e2e-secret"), bcrypt.MinCost)
 	_, err = db.GetDB().Exec(`
 		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
-		VALUES ('e2e-conf-id', 'e2e-confidential', 'E2E Confidential Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups', TRUE)
+		VALUES ('e2e-conf-id', 'e2e-confidential', 'E2E Confidential Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups custom_claims', TRUE)
 	`, string(hashedSecret))
 	if err != nil {
 		t.Fatalf("Failed to seed e2e-confidential client: %v", err)

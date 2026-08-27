@@ -51,6 +51,12 @@ func TestValidateUserClaimRequest_InvalidName(t *testing.T) {
 	}
 }
 
+func TestValidateUserClaimRequest_NameTooLong(t *testing.T) {
+	err := ValidateUserClaimRequest(UserClaimRequest{Name: "a" + strings.Repeat("b", 128), Value: "x"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "name is invalid")
+}
+
 func TestValidateUserClaimRequest_ValueTooLong(t *testing.T) {
 	err := ValidateUserClaimRequest(UserClaimRequest{Name: "tier", Value: strings.Repeat("a", maxClaimValueLength+1)})
 	assert.Error(t, err)
