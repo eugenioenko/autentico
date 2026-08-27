@@ -19,8 +19,6 @@ export async function deleteUserClaim(
   userId: string,
   name: string
 ): Promise<void> {
-  // Claim names may be namespaced URIs containing "/". Sent raw, net/http.ServeMux
-  // path-cleans the "//" and 301-redirects, breaking the delete. Percent-encode the
-  // whole name; the {name...} route decodes it back on the server.
+  // encoded: names may be namespaced URIs; raw "//" gets path-cleaned + redirected
   await apiClient.delete(`${base(userId)}/${encodeURIComponent(name)}`);
 }
