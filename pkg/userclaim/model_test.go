@@ -29,7 +29,12 @@ func TestValidateUserClaimRequest_EmptyValueAllowed(t *testing.T) {
 }
 
 func TestValidateUserClaimRequest_ReservedNames(t *testing.T) {
-	for _, name := range []string{"sub", "iss", "aud", "exp", "email", "email_verified", "groups", "role", "scope", "SUB", "Email"} {
+	for _, name := range []string{
+		"sub", "iss", "aud", "exp", "email", "email_verified", "groups", "role", "scope", "SUB", "Email",
+		// registered claims Autentico does not emit but a relying party may trust
+		"cnf", "roles", "entitlements", "act", "may_act", "authorization_details",
+		"verified_claims", "vc", "_claim_sources", "sub_jwk", "ATH",
+	} {
 		t.Run(name, func(t *testing.T) {
 			err := ValidateUserClaimRequest(UserClaimRequest{Name: name, Value: "x"})
 			assert.Error(t, err)

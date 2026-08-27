@@ -369,7 +369,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — ✅ Fixed (PR #108) |
 | §5.4 | MAY include email claims in ID token when `email` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added (issue #220) |
 | §5.4 | MAY include `given_name`, `family_name` in ID token when `profile` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added |
-| §5.1.2 | Additional (non-standard) claims MAY be used alongside standard claims; collision-resistant / private names RECOMMENDED | `pkg/userclaim` — custom claims gated behind `custom_claims` scope; reserved standard/structural names rejected on write; the name pattern permits namespaced URIs but bare names are allowed. ✅ Added (issue #388) |
+| §5.1.2 | Additional (non-standard) claims MAY be used alongside standard claims; collision-resistant / private names RECOMMENDED | `pkg/userclaim` — custom claims gated behind `custom_claims` scope; every name in the IANA JWT Claims registry (identity/security/authz) is rejected on write; the name pattern also permits namespaced URIs. ✅ Added (issue #388) |
 | RFC 9068 §2.2.2 | AS MAY return arbitrary attributes in access tokens for private-subsystem / scope-gated use | `pkg/token/generate.go` `GenerateTokens` — custom claims emitted only when `custom_claims` scope granted; never override a claim already set. ✅ Added (issue #388) |
 | §5.1 | Claims with empty values are omitted, not returned as null | `pkg/token/generate.go` `GenerateIDToken` — ✅ Enforced for `given_name`, `family_name` |
 | RFC 9068 §2.2 | Access tokens SHOULD NOT carry personal data not needed for authorization | `pkg/token/generate.go` `GenerateTokens` — ✅ `given_name`/`family_name` removed from access token; available via ID token and UserInfo |
@@ -389,7 +389,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MAY | §5.4 | Email claims returned in ID token when `email` scope requested | ✅ Added (issue #220) — mirrors Google/Auth0/Okta behavior |
 | MAY | §5.4 | `given_name`, `family_name` returned in ID token when `profile` scope requested | ✅ Added — mirrors Google/Keycloak/Auth0 behavior |
 | MAY | §5.1.2 | Non-standard custom claims in ID token / access token / UserInfo | ✅ Added (issue #388) — gated behind `custom_claims` scope; reserved names rejected on write |
-| SHOULD | §5.1.2 | Collision-resistant / private names for additional claims | ⚠️ Partial — reserved standard/structural names rejected on write; namespaced names supported and recommended but not enforced (bare names like `tier` are allowed) |
+| SHOULD | §5.1.2 | Collision-resistant / private names for additional claims | ✅ Registered claim names (full IANA JWT Claims registry) rejected on write; namespaced names supported. Bare non-registered names like `tier` are allowed by design (private-subsystem use) |
 | SHOULD | §3.1.3.6 | `at_hash` in ID token from token endpoint | ✅ Implemented (2026-04-08) — PR #165 |
 | SHOULD | §3.1.3.7 | `azp` present in ID token | ✅ Verified + annotated (2026-03-30) |
 | SHOULD | §11 | `offline_access` only with `prompt=consent` | ⏭ Skipped — refresh tokens always issued by design |
