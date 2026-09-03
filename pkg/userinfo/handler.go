@@ -10,6 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -156,6 +157,21 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		groupNames, err := group.GroupNamesByUserID(*tok.UserID)
 		if err == nil && len(groupNames) > 0 {
 			response["groups"] = groupNames
+		}
+	}
+
+	// OIDC Core §5.3.2: additional (non-standard) claims MAY be returned from UserInfo.
+	// Gated behind the "custom_claims" scope; never overrides a standard claim set above.
+	if containsScope(scope, "custom_claims") {
+		custom, err := userclaim.ClaimMapByUserID(*tok.UserID)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Unable to fetch user information")
+			return
+		}
+		for name, value := range custom {
+			if _, taken := response[name]; !taken {
+				response[name] = value
+			}
 		}
 	}
 

@@ -136,6 +136,8 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Per-client configuration overrides** — token TTLs, allowed audiences, self-signup, session idle timeout, and trusted device settings can be tuned per client without touching global defaults
 - **Self-signup** — optionally allow end users to register accounts on the login page, globally or per client
 - **User CRUD** — full user lifecycle management with role support (`user`, `admin`)
+- **Custom claims** — assign arbitrary key/value claims to a user; emitted into the ID token, access token, and UserInfo response when the `custom_claims` scope is granted
+- **User groups** — organize users into groups; group names are emitted as a `groups` claim when the `groups` scope is granted
 - **Soft deletes** — users and clients are deactivated, not destroyed, preserving audit history
 - **Account self-service** — users can manage their own profile, security settings, sessions, passkeys, MFA, and connected providers via the built-in Account UI
 
@@ -184,6 +186,7 @@ Each package in `pkg/` owns a vertical slice of IdP functionality. The conventio
 | `pkg/idpsession`    | IdP-level SSO sessions — cross-request browser sessions                          |
 | `pkg/client`        | OAuth2 client registration, CRUD, and authentication                             |
 | `pkg/user`          | User identity management — CRUD, authentication, lockout                         |
+| `pkg/userclaim`     | Custom per-user claims — CRUD and token/UserInfo embedding                        |
 | `pkg/signup`        | Self-service user registration flow                                              |
 | `pkg/onboarding`    | First-run admin account creation                                                 |
 | `pkg/appsettings`   | Runtime settings — DB persistence, loading into config                           |

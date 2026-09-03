@@ -16,6 +16,7 @@ Scopes control which claims are included in the ID token and returned from the U
 | `phone` | `phone_number`, `phone_number_verified` |
 | `offline_access` | No additional claims — enables refresh token issuance so the client can obtain new access tokens without user interaction |
 | `groups` | `groups` — an array of group names the user belongs to |
+| `custom_claims` | Every custom claim assigned to the user by an admin, merged into the ID token, access token, and UserInfo response (see [Custom Claims](/users/custom-claims/)) |
 
 Always request `openid` to get an ID token. Add `profile` and `email` to include those claims.
 
@@ -81,3 +82,5 @@ The scopes are recorded on the authorization code and propagated to the token re
 ## Default scopes for clients
 
 When registering a client, set its allowed scopes via the `scopes` field. If omitted, the client defaults to `openid profile email`. The authorization request can request any subset of the client's allowed scopes.
+
+Custom claims are emitted only when the request includes the `custom_claims` scope. Omitting it is fine: the request succeeds and no custom claims are returned. Requesting it when the client's `scopes` do not list `custom_claims` is rejected like any other disallowed scope (`invalid_scope`).

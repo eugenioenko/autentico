@@ -242,6 +242,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/token` | `/oauth2/token` — code exchange, refresh token grant, ROPC, client credentials |
 | `pkg/trusteddevice` | Trusted device tokens — MFA bypass cookie management |
 | `pkg/user` | User CRUD, bcrypt password hashing, account lockout, TOTP secret storage |
+| `pkg/userclaim` | Custom per-user claims — admin CRUD + merge into tokens/UserInfo when `custom_claims` scope granted |
 | `pkg/userinfo` | `/oauth2/userinfo` endpoint |
 | `pkg/utils` | Shared helpers: response writers, bearer token extraction, redirect URI validation, SHA-256 hashing, client IP |
 | `pkg/wellknown` | `/.well-known/openid-configuration` and `/oauth2/.well-known/jwks.json` |
@@ -292,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables (SchemaVersion 7):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables listed below (SchemaVersion 11):
 
 | Table | Purpose |
 |-------|---------|
@@ -315,6 +316,7 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables 
 | `groups` | User groups (migration 004) |
 | `user_groups` | Group membership join table (migration 004) |
 | `user_consents` | Stored OAuth2 consent decisions per user+client+scopes (migration 007) |
+| `user_claims` | Custom per-user claims — one row per `(user_id, claim_name)` (migration 011) |
 
 **SQLite driver:** `modernc.org/sqlite` (NOT `mattn/go-sqlite3`). Scanning SQL NULL into a plain `string` causes an error — always use `*string` or provide explicit `""` in test fixtures for nullable string columns.
 

@@ -331,6 +331,20 @@ Stored OAuth2 consent decisions per user and client. Added in migration 007.
 
 Unique constraint on `(user_id, client_id)`. When a user approves a consent screen, the decision is stored here. Subsequent logins skip the consent screen unless the requested scopes change.
 
+### `user_claims`
+
+Custom per-user claims emitted when the `custom_claims` scope is granted. Added in migration 011.
+
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | TEXT FK | -> users (ON DELETE CASCADE) |
+| `claim_name` | TEXT | |
+| `claim_value` | TEXT | String value |
+| `created_at` | DATETIME | |
+| `updated_at` | DATETIME | |
+
+Composite primary key on `(user_id, claim_name)` -- one row per pair.
+
 ## Migrations
 
 | Version | File | Description |
@@ -342,6 +356,10 @@ Unique constraint on `(user_id, client_id)`. When a user approves a consent scre
 | 5 | `005_nullable_token_user_id.go` | Rebuilds `tokens` table to make `user_id` nullable (for client_credentials grant) |
 | 6 | `006_idp_session_linkage.go` | Adds `idp_session_id` column to `auth_codes` and `sessions` tables |
 | 7 | `007_user_consents.go` | Adds `consent_required` column to `clients` and creates `user_consents` table |
+| 8 | `008_device_codes.go` | Creates `device_codes` table for the device authorization grant |
+| 9 | `009_magic_link_tokens.go` | Creates `magic_link_tokens` table for passwordless email login |
+| 10 | `010_nullable_passkey_challenge_user_id.go` | Rebuilds `passkey_challenges` to make `user_id` nullable (for discoverable login) |
+| 11 | `011_user_claims.go` | Creates `user_claims` table for custom per-user claims |
 
 ## Indexes
 
@@ -365,3 +383,4 @@ The following indexes are created across migrations:
 - `idx_user_groups_group_id` on `user_groups(group_id)`
 - `idx_auth_codes_idp_session_id` on `auth_codes(idp_session_id)`
 - `idx_user_consents_user_client` on `user_consents(user_id, client_id)`
+- `idx_user_claims_user_id` on `user_claims(user_id)`

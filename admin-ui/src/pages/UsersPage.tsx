@@ -21,6 +21,7 @@ import {
   UnlockOutlined,
   TeamOutlined,
   LaptopOutlined,
+  IdcardOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
@@ -33,6 +34,7 @@ import type { UserResponseExt } from "../types/user";
 import UserCreateForm from "../components/users/UserCreateForm";
 import UserEditForm from "../components/users/UserEditForm";
 import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
+import UserClaimsDrawer from "../components/users/UserClaimsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
 import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
 import { useTableScrollY } from "../hooks/useTableScrollY";
@@ -72,6 +74,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponseExt | null>(null);
   const [groupsUser, setGroupsUser] = useState<UserResponseExt | null>(null);
+  const [claimsUser, setClaimsUser] = useState<UserResponseExt | null>(null);
   const [sessionsUser, setSessionsUser] = useState<UserResponseExt | null>(null);
 
   useEffect(() => {
@@ -301,6 +304,13 @@ export default function UsersPage() {
           <Button
             type="text"
             size="small"
+            icon={<IdcardOutlined />}
+            aria-label={`Custom claims for ${record.username}`}
+            onClick={() => setClaimsUser(record)}
+          />
+          <Button
+            type="text"
+            size="small"
             icon={<LaptopOutlined />}
             onClick={() => setSessionsUser(record)}
           />
@@ -426,6 +436,12 @@ export default function UsersPage() {
         userId={groupsUser?.id ?? null}
         username={groupsUser?.username ?? ""}
         onClose={() => setGroupsUser(null)}
+      />
+      <UserClaimsDrawer
+        open={!!claimsUser}
+        userId={claimsUser?.id ?? null}
+        username={claimsUser?.username ?? ""}
+        onClose={() => setClaimsUser(null)}
       />
 
       <UserSessionsDrawer

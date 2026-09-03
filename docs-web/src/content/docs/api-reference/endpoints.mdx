@@ -95,6 +95,9 @@ All admin endpoints require a bearer token with admin role.
 | POST | `/admin/api/users/{id}/unlock` | Unlock locked user account |
 | POST | `/admin/api/users/{id}/revoke-sessions` | Revoke all sessions for a user |
 | GET | `/admin/api/users/{id}/groups` | List groups a user belongs to |
+| GET | `/admin/api/users/{id}/claims` | List a user's custom claims |
+| POST | `/admin/api/users/{id}/claims` | Create or update a custom claim |
+| DELETE | `/admin/api/users/{id}/claims/{name...}` | Remove a custom claim (the name is the rest of the path; percent-encode `/` as `%2F` for namespaced names) |
 | GET | `/admin/api/users/{id}/idp-sessions` | List IdP sessions for a user |
 
 ### Clients

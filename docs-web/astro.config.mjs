@@ -120,6 +120,7 @@ export default defineConfig({
 						{ label: 'Managing Users', link: '/users/managing-users/' },
 						{ label: 'Self-Signup', link: '/users/self-signup/' },
 						{ label: 'Groups', link: '/users/groups/' },
+						{ label: 'Custom Claims', link: '/users/custom-claims/' },
 						{ label: 'Account Lockout', link: '/users/account-lockout/' },
 						{ label: 'Account Deletion', link: '/users/account-deletion/' },
 					],

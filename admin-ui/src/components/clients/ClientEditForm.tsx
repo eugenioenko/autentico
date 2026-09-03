@@ -55,6 +55,8 @@ const SCOPE_OPTIONS = [
   { label: "address", value: "address" },
   { label: "phone", value: "phone" },
   { label: "offline_access", value: "offline_access" },
+  { label: "groups", value: "groups" },
+  { label: "custom_claims", value: "custom_claims" },
 ];
 
 export default function ClientEditForm({

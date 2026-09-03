@@ -47,7 +47,7 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer),   // RFC 8414 §2 / RFC 7591
 		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),     // RP-Initiated Logout 1.0 §2.1
 		ScopesSupported: []string{                                  // RFC 8414 §2: RECOMMENDED
-			"openid", "profile", "email", "address", "phone", "offline_access", "groups",
+			"openid", "profile", "email", "address", "phone", "offline_access", "groups", "custom_claims",
 		},
 		TokenEndpointAuthMethodsSupported: []string{                // RFC 8414 §2: OPTIONAL
 			"client_secret_basic", "client_secret_post",

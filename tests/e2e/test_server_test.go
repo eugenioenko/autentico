@@ -26,6 +26,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
 	"github.com/gorilla/csrf"
@@ -54,7 +55,7 @@ func startTestServer(t *testing.T) *TestServer {
 	// Seed the shared "test-client" used across E2E tests
 	_, err = db.GetDB().Exec(`
 		INSERT INTO clients (id, client_id, client_name, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
-		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups', TRUE)
+		VALUES ('test-client-id', 'test-client', 'E2E Test Client', 'public', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups custom_claims', TRUE)
 	`)
 	if err != nil {
 		t.Fatalf("Failed to seed test-client: %v", err)
@@ -82,7 +83,7 @@ func startTestServer(t *testing.T) *TestServer {
 	hashedSecret, _ := bcrypt.GenerateFromPassword([]byte("e2e-secret"), bcrypt.MinCost)
 	_, err = db.GetDB().Exec(`
 		INSERT INTO clients (id, client_id, client_name, client_secret, client_type, redirect_uris, post_logout_redirect_uris, grant_types, response_types, scopes, is_active)
-		VALUES ('e2e-conf-id', 'e2e-confidential', 'E2E Confidential Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups', TRUE)
+		VALUES ('e2e-conf-id', 'e2e-confidential', 'E2E Confidential Client', ?, 'confidential', '["http://localhost:3000/callback"]', '[]', '["authorization_code","password","refresh_token"]', '["code","token"]', 'openid profile email offline_access groups custom_claims', TRUE)
 	`, string(hashedSecret))
 	if err != nil {
 		t.Fatalf("Failed to seed e2e-confidential client: %v", err)
@@ -199,6 +200,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("POST /admin/api/groups/{id}/members", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleAddMember)))
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleRemoveMember)))
 	mux.Handle("GET /admin/api/users/{id}/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleGetUserGroups)))
+	mux.Handle("GET /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleListUserClaims)))
+	mux.Handle("POST /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleUpsertUserClaim)))
+	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleDeleteUserClaim)))
 
 	// Apply CORS + logging middleware and start server
 	server.Config.Handler = middleware.CORSMiddleware(middleware.LoggingMiddleware(mux))
