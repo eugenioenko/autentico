@@ -65,6 +65,10 @@ curl -s http://localhost:9999/admin/api/clients \
 
 **Important:** `onboard` must run before the first `start` seeds the admin client, or on a fresh DB. The `--enable-admin-password-grant` flag adds the `password` grant type to `autentico-admin`. If the client already exists without it, delete the DB and re-onboard.
 
+## API Fuzzing (Schemathesis)
+
+`make schemathesis` runs property-based, spec-driven fuzzing of the HTTP API against a throwaway server. Two profiles: `public` (unauthenticated, non-admin paths) and `admin` (clean ROPC bearer token, `/admin/api/*` minus `/admin/api/settings*`). Requires Docker; Linux only. Override with `PROFILE=public|admin`, `MAX_EXAMPLES`, `ST_ARGS`. JUnit reports land in `schemathesis/report/` (gitignored). CI: `.github/workflows/schemathesis.yml`, `workflow_dispatch` only. See `schemathesis/README.md`.
+
 ## Playwright MCP (Browser Testing)
 
 The Playwright MCP server provides browser automation tools (`mcp__playwright__*`) for testing UI flows.
