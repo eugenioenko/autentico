@@ -145,6 +145,7 @@ export default defineConfig({
 						{ label: 'PKCE Flow Walkthrough', link: '/integrate/pkce-walkthrough/' },
 						{ label: 'Verifying Tokens', link: '/integrate/verifying-tokens/' },
 						{ label: 'Federation / Social Login', link: '/integrate/federation/' },
+						{ label: 'OpenCloud', link: '/integrate/opencloud/' },
 						{ label: 'Test Fixture', link: '/integrate/test-fixture/' },
 					],
 				},

@@ -7,6 +7,10 @@ import { Aside } from '@astrojs/starlight/components';
 
 Custom claims let an admin attach arbitrary `name` / `value` pairs to a user. When the `custom_claims` scope is granted, those pairs are merged into the user's ID token, access token, and UserInfo response. Use them to carry application-specific attributes (tenant, tier, department, entitlements) that Autentico does not model natively.
 
+<Aside type="tip">
+For a worked example, see [OpenCloud](/integrate/opencloud/): it uses a `opencloudRoles` custom claim to drive automatic role assignment.
+</Aside>
+
 ## Custom claims in tokens
 
 When the `custom_claims` scope is requested and granted, every custom claim assigned to the user is included in:
