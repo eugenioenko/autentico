@@ -3,6 +3,7 @@ package token
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -41,13 +42,21 @@ func buildAudience(issuer string, clientID string, customAudiences []string) []s
 	return aud
 }
 
-// addOpenCloudRoleClaim adds the role claim expected by OpenCloud's OIDC role
-// assignment driver when custom_claims is granted. An explicitly configured
-// opencloudRoles custom claim always takes precedence; otherwise Autentico's
-// built-in user.Role is exposed as a single-element role list.
+// addOpenCloudRoleClaim normalizes the optional opencloudRoles custom claim to
+// the list shape expected by OpenCloud. If the claim is absent, Autentico's
+// built-in user.Role is used as a single role. An explicit custom claim always
+// takes precedence over the built-in role.
 func addOpenCloudRoleClaim(claims map[string]interface{}, custom map[string]string, userRole string) {
-	if _, exists := custom["opencloudRoles"]; exists {
-		return
+	if raw, exists := custom["opencloudRoles"]; exists {
+		var roles []string
+		if err := json.Unmarshal([]byte(raw), &roles); err == nil && len(roles) > 0 {
+			claims["opencloudRoles"] = roles
+			return
+		}
+		if raw != "" {
+			claims["opencloudRoles"] = []string{raw}
+			return
+		}
 	}
 	if userRole != "" {
 		claims["opencloudRoles"] = []string{userRole}
@@ -63,7 +72,6 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(cfg.AuthRefreshTokenExpiration).UTC()
-
 	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
 
 	accessClaims := jwt.MapClaims{
@@ -86,19 +94,16 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		accessClaims["name"] = user.Username
 		accessClaims["preferred_username"] = user.Username
 	}
-
 	if containsScope(scope, "email") {
 		accessClaims["email"] = user.Email
 		accessClaims["email_verified"] = user.IsEmailVerified
 	}
-
 	if containsScope(scope, "groups") {
 		groupNames, err := group.GroupNamesByUserID(user.ID)
 		if err == nil && len(groupNames) > 0 {
 			accessClaims["groups"] = groupNames
 		}
 	}
-
 	if containsScope(scope, "custom_claims") {
 		custom, err := userclaim.ClaimMapByUserID(user.ID)
 		if err != nil {
@@ -106,6 +111,9 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		}
 		addOpenCloudRoleClaim(accessClaims, custom, user.Role)
 		for name, value := range custom {
+			if name == "opencloudRoles" {
+				continue
+			}
 			if _, taken := accessClaims[name]; !taken {
 				accessClaims[name] = value
 			}
@@ -132,16 +140,14 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		return nil, fmt.Errorf("could not sign refresh token: %v", err)
 	}
 
-	result := &AuthToken{
+	return &AuthToken{
 		UserID:           user.ID,
 		AccessToken:      signedAccessToken,
 		RefreshToken:     signedRefreshToken,
 		SessionID:        sessionID,
 		AccessExpiresAt:  accessTokenExpiresAt,
 		RefreshExpiresAt: refreshTokenExpiresAt,
-	}
-
-	return result, nil
+	}, nil
 }
 
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
@@ -149,7 +155,6 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
-
 	claims := jwt.MapClaims{
 		"iss":       bs.AppAuthIssuer,
 		"sub":       user.ID,
@@ -160,20 +165,16 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		"sid":       sessionID,
 		"acr":       "1",
 	}
-
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
-
 	if accessToken != "" {
 		hash := sha256.Sum256([]byte(accessToken))
 		claims["at_hash"] = base64.RawURLEncoding.EncodeToString(hash[:sha256.Size/2])
 	}
-
 	if clientID != "" {
 		claims["azp"] = clientID
 	}
-
 	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
@@ -184,19 +185,16 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 			claims["family_name"] = user.FamilyName
 		}
 	}
-
 	if containsScope(scope, "groups") {
 		groupNames, err := group.GroupNamesByUserID(user.ID)
 		if err == nil && len(groupNames) > 0 {
 			claims["groups"] = groupNames
 		}
 	}
-
 	if containsScope(scope, "email") {
 		claims["email"] = user.Email
 		claims["email_verified"] = user.IsEmailVerified
 	}
-
 	if containsScope(scope, "custom_claims") {
 		custom, err := userclaim.ClaimMapByUserID(user.ID)
 		if err != nil {
@@ -204,6 +202,9 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		}
 		addOpenCloudRoleClaim(claims, custom, user.Role)
 		for name, value := range custom {
+			if name == "opencloudRoles" {
+				continue
+			}
 			if _, taken := claims[name]; !taken {
 				claims[name] = value
 			}
@@ -212,12 +213,10 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 
 	idToken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	idToken.Header["kid"] = bs.AuthJwkCertKeyID
-
 	signedIDToken, err := idToken.SignedString(key.GetPrivateKey())
 	if err != nil {
 		return "", fmt.Errorf("could not sign id token: %v", err)
 	}
-
 	return signedIDToken, nil
 }
 
@@ -226,9 +225,7 @@ func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.C
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
-
 	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
-
 	accessClaims := jwt.MapClaims{
 		"exp":       accessTokenExpiresAt.Unix(),
 		"iat":       time.Now().Unix(),
@@ -243,14 +240,12 @@ func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.C
 		"acr":       "1",
 		"scope":     scope,
 	}
-
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, accessClaims)
 	accessToken.Header["kid"] = bs.AuthJwkCertKeyID
 	signedAccessToken, err := accessToken.SignedString(key.GetPrivateKey())
 	if err != nil {
 		return nil, fmt.Errorf("could not sign access token: %v", err)
 	}
-
 	return &AuthToken{
 		UserID:          "",
 		AccessToken:     signedAccessToken,
