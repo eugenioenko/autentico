@@ -11,6 +11,7 @@ import {
   Drawer,
   Descriptions,
   DatePicker,
+  Tooltip,
 } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
@@ -268,12 +269,15 @@ export default function AuditLogPage() {
       key: "actions",
       width: 50,
       render: (_: unknown, record: AuditLogEntry) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => setSelectedEntry(record)}
-        />
+        <Tooltip title="View details">
+          <Button
+            type="text"
+            size="small"
+            aria-label="View audit entry details"
+            icon={<EyeOutlined />}
+            onClick={() => setSelectedEntry(record)}
+          />
+        </Tooltip>
       ),
     },
   ];

@@ -8,6 +8,7 @@ import {
   Drawer,
   Descriptions,
   Input,
+  Tooltip,
   App,
 } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
@@ -183,7 +184,13 @@ export default function DeletionRequestsTab() {
           }}
           trigger={["click"]}
         >
-          <MoreOutlined style={{ fontSize: 16, cursor: "pointer" }} />
+          <Tooltip title="More actions">
+            <MoreOutlined
+              role="button"
+              aria-label="More actions"
+              style={{ fontSize: 16, cursor: "pointer" }}
+            />
+          </Tooltip>
         </Dropdown>
       ),
     },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Drawer, Select, Table, Button, Space, Typography, Popconfirm, App } from "antd";
+import { Drawer, Select, Table, Button, Space, Typography, Popconfirm, Tooltip, App } from "antd";
 import { UserDeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useGroups, useAddMember, useRemoveMember } from "../../hooks/useGroups";
@@ -68,14 +68,22 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
       key: "actions",
       width: 50,
       render: (_, record) => (
-        <Popconfirm
-          title="Remove from this group?"
-          onConfirm={() => handleRemove(record.id)}
-          okText="Remove"
-          okButtonProps={{ danger: true }}
-        >
-          <Button type="text" size="small" danger icon={<UserDeleteOutlined />} />
-        </Popconfirm>
+        <Tooltip title="Remove from group">
+          <Popconfirm
+            title="Remove from this group?"
+            onConfirm={() => handleRemove(record.id)}
+            okText="Remove"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              aria-label="Remove from group"
+              icon={<UserDeleteOutlined />}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

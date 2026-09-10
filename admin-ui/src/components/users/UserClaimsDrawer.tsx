@@ -7,6 +7,7 @@ import {
   Space,
   Typography,
   Popconfirm,
+  Tooltip,
   App,
 } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
@@ -78,20 +79,22 @@ export default function UserClaimsDrawer({
       key: "actions",
       width: 50,
       render: (_, record) => (
-        <Popconfirm
-          title="Remove this claim?"
-          onConfirm={() => handleDelete(record.name)}
-          okText="Remove"
-          okButtonProps={{ danger: true }}
-        >
-          <Button
-            type="text"
-            size="small"
-            danger
-            aria-label={`Remove claim ${record.name}`}
-            icon={<DeleteOutlined />}
-          />
-        </Popconfirm>
+        <Tooltip title="Remove claim">
+          <Popconfirm
+            title="Remove this claim?"
+            onConfirm={() => handleDelete(record.name)}
+            okText="Remove"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              aria-label={`Remove claim ${record.name}`}
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

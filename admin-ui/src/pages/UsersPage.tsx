@@ -286,53 +286,75 @@ export default function UsersPage() {
       key: "actions",
       render: (_, record) => (
         <Space>
-          <Popconfirm
-            title="Deactivate this user?"
-            description="The user will no longer be able to log in."
-            onConfirm={() => handleDelete(record.id!)}
-            okText="Deactivate"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<StopOutlined />} />
-          </Popconfirm>
-          <Button
-            type="text"
-            size="small"
-            icon={<TeamOutlined />}
-            onClick={() => setGroupsUser(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<IdcardOutlined />}
-            aria-label={`Custom claims for ${record.username}`}
-            onClick={() => setClaimsUser(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<LaptopOutlined />}
-            onClick={() => setSessionsUser(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => setEditUser(record)}
-          />
-          {isLocked(record) && (
+          <Tooltip title="Deactivate user">
             <Popconfirm
-              title="Unlock this user?"
-              description="This will reset failed login attempts and remove the lockout."
-              onConfirm={() => handleUnlock(record.id!)}
-              okText="Unlock"
+              title="Deactivate this user?"
+              description="The user will no longer be able to log in."
+              onConfirm={() => handleDelete(record.id!)}
+              okText="Deactivate"
+              okButtonProps={{ danger: true }}
             >
               <Button
                 type="text"
                 size="small"
-                icon={<UnlockOutlined />}
+                danger
+                aria-label="Deactivate user"
+                icon={<StopOutlined />}
               />
             </Popconfirm>
+          </Tooltip>
+          <Tooltip title="Manage groups">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Manage user groups"
+              icon={<TeamOutlined />}
+              onClick={() => setGroupsUser(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Custom claims">
+            <Button
+              type="text"
+              size="small"
+              icon={<IdcardOutlined />}
+              aria-label={`Custom claims for ${record.username}`}
+              onClick={() => setClaimsUser(record)}
+            />
+          </Tooltip>
+          <Tooltip title="View sessions">
+            <Button
+              type="text"
+              size="small"
+              aria-label="View user sessions"
+              icon={<LaptopOutlined />}
+              onClick={() => setSessionsUser(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit user">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Edit user"
+              icon={<EditOutlined />}
+              onClick={() => setEditUser(record)}
+            />
+          </Tooltip>
+          {isLocked(record) && (
+            <Tooltip title="Unlock user">
+              <Popconfirm
+                title="Unlock this user?"
+                description="This will reset failed login attempts and remove the lockout."
+                onConfirm={() => handleUnlock(record.id!)}
+                okText="Unlock"
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="Unlock user"
+                  icon={<UnlockOutlined />}
+                />
+              </Popconfirm>
+            </Tooltip>
           )}
         </Space>
       ),

@@ -11,6 +11,7 @@ import {
   Input,
   AutoComplete,
   Tag,
+  Tooltip,
   App,
 } from "antd";
 import {
@@ -133,19 +134,22 @@ function GroupMembersView({
       key: "actions",
       width: 50,
       render: (_, record) => (
-        <Popconfirm
-          title="Remove this member?"
-          onConfirm={() => handleRemove(record.user_id)}
-          okText="Remove"
-          okButtonProps={{ danger: true }}
-        >
-          <Button
-            type="text"
-            size="small"
-            danger
-            icon={<UserDeleteOutlined />}
-          />
-        </Popconfirm>
+        <Tooltip title="Remove member">
+          <Popconfirm
+            title="Remove this member?"
+            onConfirm={() => handleRemove(record.user_id)}
+            okText="Remove"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              aria-label="Remove member"
+              icon={<UserDeleteOutlined />}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];
@@ -347,38 +351,47 @@ export default function GroupsPage() {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Popconfirm
-            title="Delete this group?"
-            description="All memberships will be removed."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-          >
+          <Tooltip title="Delete group">
+            <Popconfirm
+              title="Delete this group?"
+              description="All memberships will be removed."
+              onConfirm={() => handleDelete(record.id)}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                aria-label="Delete group"
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Tooltip>
+          <Tooltip title="Manage members">
             <Button
               type="text"
               size="small"
-              danger
-              icon={<DeleteOutlined />}
+              aria-label="Manage group members"
+              icon={<TeamOutlined />}
+              onClick={() => setMembersGroup(record)}
             />
-          </Popconfirm>
-          <Button
-            type="text"
-            size="small"
-            icon={<TeamOutlined />}
-            onClick={() => setMembersGroup(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditGroup(record);
-              editForm.setFieldsValue({
-                name: record.name,
-                description: record.description,
-              });
-            }}
-          />
+          </Tooltip>
+          <Tooltip title="Edit group">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Edit group"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setEditGroup(record);
+                editForm.setFieldsValue({
+                  name: record.name,
+                  description: record.description,
+                });
+              }}
+            />
+          </Tooltip>
         </Space>
       ),
     },

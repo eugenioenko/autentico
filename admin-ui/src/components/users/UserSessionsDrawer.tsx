@@ -6,6 +6,7 @@ import {
   Space,
   Popconfirm,
   Typography,
+  Tooltip,
   App,
 } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
@@ -105,20 +106,23 @@ export default function UserSessionsDrawer({
       key: "actions",
       width: 50,
       render: (_, record) => (
-        <Popconfirm
-          title="Force sign out this device?"
-          description="This will revoke all sessions and tokens from this device."
-          onConfirm={() => handleForceLogout(record.id)}
-          okText="Sign Out"
-          okButtonProps={{ danger: true }}
-        >
-          <Button
-            type="text"
-            size="small"
-            danger
-            icon={<LogoutOutlined />}
-          />
-        </Popconfirm>
+        <Tooltip title="Force sign out device">
+          <Popconfirm
+            title="Force sign out this device?"
+            description="This will revoke all sessions and tokens from this device."
+            onConfirm={() => handleForceLogout(record.id)}
+            okText="Sign Out"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              aria-label="Force sign out device"
+              icon={<LogoutOutlined />}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];
