@@ -41,6 +41,19 @@ func buildAudience(issuer string, clientID string, customAudiences []string) []s
 	return aud
 }
 
+// addOpenCloudRoleClaim adds the role claim expected by OpenCloud's OIDC role
+// assignment driver when custom_claims is granted. An explicitly configured
+// opencloudRoles custom claim always takes precedence; otherwise Autentico's
+// built-in user.Role is exposed as a single-element role list.
+func addOpenCloudRoleClaim(claims map[string]interface{}, custom map[string]string, userRole string) {
+	if _, exists := custom["opencloudRoles"]; exists {
+		return
+	}
+	if userRole != "" {
+		claims["opencloudRoles"] = []string{userRole}
+	}
+}
+
 // GenerateTokens creates a signed access token and refresh token for the given user.
 // cfg should be the per-client resolved config (via config.GetForClient) so that
 // per-client overrides for expiration and audience are applied.
@@ -51,8 +64,6 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(cfg.AuthRefreshTokenExpiration).UTC()
 
-	// RFC 9068 §2.2: aud MUST identify the resource server(s) the token is intended for.
-	// Always include the issuer and client_id; custom per-client audiences are appended.
 	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
 
 	accessClaims := jwt.MapClaims{
@@ -71,22 +82,16 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"role":      user.Role,
 	}
 
-	// OIDC Core §5.4: only embed profile claims when "profile" scope was requested.
-	// RFC 9068 §2.2: access tokens SHOULD NOT include personal data unless needed
-	// for authorization — so given_name/family_name are kept out of the access token
-	// and returned only via the ID token and UserInfo endpoint.
 	if containsScope(scope, "profile") {
 		accessClaims["name"] = user.Username
 		accessClaims["preferred_username"] = user.Username
 	}
 
-	// OIDC Core §5.4: only embed email claims when "email" scope was requested
 	if containsScope(scope, "email") {
 		accessClaims["email"] = user.Email
 		accessClaims["email_verified"] = user.IsEmailVerified
 	}
 
-	// Embed groups claim when "groups" scope was requested
 	if containsScope(scope, "groups") {
 		groupNames, err := group.GroupNamesByUserID(user.ID)
 		if err == nil && len(groupNames) > 0 {
@@ -94,15 +99,12 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		}
 	}
 
-	// OIDC Core §5.1.2 / RFC 9068 §2.2.2: user-defined custom claims MAY be included
-	// alongside standard claims; they are gated behind the non-standard "custom_claims"
-	// scope and can never override a claim already set above (reserved names are also
-	// rejected at write time in pkg/userclaim).
 	if containsScope(scope, "custom_claims") {
 		custom, err := userclaim.ClaimMapByUserID(user.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not load custom claims: %w", err)
 		}
+		addOpenCloudRoleClaim(accessClaims, custom, user.Role)
 		for name, value := range custom {
 			if _, taken := accessClaims[name]; !taken {
 				accessClaims[name] = value
@@ -117,7 +119,6 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		return nil, fmt.Errorf("could not sign access token: %v", err)
 	}
 
-	// Refresh Token
 	refreshClaims := jwt.MapClaims{
 		"sub": user.ID,
 		"iat": time.Now().Unix(),
@@ -144,47 +145,35 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 }
 
 // GenerateIDToken creates an OIDC ID token JWT signed with RS256.
-// OIDC Core §3.1.3.3: the ID token MUST contain iss, sub, aud, exp, iat.
-// OIDC Core §3.1.3.3: nonce MUST be present if sent in the authorization request.
-// OIDC Core §3.1.3.6: at_hash SHOULD be included when the ID token is issued from the token endpoint.
-// The scope parameter controls which optional claims are included.
 func GenerateIDToken(user user.User, sessionID string, nonce string, scope string, clientID string, authTime time.Time, accessToken string) (string, error) {
 	bs := config.GetBootstrap()
 	now := time.Now()
 	idTokenExpiresAt := now.Add(config.Get().AuthAccessTokenExpiration).UTC()
 
-	// OIDC Core §3.1.3.3: required claims — iss, sub, aud, exp, iat
 	claims := jwt.MapClaims{
 		"iss":       bs.AppAuthIssuer,
 		"sub":       user.ID,
-		"aud":       clientID, // OIDC Core §3.1.3.3: aud MUST contain the client_id
+		"aud":       clientID,
 		"exp":       idTokenExpiresAt.Unix(),
 		"iat":       now.Unix(),
 		"auth_time": authTime.Unix(),
 		"sid":       sessionID,
-		"acr":       "1", // OIDC Core §2: Authentication Context Class Reference
+		"acr":       "1",
 	}
 
-	// OIDC Core §3.1.3.3: nonce MUST be present in ID token if sent in the authorization request
 	if nonce != "" {
 		claims["nonce"] = nonce
 	}
 
-	// OIDC Core §3.1.3.6: at_hash is the base64url encoding of the left-most half of the
-	// hash of the access token value. SHA-256 is used for RS256 signed tokens.
 	if accessToken != "" {
 		hash := sha256.Sum256([]byte(accessToken))
 		claims["at_hash"] = base64.RawURLEncoding.EncodeToString(hash[:sha256.Size/2])
 	}
 
-	// OIDC Core §3.1.3.7: azp SHOULD be present when the ID token has a single audience
 	if clientID != "" {
 		claims["azp"] = clientID
 	}
 
-	// OIDC Core §5.4: profile scope grants access to name, preferred_username,
-	// given_name, family_name, and other profile claims. §5.1: claims with empty
-	// values are omitted rather than returned as null.
 	if containsScope(scope, "profile") {
 		claims["name"] = user.Username
 		claims["preferred_username"] = user.Username
@@ -196,7 +185,6 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		}
 	}
 
-	// Embed groups claim when "groups" scope was requested
 	if containsScope(scope, "groups") {
 		groupNames, err := group.GroupNamesByUserID(user.ID)
 		if err == nil && len(groupNames) > 0 {
@@ -204,21 +192,17 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 		}
 	}
 
-	// OIDC Core §5.4: the AS MAY return email claims in the ID token when the
-	// "email" scope was requested, even if they are also available via UserInfo.
-	// Many RPs rely on ID token claims without calling UserInfo, so we include them here.
 	if containsScope(scope, "email") {
 		claims["email"] = user.Email
 		claims["email_verified"] = user.IsEmailVerified
 	}
 
-	// OIDC Core §5.1.2: additional (non-standard) claims MAY be included in the ID token.
-	// Gated behind the "custom_claims" scope; never overrides a standard claim set above.
 	if containsScope(scope, "custom_claims") {
 		custom, err := userclaim.ClaimMapByUserID(user.ID)
 		if err != nil {
 			return "", fmt.Errorf("could not load custom claims: %w", err)
 		}
+		addOpenCloudRoleClaim(claims, custom, user.Role)
 		for name, value := range custom {
 			if _, taken := claims[name]; !taken {
 				claims[name] = value
@@ -238,14 +222,11 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 }
 
 // GenerateClientCredentialsToken creates a signed access token for a client_credentials grant.
-// RFC 6749 §4.4: the client is the resource owner — sub is set to the client_id.
-// No refresh token is generated (RFC 6749 §4.4.3).
 func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 
-	// RFC 9068 §2.2: aud MUST identify the resource server(s) the token is intended for.
 	aud := buildAudience(bs.AppAuthIssuer, clientID, cfg.AuthAccessTokenAudience)
 
 	accessClaims := jwt.MapClaims{
@@ -279,7 +260,6 @@ func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.C
 	}, nil
 }
 
-// removeScope removes a specific scope from a space-separated scope string.
 func removeScope(scopeStr string, target string) string {
 	scopes := strings.Fields(scopeStr)
 	var result []string
@@ -291,7 +271,6 @@ func removeScope(scopeStr string, target string) string {
 	return strings.Join(result, " ")
 }
 
-// containsScope checks if a space-separated scope string contains a specific scope value.
 func containsScope(scopeStr string, target string) bool {
 	scopes := strings.Split(scopeStr, " ")
 	for _, s := range scopes {
