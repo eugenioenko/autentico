@@ -176,3 +176,11 @@ conformance-suite:
 
 conformance-stop:
 	docker stop oidc-conformance && docker rm oidc-conformance
+
+# ── API Fuzzing (Schemathesis) ───────────────────────────────────────────────
+# Property-based, spec-driven fuzzing of the HTTP API. Spins up a throwaway
+# server and runs two profiles: unauthenticated public + admin with a clean
+# token. Requires Docker. Override PROFILE=public|admin to run just one.
+.PHONY: schemathesis
+schemathesis: build-go
+	PROFILE=$(or $(PROFILE),both) schemathesis/run.sh
