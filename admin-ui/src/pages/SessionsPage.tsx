@@ -12,6 +12,7 @@ import {
   Drawer,
   Descriptions,
   DatePicker,
+  Tooltip,
   App,
 } from "antd";
 import {
@@ -221,26 +222,32 @@ function SessionsView({
       render: (_, record) => (
         <Space>
           {record.status === "active" && (
-            <Popconfirm
-              title="Deactivate this session?"
-              onConfirm={() => handleDeactivate(record.id)}
-              okText="Deactivate"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
+            <Tooltip title="Deactivate session">
+              <Popconfirm
+                title="Deactivate this session?"
+                onConfirm={() => handleDeactivate(record.id)}
+                okText="Deactivate"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  aria-label="Deactivate session"
+                  icon={<DeleteOutlined />}
+                />
+              </Popconfirm>
+            </Tooltip>
           )}
-          <Button
-            type="text"
-            size="small"
-            icon={<InfoCircleOutlined />}
-            onClick={() => setDetailSession(record)}
-          />
+          <Tooltip title="View details">
+            <Button
+              type="text"
+              size="small"
+              aria-label="View session details"
+              icon={<InfoCircleOutlined />}
+              onClick={() => setDetailSession(record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
@@ -532,32 +539,41 @@ export default function SessionsPage() {
       width: 120,
       render: (_, record) => (
         <Space>
-          <Popconfirm
-            title="Force sign out this device?"
-            description="This will revoke all sessions and tokens from this device."
-            onConfirm={() => handleForceLogout(record.id)}
-            okText="Sign Out"
-            okButtonProps={{ danger: true }}
-          >
+          <Tooltip title="Force sign out device">
+            <Popconfirm
+              title="Force sign out this device?"
+              description="This will revoke all sessions and tokens from this device."
+              onConfirm={() => handleForceLogout(record.id)}
+              okText="Sign Out"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                aria-label="Force sign out device"
+                icon={<LogoutOutlined />}
+              />
+            </Popconfirm>
+          </Tooltip>
+          <Tooltip title="View OAuth sessions">
             <Button
               type="text"
               size="small"
-              danger
-              icon={<LogoutOutlined />}
+              aria-label="View OAuth sessions for device"
+              icon={<UnorderedListOutlined />}
+              onClick={() => setSessionsIdp(record)}
             />
-          </Popconfirm>
-          <Button
-            type="text"
-            size="small"
-            icon={<UnorderedListOutlined />}
-            onClick={() => setSessionsIdp(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<InfoCircleOutlined />}
-            onClick={() => setDetailSession(record)}
-          />
+          </Tooltip>
+          <Tooltip title="View details">
+            <Button
+              type="text"
+              size="small"
+              aria-label="View device details"
+              icon={<InfoCircleOutlined />}
+              onClick={() => setDetailSession(record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },

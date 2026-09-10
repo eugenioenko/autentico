@@ -11,6 +11,7 @@ import {
   Descriptions,
   DatePicker,
   Alert,
+  Tooltip,
   App,
 } from "antd";
 import { DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
@@ -240,26 +241,32 @@ export default function TokensPage() {
       render: (_, record) => (
         <Space>
           {record.status === "active" && (
-            <Popconfirm
-              title="Revoke this token?"
-              onConfirm={() => handleRevoke(record.id)}
-              okText="Revoke"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
+            <Tooltip title="Revoke token">
+              <Popconfirm
+                title="Revoke this token?"
+                onConfirm={() => handleRevoke(record.id)}
+                okText="Revoke"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  aria-label="Revoke token"
+                  icon={<DeleteOutlined />}
+                />
+              </Popconfirm>
+            </Tooltip>
           )}
-          <Button
-            type="text"
-            size="small"
-            icon={<InfoCircleOutlined />}
-            onClick={() => setDetailToken(record)}
-          />
+          <Tooltip title="View details">
+            <Button
+              type="text"
+              size="small"
+              aria-label="View token details"
+              icon={<InfoCircleOutlined />}
+              onClick={() => setDetailToken(record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
