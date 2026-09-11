@@ -8,7 +8,11 @@ export function isValidRedirectURI(uri: string): boolean {
     if (!scheme) return false;
 
     if (scheme === "http" || scheme === "https") {
-      return parsedURI.host !== "";
+      // Keep the authority check on the original URI. The WHATWG URL parser
+      // may normalize malformed input such as "http:///callback" into a URL
+      // with "callback" as its host.
+      const authority = uri.slice(`${scheme}://`.length).split(/[/?#]/, 1)[0];
+      return uri.startsWith(`${scheme}://`) && authority !== "" && parsedURI.host !== "";
     }
 
     // Private-use/native-app schemes may use either an authority
