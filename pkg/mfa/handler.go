@@ -3,7 +3,6 @@ package mfa
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -169,7 +168,6 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	switch challenge.Method {
 	case "totp":
 		if !usr.TotpVerified {
-			// Enrollment flow: validate against the secret from the form
 			if totpSecret == "" {
 				renderEnrollPage(w, r, challenge, usr, cfg, "Missing TOTP secret")
 				return
@@ -187,7 +185,6 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			}
 			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 		} else {
-			// Verification flow: validate against stored secret
 			if !ValidateTotpCode(usr.TotpSecret, code) {
 				_ = IncrementFailedAttempts(challenge.ID)
 				slog.Warn("mfa: invalid TOTP verification code", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r), "attempts", challenge.FailedAttempts+1)
@@ -219,9 +216,6 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		redirectToLoginWithError(w, r, challenge, "Unknown authentication method. Please log in again.")
 		return
 	}
-
-	_ = MarkChallengeUsed(challenge.ID)
-	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
 
 	// Save trusted device if requested
 	if cfg.TrustDeviceEnabled && r.FormValue("trust_device") == "on" {
@@ -285,7 +279,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		Nonce:               loginState.Nonce,
 		CodeChallenge:       loginState.CodeChallenge,
 		CodeChallengeMethod: loginState.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
+		ExpiresAt:            time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
 		IdpSessionID:        idpSessionID,
 	}
@@ -296,7 +290,26 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State)
+	// Consume the MFA challenge only after the authorization code has been
+	// durably created. This prevents failures after MFA verification from
+	// turning a still-valid challenge into a misleading expired state.
+	if err := MarkChallengeUsed(challenge.ID); err != nil {
+		slog.Error("mfa: failed to mark challenge used after auth code creation", "request_id", reqid.Get(r.Context()), "challenge_id", challenge.ID, "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return
+	}
+
+	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
+
+	// Encode the authorization response using net/url rather than string
+	// concatenation. This preserves state exactly even when it contains URL
+	// reserved characters.
+	params := url.Values{}
+	params.Set("code", ac.Code)
+	if loginState.State != "" {
+		params.Set("state", loginState.State)
+	}
+	redirectURL := loginState.RedirectURI + "?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -358,8 +371,6 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 	return true
 }
 
-
-
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil {
@@ -381,7 +392,7 @@ func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"Method":             challenge.Method,
 		"Message":            infoMsg,
 		"Error":              errorMsg,
-		csrf.TemplateTag:     csrf.TemplateField(r),
+		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":         cfg.Theme.Title,
 		"ThemeLogoUrl":       cfg.Theme.LogoUrl,
 		"TrustDeviceEnabled": cfg.TrustDeviceEnabled,
@@ -424,7 +435,7 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		"TotpSecret":     secret,
 		"QRCodeDataURI":  template.URL(qrDataURI),
 		"Error":          errorMsg,
-		csrf.TemplateTag: csrf.TemplateField(r),
+		csrf.TemplateTag:  csrf.TemplateField(r),
 		"ThemeTitle":     cfg.Theme.Title,
 		"ThemeLogoUrl":   cfg.Theme.LogoUrl,
 	}
