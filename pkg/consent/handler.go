@@ -112,7 +112,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		if params.State != "" {
 			q.Set("state", params.State)
 		}
-		http.Redirect(w, r, params.RedirectURI+"?"+q.Encode(), http.StatusFound)
+		http.Redirect(w, r, params.RedirectURI+"?"+q.Encode(), http.StatusSeeOther)
 		return
 	}
 
@@ -157,7 +157,16 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 	if params.State != "" {
 		redirectParams.Set("state", params.State)
 	}
-	http.Redirect(w, r, params.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
+	redirectURL := params.RedirectURI + "?" + redirectParams.Encode()
+	slog.Info("consent: authorization approved",
+		"request_id", reqid.Get(r.Context()),
+		"client_id", params.ClientID,
+		"redirect_uri", params.RedirectURI,
+		"state", params.State,
+		"auth_code_created", true,
+		"location", redirectURL,
+	)
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentParams, clientName, userID string) {
