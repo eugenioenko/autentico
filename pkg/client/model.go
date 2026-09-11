@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"regexp"
@@ -231,11 +232,13 @@ func ValidateClientCreateRequest(input ClientCreateRequest) error {
 	)
 }
 
-// ValidateRedirectURIs validates that all redirect URIs are valid URLs
+// ValidateRedirectURIs validates that all redirect URIs are valid URLs.
+// Private-use/native-app redirect URIs are accepted by utils.IsValidRedirectURI,
+// including absolute-path forms such as app.immich:///oauth-callback.
 func ValidateRedirectURIs(uris []string) error {
 	for _, uri := range uris {
 		if uri == "" || !utils.IsValidRedirectURI(uri) {
-			return validation.Errors{"redirect_uri": validation.ErrInvalid}
+			return validation.Errors{"redirect_uri": errors.New("must be a valid redirect URI")}
 		}
 	}
 	return nil
