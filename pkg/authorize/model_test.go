@@ -36,6 +36,16 @@ func TestValidateAuthorizeRequest_ValidScopes(t *testing.T) {
 	}
 }
 
+func TestValidateAuthorizeRequest_NativeRedirectURI(t *testing.T) {
+	req := AuthorizeRequest{
+		ResponseType: "code",
+		RedirectURI:  "oc://ios.opencloud.eu",
+		Scope:        "openid profile email custom_claims",
+	}
+
+	assert.NoError(t, ValidateAuthorizeRequest(req))
+}
+
 func TestValidateAuthorizeRequest_InvalidScopeSyntax(t *testing.T) {
 	base := AuthorizeRequest{
 		ResponseType: "code",
@@ -50,7 +60,7 @@ func TestValidateAuthorizeRequest_InvalidScopeSyntax(t *testing.T) {
 		{"contains backslash", `openid profile\bad`},
 		{"contains double-quote", `openid "profile"`},
 		{"contains control character", "openid \x01bad"},
-		{"contains non-ASCII", "openid prof\xc3\xadle"},
+		{"contains non-ASCII", "openid prof\xc3\adle"},
 	}
 
 	for _, tt := range tests {
