@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/go-ozzo/ozzo-validation/is"
 )
 
 // noHTMLPattern rejects strings containing HTML tag characters as defense-in-depth
@@ -67,7 +67,7 @@ type ClientCreateRequest struct {
 	ConsentRequired             *bool    `json:"consent_required,omitempty"`
 }
 
-// ClientUpdateRequest represents the request body for updating a client
+// ClientUpdateRequest represents a request to update a client
 type ClientUpdateRequest struct {
 	ClientName              string   `json:"client_name,omitempty"`
 	RedirectURIs            []string `json:"redirect_uris,omitempty"`
@@ -234,8 +234,8 @@ func ValidateClientCreateRequest(input ClientCreateRequest) error {
 // ValidateRedirectURIs validates that all redirect URIs are valid URLs
 func ValidateRedirectURIs(uris []string) error {
 	for _, uri := range uris {
-		if err := validation.Validate(uri, validation.Required, is.URL); err != nil {
-			return err
+		if uri == "" || !utils.IsValidRedirectURI(uri) {
+			return validation.Errors{"redirect_uri": validation.ErrInvalid}
 		}
 	}
 	return nil
