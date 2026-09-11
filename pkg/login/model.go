@@ -6,7 +6,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/go-ozzo/ozzo-validation/is"
 )
 
 type LoginRequest struct {
@@ -51,7 +50,6 @@ func ValidateLoginRequest(input LoginRequest) error {
 	err = validation.Validate(
 		input.RedirectURI,
 		validation.Required,
-		is.URL,
 	)
 	if err != nil {
 		return fmt.Errorf("redirect URI is invalid: %w", err)

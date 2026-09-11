@@ -11,14 +11,8 @@ import (
 func TestMarkChallengeUsed(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "u1")
-	
-	c := MfaChallenge{
-		ID:         "c1",
-		UserID:     "u1",
-		Method:     "totp",
-		LoginState: "{}",
-		ExpiresAt:  time.Now().Add(time.Hour),
-	}
+
+	c := MfaChallenge{ID: "c1", UserID: "u1", Method: "totp", LoginState: "{}", ExpiresAt: time.Now().Add(time.Hour)}
 	_ = CreateMfaChallenge(c)
 
 	err := MarkChallengeUsed("c1")
@@ -29,17 +23,24 @@ func TestMarkChallengeUsed(t *testing.T) {
 	assert.True(t, retrieved.Used)
 }
 
+func TestMarkChallengeUsedRejectsReplay(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "u1")
+
+	c := MfaChallenge{ID: "c1", UserID: "u1", Method: "totp", LoginState: "{}", ExpiresAt: time.Now().Add(time.Hour)}
+	assert.NoError(t, CreateMfaChallenge(c))
+	assert.NoError(t, MarkChallengeUsed("c1"))
+
+	// A second completion attempt must fail atomically instead of consuming the
+	// same MFA challenge twice.
+	assert.Error(t, MarkChallengeUsed("c1"))
+}
+
 func TestUpdateChallengeCode(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "u1")
-	
-	c := MfaChallenge{
-		ID:         "c1",
-		UserID:     "u1",
-		Method:     "email",
-		LoginState: "{}",
-		ExpiresAt:  time.Now().Add(time.Hour),
-	}
+
+	c := MfaChallenge{ID: "c1", UserID: "u1", Method: "email", LoginState: "{}", ExpiresAt: time.Now().Add(time.Hour)}
 	_ = CreateMfaChallenge(c)
 
 	err := UpdateChallengeCode("c1", "new-code")
