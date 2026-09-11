@@ -39,311 +39,128 @@ func HandleMfa(w http.ResponseWriter, r *http.Request) {
 
 func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 	challengeID := r.URL.Query().Get("challenge_id")
-	if challengeID == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing challenge_id")
-		return
-	}
-
+	if challengeID == "" { utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Missing challenge_id"); return }
 	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
-	if err != nil {
-		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
-		return
-	}
-	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
-		return
-	}
-
+	if err != nil { redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again."); return }
+	if challenge.Used || time.Now().After(challenge.ExpiresAt) { redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again."); return }
 	cfg := config.Get()
-	if handleMethodSwitch(w, r, challenge, cfg) {
-		return
-	}
-
+	if handleMethodSwitch(w, r, challenge, cfg) { return }
 	if challenge.Method == "totp" {
 		usr, err := user.UserByID(challenge.UserID)
-		if err != nil {
-			slog.Error("mfa: failed to get user for TOTP challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-			return
-		}
+		if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
 		if !usr.TotpVerified {
-			if cfg.MfaMethod != "totp" {
-				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-				return
-			}
-			renderEnrollPage(w, r, challenge, usr, cfg, "")
-			return
+			if cfg.MfaMethod != "totp" { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
+			renderEnrollPage(w, r, challenge, usr, cfg, ""); return
 		}
 	}
-
 	if challenge.Method == "email" {
 		usr, err := user.UserByID(challenge.UserID)
-		if err != nil {
-			redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-			return
-		}
+		if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
 		isResend := challenge.OtpSentAt != nil
 		const otpCooldown = 60 * time.Second
-		if isResend && time.Since(*challenge.OtpSentAt) < otpCooldown {
-			renderVerifyPage(w, r, challenge, cfg, "", "Code was already sent. Please check your email.")
-			return
-		}
+		if isResend && time.Since(*challenge.OtpSentAt) < otpCooldown { renderVerifyPage(w, r, challenge, cfg, "", "Code was already sent. Please check your email."); return }
 		otp, err := GenerateEmailOTP()
-		if err != nil {
-			renderVerifyPage(w, r, challenge, cfg, "Failed to generate verification code. Please try again.", "")
-			return
-		}
+		if err != nil { renderVerifyPage(w, r, challenge, cfg, "Failed to generate verification code. Please try again.", ""); return }
 		hashedOTP := utils.HashSHA256(otp)
 		challenge.Code = hashedOTP
-		if err := UpdateChallengeCode(challenge.ID, hashedOTP); err != nil {
-			slog.Error("mfa: failed to update email OTP", "request_id", reqid.Get(r.Context()), "error", err)
-			renderVerifyPage(w, r, challenge, cfg, "Failed to prepare verification code. Please try again.", "")
-			return
-		}
-		if err := email.SendEmailOTP(usr.Email, otp); err != nil {
-			renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.", "")
-			return
-		}
-		if isResend {
-			renderVerifyPage(w, r, challenge, cfg, "", "A new code has been sent to your email")
-			return
-		}
+		if err := UpdateChallengeCode(challenge.ID, hashedOTP); err != nil { renderVerifyPage(w, r, challenge, cfg, "Failed to prepare verification code. Please try again.", ""); return }
+		if err := email.SendEmailOTP(usr.Email, otp); err != nil { renderVerifyPage(w, r, challenge, cfg, "Failed to send verification code. Please try again.", ""); return }
+		if isResend { renderVerifyPage(w, r, challenge, cfg, "", "A new code has been sent to your email"); return }
 	}
 	renderVerifyPage(w, r, challenge, cfg, "", "")
 }
 
 func handleMfaPost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again.")
-		return
-	}
-	challengeID := r.FormValue("challenge_id")
-	code := r.FormValue("code")
-	totpSecret := r.FormValue("totp_secret")
-	if challengeID == "" || code == "" {
-		redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again.")
-		return
-	}
-
+	if err := r.ParseForm(); err != nil { redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again."); return }
+	challengeID, code, totpSecret := r.FormValue("challenge_id"), r.FormValue("code"), r.FormValue("totp_secret")
+	if challengeID == "" || code == "" { redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again."); return }
 	challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
-	if err != nil {
-		redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again.")
-		return
-	}
-	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
-		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
-		return
-	}
-
+	if err != nil { redirectToLoginWithError(w, r, nil, "Verification session not found. Please log in again."); return }
+	if challenge.Used || time.Now().After(challenge.ExpiresAt) { redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again."); return }
 	cfg := config.Get()
 	usr, err := user.UserByID(challenge.UserID)
-	if err != nil {
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
-	}
-
+	if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
 	switch challenge.Method {
 	case "totp":
 		if !usr.TotpVerified {
-			if totpSecret == "" {
-				renderEnrollPage(w, r, challenge, usr, cfg, "Missing TOTP secret")
-				return
-			}
-			if !ValidateTotpCode(totpSecret, code) {
-				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
-				renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code")
-				return
-			}
-			if err := user.SaveTotpSecret(usr.ID, totpSecret); err != nil {
-				renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again.")
-				return
-			}
+			if totpSecret == "" { renderEnrollPage(w, r, challenge, usr, cfg, "Missing TOTP secret"); return }
+			if !ValidateTotpCode(totpSecret, code) { audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r)); renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code"); return }
+			if err := user.SaveTotpSecret(usr.ID, totpSecret); err != nil { renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again."); return }
 			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 		} else if !ValidateTotpCode(usr.TotpSecret, code) {
-			_ = IncrementFailedAttempts(challenge.ID)
-			audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
-			if challenge.FailedAttempts+1 >= 5 {
-				_ = MarkChallengeUsed(challenge.ID)
-				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
-				return
-			}
-			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
-			return
+			_ = IncrementFailedAttempts(challenge.ID); audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
+			if challenge.FailedAttempts+1 >= 5 { _ = MarkChallengeUsed(challenge.ID); redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again."); return }
+			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", ""); return
 		}
 	case "email":
 		if utils.HashSHA256(code) != challenge.Code {
-			_ = IncrementFailedAttempts(challenge.ID)
-			audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "email"), utils.GetClientIP(r))
-			if challenge.FailedAttempts+1 >= 5 {
-				_ = MarkChallengeUsed(challenge.ID)
-				redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again.")
-				return
-			}
-			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", "")
-			return
+			_ = IncrementFailedAttempts(challenge.ID); audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "email"), utils.GetClientIP(r))
+			if challenge.FailedAttempts+1 >= 5 { _ = MarkChallengeUsed(challenge.ID); redirectToLoginWithError(w, r, challenge, "Too many failed attempts. Please log in again."); return }
+			renderVerifyPage(w, r, challenge, cfg, "Invalid verification code", ""); return
 		}
 	default:
-		redirectToLoginWithError(w, r, challenge, "Unknown authentication method. Please log in again.")
-		return
+		redirectToLoginWithError(w, r, challenge, "Unknown authentication method. Please log in again."); return
 	}
 
 	if cfg.TrustDeviceEnabled && r.FormValue("trust_device") == "on" {
 		deviceID, genErr := authcode.GenerateSecureCode()
-		if genErr == nil {
-			ua := r.UserAgent()
-			if len(ua) > 200 {
-				ua = ua[:200]
-			}
-			dev := trusteddevice.TrustedDevice{ID: deviceID, UserID: usr.ID, DeviceName: ua, ExpiresAt: time.Now().Add(cfg.TrustDeviceExpiration)}
-			if trusteddevice.CreateTrustedDevice(dev) == nil {
-				trusteddevice.SetCookie(w, deviceID, cfg.TrustDeviceExpiration)
-			}
-		}
+		if genErr == nil { ua := r.UserAgent(); if len(ua) > 200 { ua = ua[:200] }; dev := trusteddevice.TrustedDevice{ID: deviceID, UserID: usr.ID, DeviceName: ua, ExpiresAt: time.Now().Add(cfg.TrustDeviceExpiration)}; if trusteddevice.CreateTrustedDevice(dev) == nil { trusteddevice.SetCookie(w, deviceID, cfg.TrustDeviceExpiration) } }
 	}
-
 	var loginState LoginState
-	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
-		slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again.")
-		return
-	}
-
+	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil { slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err); redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again."); return }
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 	registeredClient, clientErr := client.ClientByClientID(loginState.ClientID)
 	if clientErr == nil && consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
-		consent.RedirectToConsent(w, r, consent.ConsentParams{
-			RedirectURI: loginState.RedirectURI, State: loginState.State, ClientID: loginState.ClientID,
-			Scope: loginState.Scope, Nonce: loginState.Nonce, CodeChallenge: loginState.CodeChallenge,
-			CodeChallengeMethod: loginState.CodeChallengeMethod, Prompt: loginState.Prompt,
-		})
-		return
+		consent.RedirectToConsent(w, r, consent.ConsentParams{RedirectURI: loginState.RedirectURI, State: loginState.State, ClientID: loginState.ClientID, Scope: loginState.Scope, Nonce: loginState.Nonce, CodeChallenge: loginState.CodeChallenge, CodeChallengeMethod: loginState.CodeChallengeMethod, Prompt: loginState.Prompt}); return
 	}
-
 	authorizationCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("mfa: failed to generate authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
-	}
-	ac := authcode.AuthCode{
-		Code: authorizationCode, UserID: usr.ID, ClientID: loginState.ClientID, RedirectURI: loginState.RedirectURI,
-		Scope: loginState.Scope, Nonce: loginState.Nonce, CodeChallenge: loginState.CodeChallenge,
-		CodeChallengeMethod: loginState.CodeChallengeMethod, ExpiresAt: time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used: false, IdpSessionID: idpSessionID,
-	}
-	if err := authcode.CreateAuthCode(ac); err != nil {
-		slog.Error("mfa: failed to create authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
-	}
-
-	// Consume the MFA challenge only after the OAuth authorization code has been
-	// durably created. This prevents a failed post-MFA OAuth step from turning
-	// a still-valid challenge into a misleading "session expired" state.
+	if err != nil { slog.Error("mfa: failed to generate authorization code", "request_id", reqid.Get(r.Context()), "error", err); redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
+	ac := authcode.AuthCode{Code: authorizationCode, UserID: usr.ID, ClientID: loginState.ClientID, RedirectURI: loginState.RedirectURI, Scope: loginState.Scope, Nonce: loginState.Nonce, CodeChallenge: loginState.CodeChallenge, CodeChallengeMethod: loginState.CodeChallengeMethod, ExpiresAt: time.Now().Add(cfg.AuthAuthorizationCodeExpiration), Used: false, IdpSessionID: idpSessionID}
+	if err := authcode.CreateAuthCode(ac); err != nil { slog.Error("mfa: failed to create authorization code", "request_id", reqid.Get(r.Context()), "error", err); redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
 	if err := MarkChallengeUsed(challenge.ID); err != nil {
 		slog.Error("mfa: failed to mark challenge used after auth code creation", "request_id", reqid.Get(r.Context()), "challenge_id", challenge.ID, "error", err)
-		// The authorization code already exists; do not issue a second one. The
-		// client can retry the OAuth authorization flow rather than replaying MFA.
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return
 	}
-
 	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
-	params := url.Values{}
-	params.Set("code", ac.Code)
-	if loginState.State != "" {
-		params.Set("state", loginState.State)
-	}
+	params := url.Values{}; params.Set("code", ac.Code); if loginState.State != "" { params.Set("state", loginState.State) }
 	redirectURL := loginState.RedirectURI + "?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config) bool {
 	switchTo := r.URL.Query().Get("switch_to")
-	if switchTo == "" || cfg.MfaMethod != "both" || cfg.SmtpHost == "" {
-		return false
-	}
+	if switchTo == "" || cfg.MfaMethod != "both" || cfg.SmtpHost == "" { return false }
 	switched := false
-	switch switchTo {
-	case "totp":
-		if challenge.Method != "totp" {
-			usr, err := user.UserByID(challenge.UserID)
-			if err != nil {
-				redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-				return true
-			}
-			if usr.TotpVerified { switched = true }
-		}
-	case "email":
-		if challenge.Method != "email" { switched = true }
-	}
+	switch switchTo { case "totp": if challenge.Method != "totp" { usr, err := user.UserByID(challenge.UserID); if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return true }; if usr.TotpVerified { switched = true } }; case "email": if challenge.Method != "email" { switched = true } }
 	if !switched { return false }
-	if err := MarkChallengeUsed(challenge.ID); err != nil {
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return true
-	}
-	newChallengeID, err := authcode.GenerateSecureCode()
-	if err != nil {
-		renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", "")
-		return true
-	}
+	if err := MarkChallengeUsed(challenge.ID); err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return true }
+	newChallengeID, err := authcode.GenerateSecureCode(); if err != nil { renderVerifyPage(w, r, challenge, cfg, "Something went wrong. Please try again.", ""); return true }
 	newChallenge := MfaChallenge{ID: newChallengeID, UserID: challenge.UserID, Method: switchTo, LoginState: challenge.LoginState, ExpiresAt: challenge.ExpiresAt}
-	if err := CreateMfaChallenge(newChallenge); err != nil {
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return true
-	}
-	mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + newChallengeID
-	http.Redirect(w, r, mfaURL, http.StatusFound)
-	return true
+	if err := CreateMfaChallenge(newChallenge); err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return true }
+	mfaURL := fmt.Sprintf("%s/mfa?challenge_id=%s", config.GetBootstrap().AppOAuthPath, newChallengeID)
+	http.Redirect(w, r, mfaURL, http.StatusFound); return true
 }
 
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
 	if err != nil { slog.Error("mfa: failed to parse verify template", "request_id", reqid.Get(r.Context()), "error", err); http.Error(w, "Internal Server Error", http.StatusInternalServerError); return }
-	canSwitch := cfg.MfaMethod == "both" && cfg.SmtpHost != ""
-	userTotpVerified := false
+	canSwitch := cfg.MfaMethod == "both" && cfg.SmtpHost != ""; userTotpVerified := false
 	if canSwitch { if usr, err := user.UserByID(challenge.UserID); err == nil { userTotpVerified = usr.TotpVerified } }
-	data := map[string]any{
-		"ChallengeID": challenge.ID, "Method": challenge.Method, "Message": infoMsg, "Error": errorMsg,
-		csrf.TemplateTag: csrf.TemplateField(r), "ThemeTitle": cfg.Theme.Title, "ThemeLogoUrl": cfg.Theme.LogoUrl,
-		"TrustDeviceEnabled": cfg.TrustDeviceEnabled, "TrustDeviceDays": int(cfg.TrustDeviceExpiration.Hours()/24),
-		"CanSwitch": canSwitch, "UserTotpVerified": userTotpVerified,
-	}
-	view.InjectNonce(r, data)
-	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil { slog.Error("mfa: failed to execute verify template", "request_id", reqid.Get(r.Context()), "error", err) }
+	data := map[string]any{"ChallengeID": challenge.ID, "Method": challenge.Method, "Message": infoMsg, "Error": errorMsg, csrf.TemplateTag: csrf.TemplateField(r), "ThemeTitle": cfg.Theme.Title, "ThemeLogoUrl": cfg.Theme.LogoUrl, "TrustDeviceEnabled": cfg.TrustDeviceEnabled, "TrustDeviceDays": int(cfg.TrustDeviceExpiration.Hours()/24), "CanSwitch": canSwitch, "UserTotpVerified": userTotpVerified}
+	view.InjectNonce(r, data); if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil { slog.Error("mfa: failed to execute verify template", "request_id", reqid.Get(r.Context()), "error", err) }
 }
 
 func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, usr *user.User, cfg *config.Config, errorMsg string) {
-	secret, otpauthURL, err := GenerateTotpSecret(usr.Username, cfg.Theme.Title)
-	if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
-	png, err := qrcode.Encode(otpauthURL, qrcode.Medium, 200)
-	if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
+	secret, otpauthURL, err := GenerateTotpSecret(usr.Username, cfg.Theme.Title); if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
+	png, err := qrcode.Encode(otpauthURL, qrcode.Medium, 200); if err != nil { redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again."); return }
 	qrDataURI := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
-	tmpl, err := view.ParseTemplate("mfa_enroll")
-	if err != nil { http.Error(w, "Internal Server Error", http.StatusInternalServerError); return }
-	data := map[string]any{
-		"ChallengeID": challenge.ID, "TotpSecret": secret, "QRCodeDataURI": template.URL(qrDataURI), "Error": errorMsg,
-		csrf.TemplateTag: csrf.TemplateField(r), "ThemeTitle": cfg.Theme.Title, "ThemeLogoUrl": cfg.Theme.LogoUrl,
-	}
-	view.InjectNonce(r, data)
-	if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil { slog.Error("mfa: failed to execute enroll template", "request_id", reqid.Get(r.Context()), "error", err) }
+	tmpl, err := view.ParseTemplate("mfa_enroll"); if err != nil { http.Error(w, "Internal Server Error", http.StatusInternalServerError); return }
+	data := map[string]any{"ChallengeID": challenge.ID, "TotpSecret": secret, "QRCodeDataURI": template.URL(qrDataURI), "Error": errorMsg, csrf.TemplateTag: csrf.TemplateField(r), "ThemeTitle": cfg.Theme.Title, "ThemeLogoUrl": cfg.Theme.LogoUrl}
+	view.InjectNonce(r, data); if err := tmpl.ExecuteTemplate(w, "layout", data); err != nil { slog.Error("mfa: failed to execute enroll template", "request_id", reqid.Get(r.Context()), "error", err) }
 }
 
 func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, errorMsg string) {
-	params := url.Values{}
-	params.Set("response_type", "code")
-	params.Set("error", errorMsg)
-	if challenge != nil {
-		var loginState LoginState
-		if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err == nil {
-			params.Set("client_id", loginState.ClientID)
-			params.Set("redirect_uri", loginState.RedirectURI)
-			params.Set("state", loginState.State)
-			params.Set("scope", loginState.Scope)
-			if loginState.Nonce != "" { params.Set("nonce", loginState.Nonce) }
-			if loginState.CodeChallenge != "" { params.Set("code_challenge", loginState.CodeChallenge); params.Set("code_challenge_method", loginState.CodeChallengeMethod) }
-		}
-	}
-	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	params := url.Values{}; params.Set("response_type", "code"); params.Set("error", errorMsg)
+	if challenge != nil { var loginState LoginState; if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err == nil { params.Set("client_id", loginState.ClientID); params.Set("redirect_uri", loginState.RedirectURI); params.Set("state", loginState.State); params.Set("scope", loginState.Scope); if loginState.Nonce != "" { params.Set("nonce", loginState.Nonce) }; if loginState.CodeChallenge != "" { params.Set("code_challenge", loginState.CodeChallenge); params.Set("code_challenge_method", loginState.CodeChallengeMethod) } } }
+	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode(); http.Redirect(w, r, redirectURL, http.StatusFound)
 }
