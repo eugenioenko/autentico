@@ -22,17 +22,17 @@ pocketid.yy-dev.top {
     reverse_proxy pocket-id:1411
 }
 
-demo.autentico.top {
+demo.getautentico.dev {
     reverse_proxy host.docker.internal:8080
 }
 
-*.demo.autentico.top {
+*.demo.getautentico.dev {
     tls {
         on_demand
     }
     reverse_proxy host.docker.internal:8080
 }
 
-autentico.top {
+getautentico.dev {
     reverse_proxy host.docker.internal:9999
 }
