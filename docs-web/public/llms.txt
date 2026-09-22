@@ -698,6 +698,6 @@ Scopes: `openid`, `profile`, `email`, `address`, `phone`, `offline_access`, `gro
 
 ## Documentation
 
-- Full docs: https://autentico.top
-- API reference: https://api.autentico.top
+- Full docs: https://getautentico.dev
+- API reference: https://api.getautentico.dev
 - GitHub: https://github.com/eugenioenko/autentico

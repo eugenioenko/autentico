@@ -7,7 +7,7 @@ import starlightThemeGalaxy from 'starlight-theme-galaxy';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://autentico.top',
+	site: 'https://getautentico.dev',
 	integrations: [
 		sitemap(),
 		mermaid(),
