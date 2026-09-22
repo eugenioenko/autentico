@@ -28,7 +28,7 @@ Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplifie
 
 ## Documentation
 
-Access the full documentation at [autentico.top](https://autentico.top)
+Access the full documentation at [getautentico.dev](https://getautentico.dev)
 
 ## Live Demo
 
