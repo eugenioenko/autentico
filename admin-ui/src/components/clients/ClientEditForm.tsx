@@ -21,6 +21,7 @@ import type {
   ClientInfoResponse,
   ClientUpdateRequest,
 } from "../../types/client";
+import { isValidRedirectURI } from "../../lib/redirectUri";
 
 interface ClientEditFormProps {
   open: boolean;
@@ -58,6 +59,14 @@ const SCOPE_OPTIONS = [
   { label: "groups", value: "groups" },
   { label: "custom_claims", value: "custom_claims" },
 ];
+
+const redirectUriRule = {
+  validator: async (_: unknown, value?: string) => {
+    if (!value || !isValidRedirectURI(value)) {
+      return Promise.reject(new Error("Must be a valid redirect URI"));
+    }
+  },
+};
 
 export default function ClientEditForm({
   open,
@@ -184,7 +193,7 @@ export default function ClientEditForm({
                       noStyle
                       rules={[
                         { required: true, message: "URI is required" },
-                        { type: "url", message: "Must be a valid URL" },
+                        redirectUriRule,
                       ]}
                     >
                       <Input style={{ width: "100%" }} />
@@ -228,7 +237,7 @@ export default function ClientEditForm({
                       noStyle
                       rules={[
                         { required: true, message: "URI is required" },
-                        { type: "url", message: "Must be a valid URL" },
+                        redirectUriRule,
                       ]}
                     >
                       <Input style={{ width: "100%" }} />

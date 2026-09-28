@@ -85,6 +85,14 @@ func TestValidateClientCreateRequest(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "native app redirect URI",
+			request: ClientCreateRequest{
+				ClientName:   "Immich Mobile",
+				RedirectURIs: []string{"app.immich:///oauth-callback"},
+			},
+			wantErr: false,
+		},
+		{
 			name: "missing client name",
 			request: ClientCreateRequest{
 				RedirectURIs: []string{"http://localhost:3000/callback"},
@@ -151,6 +159,11 @@ func TestValidateRedirectURIs(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "native app URI",
+			uris:    []string{"app.immich:///oauth-callback"},
+			wantErr: false,
+		},
+		{
 			name:    "invalid URI",
 			uris:    []string{"not-a-valid-uri"},
 			wantErr: true,
@@ -189,6 +202,13 @@ func TestValidateClientUpdateRequest(t *testing.T) {
 			name: "valid update",
 			request: ClientUpdateRequest{
 				ClientName: "Updated Name",
+			},
+			wantErr: false,
+		},
+		{
+			name: "native app redirect URI",
+			request: ClientUpdateRequest{
+				RedirectURIs: []string{"app.immich:///oauth-callback"},
 			},
 			wantErr: false,
 		},

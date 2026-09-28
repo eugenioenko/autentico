@@ -19,6 +19,9 @@ func TestIsValidRedirectURI(t *testing.T) {
 		{"No scheme", "localhost/callback", false},
 		{"No host", "http:///callback", false},
 		{"Custom scheme", "myapp://callback", true},
+		{"Native app custom scheme without host", "app.immich:///oauth-callback", true},
+		{"Native app custom scheme with single slash", "com.example.app:/oauth2redirect", true},
+		{"Custom scheme without path or host", "myapp:", false},
 	}
 
 	for _, tt := range tests {

@@ -23,6 +23,7 @@ import {
 import { useCreateClient } from "../../hooks/useClients";
 import type { ClientCreateRequest, ClientResponse } from "../../types/client";
 import { tip, overrideTip } from "./clientTips";
+import { isValidRedirectURI } from "../../lib/redirectUri";
 
 interface ClientCreateFormProps {
   open: boolean;
@@ -64,6 +65,14 @@ const SCOPE_OPTIONS = [
   { label: "groups", value: "groups" },
   { label: "custom_claims", value: "custom_claims" },
 ];
+
+const redirectUriRule = {
+  validator: async (_: unknown, value?: string) => {
+    if (!value || !isValidRedirectURI(value)) {
+      return Promise.reject(new Error("Must be a valid redirect URI"));
+    }
+  },
+};
 
 export default function ClientCreateForm({
   open,
@@ -201,7 +210,7 @@ export default function ClientCreateForm({
                         noStyle
                         rules={[
                           { required: true, message: "URI is required" },
-                          { type: "url", message: "Must be a valid URL" },
+                          redirectUriRule,
                         ]}
                       >
                         <Input
@@ -248,7 +257,7 @@ export default function ClientCreateForm({
                         noStyle
                         rules={[
                           { required: true, message: "URI is required" },
-                          { type: "url", message: "Must be a valid URL" },
+                          redirectUriRule,
                         ]}
                       >
                         <Input

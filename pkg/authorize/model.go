@@ -6,7 +6,6 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/go-ozzo/ozzo-validation/is"
 )
 
 type AuthorizeRequest struct {
@@ -25,7 +24,9 @@ type AuthorizeRequest struct {
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {
 	return validation.ValidateStruct(&input,
 		validation.Field(&input.ResponseType, validation.Required),
-		validation.Field(&input.RedirectURI, validation.Required, is.URL),
+		// Redirect URI syntax is validated by the authorize handler using
+		// utils.IsValidRedirectURI, which supports both web and native app URIs.
+		validation.Field(&input.RedirectURI, validation.Required),
 		// RFC 6749 §3.3: validate scope token syntax
 		validation.Field(&input.Scope, validation.By(validateScopeSyntax)),
 	)
