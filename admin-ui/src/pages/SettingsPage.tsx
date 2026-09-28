@@ -117,7 +117,7 @@ const tip = makeTip({
   passkey_login_mode: "How passkeys are presented on the login page. Username First: user enters username first. Discoverable: button triggers usernameless login. Conditional: browser auto-surfaces passkeys via autofill. Passkey Only: no username field, only passkey login.",
   magic_link_enabled: "Allow users to sign in via a magic link sent to their email, without entering a password. Requires SMTP.",
   magic_link_expiration: "How long a magic link remains valid (e.g. 15m, 30m).",
-}, "https://autentico.top/configuration/runtime-settings");
+}, "https://getautentico.dev/configuration/runtime-settings");
 
 interface FooterLink {
   label: string;

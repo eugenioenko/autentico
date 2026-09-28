@@ -1,0 +1,134 @@
+---
+title: OpenCloud
+description: Use Autentico as the external OIDC identity provider for OpenCloud, including automatic role assignment.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+[OpenCloud](https://opencloud.eu) can run against an external OpenID Connect provider instead of its built-in IDP. This guide wires Autentico as that provider and maps Autentico users to OpenCloud roles using a [custom claim](/users/custom-claims/).
+
+## What you get
+
+- OpenCloud login redirects to the Autentico login page (password, passkey, MFA, SSO all apply).
+- Accounts are auto-provisioned in OpenCloud from the OIDC claims on first login.
+- Each user's OpenCloud role (`admin`, `spaceadmin`, `user`, `user-light`) is assigned from a `opencloudRoles` custom claim you set in Autentico.
+
+## Prerequisites
+
+- A running Autentico instance reachable from both the browser and the OpenCloud proxy container at the **same** issuer URL (OpenCloud validates the issuer string exactly).
+- OpenCloud 7.x, deployed with an external user directory (the official `opencloud-compose` `idm/external-idp.yml`) or with its built-in IDM kept and only the `idp` service excluded.
+
+## 1. Register the OpenCloud web client in Autentico
+
+OpenCloud's web app is a public SPA (`client_id` `web`) using Authorization Code + PKCE. Its redirect URIs are fixed by the web runtime.
+
+```bash
+curl -X POST https://auth.example.com/admin/api/clients \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "web",
+    "client_name": "OpenCloud Web",
+    "client_type": "public",
+    "token_endpoint_auth_method": "none",
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "redirect_uris": [
+      "https://cloud.example.com/oidc-callback.html",
+      "https://cloud.example.com/oidc-silent-redirect.html"
+    ],
+    "post_logout_redirect_uris": ["https://cloud.example.com/"],
+    "scopes": "openid profile email offline_access custom_claims"
+  }'
+```
+
+<Aside type="caution">
+`custom_claims` **must** be in the client's `scopes`. Without it the role claim is rejected as a disallowed scope and OpenCloud role assignment fails with `no roles in user claims`.
+</Aside>
+
+Register a matching client for each OpenCloud client type you use (`OpenCloudAndroid`, `OpenCloudIOS`, `OpenCloudDesktop`) with their own redirect URIs.
+
+## 2. Assign OpenCloud roles with a custom claim
+
+OpenCloud reads a single claim and maps its values to roles. Set a `opencloudRoles` custom claim on each user:
+
+```bash
+# a regular user
+curl -X POST https://auth.example.com/admin/api/users/$USER_ID/claims \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "opencloudRoles", "value": "opencloudUser"}'
+
+# an administrator
+curl -X POST https://auth.example.com/admin/api/users/$ADMIN_USER_ID/claims \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "opencloudRoles", "value": "opencloudAdmin"}'
+```
+
+Or use the **Custom claims** drawer on the user in the admin UI.
+
+The value must be one of OpenCloud's default role-mapping claim values:
+
+| Claim value | OpenCloud role |
+|---|---|
+| `opencloudAdmin` | admin |
+| `opencloudSpaceAdmin` | spaceadmin |
+| `opencloudUser` | user |
+| `opencloudGuest` | user-light |
+
+<Aside type="note">
+The value is a plain string. OpenCloud's role reader has a string fast-path, so a JSON array is not needed. If you prefer your own values (for example Autentico's own `user` / `admin`), override `PROXY_ROLE_ASSIGNMENT_OIDC_ROLE_MAPPING` in OpenCloud instead.
+</Aside>
+
+## 3. Configure OpenCloud
+
+Set these on the OpenCloud deployment:
+
+```bash
+OC_OIDC_ISSUER=https://auth.example.com/oauth2
+
+# Tell OpenCloud's web client to request the custom_claims scope.
+# This is the step most people miss: the default is "openid profile email".
+WEBFINGER_WEB_OIDC_CLIENT_ID=web
+WEBFINGER_WEB_OIDC_CLIENT_SCOPES="openid profile email custom_claims"
+
+# OIDC role assignment
+PROXY_ROLE_ASSIGNMENT_DRIVER=oidc
+PROXY_ROLE_ASSIGNMENT_OIDC_CLAIM=opencloudRoles
+GRAPH_ASSIGN_DEFAULT_USER_ROLE=false
+
+# Auto-provisioning, keyed on the stable subject identifier
+PROXY_AUTOPROVISION_ACCOUNTS=true
+PROXY_USER_OIDC_CLAIM=sub
+```
+
+<Aside type="tip">
+OpenCloud's built-in `role` claim reader default is `roles` (plural). Autentico reserves `roles`, so use `opencloudRoles` (or any non-reserved name) and point `PROXY_ROLE_ASSIGNMENT_OIDC_CLAIM` at it, as above.
+</Aside>
+
+## 4. Verify
+
+Autentico merges custom claims into both the ID token and the `/userinfo` response. OpenCloud's proxy reads them from `/userinfo`.
+
+```bash
+# a token for the user, with the custom_claims scope granted
+curl https://auth.example.com/oauth2/userinfo -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+```json
+{
+  "sub": "dah22stioaq5n8nierlg",
+  "name": "alice",
+  "preferred_username": "alice",
+  "email": "alice@opencloud.test",
+  "opencloudRoles": "opencloudUser"
+}
+```
+
+Inside OpenCloud, `extractRoles` takes `opencloudRoles` (`"opencloudUser"`), matches it against the role map, and assigns the OpenCloud `user` role. `sub`, `email`, and `preferred_username` cover auto-provisioning.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `no roles in user claims` | The `opencloudRoles` claim is not in the token. Either the user has no `opencloudRoles` custom claim, or the client did not request `custom_claims` (check `WEBFINGER_WEB_OIDC_CLIENT_SCOPES` and the client's `scopes`). |
+| `no role in claim maps to an OpenCloud role` | The claim value is not one of `opencloudAdmin` / `opencloudSpaceAdmin` / `opencloudUser` / `opencloudGuest`, and no matching `PROXY_ROLE_ASSIGNMENT_OIDC_ROLE_MAPPING` override is set. |
+| Login loops or issuer mismatch | The browser and the OpenCloud proxy reach Autentico at different URLs. Both must use the exact `OC_OIDC_ISSUER` value. |

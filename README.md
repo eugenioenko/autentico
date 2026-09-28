@@ -28,11 +28,11 @@ Auténtico implements OAuth2 and OpenID Connect correctly. It is not a simplifie
 
 ## Documentation
 
-Access the full documentation at [autentico.top](https://autentico.top)
+Access the full documentation at [getautentico.dev](https://getautentico.dev)
 
 ## Live Demo
 
-Try Autentico instantly: [Launch a Live Demo](https://demo.autentico.top/launch)
+Try Autentico instantly: [Launch a Live Demo](https://demo.getautentico.dev/launch)
 
 _Each demo session provisions a dedicated, ephemeral Autentico instance—isolated for your use, with all data and configuration automatically purged after 24 hours. No shared state, no persistence, no surprises._
 
@@ -1056,7 +1056,7 @@ AUTENTICO_ANTI_TIMING_MAX_MS=0 \
 
 The full per-test lifecycle (clean DB → onboard → start → seed → run test → shutdown) completes in under 400ms of server overhead. Running 15 browser-based E2E tests takes ~18 seconds; running the same suite 100 times (1,500 full server lifecycles) confirms zero flakiness from the IdP layer.
 
-For a complete working example using Playwright, see the [test fixture guide](https://autentico.top/integrate/test-fixture/) in the documentation.
+For a complete working example using Playwright, see the [test fixture guide](https://getautentico.dev/integrate/test-fixture/) in the documentation.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   Space,
   Alert,
   Input,
+  Tooltip,
 } from "antd";
 import {
   PlusOutlined,
@@ -177,18 +178,24 @@ export default function ClientsPage() {
       key: "actions",
       render: (_, record) => (
         <Space>
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => setDetailClient(record)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => setEditClient(record)}
-          />
+          <Tooltip title="View details">
+            <Button
+              type="text"
+              size="small"
+              aria-label="View client details"
+              icon={<EyeOutlined />}
+              onClick={() => setDetailClient(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit client">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Edit client"
+              icon={<EditOutlined />}
+              onClick={() => setEditClient(record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },

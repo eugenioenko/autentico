@@ -306,7 +306,7 @@ func RunStart(c *cli.Context) error {
 	fmt.Println()
 	fmt.Printf("  API Docs:   %s/api-docs/\n", baseURL)
 	fmt.Printf("  Swagger:    %s/swagger/index.html\n", baseURL)
-	fmt.Printf("  Docs:       https://autentico.top\n")
+	fmt.Printf("  Docs:       https://getautentico.dev\n")
 	fmt.Println()
 	fmt.Printf("  Issuer:     %s%s\n", baseURL, oauth)
 	fmt.Printf("  WellKnown:  %s%s/.well-known/openid-configuration\n", baseURL, oauth)

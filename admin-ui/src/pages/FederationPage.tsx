@@ -8,6 +8,7 @@ import {
   Popconfirm,
   Alert,
   Input,
+  Tooltip,
   App,
 } from "antd";
 import {
@@ -163,21 +164,32 @@ export default function FederationPage() {
       width: 100,
       render: (_, record) => (
         <Space>
-          <Popconfirm
-            title="Delete this provider?"
-            description="Users who signed in via this provider will keep their accounts but won't be able to log in with it again."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => setEditProvider(record)}
-          />
+          <Tooltip title="Delete provider">
+            <Popconfirm
+              title="Delete this provider?"
+              description="Users who signed in via this provider will keep their accounts but won't be able to log in with it again."
+              onConfirm={() => handleDelete(record.id)}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                aria-label="Delete provider"
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Tooltip>
+          <Tooltip title="Edit provider">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Edit provider"
+              icon={<EditOutlined />}
+              onClick={() => setEditProvider(record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
