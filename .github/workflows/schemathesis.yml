@@ -1,0 +1,45 @@
+name: API Fuzz (Schemathesis)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Which profile to run
+        type: choice
+        options: [both, public, admin]
+        default: both
+      max_examples:
+        description: Generated cases per operation
+        default: "50"
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  schemathesis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Create UI placeholders
+        run: |
+          mkdir -p pkg/admin/dist && echo '<!doctype html>' > pkg/admin/dist/index.html
+          mkdir -p pkg/account/dist && echo '<!doctype html>' > pkg/account/dist/index.html
+      - name: Build binary
+        run: make build-go
+      - name: Run Schemathesis
+        run: schemathesis/run.sh
+        env:
+          PROFILE: ${{ inputs.profile }}
+          MAX_EXAMPLES: ${{ inputs.max_examples }}
+      - name: Upload JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schemathesis-report
+          path: schemathesis/report/
+          retention-days: 14
