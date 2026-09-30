@@ -70,3 +70,10 @@
   }
   frame();
 })();
+
+document.querySelectorAll('.auth-card').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    var btn = form.querySelector('.auth-btn[type="submit"]');
+    if (btn) btn.classList.add('is-loading');
+  });
+});
