@@ -124,6 +124,12 @@ async function searchUsersOnA(email: string): Promise<Array<{ id: string; email:
   return items.filter((u: { email: string }) => u.email === email);
 }
 
+function decodeJwtPayload(jwt: string): Record<string, unknown> {
+  const payload = jwt.split('.')[1];
+  if (!payload) throw new Error('Invalid JWT');
+  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+}
+
 /**
  * Performs the full federated login redirect chain between Instance A and Instance B.
  * Returns tokens on success, or the callback HTTP status if it fails.
@@ -335,6 +341,11 @@ describe('Federation flow — two Autentico instances', () => {
     // 3. Register Instance B as a federation provider on Instance A
     const tokenA = await getAdminToken();
 
+    const signupResp = await putJSON(`${BASE_URL}/admin/api/settings`, { allow_self_signup: 'true' }, tokenA);
+    if (!signupResp.ok) {
+      throw new Error(`Failed to enable signup on Instance A (${signupResp.status})`);
+    }
+
     const fedResp = await postJSON(
       `${BASE_URL}/admin/api/federation`,
       {
@@ -386,7 +397,7 @@ describe('Federation flow — two Autentico instances', () => {
     }
   }, 15000);
 
-  it('creates a new user via federation login (happy path)', async () => {
+  it('preserves the verified email claim on first federated signup', async () => {
     const result = await performFederatedLogin('feduser', 'Password123!');
     expect(result.callbackStatus).toBe(302);
     expect(result.access_token).toBeTruthy();
@@ -395,6 +406,18 @@ describe('Federation flow — two Autentico instances', () => {
     const users = await searchUsersOnA('feduser@test.com');
     expect(users.length).toBe(1);
     expect(users[0].email).toBe('feduser@test.com');
+    expect(users[0].is_email_verified).toBe(true);
+
+    const idTokenClaims = decodeJwtPayload(result.id_token);
+    expect(idTokenClaims.sub).toBe(users[0].id);
+    expect(idTokenClaims.email).toBe('feduser@test.com');
+    expect(idTokenClaims.email_verified).toBe(true);
+
+    const userinfoResp = await getResponse(`${OAUTH_URL}/userinfo`, result.access_token);
+    expect(userinfoResp.ok).toBe(true);
+    const userinfo = await userinfoResp.json();
+    expect(userinfo.sub).toBe(users[0].id);
+    expect(userinfo.email_verified).toBe(true);
   });
 
   it('auto-links accounts when both emails are verified', async () => {
@@ -417,9 +440,18 @@ describe('Federation flow — two Autentico instances', () => {
     const result = await performFederatedLogin('unverifieduser', 'Password123!');
     expect(result.callbackStatus).toBe(302);
     expect(result.access_token).toBeTruthy();
+    expect(result.id_token).toBeTruthy();
 
     const users = await searchUsersOnA('unverified@test.com');
     expect(users.length).toBe(1);
+    expect(users[0].is_email_verified).toBe(false);
+    expect(decodeJwtPayload(result.id_token).email_verified).toBe(false);
+
+    const userinfoResp = await getResponse(`${OAUTH_URL}/userinfo`, result.access_token);
+    expect(userinfoResp.ok).toBe(true);
+    const userinfo = await userinfoResp.json();
+    expect(userinfo.sub).toBe(users[0].id);
+    expect(userinfo.email_verified).toBe(false);
   });
 
   it('reuses existing federated identity on second login', async () => {

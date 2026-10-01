@@ -251,9 +251,14 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 		} else {
 			username = deriveUsername(email, sub)
 		}
-		_, createErr := user.CreateUser(username, randomPassword(), email)
+		createdUser, createErr := user.CreateUser(username, randomPassword(), email)
 		if createErr != nil {
 			return nil, fmt.Errorf("failed to create federated user: %w", createErr)
+		}
+		if email != "" && emailVerified {
+			if err := user.MarkEmailVerified(createdUser.ID); err != nil {
+				return nil, fmt.Errorf("failed to mark federated email verified: %w", err)
+			}
 		}
 		newUser, lookupErr := user.UserByUsername(username)
 		if lookupErr != nil {
