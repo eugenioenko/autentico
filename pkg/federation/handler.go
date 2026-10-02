@@ -198,6 +198,8 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		Sub           string `json:"sub"`
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
+		GivenName     string `json:"given_name"`
+		FamilyName    string `json:"family_name"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		slog.Error("federation: failed to extract claims", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
@@ -205,7 +207,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified)
+	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified, claims.GivenName, claims.FamilyName)
 	if err != nil {
 		slog.Error("federation: failed to resolve user", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
 		http.Error(w, "server error", http.StatusInternalServerError)
@@ -222,7 +224,7 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 // resolveUser finds or creates the local user for a federated identity.
 // Priority: (1) existing federated identity by (provider, sub),
 // (2) verified email match on both sides, (3) new account.
-func resolveUser(ctx context.Context, providerID, sub, email string, emailVerified bool) (*user.User, error) {
+func resolveUser(ctx context.Context, providerID, sub, email string, emailVerified bool, givenName, familyName string) (*user.User, error) {
 	// (1) Existing federated identity
 	fi, err := FederatedIdentityByProviderAndSub(providerID, sub)
 	if err == nil {
@@ -254,6 +256,13 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 		createdUser, createErr := user.CreateUser(username, randomPassword(), email)
 		if createErr != nil {
 			return nil, fmt.Errorf("failed to create federated user: %w", createErr)
+		}
+		if config.Get().FederationCopyNameClaims && (givenName != "" || familyName != "") {
+			if err := user.UpdateUser(createdUser.ID, user.UserUpdateRequest{
+				GivenName: givenName, FamilyName: familyName,
+			}); err != nil {
+				return nil, fmt.Errorf("failed to save federated name claims: %w", err)
+			}
 		}
 		if email != "" && emailVerified {
 			if err := user.MarkEmailVerified(createdUser.ID); err != nil {

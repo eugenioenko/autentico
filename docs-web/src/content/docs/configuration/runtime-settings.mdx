@@ -265,7 +265,12 @@ Maximum password length.
 
 ## Profile fields
 
-Profile field settings control which OIDC-standard fields are collected on the signup form and shown in the self-service account portal. Each field accepts one of three values: `hidden` (never shown), `optional` (shown but not required), or `required` (must be filled).
+Profile field settings control which OIDC-standard fields are collected on the signup form and shown in the self-service account portal. Each field accepts one of three values: `hidden` (never shown), `optional` (shown but not required), or `required` (must be filled during regular signup).
+
+### `federation_copy_name_claims`
+Default: `false`
+
+When enabled, copy `given_name` and `family_name` from the upstream identity provider's ID token when a new user is created through federation. Missing claims remain empty. Existing users, including users linked by verified email, are not updated. This setting applies independently of profile field visibility, so names can be stored even when their fields are hidden from profile forms. This setting does not add a profile completion step for missing required names.
 
 ### `profile_field_email`
 Default: `optional`
