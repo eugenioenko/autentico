@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -8,10 +9,66 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestResolveUser_CopyNameClaimsOnCreation(t *testing.T) {
+	for _, tc := range []struct {
+		name, givenName, familyName, wantGiven, wantFamily string
+		enabled                                            bool
+	}{
+		{name: "disabled", givenName: "Ada", familyName: "Lovelace"},
+		{name: "enabled", enabled: true, givenName: "Ada", familyName: "Lovelace", wantGiven: "Ada", wantFamily: "Lovelace"},
+		{name: "missing family name", enabled: true, givenName: "Ada", wantGiven: "Ada"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.WithConfigOverride(t, func() {
+				config.Values.FederationCopyNameClaims = tc.enabled
+				// The global opt-in applies independently of profile form visibility.
+				config.Values.ProfileFieldGivenName = "hidden"
+				config.Values.ProfileFieldFamilyName = "hidden"
+			})
+			_, err := db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Provider', 'https://example.com', 'client', 'secret')`)
+			require.NoError(t, err)
+
+			created, err := resolveUser(context.Background(), "p1", "subject", "new@example.com", true, tc.givenName, tc.familyName)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantGiven, created.GivenName)
+			assert.Equal(t, tc.wantFamily, created.FamilyName)
+		})
+	}
+}
+
+func TestResolveUser_ExistingUserKeepsNames(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() { config.Values.FederationCopyNameClaims = true })
+	_, err := db.GetDB().Exec(`INSERT INTO federation_providers (id, name, issuer, client_id, client_secret) VALUES ('p1', 'Provider', 'https://example.com', 'client', 'secret')`)
+	require.NoError(t, err)
+
+	created, err := user.CreateUser("existing", "password", "existing@example.com")
+	require.NoError(t, err)
+	require.NoError(t, user.UpdateUser(created.ID, user.UserUpdateRequest{GivenName: "Chosen", FamilyName: "Name"}))
+	require.NoError(t, user.MarkEmailVerified(created.ID))
+
+	// Verified email auto-link must not replace names on an existing account.
+	linked, err := resolveUser(context.Background(), "p1", "subject", "existing@example.com", true, "Provider", "Name")
+	require.NoError(t, err)
+	assert.Equal(t, created.ID, linked.ID)
+	assert.Equal(t, "Chosen", linked.GivenName)
+	assert.Equal(t, "Name", linked.FamilyName)
+
+	// A later login through the linked identity must also preserve edits.
+	again, err := resolveUser(context.Background(), "p1", "subject", "existing@example.com", true, "Changed", "Elsewhere")
+	require.NoError(t, err)
+	assert.Equal(t, "Chosen", again.GivenName)
+	assert.Equal(t, "Name", again.FamilyName)
+}
 
 func TestHandleFederationBegin_Errors(t *testing.T) {
 	testutils.WithTestDB(t)

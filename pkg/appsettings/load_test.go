@@ -32,6 +32,9 @@ func TestEnsureDefaults(t *testing.T) {
 	val, err = GetSetting("access_token_expiration")
 	assert.NoError(t, err)
 	assert.Equal(t, "30m", val)
+	val, err = GetSetting("federation_copy_name_claims")
+	assert.NoError(t, err)
+	assert.Equal(t, "false", val)
 }
 
 func TestLoadIntoConfig(t *testing.T) {
@@ -51,6 +54,7 @@ func TestLoadIntoConfig(t *testing.T) {
 		_ = SetSetting("allow_username_change", "true")
 		_ = SetSetting("allow_email_change", "true")
 		_ = SetSetting("signup_show_optional_fields", "true")
+		_ = SetSetting("federation_copy_name_claims", "true")
 		_ = SetSetting("profile_field_email", "required")
 		_ = SetSetting("account_lockout_max_attempts", "10")
 		_ = SetSetting("account_lockout_duration", "30m")
@@ -95,6 +99,7 @@ func TestLoadIntoConfig(t *testing.T) {
 		assert.True(t, cfg.AllowUsernameChange)
 		assert.True(t, cfg.AllowEmailChange)
 		assert.True(t, cfg.SignupShowOptionalFields)
+		assert.True(t, cfg.FederationCopyNameClaims)
 		assert.Equal(t, "required", cfg.ProfileFieldEmail)
 		assert.Equal(t, 10, cfg.AuthAccountLockoutMaxAttempts)
 		assert.Equal(t, 30*time.Minute, cfg.AuthAccountLockoutDuration)
