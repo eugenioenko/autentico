@@ -233,6 +233,7 @@ func RunStart(c *cli.Context) error {
 	// Account self-service API (audience: autentico-account or autentico-admin)
 	// -------------------------------------------------------------------------
 	mux.Handle("GET /account/api/profile", accountAPI(account.HandleGetProfile))
+	mux.Handle("GET /account/api/apps", accountAPI(account.HandleListApps))
 	mux.Handle("PUT /account/api/profile", accountAPI(account.HandleUpdateProfile))
 	mux.Handle("POST /account/api/password", rateLimited(middleware.AccountAuthMiddleware(http.HandlerFunc(account.HandleUpdatePassword))))
 	mux.Handle("GET /account/api/sessions", accountAPI(account.HandleListSessions))
