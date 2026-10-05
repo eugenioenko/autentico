@@ -38,6 +38,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/account/api/apps": {
+            "get": {
+                "security": [
+                    {
+                        "UserAuth": []
+                    }
+                ],
+                "description": "Returns active clients an admin has marked show_in_account, for display on the account dashboard.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "account"
+                ],
+                "summary": "List applications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/account.AppResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/account/api/connected-providers": {
             "get": {
                 "security": [
@@ -4183,6 +4217,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "account.AppResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "client_uri": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "logo_uri": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "account.ConnectedProviderResponse": {
             "type": "object",
             "properties": {
@@ -4463,14 +4517,23 @@ const docTemplate = `{
                 "client_type": {
                     "type": "string"
                 },
+                "client_uri": {
+                    "type": "string"
+                },
                 "consent_required": {
                     "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "grant_types": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "logo_uri": {
+                    "type": "string"
                 },
                 "post_logout_redirect_uris": {
                     "type": "array",
@@ -4495,6 +4558,9 @@ const docTemplate = `{
                 },
                 "scopes": {
                     "type": "string"
+                },
+                "show_in_account": {
+                    "type": "boolean"
                 },
                 "sso_session_idle_timeout": {
                     "type": "string"
@@ -4538,8 +4604,14 @@ const docTemplate = `{
                 "client_type": {
                     "type": "string"
                 },
+                "client_uri": {
+                    "type": "string"
+                },
                 "consent_required": {
                     "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "grant_types": {
                     "type": "array",
@@ -4549,6 +4621,9 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                },
+                "logo_uri": {
+                    "type": "string"
                 },
                 "post_logout_redirect_uris": {
                     "type": "array",
@@ -4573,6 +4648,9 @@ const docTemplate = `{
                 },
                 "scopes": {
                     "type": "string"
+                },
+                "show_in_account": {
+                    "type": "boolean"
                 },
                 "sso_session_idle_timeout": {
                     "type": "string"
@@ -4613,11 +4691,20 @@ const docTemplate = `{
                 "client_type": {
                     "type": "string"
                 },
+                "client_uri": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
                 "grant_types": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "logo_uri": {
+                    "type": "string"
                 },
                 "post_logout_redirect_uris": {
                     "type": "array",
@@ -4639,6 +4726,9 @@ const docTemplate = `{
                 },
                 "scopes": {
                     "type": "string"
+                },
+                "show_in_account": {
+                    "type": "boolean"
                 },
                 "token_endpoint_auth_method": {
                     "type": "string"
@@ -4667,8 +4757,14 @@ const docTemplate = `{
                 "client_name": {
                     "type": "string"
                 },
+                "client_uri": {
+                    "type": "string"
+                },
                 "consent_required": {
                     "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "grant_types": {
                     "type": "array",
@@ -4678,6 +4774,9 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                },
+                "logo_uri": {
+                    "type": "string"
                 },
                 "post_logout_redirect_uris": {
                     "type": "array",
@@ -4702,6 +4801,9 @@ const docTemplate = `{
                 },
                 "scopes": {
                     "type": "string"
+                },
+                "show_in_account": {
+                    "type": "boolean"
                 },
                 "sso_session_idle_timeout": {
                     "type": "string"

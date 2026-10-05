@@ -137,4 +137,17 @@ Default: `[]`
 
 Array of URIs the client may redirect to after RP-initiated logout. The `post_logout_redirect_uri` parameter in a logout request must exactly match one of these values.
 
+### Account dashboard fields
+
+These fields control whether and how the client appears in the **Applications** section of the user account dashboard (`/account`). Signed-in users fetch the list from `GET /account/api/apps`.
+
+| Field | Default | Description |
+|---|---|---|
+| `show_in_account` | `false` | List this client on the account dashboard. The built-in `autentico-admin` and `autentico-account` clients are never listed. |
+| `client_uri` | `""` | Application home page, used as the **Open** link. RFC 7591 client metadata. |
+| `logo_uri` | `""` | Image shown next to the application name. RFC 7591 client metadata. |
+| `description` | `""` | Short text shown under the name. Max 1000 characters, no `<` or `>`. |
+
+`client_uri` and `logo_uri` must be `https` URLs; `http` is accepted only for `localhost`, `127.0.0.1` and `[::1]`. On update, send `""` to clear a field; omitted fields are left unchanged.
+
 See [Per-Client Configuration](/clients/per-client-configuration/) for fields that override global settings.

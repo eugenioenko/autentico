@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/eugenioenko/autentico/pkg/api"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
@@ -31,9 +32,14 @@ var clientColumns = `id, client_id, client_secret, client_name, client_type, red
 	token_endpoint_auth_method, is_active, created_at, updated_at,
 	access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 	allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-	trust_device_enabled, trust_device_expiration, consent_required`
+	trust_device_enabled, trust_device_expiration, consent_required,
+	description, logo_uri, client_uri, show_in_account`
 
-func scanClient(rows *sql.Rows) (*Client, error) {
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanClient(rows rowScanner) (*Client, error) {
 	var c Client
 	var secret sql.NullString
 	var audiences sql.NullString
@@ -44,6 +50,7 @@ func scanClient(rows *sql.Rows) (*Client, error) {
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
 		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
+		&c.Description, &c.LogoURI, &c.ClientURI, &c.ShowInAccount,
 	); err != nil {
 		return nil, err
 	}
@@ -88,76 +95,45 @@ func ListClientsWithParams(params api.ListParams) ([]*Client, int, error) {
 	return clients, total, rows.Err()
 }
 
-func ClientByClientID(clientID string) (*Client, error) {
-	query := `
-		SELECT 
-			id, client_id, client_secret, client_name, client_type, redirect_uris,
-			post_logout_redirect_uris, grant_types, response_types, scopes,
-			token_endpoint_auth_method, is_active, created_at, updated_at,
-			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
-			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration, consent_required
-		FROM clients WHERE client_id = ? AND is_active = 1
-	`
-	var c Client
-	var secret sql.NullString
-	var audiences sql.NullString
-	err := db.GetDB().QueryRow(query, clientID).Scan(
-		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
-		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
-		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
-		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
-		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
-	)
+func queryClient(where string, arg string) (*Client, error) {
+	row := db.GetDB().QueryRow(`SELECT `+clientColumns+` FROM clients WHERE `+where, arg)
+	c, err := scanClient(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("client not found")
 		}
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
-	if secret.Valid {
-		c.ClientSecret = secret.String
-	}
-	if audiences.Valid {
-		c.AllowedAudiences = &audiences.String
-	}
-	return &c, nil
+	return c, nil
+}
+
+func ClientByClientID(clientID string) (*Client, error) {
+	return queryClient("client_id = ? AND is_active = 1", clientID)
 }
 
 func ClientByID(id string) (*Client, error) {
-	query := `
-		SELECT 
-			id, client_id, client_secret, client_name, client_type, redirect_uris,
-			post_logout_redirect_uris, grant_types, response_types, scopes,
-			token_endpoint_auth_method, is_active, created_at, updated_at,
-			access_token_expiration, refresh_token_expiration, authorization_code_expiration,
-			allowed_audiences, allow_self_signup, sso_session_idle_timeout,
-			trust_device_enabled, trust_device_expiration, consent_required
-		FROM clients WHERE id = ? AND is_active = 1
-	`
-	var c Client
-	var secret sql.NullString
-	var audiences sql.NullString
-	err := db.GetDB().QueryRow(query, id).Scan(
-		&c.ID, &c.ClientID, &secret, &c.ClientName, &c.ClientType, &c.RedirectURIs,
-		&c.PostLogoutRedirectURIs, &c.GrantTypes, &c.ResponseTypes, &c.Scopes,
-		&c.TokenEndpointAuthMethod, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
-		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
-		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
-		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
-	)
+	return queryClient("id = ? AND is_active = 1", id)
+}
+
+// ListAccountApps returns active clients an admin has opted in to showing on
+// the account dashboard. The built-in admin and account clients are never listed.
+func ListAccountApps() ([]*Client, error) {
+	query := `SELECT ` + clientColumns + ` FROM clients
+		WHERE is_active = 1 AND show_in_account = 1 AND client_id NOT IN (?, ?)
+		ORDER BY client_name COLLATE NOCASE, client_id`
+	rows, err := db.GetDB().Query(query, config.AdminClientID, config.AccountClientID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("client not found")
+		return nil, fmt.Errorf("failed to list account apps: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	clients := []*Client{}
+	for rows.Next() {
+		c, err := scanClient(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan client: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get client: %w", err)
+		clients = append(clients, c)
 	}
-	if secret.Valid {
-		c.ClientSecret = secret.String
-	}
-	if audiences.Valid {
-		c.AllowedAudiences = &audiences.String
-	}
-	return &c, nil
+	return clients, rows.Err()
 }

@@ -251,6 +251,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("DELETE /account/api/trusted-devices/{id}", accountAPI(account.HandleRevokeTrustedDevice))
 	mux.Handle("GET /account/api/connected-providers", accountAPI(account.HandleListConnectedProviders))
 	mux.Handle("DELETE /account/api/connected-providers/{id}", accountAPI(account.HandleDisconnectProvider))
+	mux.Handle("GET /account/api/apps", accountAPI(account.HandleListApps))
 	mux.Handle("POST /account/api/device/verify", rateLimited(accountAPI(account.HandleDeviceVerify)))
 	mux.Handle("POST /account/api/device/authorize", rateLimited(accountAPI(account.HandleDeviceAuthorize)))
 	mux.Handle("POST /account/api/device/deny", rateLimited(accountAPI(account.HandleDeviceDeny)))

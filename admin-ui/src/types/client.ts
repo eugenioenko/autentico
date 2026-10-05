@@ -12,6 +12,10 @@ export type ClientCreateRequest =
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
     consent_required?: boolean;
+    description?: string;
+    logo_uri?: string;
+    client_uri?: string;
+    show_in_account?: boolean;
   };
 
 export type ClientUpdateRequest =
@@ -25,6 +29,10 @@ export type ClientUpdateRequest =
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
     consent_required?: boolean;
+    description?: string;
+    logo_uri?: string;
+    client_uri?: string;
+    show_in_account?: boolean;
   };
 
 export type ClientResponse = components["schemas"]["client.ClientResponse"];
@@ -40,4 +48,8 @@ export type ClientInfoResponse =
     trust_device_enabled?: boolean;
     trust_device_expiration?: string;
     consent_required?: boolean;
+    description?: string;
+    logo_uri?: string;
+    client_uri?: string;
+    show_in_account?: boolean;
   };
