@@ -144,6 +144,8 @@ type Config struct {
 	// When false (default), optional profile fields are hidden on the signup form
 	// to keep it minimal. Required fields are always shown regardless.
 	SignupShowOptionalFields bool
+	// Copy given_name and family_name from the IdP only when federation creates a user.
+	FederationCopyNameClaims bool
 	// Profile field visibility: "hidden" | "optional" | "required"
 	// ProfileFieldEmail also accepts "is_username" (username field doubles as email)
 	ProfileFieldEmail      string
@@ -212,6 +214,7 @@ var defaultConfig = Config{
 	AllowUsernameChange:                false,
 	AllowEmailChange:                   false,
 	SignupShowOptionalFields:           false,
+	FederationCopyNameClaims:           false,
 	ProfileFieldEmail:                  "optional",
 	ProfileFieldGivenName:              "optional",
 	ProfileFieldFamilyName:             "optional",

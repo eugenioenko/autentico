@@ -58,6 +58,7 @@ var defaults = map[string]string{
 	"allow_username_change":          "false",
 	"allow_email_change":             "false",
 	"signup_show_optional_fields":    "false",
+	"federation_copy_name_claims":    "false",
 	"profile_field_email":            "optional",
 	"profile_field_given_name":       "optional",
 	"profile_field_family_name":      "optional",
@@ -162,6 +163,9 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["signup_show_optional_fields"]; ok {
 		cfg.SignupShowOptionalFields = parseBool(v, false)
+	}
+	if v, ok := all["federation_copy_name_claims"]; ok {
+		cfg.FederationCopyNameClaims = parseBool(v, false)
 	}
 	if v, ok := all["profile_field_email"]; ok {
 		cfg.ProfileFieldEmail = v
