@@ -16,6 +16,7 @@ import {
 import { PlusOutlined, MinusCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 
 import { tip, overrideTip } from "./clientTips";
+import AccountAppFields from "./AccountAppFields";
 import { useUpdateClient } from "../../hooks/useClients";
 import type {
   ClientInfoResponse,
@@ -88,6 +89,10 @@ export default function ClientEditForm({
         trust_device_enabled: client.trust_device_enabled,
         trust_device_expiration: client.trust_device_expiration,
         consent_required: client.consent_required,
+        show_in_account: client.show_in_account,
+        client_uri: client.client_uri,
+        logo_uri: client.logo_uri,
+        description: client.description,
       });
     }
   }, [client, open, form]);
@@ -378,6 +383,11 @@ export default function ClientEditForm({
                   </Form.Item>
                 </Space>
               ),
+            },
+            {
+              key: "account_app",
+              label: <Typography.Text strong>Account Dashboard</Typography.Text>,
+              children: <AccountAppFields />,
             },
           ]}
         />

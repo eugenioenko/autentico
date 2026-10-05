@@ -2,9 +2,11 @@ package client
 
 import (
 	"encoding/json"
-	"time"
-
+	"errors"
+	"net/url"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	validation "github.com/go-ozzo/ozzo-validation"
@@ -41,6 +43,10 @@ type Client struct {
 	TrustDeviceEnabled          *bool   `db:"trust_device_enabled"`
 	TrustDeviceExpiration       *string `db:"trust_device_expiration"`
 	ConsentRequired             *bool   `db:"consent_required"`
+	Description                 string  `db:"description"`
+	LogoURI                     string  `db:"logo_uri"`
+	ClientURI                   string  `db:"client_uri"`
+	ShowInAccount               bool    `db:"show_in_account"`
 }
 
 // ClientCreateRequest represents the request body for client registration
@@ -65,6 +71,10 @@ type ClientCreateRequest struct {
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 	ConsentRequired             *bool    `json:"consent_required,omitempty"`
+	Description                 string   `json:"description,omitempty"`
+	LogoURI                     string   `json:"logo_uri,omitempty"`
+	ClientURI                   string   `json:"client_uri,omitempty"`
+	ShowInAccount               bool     `json:"show_in_account,omitempty"`
 }
 
 // ClientUpdateRequest represents the request body for updating a client
@@ -87,6 +97,10 @@ type ClientUpdateRequest struct {
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 	ConsentRequired             *bool    `json:"consent_required,omitempty"`
+	Description                 *string  `json:"description,omitempty"`
+	LogoURI                     *string  `json:"logo_uri,omitempty"`
+	ClientURI                   *string  `json:"client_uri,omitempty"`
+	ShowInAccount               *bool    `json:"show_in_account,omitempty"`
 }
 
 // ClientResponse represents the response for client operations
@@ -110,6 +124,10 @@ type ClientResponse struct {
 	ResponseTypes           []string `json:"response_types"`
 	Scopes                  string   `json:"scopes"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	Description             string   `json:"description,omitempty"`
+	LogoURI                 string   `json:"logo_uri,omitempty"`
+	ClientURI               string   `json:"client_uri,omitempty"`
+	ShowInAccount           bool     `json:"show_in_account"`
 }
 
 // ClientInfoResponse represents the response for getting client info (without secret)
@@ -134,6 +152,10 @@ type ClientInfoResponse struct {
 	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
 	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
 	ConsentRequired             *bool    `json:"consent_required,omitempty"`
+	Description                 string   `json:"description"`
+	LogoURI                     string   `json:"logo_uri"`
+	ClientURI                   string   `json:"client_uri"`
+	ShowInAccount               bool     `json:"show_in_account"`
 }
 
 // GetRedirectURIs parses and returns the redirect URIs as a slice
@@ -188,6 +210,10 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		TrustDeviceEnabled:          c.TrustDeviceEnabled,
 		TrustDeviceExpiration:       c.TrustDeviceExpiration,
 		ConsentRequired:             c.ConsentRequired,
+		Description:                 c.Description,
+		LogoURI:                     c.LogoURI,
+		ClientURI:                   c.ClientURI,
+		ShowInAccount:               c.ShowInAccount,
 	}
 	if c.AllowedAudiences != nil {
 		var aud []string
@@ -228,7 +254,46 @@ func ValidateClientCreateRequest(input ClientCreateRequest) error {
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.ClientType, validation.In("", "confidential", "public")),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
+		validation.Field(&input.Description, validation.Length(0, 1000), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
+		validation.Field(&input.LogoURI, validation.By(validateWebURI)),
+		validation.Field(&input.ClientURI, validation.By(validateWebURI)),
 	)
+}
+
+// validateWebURI accepts an empty value, an https URL, or an http URL on a
+// loopback host. These values are rendered as links and images in the
+// account UI, so other schemes (javascript:, data:) must be rejected.
+func validateWebURI(value any) error {
+	var raw string
+	switch v := value.(type) {
+	case string:
+		raw = v
+	case *string:
+		if v == nil {
+			return nil
+		}
+		raw = *v
+	}
+	if raw == "" {
+		return nil
+	}
+	if len(raw) > 2048 {
+		return errors.New("must be at most 2048 characters")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil || strings.ContainsAny(raw, " \t\r\n<>\"") {
+		return errors.New("must be a valid absolute URL")
+	}
+	if u.Scheme == "https" {
+		return nil
+	}
+	if u.Scheme == "http" {
+		switch u.Hostname() {
+		case "localhost", "127.0.0.1", "::1":
+			return nil
+		}
+	}
+	return errors.New("must use https (http is only allowed for localhost)")
 }
 
 // ValidateRedirectURIs validates that all redirect URIs are valid URLs
@@ -249,5 +314,8 @@ func ValidateClientUpdateRequest(input ClientUpdateRequest) error {
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
 		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
+		validation.Field(&input.Description, validation.Length(0, 1000), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
+		validation.Field(&input.LogoURI, validation.By(validateWebURI)),
+		validation.Field(&input.ClientURI, validation.By(validateWebURI)),
 	)
 }

@@ -72,6 +72,26 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		newConsentRequired = req.ConsentRequired
 	}
 
+	newDescription := c.Description
+	if req.Description != nil {
+		newDescription = *req.Description
+	}
+
+	newLogoURI := c.LogoURI
+	if req.LogoURI != nil {
+		newLogoURI = *req.LogoURI
+	}
+
+	newClientURI := c.ClientURI
+	if req.ClientURI != nil {
+		newClientURI = *req.ClientURI
+	}
+
+	newShowInAccount := c.ShowInAccount
+	if req.ShowInAccount != nil {
+		newShowInAccount = *req.ShowInAccount
+	}
+
 	query := `
 		UPDATE clients SET
 			client_name = ?,
@@ -91,6 +111,10 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 			trust_device_enabled = ?,
 			trust_device_expiration = ?,
 			consent_required = ?,
+			description = ?,
+			logo_uri = ?,
+			client_uri = ?,
+			show_in_account = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE client_id = ?`
 	_, err = db.GetDB().Exec(query,
@@ -100,6 +124,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
 		newConsentRequired,
+		newDescription, newLogoURI, newClientURI, newShowInAccount,
 		clientID,
 	)
 	if err != nil {

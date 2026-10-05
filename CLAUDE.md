@@ -201,7 +201,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 
 | Package | Purpose |
 |---------|---------|
-| `pkg/account` | Account UI API — profile, password change, TOTP setup, passkey management, session listing |
+| `pkg/account` | Account UI API — profile, password change, TOTP setup, passkey management, session listing, applications list |
 | `pkg/admin` | Serves embedded React admin UI (from `pkg/admin/dist`) and `/admin/api/stats` |
 | `pkg/api` | API utilities shared across admin and account APIs |
 | `pkg/appsettings` | Settings CRUD — persists runtime config to `settings` table, checks onboarding status |
@@ -293,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables listed below (SchemaVersion 11):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables listed below (SchemaVersion 12):
 
 | Table | Purpose |
 |-------|---------|
@@ -306,7 +306,7 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables 
 | `trusted_devices` | Trusted device tokens (MFA bypass) |
 | `passkey_challenges` | Pending WebAuthn ceremony state |
 | `passkey_credentials` | Registered WebAuthn credentials (JSON blob) |
-| `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) |
+| `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) and account dashboard metadata (`show_in_account`, `client_uri`, `logo_uri`, `description`) |
 | `settings` | Key-value runtime config |
 | `federation_providers` | External IdP configurations for federated/social login |
 | `federated_identities` | Links between local users and external IdP accounts |

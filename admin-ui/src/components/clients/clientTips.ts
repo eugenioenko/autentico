@@ -14,6 +14,14 @@ export const tip = makeTip({
   token_endpoint_auth_method: "How the client authenticates at the token endpoint. Use none for public clients with PKCE.",
 }, "https://getautentico.dev/clients/registering");
 
+// Tips for account dashboard listing fields — links to registering.mdx
+export const appTip = makeTip({
+  show_in_account: "List this client in the Applications section of the user account dashboard. Off by default.",
+  client_uri: "Home page of the application. Used as the Open link on the account dashboard. Must be https (http allowed for localhost).",
+  logo_uri: "Image shown next to the application on the account dashboard. Must be https (http allowed for localhost).",
+  description: "Short description shown under the application name on the account dashboard.",
+}, "https://getautentico.dev/clients/registering");
+
 // Tips for per-client override fields — links to per-client-overrides.mdx
 export const overrideTip = makeTip({
   access_token_expiration: "Override the access token lifetime for this client. Leave empty to use the global default.",

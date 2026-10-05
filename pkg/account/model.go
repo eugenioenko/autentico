@@ -94,3 +94,11 @@ type ConnectedProviderResponse struct {
 	Email        string    `json:"email,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+type AppResponse struct {
+	ClientID    string `json:"client_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	LogoURI     string `json:"logo_uri,omitempty"`
+	ClientURI   string `json:"client_uri,omitempty"`
+}

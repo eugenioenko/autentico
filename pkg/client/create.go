@@ -101,8 +101,8 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 			token_endpoint_auth_method, access_token_expiration, refresh_token_expiration,
 			authorization_code_expiration, allowed_audiences, allow_self_signup,
 			sso_session_idle_timeout, trust_device_enabled, trust_device_expiration,
-			consent_required
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			consent_required, description, logo_uri, client_uri, show_in_account
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.GetDB().Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
@@ -110,7 +110,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,
 		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
 		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
-		req.ConsentRequired,
+		req.ConsentRequired, req.Description, req.LogoURI, req.ClientURI, req.ShowInAccount,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
@@ -130,5 +130,9 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 		ResponseTypes:           finalResponseTypes,
 		Scopes:                  scopes,
 		TokenEndpointAuthMethod: authMethod,
+		Description:             req.Description,
+		LogoURI:                 req.LogoURI,
+		ClientURI:               req.ClientURI,
+		ShowInAccount:           req.ShowInAccount,
 	}, nil
 }

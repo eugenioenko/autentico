@@ -23,6 +23,7 @@ import {
 import { useCreateClient } from "../../hooks/useClients";
 import type { ClientCreateRequest, ClientResponse } from "../../types/client";
 import { tip, overrideTip } from "./clientTips";
+import AccountAppFields from "./AccountAppFields";
 
 interface ClientCreateFormProps {
   open: boolean;
@@ -401,6 +402,11 @@ export default function ClientCreateForm({
                     </Form.Item>
                   </Space>
                 ),
+              },
+              {
+                key: "account_app",
+                label: <Typography.Text strong>Account Dashboard</Typography.Text>,
+                children: <AccountAppFields />,
               },
             ]}
           />

@@ -80,6 +80,10 @@ Registered OAuth2 clients.
 | `trust_device_expiration` | TEXT | NULL = use global |
 | `post_logout_redirect_uris` | TEXT | JSON array |
 | `consent_required` | INTEGER | 0 = no consent screen (added in migration 007) |
+| `description` | TEXT | Account dashboard description (added in migration 012) |
+| `logo_uri` | TEXT | Account dashboard logo URL (added in migration 012) |
+| `client_uri` | TEXT | Account dashboard Open link (added in migration 012) |
+| `show_in_account` | INTEGER | 1 = listed on account dashboard; default 0 (added in migration 012) |
 
 ### `tokens`
 
@@ -360,6 +364,7 @@ Composite primary key on `(user_id, claim_name)` -- one row per pair.
 | 9 | `009_magic_link_tokens.go` | Creates `magic_link_tokens` table for passwordless email login |
 | 10 | `010_nullable_passkey_challenge_user_id.go` | Rebuilds `passkey_challenges` to make `user_id` nullable (for discoverable login) |
 | 11 | `011_user_claims.go` | Creates `user_claims` table for custom per-user claims |
+| 12 | `012_client_app_metadata.go` | Adds `description`, `logo_uri`, `client_uri` and `show_in_account` columns to `clients` |
 
 ## Indexes
 
