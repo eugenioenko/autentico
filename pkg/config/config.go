@@ -68,6 +68,7 @@ type ThemeConfig struct {
 	CssFile         string `json:"themeCssFile"`
 	CssInline       string `json:"themeCssInline"`
 	LogoUrl         string `json:"themeLogoUrl"`
+	LogoOrigin      string `json:"-"`
 	Title           string `json:"themeTitle"`
 	BrandColor      string `json:"themeBrandColor"`
 	Tagline         string `json:"themeTagline"`

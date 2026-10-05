@@ -109,7 +109,7 @@ const tip = makeTip({
   profile_field_address: "Controls all address fields (street, city, region, postal code, country) as a group.",
   footer_links: "Links shown in the footer of login and signup pages (e.g. Terms of Service, Privacy Policy).",
   theme_title: "Custom title for the login and account pages.",
-  theme_logo_url: "URL for the custom logo shown on login and account pages.",
+  theme_logo_url: "URL for the custom logo shown on login and account pages. Accepts an https URL, a path on this server (/...), or a data:image URI.",
   theme_css_inline: "Custom CSS appended to the login and account pages. Served as an external stylesheet, so admin CSS cannot break out into HTML.",
   theme_brand_color: "Brand color used for action buttons on login pages and transactional emails. Default: #18181b.",
   theme_tagline: "Optional tagline shown below the logo on login pages and in emails.",

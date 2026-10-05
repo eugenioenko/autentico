@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/cspnonce"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,6 +24,22 @@ func TestSecurityHeadersMiddleware(t *testing.T) {
 	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
 	assert.Equal(t, "no-store", rr.Header().Get("Cache-Control"))
 	assert.Equal(t, "no-cache", rr.Header().Get("Pragma"))
+}
+
+func TestSecurityHeaders_ImgSrcIncludesLogoOrigin(t *testing.T) {
+	original := config.Values.Theme.LogoOrigin
+	t.Cleanup(func() { config.Values.Theme.LogoOrigin = original })
+	handler := SecurityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	config.Values.Theme.LogoOrigin = ""
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+	assert.Contains(t, rr.Header().Get("Content-Security-Policy"), "img-src 'self' data:;")
+
+	config.Values.Theme.LogoOrigin = "https://cdn.example.com"
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+	assert.Contains(t, rr.Header().Get("Content-Security-Policy"), "img-src 'self' data: https://cdn.example.com;")
 }
 
 func TestSecurityHeaders_CanBeOverridden(t *testing.T) {

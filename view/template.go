@@ -31,6 +31,13 @@ func ParseTemplate(name string) (*template.Template, error) {
 		"brandColor": func() string {
 			return config.Get().Theme.BrandColor
 		},
+		"logoURL": func(v any) template.URL {
+			raw, _ := v.(string)
+			if raw == "" || config.ValidateLogoURL(raw) != nil {
+				return template.URL(config.GetBootstrap().AppOAuthPath + "/static/logo.svg")
+			}
+			return template.URL(raw)
+		},
 	})
 	return tmpl.ParseFS(FS, "layout.html", name+".html")
 }
