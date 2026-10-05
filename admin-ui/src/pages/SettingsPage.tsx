@@ -108,6 +108,8 @@ const tip = makeTip({
   profile_field_locale: "Controls the locale field (e.g. en-US).",
   profile_field_address: "Controls all address fields (street, city, region, postal code, country) as a group.",
   footer_links: "Links shown in the footer of login and signup pages (e.g. Terms of Service, Privacy Policy).",
+  logout_success_url: "Where the button on the signed-out page links when the logout request did not identify a client with an Application URL. A path like /welcome or an https URL. Leave empty to link to the account page.",
+  logout_success_label: "Button text on the signed-out page for the link above. Defaults to \"Continue\" when a URL is set, otherwise \"Go to your profile\".",
   theme_title: "Custom title for the login and account pages.",
   theme_logo_url: "URL for the custom logo shown on login and account pages. Accepts an https URL, a path on this server (/...), or a data:image URI.",
   theme_css_inline: "Custom CSS appended to the login and account pages. Served as an external stylesheet, so admin CSS cannot break out into HTML.",
@@ -1013,6 +1015,40 @@ export default function SettingsPage() {
                     tooltip={{ title: tip("footer_links"), icon: <ExclamationCircleOutlined /> }}
                   >
                     <FooterLinksEditor />
+                  </Form.Item>
+                  <Divider />
+                  <Form.Item
+                    label="Signed-Out Page Link"
+                    name="logout_success_url"
+                    rules={[
+                      {
+                        validator: (_, value?: string) => {
+                          if (!value) return Promise.resolve();
+                          if (value.startsWith("/") && !value.startsWith("//")) return Promise.resolve();
+                          try {
+                            const u = new URL(value);
+                            if (u.protocol === "https:") return Promise.resolve();
+                            if (u.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)) {
+                              return Promise.resolve();
+                            }
+                          } catch {
+                            return Promise.reject(new Error("Use a path starting with / or an https URL"));
+                          }
+                          return Promise.reject(new Error("Use a path starting with / or an https URL"));
+                        },
+                      },
+                    ]}
+                    tooltip={{ title: tip("logout_success_url"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="/account/" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Signed-Out Page Link Label"
+                    name="logout_success_label"
+                    rules={[{ max: 100, message: "At most 100 characters" }]}
+                    tooltip={{ title: tip("logout_success_label"), icon: <ExclamationCircleOutlined /> }}
+                  >
+                    <Input placeholder="Go to your profile" />
                   </Form.Item>
                 </TabContent>
               ),
