@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 	"html/template"
+	"mime"
+	"net/mail"
 	"net/smtp"
 	"net/url"
 	"strings"
@@ -92,10 +94,16 @@ func SendEmail(to, subject, preheader string, bodyHTML template.HTML) error {
 		return fmt.Errorf("failed to build email: %w", err)
 	}
 
-	from := cfg.SmtpFrom
+	fromHeader, envelopeFrom, parseErr := smtpEnvelopeFrom(cfg.SmtpFrom)
+	if parseErr != nil {
+		// Fall back to the raw setting so a bare address still attempts delivery;
+		// invalid display forms will surface as an SMTP 501 from the server.
+		fromHeader, envelopeFrom = cfg.SmtpFrom, cfg.SmtpFrom
+	}
+	encodedSubject := mime.QEncoding.Encode("utf-8", subject)
 	msg := fmt.Sprintf(
 		"From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=\"utf-8\"\r\n\r\n%s",
-		from, to, subject, htmlContent,
+		fromHeader, to, encodedSubject, htmlContent,
 	)
 
 	addr := fmt.Sprintf("%s:%s", cfg.SmtpHost, cfg.SmtpPort)
@@ -105,5 +113,19 @@ func SendEmail(to, subject, preheader string, bodyHTML template.HTML) error {
 		auth = smtp.PlainAuth("", cfg.SmtpUsername, cfg.SmtpPassword, cfg.SmtpHost)
 	}
 
-	return smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
+	return smtp.SendMail(addr, auth, envelopeFrom, []string{to}, []byte(msg))
+}
+
+// smtpEnvelopeFrom returns the bare address for SMTP MAIL FROM.
+// Display-name forms ("Name <addr@host>") are accepted for the From header
+// but must not be used as the envelope sender.
+func smtpEnvelopeFrom(smtpFrom string) (header, envelope string, err error) {
+	if strings.TrimSpace(smtpFrom) == "" {
+		return "", "", fmt.Errorf("smtp_from is empty")
+	}
+	parsed, err := mail.ParseAddress(smtpFrom)
+	if err != nil {
+		return "", "", err
+	}
+	return parsed.String(), parsed.Address, nil
 }
