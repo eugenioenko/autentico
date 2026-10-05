@@ -136,7 +136,8 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> {
  */
 async function performFederatedLogin(
   usernameOnB: string,
-  passwordOnB: string
+  passwordOnB: string,
+  nonce?: string
 ): Promise<{
   access_token: string;
   id_token: string;
@@ -152,6 +153,7 @@ async function performFederatedLogin(
   authorizeURL.searchParams.set('state', 'fed-test-state');
   authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
   authorizeURL.searchParams.set('code_challenge_method', 'S256');
+  if (nonce) authorizeURL.searchParams.set('nonce', nonce);
 
   const authorizeResp = await fetch(authorizeURL.toString(), { redirect: 'manual' });
   if (authorizeResp.status !== 200) {
@@ -461,6 +463,12 @@ describe('Federation flow — two Autentico instances', () => {
 
     const users = await searchUsersOnA('feduser@test.com');
     expect(users.length).toBe(1);
+  });
+
+  it('carries the client nonce into the ID token', async () => {
+    const result = await performFederatedLogin('feduser', 'Password123!', 'client-nonce-418');
+    expect(result.callbackStatus).toBe(302);
+    expect(decodeJwtPayload(result.id_token).nonce).toBe('client-nonce-418');
   });
 
   it('hides disabled federation provider from login page', async () => {

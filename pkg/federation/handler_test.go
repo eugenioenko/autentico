@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -465,4 +467,68 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 	loc := rr.Header().Get("Location")
 	assert.Contains(t, loc, "/auth") // Authorization endpoint of mock
 	assert.Contains(t, loc, "state=")
+}
+
+func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/openid-configuration" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"issuer":                 fmt.Sprintf("http://%s", r.Host),
+				"authorization_endpoint": fmt.Sprintf("http://%s/auth", r.Host),
+				"token_endpoint":         fmt.Sprintf("http://%s/token", r.Host),
+				"jwks_uri":               fmt.Sprintf("http://%s/jwks", r.Host),
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	_ = CreateFederationProvider(FederationProvider{
+		ID: "mock", Name: "Mock", Issuer: ts.URL, ClientID: "c1", ClientSecret: "s1", Enabled: true,
+	})
+
+	begin := func(query string) *FederationState {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?redirect_uri=http://localhost/cb"+query, nil)
+		req.SetPathValue("id", "mock")
+		rr := httptest.NewRecorder()
+		HandleFederationBegin(rr, req)
+		require.Equal(t, http.StatusFound, rr.Code)
+
+		loc, err := url.Parse(rr.Header().Get("Location"))
+		require.NoError(t, err)
+		state, err := VerifyState(loc.Query().Get("state"))
+		require.NoError(t, err)
+		return state
+	}
+
+	assert.Equal(t, "client-nonce", begin("&nonce=client-nonce").Nonce)
+	assert.Empty(t, begin("").Nonce)
+}
+
+func TestCompleteAuthFlow_UsesClientNonce(t *testing.T) {
+	testutils.WithTestDB(t)
+
+	usr, err := user.CreateUser("nonceuser", "Password123!", "nonce@test.com")
+	require.NoError(t, err)
+
+	state := &FederationState{
+		Nonce:       "client-nonce",
+		ProviderID:  "mock",
+		RedirectURI: "http://localhost/cb",
+		ClientID:    "c1",
+		State:       "xyz",
+	}
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback", nil)
+	rr := httptest.NewRecorder()
+	require.NoError(t, completeAuthFlow(rr, req, &user.User{ID: usr.ID}, state))
+
+	loc, err := url.Parse(rr.Header().Get("Location"))
+	require.NoError(t, err)
+	ac, err := authcode.AuthCodeByCodeIncludingUsed(loc.Query().Get("code"))
+	require.NoError(t, err)
+	assert.Equal(t, "client-nonce", ac.Nonce)
 }
