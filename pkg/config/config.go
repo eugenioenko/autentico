@@ -147,6 +147,10 @@ type Config struct {
 	SignupShowOptionalFields bool
 	// Copy given_name and family_name from the IdP only when federation creates a user.
 	FederationCopyNameClaims bool
+	// Link shown on the signed-out page when no client home URL is known.
+	// Empty values fall back to /account/ and "Go to your profile".
+	LogoutSuccessURL   string
+	LogoutSuccessLabel string
 	// Profile field visibility: "hidden" | "optional" | "required"
 	// ProfileFieldEmail also accepts "is_username" (username field doubles as email)
 	ProfileFieldEmail      string

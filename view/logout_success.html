@@ -3,6 +3,6 @@
   {{template "logo" .}}
   <h1 class="auth-title">{{.ThemeTitle}}</h1>
   <p class="auth-subtitle">You have been signed out.</p>
-  <a href="/account/" class="auth-btn">Go to your profile</a>
+  <a href="{{.LinkHref}}" class="auth-btn">{{.LinkLabel}}</a>
 </div>
 {{end}}

@@ -415,6 +415,16 @@ Default: _(empty)_
 
 Optional text shown in the footer of transactional emails (e.g. copyright notice, company address). Supports multiple lines.
 
+### `logout_success_url`
+Default: _(empty)_
+
+Target of the button on the signed-out page when the logout request did not identify a client with a `client_uri`. Accepts a path starting with `/` or an `https` URL (`http` only for localhost). Empty means `/account/`. See [Signed-out page link](/protocol/rp-initiated-logout/#signed-out-page-link).
+
+### `logout_success_label`
+Default: _(empty)_
+
+Button text for `logout_success_url`. Empty means "Continue" when `logout_success_url` is set, otherwise "Go to your profile".
+
 ### `footer_links`
 Default: `[]`
 

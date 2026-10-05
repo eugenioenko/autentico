@@ -152,7 +152,7 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 			slog.Warn("session: client_id does not match id_token_hint",
 				"client_id_param", clientIDParam, "hint_client_id", hintClientID)
 			idpsession.ClearCookie(w)
-			renderLogoutSuccess(w, r)
+			renderLogoutSuccess(w, r, "")
 			return
 		}
 	}
@@ -205,10 +205,30 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 	// RP-Initiated Logout 1.0 §4: When the OP detects errors or no valid
 	// redirect URI is available, the OP MUST NOT perform post-logout redirection.
 	// It MAY display a signed-out confirmation page.
-	renderLogoutSuccess(w, r)
+	renderLogoutSuccess(w, r, resolvedClientID)
 }
 
-func renderLogoutSuccess(w http.ResponseWriter, r *http.Request) {
+// logoutSuccessLink picks the link on the signed-out page: the home page of
+// the client that initiated logout, then the logout_success_url setting,
+// then the account UI.
+func logoutSuccessLink(clientID string) (href, label string) {
+	if clientID != "" {
+		if c, err := client.ClientByClientID(clientID); err == nil && c.ClientURI != "" {
+			return c.ClientURI, "Return to " + c.ClientName
+		}
+	}
+	cfg := config.Get()
+	href, label = "/account/", "Go to your profile"
+	if cfg.LogoutSuccessURL != "" {
+		href, label = cfg.LogoutSuccessURL, "Continue"
+	}
+	if cfg.LogoutSuccessLabel != "" {
+		label = cfg.LogoutSuccessLabel
+	}
+	return href, label
+}
+
+func renderLogoutSuccess(w http.ResponseWriter, r *http.Request, clientID string) {
 	cfg := config.Get()
 	tmpl, err := view.ParseTemplate("logout_success")
 	if err != nil {
@@ -220,6 +240,7 @@ func renderLogoutSuccess(w http.ResponseWriter, r *http.Request) {
 		"ThemeTitle":   cfg.Theme.Title,
 		"ThemeLogoUrl": cfg.Theme.LogoUrl,
 	}
+	data["LinkHref"], data["LinkLabel"] = logoutSuccessLink(clientID)
 	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		slog.Error("session: failed to execute logout_success template", "error", err)

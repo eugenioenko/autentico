@@ -59,6 +59,8 @@ var defaults = map[string]string{
 	"allow_email_change":             "false",
 	"signup_show_optional_fields":    "false",
 	"federation_copy_name_claims":    "false",
+	"logout_success_url":             "",
+	"logout_success_label":           "",
 	"profile_field_email":            "optional",
 	"profile_field_given_name":       "optional",
 	"profile_field_family_name":      "optional",
@@ -166,6 +168,12 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["federation_copy_name_claims"]; ok {
 		cfg.FederationCopyNameClaims = parseBool(v, false)
+	}
+	if v, ok := all["logout_success_url"]; ok {
+		cfg.LogoutSuccessURL = v
+	}
+	if v, ok := all["logout_success_label"]; ok {
+		cfg.LogoutSuccessLabel = v
 	}
 	if v, ok := all["profile_field_email"]; ok {
 		cfg.ProfileFieldEmail = v

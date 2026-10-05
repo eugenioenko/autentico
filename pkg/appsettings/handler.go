@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
@@ -65,6 +67,48 @@ func validateThemeSettings(updates map[string]string) error {
 	return nil
 }
 
+// urlSettings lists keys whose values are rendered as links on server pages.
+var urlSettings = []string{"logout_success_url"}
+
+// validateURLSettings accepts an empty value, a same-origin absolute path,
+// an https URL, or an http URL on a loopback host. Other schemes such as
+// javascript: and data: are rejected because the value is used as an href.
+func validateURLSettings(updates map[string]string) error {
+	for _, k := range urlSettings {
+		v, ok := updates[k]
+		if !ok || v == "" {
+			continue
+		}
+		if !isSafeLinkURL(v) {
+			return fmt.Errorf("setting %q must be a path starting with / or an https URL (http only for localhost)", k)
+		}
+	}
+	return nil
+}
+
+func isSafeLinkURL(v string) bool {
+	if len(v) > 2048 || strings.ContainsAny(v, " \t\r\n<>\"\\") {
+		return false
+	}
+	if strings.HasPrefix(v, "/") {
+		return !strings.HasPrefix(v, "//")
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Host == "" || u.User != nil {
+		return false
+	}
+	switch u.Scheme {
+	case "https":
+		return true
+	case "http":
+		switch u.Hostname() {
+		case "localhost", "127.0.0.1", "::1":
+			return true
+		}
+	}
+	return false
+}
+
 // HandleGetSettings godoc
 // @Summary Get system settings
 // @Description Retrieve all system settings (except sensitive values).
@@ -110,6 +154,10 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validateDurationSettings(updates); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := validateURLSettings(updates); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
@@ -235,6 +283,10 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	protected := map[string]bool{"onboarded": true, "private_key": true}
 
 	if err := validateDurationSettings(payload.Settings); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := validateURLSettings(payload.Settings); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
