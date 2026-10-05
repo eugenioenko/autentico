@@ -4,7 +4,7 @@
 [![Test Coverage](https://img.shields.io/badge/coverage-70.4%25-green.svg)](https://github.com/eugenioenko/autentico)
 [![Tests](https://img.shields.io/badge/tests-1856-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
-[![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **Auténtico is a self-contained OAuth 2.0 / OpenID Connect (OIDC) Identity Provider built with Go. It handles the full authentication lifecycle — login, MFA, passkeys, sessions, token issuance, and admin — in a single binary backed by SQLite. No external database, no infrastructure dependencies, no ceremony.**
 
@@ -1092,5 +1092,5 @@ Contributions are welcome. Before starting significant work, open an issue to al
 
 ## License
 
-GNU GENERAL PUBLIC LICENSE. See [`LICENSE`](LICENSE) for the full text.
+Apache License 2.0. See [`LICENSE`](LICENSE) for the full text.
 

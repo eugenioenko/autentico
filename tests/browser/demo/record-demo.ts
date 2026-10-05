@@ -200,7 +200,7 @@ async function sceneIntro(page: Page) {
   await page.evaluate(() =>
     (window as any).__autenticoDemo?.card({
       logo: true,
-      kicker: "Open source · AGPL-3.0",
+      kicker: "Open source · Apache-2.0",
       title: "Auténtico",
       subtitle:
         "A complete OAuth 2.0 and OpenID Connect provider\nin a single self-contained binary.",
