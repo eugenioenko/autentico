@@ -70,15 +70,9 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
-	nonce, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("federation: failed to generate nonce", "request_id", reqid.Get(r.Context()), "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
-		return
-	}
-
 	state := FederationState{
-		Nonce:               nonce,
+		// OIDC Core §3.1.2.1 / §3.1.3.7: the client's nonce must be returned unmodified in the ID token
+		Nonce:               q.Get("nonce"),
 		ProviderID:          providerID,
 		RedirectURI:         q.Get("redirect_uri"),
 		ClientID:            q.Get("client_id"),
