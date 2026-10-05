@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -48,6 +49,17 @@ func validateDurationSettings(updates map[string]string) error {
 		}
 		if _, err := time.ParseDuration(v); err != nil {
 			return fmt.Errorf("setting %q has invalid duration %q (expected a Go duration like 15m, 1h, 24h)", k, v)
+		}
+	}
+	return nil
+}
+
+// validateThemeSettings returns an error if theme_logo_url is not a URL the
+// login pages can render under the CSP and the template escaper.
+func validateThemeSettings(updates map[string]string) error {
+	if v, ok := updates["theme_logo_url"]; ok {
+		if err := config.ValidateLogoURL(v); err != nil {
+			return fmt.Errorf("setting %q: %w", "theme_logo_url", err)
 		}
 	}
 	return nil
@@ -98,6 +110,11 @@ func HandlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validateDurationSettings(updates); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	if err := validateThemeSettings(updates); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
@@ -218,6 +235,11 @@ func HandleImportApply(w http.ResponseWriter, r *http.Request) {
 	protected := map[string]bool{"onboarded": true, "private_key": true}
 
 	if err := validateDurationSettings(payload.Settings); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	if err := validateThemeSettings(payload.Settings); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -63,6 +64,52 @@ func TestHandlePutSettings_InvalidDuration(t *testing.T) {
 	// The invalid value must not have been persisted.
 	val, _ := GetSetting("access_token_expiration")
 	assert.NotEqual(t, "30d", val)
+}
+
+func TestHandlePutSettings_InvalidLogoURL(t *testing.T) {
+	testutils.WithTestDB(t)
+	body := `{"theme_logo_url": "http://cdn.example.com/logo.svg"}`
+	req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandlePutSettings(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "theme_logo_url")
+
+	val, _ := GetSetting("theme_logo_url")
+	assert.NotEqual(t, "http://cdn.example.com/logo.svg", val)
+}
+
+func TestHandlePutSettings_CrossOriginLogoSetsCspOrigin(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		body := `{"theme_logo_url": "https://cdn.example.com/logo.svg"}`
+		req := httptest.NewRequest(http.MethodPut, "/admin/api/settings", strings.NewReader(body))
+		rr := httptest.NewRecorder()
+		HandlePutSettings(rr, req)
+
+		assert.Equal(t, http.StatusNoContent, rr.Code)
+		assert.Equal(t, "https://cdn.example.com", config.Get().Theme.LogoOrigin)
+
+		req = httptest.NewRequest(http.MethodPut, "/admin/api/settings", strings.NewReader(`{"theme_logo_url": ""}`))
+		rr = httptest.NewRecorder()
+		HandlePutSettings(rr, req)
+
+		assert.Equal(t, http.StatusNoContent, rr.Code)
+		assert.Empty(t, config.Get().Theme.LogoOrigin)
+	})
+}
+
+func TestHandleImportApply_InvalidLogoURL(t *testing.T) {
+	testutils.WithTestDB(t)
+	body := `{"settings": {"theme_logo_url": "javascript:alert(1)"}}`
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/settings/import", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+	HandleImportApply(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	val, _ := GetSetting("theme_logo_url")
+	assert.NotEqual(t, "javascript:alert(1)", val)
 }
 
 func TestHandlePutSettings_AuditLogRetentionSpecialValues(t *testing.T) {

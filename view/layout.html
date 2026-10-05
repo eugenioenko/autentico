@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="same-origin" />
-  <link rel="icon" type="image/svg+xml" href="{{if .ThemeLogoUrl}}{{.ThemeLogoUrl}}{{else}}{{authURL "/static/logo.svg"}}{{end}}" />
+  <link rel="icon" type="image/svg+xml" href="{{logoURL .ThemeLogoUrl}}" />
   <title>{{block "title" .}}{{.ThemeTitle}}{{end}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +31,6 @@
 
 {{define "logo"}}
 <div class="logo">
-  <img src="{{if .ThemeLogoUrl}}{{.ThemeLogoUrl}}{{else}}{{authURL "/static/logo.svg"}}{{end}}" alt="" width="128" height="128" />
+  <img src="{{logoURL .ThemeLogoUrl}}" alt="" width="128" height="128" />
 </div>
 {{end}}

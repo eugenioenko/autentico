@@ -379,7 +379,14 @@ Page title shown on the login, MFA, and signup pages. Also used as the TOTP issu
 ### `theme_logo_url`
 Default: _(empty)_
 
-URL to a logo image displayed above the login form.
+URL to a logo image displayed above the login form, in the account UI, and as the favicon.
+
+Accepted values:
+- an `https://` URL; its origin is added to the CSP `img-src` directive automatically
+- a path on Autentico's own origin, starting with `/`
+- a `data:image/` URI (`png`, `jpeg`, `gif`, `webp`, `svg+xml`)
+
+Other values (`http://` on another origin, `javascript:`, protocol-relative `//host`) are rejected. Email clients usually block `data:` images, so use an `https://` URL if the logo should appear in emails.
 
 ### `theme_css_inline`
 Default: _(empty)_

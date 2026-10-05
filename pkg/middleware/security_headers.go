@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/cspnonce"
 )
 
@@ -36,7 +37,11 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		if nonce != "" {
 			scriptSrc = "'self' 'nonce-" + nonce + "'"
 		}
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src "+scriptSrc+"; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; form-action *; frame-ancestors 'none'")
+		imgSrc := "'self' data:"
+		if origin := config.Get().Theme.LogoOrigin; origin != "" {
+			imgSrc += " " + origin
+		}
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src "+scriptSrc+"; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src "+imgSrc+"; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; form-action *; frame-ancestors 'none'")
 
 		// Permissions Policy — disable browser features not used by the IdP.
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")

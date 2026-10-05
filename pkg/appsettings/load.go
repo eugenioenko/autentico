@@ -256,6 +256,7 @@ func LoadIntoConfig() error {
 	}
 	if v, ok := all["theme_logo_url"]; ok {
 		cfg.Theme.LogoUrl = v
+		cfg.Theme.LogoOrigin = config.LogoOrigin(v)
 	}
 	if v, ok := all["theme_css_inline"]; ok {
 		cfg.Theme.CssInline = v
