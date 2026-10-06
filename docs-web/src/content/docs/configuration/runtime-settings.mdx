@@ -218,6 +218,22 @@ How long a trusted device token remains valid (30 days by default).
 
 ---
 
+## Device authorization
+
+Settings for the [Device Authorization Grant](/protocol/device-code/). These are not shown in the Admin UI; set them with `PUT /admin/api/settings`.
+
+### `device_code_expiration`
+Default: `10m`
+
+How long a device code and its user code remain valid. Returned to the device as `expires_in`.
+
+### `device_code_polling_interval`
+Default: `5`
+
+Minimum number of seconds a device must wait between token polls. Returned as `interval`; polling faster returns `slow_down`.
+
+---
+
 ## Passkeys
 
 ### `passkey_rp_name`

@@ -1,0 +1,190 @@
+---
+title: Device Authorization Grant
+description: Log in from CLIs, TVs, and other input-constrained devices with the device authorization grant (RFC 8628).
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The Device Authorization Grant ([RFC 8628](https://datatracker.ietf.org/doc/html/rfc8628)) lets a device that can't easily show a login page obtain tokens for a user. The device displays a short code; the user opens a URL on their phone or laptop, signs in, and approves the request. Typical clients are command-line tools, smart TVs, and IoT devices.
+
+This is the same flow used by `gh auth login` and `az login --use-device-code`.
+
+## How it works
+
+<Steps>
+
+1. The device calls `POST /oauth2/device_authorization` and receives a `device_code` (kept secret) and a `user_code` (shown to the user).
+2. The device tells the user to open `verification_uri` and enter the `user_code`, or to open `verification_uri_complete`, which has the code pre-filled (useful as a QR code).
+3. The user signs in to the account UI (including MFA, if enabled), reviews the requested scopes, and clicks **Allow** or **Deny**.
+4. Meanwhile, the device polls `POST /oauth2/token` with the `device_code` every `interval` seconds.
+5. Once the user approves, the next poll returns an access token, ID token, and refresh token.
+
+</Steps>
+
+## Register a client
+
+The client must have `urn:ietf:params:oauth:grant-type:device_code` in its `grant_types`. CLIs and devices can't keep a secret, so they are usually registered as public clients. Add `refresh_token` so the device can stay signed in.
+
+```bash
+curl -X POST https://auth.example.com/admin/api/clients \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "my-cli",
+    "client_name": "My CLI",
+    "redirect_uris": ["http://localhost/unused"],
+    "grant_types": ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"],
+    "response_types": ["code"],
+    "scopes": "openid profile email offline_access",
+    "client_type": "public",
+    "token_endpoint_auth_method": "none"
+  }'
+```
+
+The `client_name` is shown to the user on the approval screen, so use a name they will recognize.
+
+<Aside type="note">
+Confidential clients can also use this grant. They must authenticate at the token endpoint as usual (`client_secret_basic` or `client_secret_post`).
+</Aside>
+
+## Step 1: Request a device code
+
+```bash
+curl -X POST https://auth.example.com/oauth2/device_authorization \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=my-cli" \
+  -d "scope=openid profile email offline_access"
+```
+
+| Parameter | Required | Description |
+|---|---|---|
+| `client_id` | Yes | The registered client ID |
+| `scope` | No | Space-separated scopes. Must be allowed for the client. Defaults to the client's configured scopes |
+
+**Response:**
+
+```json
+{
+  "device_code": "e07330ab7c24141bc8801c5d64bef27f4fe0b8da",
+  "user_code": "KTTM-RJMS",
+  "verification_uri": "https://auth.example.com/account/device",
+  "verification_uri_complete": "https://auth.example.com/account/device/KTTM-RJMS",
+  "expires_in": 600,
+  "interval": 5
+}
+```
+
+| Field | Description |
+|---|---|
+| `device_code` | Secret code the device uses to poll the token endpoint. Do not show it to the user |
+| `user_code` | 8 consonants shown as `XXXX-XXXX`. Case, spaces, and hyphens are ignored when the user types it |
+| `verification_uri` | Account UI page where the user enters the code |
+| `verification_uri_complete` | Same page with the code pre-filled |
+| `expires_in` | Seconds until the codes expire (`device_code_expiration`, default 10 minutes) |
+| `interval` | Minimum seconds between polls (`device_code_polling_interval`, default 5) |
+
+**Errors:**
+
+| Error | Cause |
+|---|---|
+| `invalid_request` | Missing `client_id` |
+| `invalid_client` | Unknown `client_id` |
+| `unauthorized_client` | The client doesn't have the device code grant type |
+| `invalid_scope` | A requested scope isn't allowed for the client |
+
+## Step 2: Show the code to the user
+
+Display both the URL and the code, for example:
+
+```
+To sign in, open https://auth.example.com/account/device and enter: KTTM-RJMS
+```
+
+If the device has a browser available (a CLI on a desktop), open `verification_uri_complete` for the user so they only need to confirm the code. If it has a screen but no keyboard (a TV), render `verification_uri_complete` as a QR code.
+
+## Step 3: The user approves
+
+The user opens the URL, signs in if they don't already have an SSO session, and sees an **Authorize Device** screen. It shows the client name, the user code, and the requested scopes in plain language. The user should check that the code matches the one on their device before clicking **Allow**.
+
+## Step 4: Poll for tokens
+
+```bash
+curl -X POST https://auth.example.com/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+  -d "device_code=e07330ab7c24141bc8801c5d64bef27f4fe0b8da" \
+  -d "client_id=my-cli"
+```
+
+Until the user acts, the token endpoint returns `400` with one of these errors:
+
+| Error | What the device should do |
+|---|---|
+| `authorization_pending` | The user hasn't acted yet. Wait `interval` seconds and poll again |
+| `slow_down` | Polling too fast. Add 5 seconds to the interval and keep polling |
+| `access_denied` | The user clicked **Deny**. Stop polling |
+| `expired_token` | The codes expired. Start over from step 1 |
+| `invalid_grant` | Unknown or already used `device_code`, or it was issued to a different client. Start over |
+
+Once approved, the next poll returns a normal token response:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "scope": "openid profile email offline_access"
+}
+```
+
+A `device_code` can only be exchanged once.
+
+## Example: CLI login script
+
+A complete login for a shell CLI using `curl` and `jq`:
+
+```bash
+#!/usr/bin/env bash
+ISSUER=https://auth.example.com
+CLIENT=my-cli
+
+resp=$(curl -s -X POST $ISSUER/oauth2/device_authorization \
+  -d "client_id=$CLIENT&scope=openid profile email offline_access")
+device_code=$(jq -r .device_code <<<"$resp")
+interval=$(jq -r .interval <<<"$resp")
+
+echo "Open $(jq -r .verification_uri <<<"$resp") and enter code: $(jq -r .user_code <<<"$resp")"
+echo "Or open: $(jq -r .verification_uri_complete <<<"$resp")"
+
+while sleep "$interval"; do
+  tok=$(curl -s -X POST $ISSUER/oauth2/token \
+    -d "grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=$device_code&client_id=$CLIENT")
+  case $(jq -r '.error // empty' <<<"$tok") in
+    "")                    echo "$tok" > ~/.my-cli-token.json; echo "Logged in"; break ;;
+    authorization_pending) ;;
+    slow_down)             interval=$((interval + 5)) ;;
+    *)                     echo "Login failed: $tok"; exit 1 ;;
+  esac
+done
+```
+
+On later runs, send the stored access token as `Authorization: Bearer ...`. When it expires, use the [refresh token grant](/protocol/refresh-tokens/). Refresh tokens are single-use, so save the new refresh token from every response.
+
+<Aside type="tip">
+In a real CLI, store tokens in the OS keychain rather than a plain file, and verify the ID token signature against the JWKS before trusting its claims. See [Verifying Tokens](/integrate/verifying-tokens/).
+</Aside>
+
+## Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| `device_code_expiration` | `10m` | How long a device code and user code stay valid |
+| `device_code_polling_interval` | `5` | Minimum seconds between token polls, returned as `interval` |
+
+Both are [runtime settings](/configuration/runtime-settings/#device-authorization).
+
+## Discovery
+
+The endpoint is published in the [discovery document](/protocol/oidc-discovery/) as `device_authorization_endpoint`, and `urn:ietf:params:oauth:grant-type:device_code` is listed in `grant_types_supported`. Client libraries that support RFC 8628 can configure themselves from discovery.

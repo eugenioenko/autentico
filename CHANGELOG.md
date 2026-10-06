@@ -56,7 +56,7 @@ The authorization flow now uses HMAC-signed parameters to prevent form tampering
 
 #### OAuth2 / OIDC Protocol
 
-- **Device Authorization Grant (RFC 8628)** — new `/oauth2/device/authorize` and `/oauth2/device/token` endpoints with user verification flow in the account UI (#344)
+- **Device Authorization Grant (RFC 8628)** — new `/oauth2/device_authorization` endpoint, polling via `/oauth2/token`, with user verification flow in the account UI (#344)
 - **Client Credentials Grant (RFC 6749 section 4.4)** — machine-to-machine authentication without user involvement (#152)
 - **OAuth2 Consent Screen** — per-client `consent_required` setting with scope approval UI; consent decisions are remembered per user+client+scopes (#290, #311)
 - **`prompt=create` support** — OIDC-compliant signup redirect via the authorization endpoint (#148)

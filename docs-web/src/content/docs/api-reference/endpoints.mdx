@@ -24,7 +24,8 @@ Below is a complete listing of all endpoints organized by category. The OAuth2 p
 |---|---|---|
 | GET | `/oauth2/authorize` | Authorization endpoint -- validates client and renders login page |
 | POST | `/oauth2/authorize` | Authorization endpoint (POST variant) |
-| POST | `/oauth2/token` | Token endpoint -- code exchange, refresh, ROPC, client credentials |
+| POST | `/oauth2/token` | Token endpoint -- code exchange, refresh, ROPC, client credentials, device code |
+| POST | `/oauth2/device_authorization` | Device authorization endpoint (RFC 8628) -- issues device and user codes |
 | POST | `/oauth2/revoke` | Token revocation (RFC 7009) |
 | POST | `/oauth2/introspect` | Token introspection (RFC 7662) |
 | GET, POST | `/oauth2/userinfo` | UserInfo endpoint -- returns claims for the authenticated user |

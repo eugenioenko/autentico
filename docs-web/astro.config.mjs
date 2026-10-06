@@ -95,6 +95,7 @@ export default defineConfig({
 						{ label: 'Authorization Code + PKCE', link: '/protocol/authorization-code/' },
 						{ label: 'Refresh Tokens', link: '/protocol/refresh-tokens/' },
 						{ label: 'Client Credentials', link: '/protocol/client-credentials/' },
+						{ label: 'Device Authorization', link: '/protocol/device-code/' },
 						{ label: 'ROPC', link: '/protocol/ropc/' },
 						{ label: 'RP-Initiated Logout', link: '/protocol/rp-initiated-logout/' },
 						{ label: 'Token Structure & Claims', link: '/protocol/token-structure/' },
