@@ -13,6 +13,7 @@ Autentico implements OAuth 2.0 (RFC 6749) and OpenID Connect Core 1.0. This sect
 | `refresh_token` | Exchange a refresh token for new access/ID tokens without re-authentication |
 | `password` (ROPC) | Trusted first-party apps only — credentials submitted directly to the token endpoint |
 | `client_credentials` | Machine-to-machine — no user involved |
+| `urn:ietf:params:oauth:grant-type:device_code` | CLIs, TVs, and other input-constrained devices — the user approves on a second device ([RFC 8628](/protocol/device-code/)) |
 
 ## Supporting endpoints
 
@@ -22,6 +23,7 @@ Autentico implements OAuth 2.0 (RFC 6749) and OpenID Connect Core 1.0. This sect
 | `/oauth2/.well-known/jwks.json` | Public keys for token verification |
 | `/oauth2/authorize` | Authorization endpoint — starts the auth flow |
 | `/oauth2/token` | Token endpoint — exchange codes and refresh tokens |
+| `/oauth2/device_authorization` | Device authorization endpoint (RFC 8628) — issues device and user codes |
 | `/oauth2/userinfo` | UserInfo endpoint — user claims for access tokens |
 | `/oauth2/introspect` | Token introspection (RFC 7662) |
 | `/oauth2/revoke` | Token revocation (RFC 7009) |
