@@ -926,5 +926,9 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 
 | Level | Reference | Requirement | Status |
 |-------|-----------|-------------|--------|
-| Security guidance | OWASP Authentication, Authentication Responses / Forgot Password, Forgot Password Request | Use account-neutral responses and avoid SMTP latency revealing account eligibility | ✅ Authorized resend requests use the same sent page and randomized-delay policy across account states and storage failures; email delivery runs asynchronously after token storage (#478). |
+| Security guidance | OWASP Authentication, Authentication Responses / Forgot Password, Forgot Password Request | Use account-neutral responses and avoid SMTP latency revealing account eligibility | ✅ Authorized resend requests use the same sent page and randomized-delay policy across account states and storage failures; email delivery runs asynchronously after nonblocking capacity admission and token storage (#478). |
 | Security consideration | RFC 6749 §10.6 | Do not email verification links with unvalidated authorization parameters | ✅ Signature and current client/redirect/scope/PKCE checks still run before account lookup, token storage or email dispatch (#478). |
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST | RFC 5321 §4.5.3.2 | Provide timeout mechanisms for SMTP commands | ✅ Connection setup and each SMTP operation have separate 30-second limits; stalled connections close and resend capacity is released (#478). |

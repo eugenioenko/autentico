@@ -113,7 +113,7 @@ func SendEmail(to, subject, preheader string, bodyHTML template.HTML) error {
 		auth = smtp.PlainAuth("", cfg.SmtpUsername, cfg.SmtpPassword, cfg.SmtpHost)
 	}
 
-	return smtp.SendMail(addr, auth, envelopeFrom, []string{to}, []byte(msg))
+	return sendMailWithTimeout(addr, auth, envelopeFrom, []string{to}, []byte(msg), smtpOperationTimeout, nil)
 }
 
 // smtpEnvelopeFrom returns the bare address for SMTP MAIL FROM.

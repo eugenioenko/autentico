@@ -1,6 +1,7 @@
 package emailverification
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -26,14 +27,17 @@ func privacyResendRequest() *http.Request {
 
 func TestResendVerificationHasOnePublicResponse(t *testing.T) {
 	var generic string
-	for _, state := range []string{"unknown", "unverified", "verified", "no email", "deactivated", "storage failure"} {
+	for _, state := range []string{"unknown", "unverified", "verified", "no email", "deactivated", "storage failure", "SMTP missing"} {
 		t.Run(state, func(t *testing.T) {
 			withVerificationTestDB(t)
 			testutils.WithConfigOverride(t, func() {
-				config.Values.SmtpHost = ""
+				config.Values.SmtpHost = "smtp.example.test"
 				config.Bootstrap.AntiTimingMinMs = 10
 				config.Bootstrap.AntiTimingMaxMs = 11
 			})
+			if state == "SMTP missing" {
+				config.Values.SmtpHost = ""
+			}
 			var id string
 			if state != "unknown" {
 				usr, err := user.CreateUser("resend-probe", "Password123!", "resend@example.com")
@@ -62,7 +66,8 @@ func TestResendVerificationHasOnePublicResponse(t *testing.T) {
 			}
 			rr := httptest.NewRecorder()
 			started := time.Now()
-			HandleResendVerification(rr, privacyResendRequest())
+			sent := make(chan struct{})
+			handleResendVerification(rr, privacyResendRequest(), func(string, string) error { close(sent); return nil }, make(chan struct{}, 1))
 			require.GreaterOrEqual(t, time.Since(started), 10*time.Millisecond, "all account states must use the same delay policy")
 			require.Equal(t, http.StatusOK, rr.Code)
 			require.Empty(t, rr.Header().Get("Location"))
@@ -74,6 +79,7 @@ func TestResendVerificationHasOnePublicResponse(t *testing.T) {
 				require.Equal(t, generic, rr.Body.String())
 			}
 			if state == "unverified" {
+				<-sent
 				var hash string
 				var expiry time.Time
 				require.NoError(t, db.GetDB().QueryRow("SELECT email_verification_token,email_verification_expires_at FROM users WHERE id=?", id).Scan(&hash, &expiry))
@@ -98,17 +104,30 @@ func TestResendReturnsWhileDeliveryIsBlockedAndLinkStillWorks(t *testing.T) {
 	release := make(chan struct{})
 	senderDone := make(chan struct{})
 	response := make(chan *httptest.ResponseRecorder, 1)
+	handlerDone := make(chan struct{})
+	inFlight := make(chan struct{}, 1)
 	var unblock sync.Once
 	cleanup := func() { unblock.Do(func() { close(release) }) }
-	t.Cleanup(cleanup)
+	t.Cleanup(func() {
+		cleanup()
+		select {
+		case <-handlerDone:
+		case <-time.After(5 * time.Second):
+			t.Error("handler did not stop")
+		}
+		// A returned handler with no admitted sender leaves the limiter empty;
+		// otherwise wait until its delivery slot has been released as well.
+		require.Eventually(t, func() bool { return len(inFlight) == 0 }, 5*time.Second, time.Millisecond)
+	})
 	go func() {
+		defer close(handlerDone)
 		rr := httptest.NewRecorder()
 		handleResendVerification(rr, privacyResendRequest(), func(to, link string) error {
 			defer close(senderDone)
 			started <- delivery{to, link}
 			<-release
 			return nil
-		})
+		}, inFlight)
 		response <- rr
 	}()
 	var mail delivery
@@ -117,15 +136,7 @@ func TestResendReturnsWhileDeliveryIsBlockedAndLinkStillWorks(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("verification sender did not start")
 	}
-	// Cleanup waits for the blocked sender before restoring configuration or DB.
-	t.Cleanup(func() {
-		cleanup()
-		select {
-		case <-senderDone:
-		case <-time.After(5 * time.Second):
-			t.Error("sender did not stop")
-		}
-	})
+
 	select {
 	case rr := <-response:
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -149,4 +160,47 @@ func TestResendReturnsWhileDeliveryIsBlockedAndLinkStillWorks(t *testing.T) {
 	current, err := user.UserByID(usr.ID)
 	require.NoError(t, err)
 	require.True(t, current.IsEmailVerified)
+}
+
+func TestResendCapacityAndErrorsPreserveGenericResponseAndReleaseSlots(t *testing.T) {
+	withVerificationTestDB(t)
+	testutils.WithConfigOverride(t, func() { config.Values.SmtpHost = "smtp.example.test" })
+	usr, err := user.CreateUser("resend-probe", "Password123!", "resend@example.com")
+	require.NoError(t, err)
+	require.NoError(t, user.SetEmailVerificationToken(usr.ID, "existing-hash", time.Now().Add(time.Hour)))
+	slots := make(chan struct{}, 1)
+	slots <- struct{}{}
+	rr := httptest.NewRecorder()
+	handleResendVerification(rr, privacyResendRequest(), func(string, string) error { panic("busy sender must not start") }, slots)
+	require.Equal(t, http.StatusOK, rr.Code)
+	var stored string
+	require.NoError(t, db.GetDB().QueryRow("SELECT email_verification_token FROM users WHERE id=?", usr.ID).Scan(&stored))
+	require.Equal(t, "existing-hash", stored, "overload must leave the existing link usable")
+	generic := rr.Body.String()
+	<-slots
+	// Failed persistence returns the reserved slot before the handler returns.
+	_, err = db.GetDB().Exec("CREATE TRIGGER fail_resend BEFORE UPDATE OF email_verification_token ON users BEGIN SELECT RAISE(ABORT,'injected failure'); END")
+	require.NoError(t, err)
+	failed := httptest.NewRecorder()
+	handleResendVerification(failed, privacyResendRequest(), func(string, string) error { panic("failed storage must not send") }, slots)
+	require.Equal(t, generic, failed.Body.String())
+	require.Empty(t, slots)
+	_, err = db.GetDB().Exec("DROP TRIGGER fail_resend")
+	require.NoError(t, err)
+	// Even an SMTP error returns the slot and cannot alter the sent-page response.
+	sent := make(chan struct{})
+	delivered := httptest.NewRecorder()
+	handleResendVerification(delivered, privacyResendRequest(), func(string, string) error {
+		defer close(sent)
+		return errors.New("injected SMTP failure")
+	}, slots)
+	require.Equal(t, generic, delivered.Body.String())
+	select {
+	case <-sent:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sender did not run")
+	}
+	require.Eventually(t, func() bool { return len(slots) == 0 }, time.Second, time.Millisecond)
+	require.NoError(t, db.GetDB().QueryRow("SELECT email_verification_token FROM users WHERE id=?", usr.ID).Scan(&stored))
+	require.NotEqual(t, "existing-hash", stored, "delivery can resume once capacity returns")
 }
