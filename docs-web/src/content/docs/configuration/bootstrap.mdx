@@ -55,6 +55,20 @@ The two `_SECURE` cookie flags default to `true`. They should only be set to `fa
 | `AUTENTICO_REFRESH_TOKEN_COOKIE_NAME` | `autentico_refresh_token` | Cookie name used when cookie-only delivery is enabled. Change if you run multiple Autentico instances under the same domain. |
 | `AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY` | `false` | **Opt-in security enhancement.** When `true`, the refresh token is delivered as an `HttpOnly` cookie instead of in the JSON response body. This prevents JavaScript (including XSS payloads) from ever reading the refresh token. Non-standard: the OIDC spec expects `refresh_token` in the response body, so only enable this if your client is purpose-built to read the token from the cookie rather than the JSON response. |
 
+## Trusted reverse proxies
+
+`AUTENTICO_TRUSTED_PROXIES` defaults to empty: client IPs come from the network connection and `X-Forwarded-For` is ignored. Set a comma-separated list of IPv4 or IPv6 **CIDRs** to trust your reverse proxies. For a proxy on the same host:
+
+```ini
+AUTENTICO_TRUSTED_PROXIES=127.0.0.1/32,::1/128
+```
+
+When the connecting peer is trusted, Autentico reads `X-Forwarded-For` from right to left, skipping configured proxy addresses and using the first untrusted hop. Earlier values can be supplied by the client and are ignored. Invalid nearest hops, missing headers, or a chain containing only trusted proxies fall back to the network peer. `X-Real-IP` and `Forwarded` do not override this result. Rate limiting, session records and audit logs all use this address.
+
+Configure only proxy addresses or dedicated proxy networks; leave client networks outside this list. An invalid CIDR stops startup with a configuration error. A host address needs its prefix length, such as `/32` for IPv4 or `/128` for IPv6.
+
+On upgrade, deployments behind a proxy must configure this setting to retain per-client rate limits and IP records. Without it, clients behind that proxy share the proxy's rate-limit budget. See [Reverse Proxy](/deployment/reverse-proxy/) and [Docker Compose](/deployment/docker-compose/).
+
 ## Rate limiting
 
 Per-IP token-bucket rate limiting applied to authentication and sensitive endpoints:

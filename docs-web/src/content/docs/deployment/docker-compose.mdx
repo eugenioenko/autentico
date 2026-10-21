@@ -128,3 +128,18 @@ Migrations are applied automatically on startup. Back up your data volume before
 <Aside type="caution" title="URL mismatch">
 Changing `AUTENTICO_APP_URL` after first run leaves the admin client registered with the old callback URL. Delete the volume and start fresh to fix: `docker compose down -v && docker compose up -d`.
 </Aside>
+
+## Trusted proxy addresses
+
+Set `AUTENTICO_TRUSTED_PROXIES` in Autentico's environment to the proxy address or a dedicated proxy network as seen inside the Autentico container. Loopback CIDRs apply only when the proxy connects over the same network namespace.
+
+For example, with a dedicated Docker network containing only Autentico and a proxy at `172.30.0.2`:
+
+```yaml
+environment:
+  AUTENTICO_TRUSTED_PROXIES: "172.30.0.2/32"
+```
+
+Use the address assigned in your Compose network configuration; this example address is not a Docker default. Keep untrusted containers off the trusted network and restrict direct access to Autentico's internal port. For multiple proxies, include each trusted hop's CIDR. See [Reverse Proxy](/deployment/reverse-proxy/#client-ips-and-trusted-proxies).
+
+On upgrade, the empty default uses the connecting peer for rate limits, audit logs and session records. Configure proxy trust to restore per-user client IPs behind your proxy.

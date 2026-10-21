@@ -338,6 +338,7 @@ These are infrastructure-level settings read once at startup. Changing them requ
 | `AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY` | **Opt-in security enhancement.** Delivers the refresh token as an `HttpOnly` cookie instead of in the JSON response body, preventing JavaScript (including XSS) from reading it. Non-standard — only enable if your client reads the refresh token from a cookie. | `false` |
 | `AUTENTICO_IDP_SESSION_SECURE`   | Require Secure flag on IdP session cookie                      | `true`                  |
 | `AUTENTICO_JWK_CERT_KEY_ID`      | Key ID (`kid`) in the JWK Set                                  | `autentico-key-1`       |
+| `AUTENTICO_TRUSTED_PROXIES` | Comma-separated proxy CIDRs allowed to supply client IPs via X-Forwarded-For; empty uses network peer | _(empty)_ |
 | `AUTENTICO_RATE_LIMIT_RPS`       | Sustained requests/sec per IP on auth endpoints (0 = disabled) | `5`                     |
 | `AUTENTICO_RATE_LIMIT_BURST`     | Burst size for the per-second limiter                          | `10`                    |
 | `AUTENTICO_RATE_LIMIT_RPM`       | Sustained requests/min per IP (long-term cap)                  | `20`                    |
@@ -794,6 +795,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **Password hashing** — user passwords are bcrypt-hashed.
 - **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit single-account brute-force exposure.
 - **Rate limiting** — built-in two-tier per-IP rate limiter on `/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, and `/oauth2/passkey/login/finish`. A per-second limit (default 5 rps / burst 10) stops rapid bursts; a per-minute limit (default 20 rpm / burst 20) caps sustained enumeration. Set `AUTENTICO_RATE_LIMIT_RPS=0` to disable both.
+- **Trusted proxy IPs** — forwarding headers are ignored unless the connecting peer matches `AUTENTICO_TRUSTED_PROXIES`. Trusted chains are read from right to left for rate limits, audit logs and session IPs. After upgrading a proxied deployment, configure the proxy CIDRs to retain per-client limits; otherwise clients share the proxy IP and budget.
 - **Anti-timing delay** — auth endpoints add a random delay (default 50–150 ms) to prevent user enumeration via response timing. A bcrypt dummy hash is also computed on unknown usernames so the CPU cost is indistinguishable from a wrong-password attempt. Configurable via `AUTENTICO_ANTI_TIMING_MIN_MS` / `AUTENTICO_ANTI_TIMING_MAX_MS`; set both to `0` to disable (e.g. for profiling).
 - **RS256 signing** — the RSA private key never leaves the server. Relying parties verify tokens using the public JWKS.
 - **ROPC scope** — restrict the password grant to only clients that genuinely need it by omitting `"password"` from other clients' `grant_types`.
@@ -862,6 +864,8 @@ server {
     }
 }
 ```
+
+For nginx on the same host, set `AUTENTICO_TRUSTED_PROXIES=127.0.0.1/32,::1/128` in Autentico and restart it. For Docker, trust the proxy address or dedicated proxy network as seen by Autentico. Trust only proxy CIDRs; forwarded headers from other peers are ignored.
 
 ### Backup
 

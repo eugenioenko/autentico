@@ -64,7 +64,9 @@ func RunStart(c *cli.Context) error {
 		}
 	}
 
-	config.InitBootstrap()
+	if err := config.InitBootstrap(); err != nil {
+		return err
+	}
 
 	bs := config.GetBootstrap()
 

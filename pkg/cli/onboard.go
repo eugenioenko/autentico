@@ -17,7 +17,9 @@ import (
 // RunOnboard creates the first admin account via CLI, mirroring the /onboard
 // browser flow. It only works once — same guards as the HTTP handler.
 func RunOnboard(c *cli.Context) error {
-	config.InitBootstrap()
+	if err := config.InitBootstrap(); err != nil {
+		return err
+	}
 	bs := config.GetBootstrap()
 
 	if _, err := db.InitDB(bs.DbFilePath); err != nil {
