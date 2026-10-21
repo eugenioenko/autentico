@@ -145,3 +145,39 @@ func TestCleanTokenSessionsClientCredentials(t *testing.T) {
 	require.True(t, rowExists(t, "tokens", "id", "live"))
 	require.False(t, rowExists(t, "tokens", "id", "expired"))
 }
+
+func TestCleanTokenSessionsRequiresEveryBindingField(t *testing.T) {
+	for _, field := range []string{"user_id", "access_token_hash", "refresh_token_hash"} {
+		t.Run(field, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestUser(t, "user-1")
+			testutils.InsertTestUser(t, "user-2")
+			cutoff := time.Now().UTC()
+			insertTokenSession(t, "pair", cutoff.Add(-time.Hour), cutoff.Add(time.Hour), cutoff.Add(-time.Hour), false)
+			replacement := "different"
+			if field == "user_id" {
+				replacement = "user-2"
+			}
+			_, err := db.GetDB().Exec("UPDATE sessions SET "+field+"=? WHERE id='pair'", replacement)
+			require.NoError(t, err)
+			require.NoError(t, cleanTokenSessions(cutoff))
+			require.False(t, rowExists(t, "sessions", "id", "pair"), "mismatched binding must not extend session")
+			require.True(t, rowExists(t, "tokens", "id", "pair"), "live token itself remains retained")
+		})
+	}
+}
+
+func TestCleanTokenSessionsRepairsMatchedNullExpiry(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "user-1")
+	cutoff := time.Now().UTC()
+	insertTokenSession(t, "pair", cutoff.Add(-time.Hour), cutoff.Add(time.Hour), cutoff.Add(-time.Hour), true)
+	_, err := db.GetDB().Exec(`UPDATE sessions SET expires_at=NULL WHERE id='pair'`)
+	require.NoError(t, err)
+	require.NoError(t, cleanTokenSessions(cutoff))
+	var expiry time.Time
+	var deactivated *time.Time
+	require.NoError(t, db.GetDB().QueryRow(`SELECT expires_at,deactivated_at FROM sessions WHERE id='pair'`).Scan(&expiry, &deactivated))
+	require.True(t, expiry.Equal(cutoff.Add(time.Hour)))
+	require.NotNil(t, deactivated)
+}

@@ -73,3 +73,43 @@ func TestIssuedSessionRetainsBothTokenLifetimes(t *testing.T) {
 		})
 	}
 }
+
+func TestRefreshWhileCleanupRuns(t *testing.T) {
+	ts := startTestServer(t)
+	createTestUser(t, "concurrent-cleanup@example.com", "password123", "concurrent-cleanup@example.com")
+	issued := obtainTokensViaPasswordGrant(t, ts, "concurrent-cleanup@example.com", "password123")
+	original := issued.RefreshToken
+	oldExpiry := time.Now().Add(-48 * time.Hour).UTC()
+	_, err := db.GetDB().Exec(`UPDATE tokens SET access_token_expires_at=?; UPDATE sessions SET expires_at=?`, oldExpiry, oldExpiry)
+	require.NoError(t, err)
+	stop, done := make(chan struct{}), make(chan struct{})
+	t.Cleanup(func() { close(stop); <-done })
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				cleanup.Run(24 * time.Hour)
+			}
+		}
+	}()
+	form := url.Values{"grant_type": {"refresh_token"}, "client_id": {"test-client"}}
+	for range 10 {
+		form.Set("refresh_token", issued.RefreshToken)
+		resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&issued))
+		require.NoError(t, resp.Body.Close())
+	}
+	form.Set("refresh_token", original)
+	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	var revoked *time.Time
+	require.NoError(t, db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token_hash=?`, credentialDigest(issued.RefreshToken)).Scan(&revoked))
+	require.NotNil(t, revoked)
+}
