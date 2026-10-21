@@ -64,7 +64,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		slog.Info("request",
 			"request_id", reqid.Get(r.Context()),
 			"method", r.Method,
-			"url", r.URL.String(),
+			"url", r.URL.Path,
 			"status", ww.statusCode,
 			"duration_ms", duration.Milliseconds(),
 		)
