@@ -3,18 +3,19 @@ package user
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
@@ -52,9 +53,9 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 
 	// Create session in DB with the access token
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, signedToken, "refresh-token-placeholder", "", "", "", time.Now(), time.Now().Add(1*time.Hour))
+	`, sessionID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token-placeholder"), "", "", "", time.Now(), time.Now().Add(1*time.Hour))
 	assert.NoError(t, err)
 
 	return signedToken, userID
@@ -373,15 +374,15 @@ func TestHandleRevokeUserSessions_Success(t *testing.T) {
 
 	// Create a token and session for this user.
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', datetime('now'), datetime('now', '+1 hour'))
-	`, "sess-revoke", targetUserID, "at-revoke", "rt-revoke")
+	`, "sess-revoke", targetUserID, utils.HashToken("at-revoke"), utils.HashToken("rt-revoke"))
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
-		        datetime('now'), 'openid', 'authorization_code')
-	`, "tok-revoke", targetUserID, "at-revoke", "rt-revoke")
+		        datetime('now'), 'openid', 'authorization_code', ?, ?)
+	`, "tok-revoke", targetUserID, utils.HashToken("at-revoke"), utils.HashToken("rt-revoke"), testutils.StoredTokenClientID("at-revoke"), testutils.StoredTokenACR("at-revoke"))
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/api/users/"+targetUserID+"/revoke-sessions", nil)
 	req.SetPathValue("id", targetUserID)

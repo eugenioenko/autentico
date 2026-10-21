@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // RevokeAllUserAccess revokes all tokens, OAuth sessions, and IdP sessions
@@ -34,12 +35,12 @@ func revokeUserAccess(userID, excludeToken string) error {
 	now := time.Now()
 
 	if excludeToken != "" {
-		if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token != ?`,
-			now, userID, excludeToken); err != nil {
+		if _, err := tx.Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND access_token_hash != ?`,
+			now, userID, utils.HashToken(excludeToken)); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
-		if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token != ?`,
-			now, userID, excludeToken); err != nil {
+		if _, err := tx.Exec(`UPDATE sessions SET deactivated_at = ? WHERE user_id = ? AND deactivated_at IS NULL AND access_token_hash != ?`,
+			now, userID, utils.HashToken(excludeToken)); err != nil {
 			return fmt.Errorf("failed to deactivate sessions: %v", err)
 		}
 	} else {

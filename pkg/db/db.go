@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/url"
 	"runtime"
 
 	_ "modernc.org/sqlite"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
+	"github.com/eugenioenko/autentico/pkg/dbguard"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 	reader       *sql.DB
 	pooledDB     *DB
 	readPoolSize int
+	databaseLock *dbguard.Lock
 )
 
 // DB routes read operations to the reader pool and write operations to the
@@ -65,7 +68,12 @@ func (d *DB) PingContext(ctx context.Context) error {
 
 // dsn builds a SQLite URI with PRAGMAs applied on every new connection.
 func dsn(dbFilePath string) string {
-	return fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)", dbFilePath)
+	u := url.URL{Scheme: "file", Path: dbFilePath}
+	if dbFilePath == ":memory:" {
+		return "file::memory:?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
+	}
+	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
+	return u.String()
 }
 
 func openPool(dbFilePath string, maxConns int) (*sql.DB, error) {
@@ -79,8 +87,24 @@ func openPool(dbFilePath string, maxConns int) (*sql.DB, error) {
 	return database, nil
 }
 
-func InitDB(dbFilePath string) (*sql.DB, error) {
+func InitDB(dbFilePath string) (_ *sql.DB, initErr error) {
 	var err error
+	dbFilePath, err = dbguard.Path(dbFilePath)
+	if err != nil {
+		return nil, err
+	}
+	databaseLock, err = dbguard.Acquire(dbFilePath, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if initErr != nil {
+			CloseDB()
+		}
+	}()
+	if err := migrations.RecoveryPending(dbFilePath); err != nil {
+		return nil, err
+	}
 
 	writer, err = openPool(dbFilePath, 1)
 	if err != nil {
@@ -104,6 +128,9 @@ func InitDB(dbFilePath string) (*sql.DB, error) {
 	}
 
 	if userVersion == 0 {
+		if err := migrations.CheckAuto(writer); err != nil {
+			return nil, err
+		}
 		if err = migrations.Run(writer, false); err != nil {
 			return nil, fmt.Errorf("failed to initialize database schema: %w", err)
 		}
@@ -161,4 +188,8 @@ func CloseDB() {
 			log.Printf("Failed to close writer database: %v", err)
 		}
 	}
+	if err := databaseLock.Close(); err != nil {
+		log.Printf("Failed to release database lock: %v", err)
+	}
+	databaseLock = nil
 }

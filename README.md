@@ -883,9 +883,11 @@ To apply pending migrations:
 autentico migrate
 ```
 
-The command shows the current and target versions, warns that migrations are irreversible, and asks you to type the target version number to confirm. Back up your database file before proceeding.
+The command shows the current and target schema versions and asks you to type the target number to confirm. Routine migrations run automatically at startup; major migrations require an explicit migration command and create a protected backup automatically, restoring it if migration fails.
 
-Migrations are applied automatically on startup by default. To skip automatic migrations and require manual approval, use `--no-auto-migrate`:
+**Upgrading to v3 (schema 15):** all existing tokens and OAuth/SSO sessions are invalidated. Stop the application, run `autentico migrate`, read the warning, and type `15`. For unattended deployments, use `autentico migrate --approve-major=15`. This is the database schema number, not the release number. Restart only after migration succeeds. Docker users should run this as a one-off container against the existing database volume. See the [v3 migration guide](https://getautentico.dev/deployment/migrations/#upgrading-to-v3-schema-15) for Docker Compose commands, backup behavior, and recovery.
+
+Routine migrations are applied automatically on startup by default. A pending major migration stops startup before any migrations are applied. To disable automatic routine migrations too, use `--no-auto-migrate`:
 
 ```bash
 autentico start --no-auto-migrate

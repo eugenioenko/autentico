@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // RevokeTokensByUserAndClient sets revoked_at on all non-revoked authorization_code
 // grant tokens for the given user. Called when auth code reuse is detected per RFC 6749 §4.1.2.
-// clientID is accepted for logging context but the tokens table has no client_id column.
+// This intentionally retains the existing user-wide replay response.
 func RevokeTokensByUserAndClient(userID, _ string) error {
 	_, err := db.GetDB().Exec(`
 		UPDATE tokens
@@ -42,10 +43,14 @@ func RevokeByID(id string) error {
 // A no-op if the token is not found, per §2.2 ("respond with 200 whether the
 // token is valid, invalid, or unknown").
 func RevokeByTokenValue(tokenValue string) error {
+	if tokenValue == "" {
+		return nil
+	}
+	hash := utils.HashToken(tokenValue)
 	_, err := db.GetDB().Exec(`
 		UPDATE tokens
 		SET revoked_at = ?
-		WHERE access_token = ? OR refresh_token = ?
-	`, time.Now().UTC(), tokenValue, tokenValue)
+		WHERE access_token_hash = ? OR refresh_token_hash = ?
+	`, time.Now().UTC(), hash, hash)
 	return err
 }

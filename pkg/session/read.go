@@ -6,6 +6,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 var oauthSessionListConfig = api.ListConfig{
@@ -108,15 +109,15 @@ func DeactivateSessionByID(sessionID string) error {
 func SessionByIDIncludingDeactivated(sessionID string) (*Session, error) {
 	var session Session
 	query := `
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
+		SELECT id, user_id, COALESCE(access_token_hash, ''), COALESCE(refresh_token_hash, ''), user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions WHERE id = ?
 	`
 	row := db.GetDB().QueryRow(query, sessionID)
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,
-		&session.AccessToken,
-		&session.RefreshToken,
+		&session.AccessTokenHash,
+		&session.RefreshTokenHash,
 		&session.UserAgent,
 		&session.IPAddress,
 		&session.Location,
@@ -139,17 +140,29 @@ func SessionByIDIncludingDeactivated(sessionID string) (*Session, error) {
 // Deactivated sessions are filtered at the read layer so callers can't
 // accidentally honor a revoked session.
 func SessionByAccessToken(accessToken string) (*Session, error) {
+	if accessToken == "" {
+		return nil, fmt.Errorf("session not found")
+	}
+	return SessionByAccessTokenHash(utils.HashToken(accessToken))
+}
+
+// SessionByAccessTokenHash joins a trusted stored token record to its session.
+// Never pass an HTTP credential here; use SessionByAccessToken for that.
+func SessionByAccessTokenHash(hash string) (*Session, error) {
+	if hash == "" {
+		return nil, fmt.Errorf("session not found")
+	}
 	var session Session
 	row := db.GetDB().QueryRow(`
-		SELECT id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
+		SELECT id, user_id, COALESCE(access_token_hash, ''), COALESCE(refresh_token_hash, ''), user_agent, ip_address, location, created_at, expires_at, deactivated_at, idp_session_id
 		FROM sessions
-		WHERE access_token = ? AND deactivated_at IS NULL
-	`, accessToken)
+		WHERE access_token_hash = ? AND deactivated_at IS NULL
+	`, hash)
 	err := row.Scan(
 		&session.ID,
 		&session.UserID,
-		&session.AccessToken,
-		&session.RefreshToken,
+		&session.AccessTokenHash,
+		&session.RefreshTokenHash,
 		&session.UserAgent,
 		&session.IPAddress,
 		&session.Location,

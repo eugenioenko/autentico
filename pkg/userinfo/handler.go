@@ -84,7 +84,7 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := session.SessionByAccessToken(tok.AccessToken)
+	sess, err := session.SessionByAccessToken(accessToken)
 	if err != nil || sess == nil || sess.DeactivatedAt != nil {
 		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Session has been deactivated")
 		return

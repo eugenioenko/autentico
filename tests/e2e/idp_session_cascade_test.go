@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"io"
 	"net/http"
 	"net/url"
@@ -20,12 +21,13 @@ import (
 
 // TestIdpSessionCascade_FullFlow exercises the end-to-end chain introduced by
 // this feature:
-//   authorize+login creates an idp_session and sets the cookie; the auth_code
-//   it issues carries idp_session_id, which /oauth2/token copies onto the
-//   sessions row. Listing /account/api/sessions returns that idp_session with
-//   active_apps_count=1 and is_current=true. Deleting it cascade-deactivates
-//   the OAuth session and revokes its access token — the next /account/api
-//   request with that token must be rejected.
+//
+//	authorize+login creates an idp_session and sets the cookie; the auth_code
+//	it issues carries idp_session_id, which /oauth2/token copies onto the
+//	sessions row. Listing /account/api/sessions returns that idp_session with
+//	active_apps_count=1 and is_current=true. Deleting it cascade-deactivates
+//	the OAuth session and revokes its access token — the next /account/api
+//	request with that token must be rejected.
 func TestIdpSessionCascade_FullFlow(t *testing.T) {
 	ts := startTestServer(t)
 
@@ -78,7 +80,7 @@ func TestIdpSessionCascade_FullFlow(t *testing.T) {
 	// Verify the idp_session_id was plumbed all the way through to the sessions row.
 	var linkedIdp *string
 	require.NoError(t, db.GetDB().QueryRow(
-		`SELECT idp_session_id FROM sessions WHERE access_token = ?`, accessToken,
+		`SELECT idp_session_id FROM sessions WHERE access_token_hash = ?`, utils.HashToken(accessToken),
 	).Scan(&linkedIdp))
 	require.NotNil(t, linkedIdp, "sessions.idp_session_id must be populated after code-exchange")
 	assert.Equal(t, idpCookieValue, *linkedIdp, "sessions.idp_session_id must match the IdP cookie")
@@ -112,14 +114,14 @@ func TestIdpSessionCascade_FullFlow(t *testing.T) {
 	// Child session deactivated.
 	var sessionDeactivated *time.Time
 	require.NoError(t, db.GetDB().QueryRow(
-		`SELECT deactivated_at FROM sessions WHERE access_token = ?`, accessToken,
+		`SELECT deactivated_at FROM sessions WHERE access_token_hash = ?`, utils.HashToken(accessToken),
 	).Scan(&sessionDeactivated))
 	assert.NotNil(t, sessionDeactivated, "child OAuth session must be cascade-deactivated")
 
 	// Child token revoked.
 	var tokenRevoked *time.Time
 	require.NoError(t, db.GetDB().QueryRow(
-		`SELECT revoked_at FROM tokens WHERE access_token = ?`, accessToken,
+		`SELECT revoked_at FROM tokens WHERE access_token_hash = ?`, utils.HashToken(accessToken),
 	).Scan(&tokenRevoked))
 	assert.NotNil(t, tokenRevoked, "child access token must be cascade-revoked")
 

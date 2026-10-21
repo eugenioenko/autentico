@@ -3,6 +3,7 @@ package introspect
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 )
@@ -61,20 +62,20 @@ func generateTestTokenAndStore(userID string) (string, string, error) {
 
 	// Store token in database
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
-		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid profile email", "password")
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tokenID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token"), "Bearer",
+		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid profile email", "password", testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	if err != nil {
 		return "", "", err
 	}
 
 	// Store session in database
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, signedToken, "", "", "", "", time.Now(), accessTokenExpiresAt)
+	`, sessionID, userID, utils.HashToken(signedToken), utils.HashToken(""), "", "", "", time.Now(), accessTokenExpiresAt)
 
 	return signedToken, sessionID, err
 }
@@ -325,7 +326,8 @@ func TestIntrospectToken(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, token)
 	assert.Equal(t, userID, *token.UserID)
-	assert.Equal(t, accessToken, token.AccessToken)
+	assert.Equal(t, utils.HashToken(accessToken), token.AccessTokenHash)
+	assert.Empty(t, token.AccessToken)
 }
 
 func TestIntrospectTokenNotFound(t *testing.T) {
@@ -422,11 +424,11 @@ func TestHandleIntrospectTokenNoSession(t *testing.T) {
 
 	// Store token in DB but don't create session
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
-		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid", "password")
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tokenID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token"), "Bearer",
+		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid", "password", testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	assert.NoError(t, err)
 
 	reqBody := IntrospectRequest{Token: signedToken}
@@ -462,7 +464,7 @@ func TestIntrospectTokenRevoked(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Revoke the token
-	_, err = db.GetDB().Exec(`UPDATE tokens SET revoked_at = ? WHERE access_token = ?`, time.Now(), accessToken)
+	_, err = db.GetDB().Exec(`UPDATE tokens SET revoked_at = ? WHERE access_token_hash = ?`, time.Now(), utils.HashToken(accessToken))
 	assert.NoError(t, err)
 
 	_, err = IntrospectToken(accessToken)
@@ -572,16 +574,16 @@ func generateBearerJWT(t *testing.T, userID string) string {
 	assert.NoError(t, err)
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, ?)
-	`, sessionID, userID, signed, "refresh-placeholder", accessTokenExpiresAt)
+	`, sessionID, userID, utils.HashToken(signed), utils.HashToken("refresh-placeholder"), accessTokenExpiresAt)
 	assert.NoError(t, err)
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
-	`, "tok-"+sessionID[:6], userID, signed, "refresh-"+sessionID[:6], accessTokenExpiresAt, accessTokenExpiresAt, time.Now())
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?)
+	`, "tok-"+sessionID[:6], userID, utils.HashToken(signed), utils.HashToken("refresh-"+sessionID[:6]), accessTokenExpiresAt, accessTokenExpiresAt, time.Now(), testutils.StoredTokenClientID(signed), testutils.StoredTokenACR(signed))
 	assert.NoError(t, err)
 	return signed
 }
@@ -634,8 +636,8 @@ func TestHandleIntrospect_BearerAuth_DeactivatedSession(t *testing.T) {
 
 	// Deactivate the session that generateBearerJWT inserted for this token.
 	_, err = db.GetDB().Exec(
-		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
-		bearerJWT,
+		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token_hash = ?`,
+		utils.HashToken(bearerJWT),
 	)
 	assert.NoError(t, err)
 

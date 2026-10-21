@@ -2,17 +2,18 @@ package userinfo
 
 import (
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
+	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
@@ -45,20 +46,20 @@ func generateTestTokens(userID string) (string, error) {
 
 	// Store token in database for introspection
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
-		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid profile email", "password")
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tokenID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token"), "Bearer",
+		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), "openid profile email", "password", testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	if err != nil {
 		return "", err
 	}
 
 	// Create session so the session deactivation check passes
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, signedToken, "", "", "", "", time.Now(), accessTokenExpiresAt)
+	`, sessionID, userID, utils.HashToken(signedToken), utils.HashToken(""), "", "", "", time.Now(), accessTokenExpiresAt)
 
 	return signedToken, err
 }
@@ -211,19 +212,19 @@ func generateTestTokensWithScope(userID, scope string) (string, error) {
 	}
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, tokenID, userID, signedToken, "refresh-token", "Bearer",
-		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), scope, "authorization_code")
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, tokenID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token"), "Bearer",
+		refreshTokenExpiresAt, accessTokenExpiresAt, time.Now(), scope, "authorization_code", testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	if err != nil {
 		return "", err
 	}
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, signedToken, "", "", "", "", time.Now(), accessTokenExpiresAt)
+	`, sessionID, userID, utils.HashToken(signedToken), utils.HashToken(""), "", "", "", time.Now(), accessTokenExpiresAt)
 
 	return signedToken, err
 }
@@ -493,7 +494,7 @@ func TestHandleUserInfo_PhoneScope_IncludesVerified(t *testing.T) {
 
 func TestHandleUserInfo_CompleteProfile(t *testing.T) {
 	testutils.WithTestDB(t)
-	
+
 	userID := xid.New().String()
 	_, _ = db.GetDB().Exec(`
 		INSERT INTO users (id, username, email, is_email_verified, password, given_name, family_name, phone_number, picture, locale, zoneinfo, address_street, address_locality, address_region, address_postal_code, address_country)
@@ -511,23 +512,23 @@ func TestHandleUserInfo_CompleteProfile(t *testing.T) {
 	expiry := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
 
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
-		VALUES ('sess1', ?, ?, 'ref1', '', '', '', ?, ?)
-	`, userID, signedToken, now, expiry)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
+		VALUES ('sess1', ?, ?, 'de0cd794099a5e03c2131d662d423164111d3b78d5122970197cd7e1937ed0e4', '', '', '', ?, ?)
+	`, userID, utils.HashToken(signedToken), now, expiry)
 
 	// Provide ALL columns for tokens table
 	_, err := db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type, refresh_token_expires_at, refresh_token_last_used_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at)
-		VALUES (1, ?, ?, 'ref1', 'Bearer', ?, NULL, ?, ?, 'openid profile email', 'password', NULL)
-	`, userID, signedToken, expiry, expiry, now)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type, refresh_token_expires_at, refresh_token_last_used_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at, client_id, acr)
+		VALUES (1, ?, ?, 'de0cd794099a5e03c2131d662d423164111d3b78d5122970197cd7e1937ed0e4', 'Bearer', ?, NULL, ?, ?, 'openid profile email', 'password', NULL, ?, ?)
+	`, userID, utils.HashToken(signedToken), expiry, expiry, now, testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
 	req.Header.Set("Authorization", "Bearer "+signedToken)
 	rr := httptest.NewRecorder()
-	
+
 	HandleUserInfo(rr, req)
-	
+
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 

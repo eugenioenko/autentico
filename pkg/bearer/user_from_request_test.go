@@ -1,17 +1,18 @@
 package bearer_test
 
 import (
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
@@ -47,16 +48,16 @@ func setupAuthenticatedUser(t *testing.T) (string, string) {
 	assert.NoError(t, err)
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, signedToken, "refresh-token-placeholder", "", "", "", time.Now(), time.Now().Add(1*time.Hour))
+	`, sessionID, userID, utils.HashToken(signedToken), utils.HashToken("refresh-token-placeholder"), "", "", "", time.Now(), time.Now().Add(1*time.Hour))
 	assert.NoError(t, err)
 
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid profile email', 'password')
-	`, "tok-"+sessionID[:6], userID, signedToken, "refresh-"+sessionID[:6], accessTokenExpiresAt, accessTokenExpiresAt, time.Now())
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid profile email', 'password', ?, ?)
+	`, "tok-"+sessionID[:6], userID, utils.HashToken(signedToken), utils.HashToken("refresh-"+sessionID[:6]), accessTokenExpiresAt, accessTokenExpiresAt, time.Now(), testutils.StoredTokenClientID(signedToken), testutils.StoredTokenACR(signedToken))
 	assert.NoError(t, err)
 
 	return signedToken, userID
@@ -134,8 +135,8 @@ func TestUserFromRequest_DeactivatedSession(t *testing.T) {
 	testutils.WithTestDB(t)
 	token, _ := setupAuthenticatedUser(t)
 	_, err := db.GetDB().Exec(
-		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
-		token,
+		`UPDATE sessions SET deactivated_at = CURRENT_TIMESTAMP WHERE access_token_hash = ?`,
+		utils.HashToken(token),
 	)
 	assert.NoError(t, err)
 
@@ -153,8 +154,8 @@ func TestUserFromRequest_RevokedToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	token, _ := setupAuthenticatedUser(t)
 	_, err := db.GetDB().Exec(
-		`UPDATE tokens SET revoked_at = CURRENT_TIMESTAMP WHERE access_token = ?`,
-		token,
+		`UPDATE tokens SET revoked_at = CURRENT_TIMESTAMP WHERE access_token_hash = ?`,
+		utils.HashToken(token),
 	)
 	assert.NoError(t, err)
 

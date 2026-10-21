@@ -2,6 +2,7 @@ package session
 
 import (
 	"database/sql"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
@@ -80,9 +81,9 @@ func TestHandleLogout_POST_ClearsIdpSessionCookieWithHint(t *testing.T) {
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+	`, sessionID, userID, utils.HashToken(accessToken), time.Now(), time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 
 	idpSessionID := xid.New().String()
@@ -134,9 +135,9 @@ func TestHandleLogout_POST_NoCookie_DoesNotTouchOtherDevices(t *testing.T) {
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour))
+	`, sessionID, userID, utils.HashToken(accessToken), time.Now(), time.Now().Add(1*time.Hour))
 	require.NoError(t, err)
 
 	idpSessionID := xid.New().String()
@@ -180,9 +181,9 @@ func TestHandleLogout_POST_WithCookie_CascadesChildSession(t *testing.T) {
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
+	`, sessionID, userID, utils.HashToken(accessToken), time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}
@@ -224,9 +225,9 @@ func TestHandleLogout_POST_OtherDevicesSurvive(t *testing.T) {
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), currentIdp)
+	`, sessionID, userID, utils.HashToken(accessToken), time.Now(), time.Now().Add(1*time.Hour), currentIdp)
 	require.NoError(t, err)
 
 	// Other device (same user) — must survive
@@ -237,9 +238,9 @@ func TestHandleLogout_POST_OtherDevicesSurvive(t *testing.T) {
 	otherToken, otherSessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, ?, ?)
-	`, otherSessionID, userID, otherToken, time.Now(), time.Now().Add(1*time.Hour), otherIdp)
+	`, otherSessionID, userID, utils.HashToken(otherToken), time.Now(), time.Now().Add(1*time.Hour), otherIdp)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}
@@ -353,9 +354,9 @@ func TestHandleLogout_POST_BasicAuthWithIdTokenHint(t *testing.T) {
 	accessToken, sessionID, err := generateTestAccessToken(userID)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, ?, ?)
-	`, sessionID, userID, accessToken, time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
+	`, sessionID, userID, utils.HashToken(accessToken), time.Now(), time.Now().Add(1*time.Hour), idpSessionID)
 	require.NoError(t, err)
 
 	form := url.Values{"id_token_hint": {accessToken}}

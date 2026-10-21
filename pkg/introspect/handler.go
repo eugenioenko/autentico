@@ -9,7 +9,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -125,7 +124,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	// Return inactive (not an error) to avoid leaking token existence per §2.2.
 	// Admin bearer auth (authenticatedClient == nil) skips this — admins can introspect any token.
 	if authenticatedClient != nil {
-		azp := jwtutil.ExtractAzp(tkn.AccessToken)
+		azp := tkn.ClientID
 		if azp != "" && azp != authenticatedClient.ClientID {
 			slog.Info("introspect: token belongs to different client", "request_id", reqid.Get(r.Context()), "token_azp", azp, "caller", authenticatedClient.ClientID)
 			inactive(w)
@@ -137,7 +136,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	if tkn.GrantType != "client_credentials" {
 		// RFC 7662 §4: check session liveness — deactivated sessions mean the token
 		// should no longer be considered active.
-		sess, err := session.SessionByAccessToken(tkn.AccessToken)
+		sess, err := session.SessionByAccessTokenHash(tkn.AccessTokenHash)
 		if err != nil || sess == nil || sess.DeactivatedAt != nil {
 			slog.Info("introspect: session not active", "request_id", reqid.Get(r.Context()))
 			inactive(w)
@@ -157,7 +156,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
-	// Note: client_id and username are not stored in the tokens table — omitted per spec allowance.
+	// Optional response fields retain their existing API representation.
 	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")
 	sub := ""
 	if tkn.UserID != nil {

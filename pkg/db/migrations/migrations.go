@@ -10,12 +10,14 @@ import (
 
 // SchemaVersion is the schema version this binary expects.
 // Increment this and add a new Migration entry each time the schema changes.
-var SchemaVersion = 14
+var SchemaVersion = 15
 
 // Migration represents a single schema change.
 type Migration struct {
 	Version int
 	SQL     string
+	// Major requires an offline backup when upgrading an existing database.
+	Major bool
 	// Func optionally transforms data after SQL, in the same transaction.
 	// Use SQL for schema changes. Func must use tx and leave its lifecycle to Run.
 	Func func(tx *sql.Tx) error
@@ -37,6 +39,7 @@ var migrations = []Migration{
 	{Version: 12, SQL: migration012},
 	{Version: 13, SQL: migration013},
 	{Version: 14, SQL: migration014},
+	{Version: 15, SQL: migration015, Major: true},
 }
 
 func getUserVersion(db *sql.DB) (int, error) {
@@ -53,6 +56,9 @@ func Check(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	if current > SchemaVersion {
+		return fmt.Errorf("database schema v%d is newer than this binary (v%d)", current, SchemaVersion)
+	}
 	if current < SchemaVersion {
 		return fmt.Errorf(
 			"database is at version %d, this binary requires version %d — run: autentico migrate",
@@ -65,15 +71,33 @@ func Check(db *sql.DB) error {
 // Run applies any pending migrations. If verbose is true, prints progress and
 // "Already up to date." when no migrations are needed.
 func Run(db *sql.DB, verbose bool) error {
+	return run(db, verbose, false)
+}
+
+func run(db *sql.DB, verbose, backedUp bool) error {
 	current, err := getUserVersion(db)
 	if err != nil {
 		return err
 	}
-	if current >= SchemaVersion {
+	if current > SchemaVersion {
+		return fmt.Errorf("database schema v%d is newer than this binary (v%d)", current, SchemaVersion)
+	}
+	if current == SchemaVersion {
 		if verbose {
 			fmt.Println("Already up to date.")
 		}
 		return nil
+	}
+	if current > 0 && !backedUp && pendingMajor(current) {
+		var path string
+		var seq int
+		var name string
+		if err := db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path); err != nil {
+			return err
+		}
+		if path != "" {
+			return fmt.Errorf("major migration requires offline backup; use RunFile or autentico migrate")
+		}
 	}
 	for _, m := range migrations {
 		if m.Version <= current {
@@ -90,6 +114,15 @@ func Run(db *sql.DB, verbose bool) error {
 		}
 	}
 	return nil
+}
+
+func pendingMajor(current int) bool {
+	for _, m := range migrations {
+		if m.Version > current && m.Major {
+			return true
+		}
+	}
+	return false
 }
 
 // applyMigration commits the schema, data transformation, and version together.

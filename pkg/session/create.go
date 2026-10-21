@@ -2,12 +2,13 @@ package session
 
 import (
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 func CreateSession(session Session) error {
 	query := `
 		INSERT INTO sessions (
-			id, user_id, access_token, refresh_token,
+			id, user_id, access_token_hash, refresh_token_hash,
 			user_agent, ip_address, location, expires_at, idp_session_id
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
@@ -20,8 +21,8 @@ func CreateSession(session Session) error {
 	_, err := db.GetDB().Exec(query,
 		session.ID,
 		session.UserID,
-		session.AccessToken,
-		session.RefreshToken,
+		utils.HashToken(session.AccessToken),
+		utils.HashToken(session.RefreshToken),
 		session.UserAgent,
 		session.IPAddress,
 		session.Location,

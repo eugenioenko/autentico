@@ -9,38 +9,60 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 )
 
-func RunMigrate(_ *cli.Context) error {
+func RunMigrate(c *cli.Context) error {
 	config.InitBootstrap()
 	bs := config.GetBootstrap()
 
-	if _, err := db.InitDB(bs.DbFilePath); err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+	approved := c.IntSlice("approve-major")
+	if err := migrations.ValidateApprovals(approved); err != nil {
+		return err
 	}
-	defer db.CloseDB()
-
-	database := db.GetWriteDB()
-
-	if err := migrations.Check(database); err == nil {
+	if err := migrations.RecoverFile(bs.DbFilePath); err != nil {
+		return err
+	}
+	current, majorVersions, err := migrations.InspectFile(bs.DbFilePath)
+	if err != nil {
+		return err
+	}
+	if current == migrations.SchemaVersion {
 		fmt.Println("Already up to date.")
 		return nil
 	}
-
-	var current int
-	if err := database.QueryRow("PRAGMA user_version").Scan(&current); err != nil {
-		return fmt.Errorf("failed to read current schema version: %w", err)
+	if current > migrations.SchemaVersion {
+		return fmt.Errorf("database schema v%d is newer than this binary (v%d)", current, migrations.SchemaVersion)
 	}
 
 	fmt.Printf("Current schema version : %d\n", current)
 	fmt.Printf("Target schema version  : %d\n", migrations.SchemaVersion)
 	fmt.Println()
-	fmt.Println("WARNING: Migrations are irreversible. Back up your database file before proceeding.")
+	fmt.Println("Major migrations create a protected backup automatically and restore it on failure.")
+	fmt.Println("Stop all Autentico instances and other database users before proceeding.")
 	fmt.Printf("  DB file: %s\n", bs.DbFilePath)
 	fmt.Println()
-	fmt.Printf("Type '%d' to confirm and apply migrations: ", migrations.SchemaVersion)
+	if current == 0 && len(majorVersions) == 0 && len(approved) > 0 {
+		// The same deployment job must work on a new, empty volume too.
+		return migrations.RunFile(bs.DbFilePath, true, approved...)
+	}
+	confirmation := fmt.Sprintf("%d", migrations.SchemaVersion)
+	if len(majorVersions) > 0 {
+		fmt.Printf("Major schema migrations: %v\n", majorVersions)
+		fmt.Println("WARNING: All access/refresh tokens, OAuth/SSO sessions, and pending login grants will be invalidated. Everyone must sign in again.")
+		allApproved := true
+		for _, version := range majorVersions {
+			found := false
+			for _, value := range approved {
+				found = found || value == version
+			}
+			allApproved = allApproved && found
+		}
+		if allApproved {
+			return migrations.RunFile(bs.DbFilePath, true, approved...)
+		}
+	}
+	fmt.Printf("Type '%s' to confirm and apply migrations: ", confirmation)
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
@@ -49,10 +71,10 @@ func RunMigrate(_ *cli.Context) error {
 	}
 	input = strings.TrimSpace(input)
 
-	if input != fmt.Sprintf("%d", migrations.SchemaVersion) {
+	if input != confirmation {
 		fmt.Println("Migration cancelled.")
 		return nil
 	}
 
-	return migrations.Run(database, true)
+	return migrations.RunFile(bs.DbFilePath, true, majorVersions...)
 }

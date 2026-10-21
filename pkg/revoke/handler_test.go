@@ -2,6 +2,7 @@ package revoke_test
 
 import (
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
@@ -17,6 +17,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 
 	"github.com/stretchr/testify/assert"
@@ -134,7 +135,7 @@ func TestHandleRevoke(t *testing.T) {
 
 	// Verify the token is revoked
 	var revokedAt string
-	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token_hash = ?`, utils.HashToken(tkn.AccessToken)).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt)
 }
@@ -196,7 +197,7 @@ func TestHandleRevoke_RefreshToken_AlsoRevokesAccess(t *testing.T) {
 
 	// Both tokens on the same row should now be revoked
 	var revokedAt string
-	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token_hash = ?`, utils.HashToken(tkn.AccessToken)).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, revokedAt, "RFC 7009 §2.2: revoking refresh_token must also revoke the access_token")
 }
@@ -260,9 +261,9 @@ func TestHandleRevoke_BearerAuth_DeactivatedSession(t *testing.T) {
 
 	// Persist a session row for the bearer and flag it deactivated.
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
-	`, sessionID, adminID, bearerJWT, "refresh-placeholder", accessTokenExpiresAt)
+	`, sessionID, adminID, utils.HashToken(bearerJWT), utils.HashToken("refresh-placeholder"), accessTokenExpiresAt)
 	require.NoError(t, err)
 
 	form := url.Values{}
@@ -312,7 +313,7 @@ func TestHandleRevoke_CrossClient_NoOp(t *testing.T) {
 
 	// Verify the token was NOT revoked
 	var revokedAt *string
-	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token = ?`, tkn.AccessToken).Scan(&revokedAt)
+	err := db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE access_token_hash = ?`, utils.HashToken(tkn.AccessToken)).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.Nil(t, revokedAt, "RFC 7009 §2.1: cross-client revoke must be a no-op")
 }

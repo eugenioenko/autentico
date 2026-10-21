@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"testing"
 	"time"
 
@@ -36,8 +37,10 @@ func TestSessionByIDIncludingDeactivated(t *testing.T) {
 	// Validate the retrieved session
 	assert.Equal(t, testSession.ID, retrievedSession.ID)
 	assert.Equal(t, testSession.UserID, retrievedSession.UserID)
-	assert.Equal(t, testSession.AccessToken, retrievedSession.AccessToken)
-	assert.Equal(t, testSession.RefreshToken, retrievedSession.RefreshToken)
+	assert.Equal(t, utils.HashToken(testSession.AccessToken), retrievedSession.AccessTokenHash)
+	assert.Equal(t, utils.HashToken(testSession.RefreshToken), retrievedSession.RefreshTokenHash)
+	assert.Empty(t, retrievedSession.AccessToken)
+	assert.Empty(t, retrievedSession.RefreshToken)
 	assert.Equal(t, testSession.UserAgent, retrievedSession.UserAgent)
 	assert.Equal(t, testSession.IPAddress, retrievedSession.IPAddress)
 	assert.Equal(t, testSession.Location, retrievedSession.Location)

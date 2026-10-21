@@ -1,6 +1,7 @@
 package idpsession
 
 import (
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"testing"
 	"time"
 
@@ -20,9 +21,9 @@ func insertSession(t *testing.T, id, userID, idpSessionID, accessToken string) {
 		idp = idpSessionID
 	}
 	_, err := db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at, idp_session_id)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		id, userID, accessToken, accessToken+"-refresh", time.Now().Add(time.Hour), idp,
+		id, userID, utils.HashToken(accessToken), utils.HashToken(accessToken+"-refresh"), time.Now().Add(time.Hour), idp,
 	)
 	require.NoError(t, err)
 }
@@ -31,12 +32,12 @@ func insertSession(t *testing.T, id, userID, idpSessionID, accessToken string) {
 func insertToken(t *testing.T, id, userID, accessToken string) {
 	t.Helper()
 	_, err := db.GetDB().Exec(
-		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, userID, accessToken, accessToken+"-refresh", "Bearer",
+		`INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, userID, utils.HashToken(accessToken), utils.HashToken(accessToken+"-refresh"), "Bearer",
 		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
-		time.Now(), "openid", "authorization_code",
+		time.Now(), "openid", "authorization_code", testutils.StoredTokenClientID(accessToken), testutils.StoredTokenACR(accessToken),
 	)
 	require.NoError(t, err)
 }

@@ -2,12 +2,12 @@ package account
 
 import (
 	"bytes"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/key"
@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,10 +51,10 @@ func setupTestUserAndSession(t *testing.T) (string, *user.User, *middleware.Auth
 
 	now := time.Now().UTC()
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
-	`, "tok-"+sessionID[:8], usr.ID, tokenString, "refresh-"+sessionID[:8], now.Add(time.Hour), now.Add(time.Hour), now)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?)
+	`, "tok-"+sessionID[:8], usr.ID, utils.HashToken(tokenString), utils.HashToken("refresh-"+sessionID[:8]), now.Add(time.Hour), now.Add(time.Hour), now, testutils.StoredTokenClientID(tokenString), testutils.StoredTokenACR(tokenString))
 	assert.NoError(t, err)
 
 	info := &middleware.AuthInfo{

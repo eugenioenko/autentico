@@ -5,17 +5,17 @@ description: How to apply schema migrations when upgrading Autentico.
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Autentico uses explicit, versioned schema migrations. Migrations are applied automatically on startup by default — in most cases, you don't need to do anything.
+Autentico uses explicit, versioned schema migrations. Routine migrations run automatically on startup. Major migrations require a separate, approved migration command before the server can start. Fresh installations initialize automatically.
 
 ## How versioning works
 
 Autentico uses SQLite's built-in `PRAGMA user_version` to track the current schema version. Each release that changes the schema increments this version. On startup, the binary compares the database version against the version it expects and applies any pending migrations.
 
-Fresh databases are automatically stamped with the current version on first start — no action needed.
+The schema number is independent of the release number: the v3 release uses schema **15**. Fresh databases run the schema migrations on first start without requiring approval.
 
 ## Upgrading
 
-By default, `autentico start` applies pending migrations automatically. Just deploy the new binary or image and restart:
+For routine upgrades, `autentico start` applies pending migrations automatically. Deploy the new binary or image and restart:
 
 ```bash
 # Binary
@@ -27,10 +27,10 @@ docker compose up -d
 ```
 
 <Aside type="caution">
-Migrations are irreversible. Back up your database file before upgrading:
+Keep a database backup before upgrading. For a live database, use SQLite's backup command so committed WAL changes are included:
 
 ```bash
-cp /path/to/autentico.db /backup/autentico-$(date +%Y%m%d-%H%M%S).db
+sqlite3 /path/to/autentico.db ".backup /backup/autentico-backup.db"
 ```
 </Aside>
 
@@ -54,7 +54,68 @@ Then run the interactive migration command:
 autentico migrate
 ```
 
-This shows the current and target versions, warns about irreversibility, and asks you to type the target version number to confirm. Type anything else to cancel.
+This shows the current and target schema versions and asks you to type the target number to confirm. A major migration also describes its impact. Type anything else to cancel. If a major migration is pending, startup refuses the entire pending upgrade, including any preceding routine migrations.
+
+## Upgrading to v3: schema 15
+
+Schema 15 stores SHA-256 hashes of access and refresh tokens instead of the original JWTs. Existing sessions are discarded rather than converted. This is a **major migration**: updating the image alone will stop startup with instructions to run `autentico migrate`.
+
+<Aside type="caution">
+The upgrade invalidates **all access and refresh tokens, OAuth sessions, SSO sessions, and pending login grants**, including admin sessions and client-credentials tokens. Everyone must sign in again, and service clients must obtain new tokens. Users, passwords, TOTP enrollment, trusted devices, client configuration, and settings are preserved.
+</Aside>
+
+Stop every Autentico instance and any other process using the database before running the migration. There is no separate session-revocation step: invalidation and the schema changes happen together in the migration transaction.
+
+### Docker Compose
+
+With the service named `autentico` and the existing database volume mounted:
+
+```bash
+docker compose pull autentico
+docker compose stop autentico
+docker compose run --rm autentico migrate
+```
+
+The command warns that everyone will be signed out. Type **`15`** to approve the upgrade. After it succeeds:
+
+```bash
+docker compose up -d autentico
+```
+
+Use the same image, environment, and database volume for the migration container and the application. `docker compose run` starts a separate container, so it works even when the application container cannot start because migration is required.
+
+### Unattended deployments
+
+Approve the specific **schema number**, not the application release:
+
+```bash
+docker compose run --rm -T autentico migrate --approve-major=15 \
+  && docker compose up -d autentico
+```
+
+Stop the old application before running this command. `--approve-major=15` explicitly accepts session invalidation for schema 15 and skips the interactive prompt. Approval for 15 does not approve a future major schema migration. Unknown major schema numbers are rejected. Repeating the command after a successful upgrade is safe and reports that the database is already up to date.
+
+For a binary deployment, stop the service, run `autentico migrate --approve-major=15`, and restart the service only if the command succeeds. Keep this as a deployment step; the normal container command remains `start`.
+
+### Backup, locking, and recovery
+
+Before an existing database undergoes a major upgrade, Autentico:
+
+1. Acquires an exclusive OS lock using the database's `.lock` sidecar file.
+2. Checkpoints committed WAL data into the database and verifies the checkpoint succeeded.
+3. Closes SQLite and creates a backup beside the database, such as `autentico.db.pre-v15-<random>.db`, with owner-only permissions.
+4. Verifies the backup's checksum, schema version, and SQLite integrity, then writes a durable `.migration.json` recovery record.
+5. Applies the migrations, checkpoints the result, and removes the recovery record after success.
+
+If migration fails, Autentico closes SQLite, restores the pre-upgrade backup, and exits with an error. Restoration includes the original tokens and sessions, file permissions, and Unix ownership. The deployment must remain stopped until the failure is resolved and migration succeeds. If the process is interrupted, server startup refuses to use the database while the recovery record remains. Running `autentico migrate` restores the verified backup before requesting approval to retry; automation can retry with `--approve-major=15`.
+
+An OS lock is released when its process exits. A leftover `.lock` file alone does not mean a migration is running. Do not remove a `.migration.json` recovery record to bypass recovery. If the backup is missing or damaged, automatic recovery stops and reports the problem rather than replacing the database with unverified data.
+
+The advisory lock coordinates binaries supporting this migration protocol. Older binaries and external SQLite tools do not honor it; stop them yourself before migrating.
+
+<Aside type="caution">
+Backups contain the old plaintext tokens and must remain protected. Budget space for a full database copy plus migration WAL and recovery staging files. Keep the backup until the upgrade has been verified, then remove it according to your backup retention policy. To roll back the application release, stop all database users and restore the matching pre-upgrade database first; an older binary cannot use schema 15.
+</Aside>
 
 <Aside type="tip">
 If the database is already at the latest version, startup proceeds normally with no migration work.
