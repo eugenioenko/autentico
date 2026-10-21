@@ -921,3 +921,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 |-------|-----------|-------------|--------|
 | MUST | RFC 6749 §3.1.2 / §4.1.2 | Retain registered callback query parameters and return the exact state value using form encoding | ✅ Password login, SSO, consent approval/denial, authorization errors and browser MFA merge encoded response values into callback queries, matching passkey, federation and email-verification callbacks (#477). |
 | Required response semantics | RP-Initiated Logout 1.0 §2–3 | Return supplied opaque state to the registered post-logout callback | ✅ GET and POST logout encode state as one query value and preserve existing query parameters; malformed registered URLs do not redirect (#477). |
+
+## Verification resend account privacy
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| Security guidance | OWASP Authentication, Authentication Responses / Forgot Password, Forgot Password Request | Use account-neutral responses and avoid SMTP latency revealing account eligibility | ✅ Authorized resend requests use the same sent page and randomized-delay policy across account states and storage failures; email delivery runs asynchronously after token storage (#478). |
+| Security consideration | RFC 6749 §10.6 | Do not email verification links with unvalidated authorization parameters | ✅ Signature and current client/redirect/scope/PKCE checks still run before account lookup, token storage or email dispatch (#478). |

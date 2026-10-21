@@ -160,7 +160,8 @@ func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
 	HandleResendVerification(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "already verified")
+	assert.NotContains(t, rr.Body.String(), "already verified")
+	assert.Contains(t, rr.Body.String(), "Check your inbox")
 }
 
 func TestHandleResendVerification_ValidUser_StoresNewToken(t *testing.T) {

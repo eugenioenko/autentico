@@ -399,3 +399,7 @@ Refresh requests require a registered client, using the shared authentication an
 ## Callback query encoding
 
 Password login, SSO, consent approval/denial, authorization errors, browser MFA and RP-initiated logout parse registered callback URLs and add response values with `url.Values.Set`/`Encode`, preserving existing query values and round-tripping opaque state. MFA parses the restored callback before issuing authenticated state. Malformed registered logout URLs render the signed-out page without redirection. Passkey, federation and email-verification callbacks already use encoded query construction.
+
+## Verification resend privacy
+
+`emailverification.HandleResendVerification` keeps authorization signature/client/redirect/scope/PKCE validation before account lookup. Accepted requests use one randomized-delay policy and one deferred generic sent-page response for unknown, inactive, verified, email-less or eligible accounts, including token-storage errors. Eligible tokens are stored before asynchronous email dispatch. Missing SMTP configuration and delivery failures are logged privately; the background sender captures only recipient, URL and request ID. The private handler takes a sender function for deterministic blocked-delivery tests.
