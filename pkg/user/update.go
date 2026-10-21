@@ -179,9 +179,31 @@ func DisableMfa(userID string) error {
 // StoreTotpSecretPending stores the TOTP secret without marking it as verified.
 // Interactive setup must activate through mfa.ConfirmTotpEnrollment.
 func StoreTotpSecretPending(userID, secret string) error {
+	return storeTotpSecret(userID, secret, false)
+}
+
+// storeTotpSecret compares the prior ciphertext so a concurrent enrollment
+// cannot be overwritten. Re-saving the same plaintext keeps its replay state.
+func storeTotpSecret(userID, secret string, verified bool) error {
+	var prior string
+	if err := db.GetDB().QueryRow(`SELECT totp_secret FROM users WHERE id = ? AND deactivated_at IS NULL`, userID).Scan(&prior); err != nil {
+		return err
+	}
+	plain, err := decryptTotpSecret(userID, prior)
+	if err != nil {
+		return err
+	}
+	stored := prior
+	if plain != secret {
+		stored, err = encryptTotpSecret(userID, secret)
+		if err != nil {
+			return err
+		}
+	}
 	query := `UPDATE users SET totp_last_used_step = CASE WHEN totp_secret = ? THEN totp_last_used_step ELSE -1 END,
-        totp_secret = ?, totp_verified = FALSE WHERE id = ? AND totp_verified = FALSE AND deactivated_at IS NULL`
-	result, err := db.GetDB().Exec(query, secret, secret, userID)
+        totp_secret = ?, totp_verified = ?, two_factor_enabled = CASE WHEN ? THEN TRUE ELSE two_factor_enabled END
+		WHERE id = ? AND totp_secret = ? AND (? OR totp_verified = FALSE) AND deactivated_at IS NULL`
+	result, err := db.GetDB().Exec(query, stored, stored, verified, verified, userID, prior, verified)
 	if err != nil {
 		return fmt.Errorf("failed to store pending TOTP secret: %w", err)
 	}
@@ -198,25 +220,26 @@ func StoreTotpSecretPending(userID, secret string) error {
 // EnsurePendingTotpSecret initializes browser setup without replacing a pending
 // secret from a newer setup request. Active enrollment is never modified.
 func EnsurePendingTotpSecret(userID, proposed string) (string, error) {
+	stored, err := encryptTotpSecret(userID, proposed)
+	if err != nil {
+		return "", err
+	}
 	var secret string
-	err := db.GetWriteDB().QueryRow(`UPDATE users
+	err = db.GetWriteDB().QueryRow(`UPDATE users
 		SET totp_last_used_step = CASE WHEN totp_secret = '' THEN -1 ELSE totp_last_used_step END,
 		totp_secret = CASE WHEN totp_secret = '' THEN ? ELSE totp_secret END
 		WHERE id = ? AND totp_verified = FALSE AND deactivated_at IS NULL
-		RETURNING totp_secret`, proposed, userID).Scan(&secret)
-	return secret, err
+		RETURNING totp_secret`, stored, userID).Scan(&secret)
+	if err != nil {
+		return "", err
+	}
+	return decryptTotpSecret(userID, secret)
 }
 
 // SaveTotpSecret stores enrollment state without validating an OTP. Interactive
 // enrollment must use mfa.ConfirmTotpEnrollment to consume the confirmation code.
 func SaveTotpSecret(userID, secret string) error {
-	query := `UPDATE users SET totp_last_used_step = CASE WHEN totp_secret = ? THEN totp_last_used_step ELSE -1 END,
-        totp_secret = ?, totp_verified = TRUE, two_factor_enabled = TRUE WHERE id = ?`
-	_, err := db.GetDB().Exec(query, secret, secret, userID)
-	if err != nil {
-		return fmt.Errorf("failed to save TOTP secret: %v", err)
-	}
-	return nil
+	return storeTotpSecret(userID, secret, true)
 }
 
 // SetRegisteredAt marks the user's registration as complete by stamping registered_at.

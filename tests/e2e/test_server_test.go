@@ -30,6 +30,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/gorilla/csrf"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,6 +47,7 @@ type TestServer struct {
 // appropriate middleware, and configures the config to match the test server URL.
 func startTestServer(t *testing.T) *TestServer {
 	t.Helper()
+	testutils.WithTotpKey(t)
 
 	// Initialize in-memory database
 	_, err := db.InitTestDB()

@@ -44,6 +44,8 @@ type BootstrapConfig struct {
 	AuthIdpSessionSecureCookie  bool
 	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
 	PrivateKeyBase64 string
+	// Persistent base64 AES-256 key for TOTP seed encryption; never generated at startup.
+	TotpEncryptionKey string
 	// Rate limiting (per-IP, applied to auth endpoints). RPS <= 0 disables.
 	TrustedProxies    []netip.Prefix // AUTENTICO_TRUSTED_PROXIES; empty trusts no forwarding headers
 	RateLimitRPS      float64
@@ -326,6 +328,7 @@ func InitBootstrap() error {
 		AuthCSRFProtectionSecretKey: getEnv("AUTENTICO_CSRF_SECRET_KEY", ""),
 		AuthCSRFSecureCookie:        getEnvBool("AUTENTICO_CSRF_SECURE_COOKIE", true),
 		PrivateKeyBase64:            getEnv("AUTENTICO_PRIVATE_KEY", ""),
+		TotpEncryptionKey:           getEnv("AUTENTICO_TOTP_ENCRYPTION_KEY", ""),
 		AuthJwkCertKeyID:            getEnv("AUTENTICO_JWK_CERT_KEY_ID", "autentico-key-1"),
 		AuthRefreshTokenCookieName:  getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
 		AuthRefreshTokenCookieOnly:  getEnvBool("AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY", false),

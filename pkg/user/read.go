@@ -62,6 +62,10 @@ func scanUser(row interface {
 	if err != nil {
 		return nil, err
 	}
+	u.TotpSecret, err = decryptTotpSecret(u.ID, u.TotpSecret)
+	if err != nil {
+		return nil, err
+	}
 	u.Password = nullStringToString(password)
 	u.Email = nullStringToString(email)
 	return &u, nil

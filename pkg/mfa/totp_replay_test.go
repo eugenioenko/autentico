@@ -20,6 +20,7 @@ const replaySecret = "JBSWY3DPEHPK3PXP"
 var replayTime = time.Unix(1800000005, 0)
 
 func TestTotpReplaySurvivesRestart(t *testing.T) {
+	testutils.WithTotpKey(t)
 	path := filepath.Join(t.TempDir(), "totp-replay.db")
 	_, err := db.InitDB(path)
 	require.NoError(t, err)
@@ -180,12 +181,22 @@ func TestTotpReplayStorageFailureDoesNotConsume(t *testing.T) {
 func TestTotpReplayBoundToActiveEnrollment(t *testing.T) {
 	id := replayUser(t)
 	code := replayCode(t, replayTime)
-	for _, state := range []string{"totp_verified=FALSE", "totp_secret='different-secret'", "deactivated_at=CURRENT_TIMESTAMP"} {
-		_, err := db.GetDB().Exec("UPDATE users SET "+state+" WHERE id=?", id)
-		require.NoError(t, err)
+	for _, change := range []func() error{
+		func() error {
+			_, err := db.GetDB().Exec("UPDATE users SET totp_verified=FALSE WHERE id=?", id)
+			return err
+		},
+		func() error { return user.SaveTotpSecret(id, "different-secret") },
+		func() error {
+			_, err := db.GetDB().Exec("UPDATE users SET deactivated_at=CURRENT_TIMESTAMP WHERE id=?", id)
+			return err
+		},
+	} {
+		require.NoError(t, change())
 		require.ErrorIs(t, consumeTotpCodeAt(id, replaySecret, code, replayTime), ErrInvalidTotp)
-		_, err = db.GetDB().Exec("UPDATE users SET totp_verified=TRUE,totp_secret=?,deactivated_at=NULL WHERE id=?", replaySecret, id)
+		_, err := db.GetDB().Exec("UPDATE users SET totp_verified=TRUE,deactivated_at=NULL WHERE id=?", id)
 		require.NoError(t, err)
+		require.NoError(t, user.SaveTotpSecret(id, replaySecret))
 	}
 	require.NoError(t, consumeTotpCodeAt(id, replaySecret, code, replayTime))
 	// Re-saving the same seed and unlocking the account must not reset replay state.

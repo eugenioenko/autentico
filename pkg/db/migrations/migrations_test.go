@@ -345,7 +345,7 @@ func TestRun_TotpReplayIsRoutineAndPreservesEnrollment(t *testing.T) {
 	_, err := database.Exec(`INSERT INTO users(id,username,password,totp_secret,totp_verified)
 		VALUES('replay-upgrade','replay-upgrade','kept-password','kept-seed',TRUE)`)
 	require.NoError(t, err)
-	migrations, SchemaVersion = plan, 16
+	migrations, SchemaVersion = plan[:16], 16
 	require.NoError(t, CheckAuto(database))
 	require.NoError(t, Run(database, false))
 	var secret string

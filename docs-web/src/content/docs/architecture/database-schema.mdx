@@ -3,7 +3,7 @@ title: Database Schema
 description: The SQLite database schema used by Autentico.
 ---
 
-Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 7). Fresh databases run all migrations from scratch; existing databases run only pending ones. Migrations are applied automatically on startup by default, or can be applied interactively via `autentico migrate`.
+Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 17). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
 
 ## Tables
 
@@ -19,7 +19,7 @@ Stores all user accounts.
 | `password` | TEXT | bcrypt hash (NULL for passkey-only users) |
 | `role` | TEXT | `user` or `admin` |
 | `two_factor_enabled` | BOOLEAN | Whether 2FA is enabled |
-| `totp_secret` | TEXT | base32-encoded TOTP shared secret |
+| `totp_secret` | TEXT | AES-256-GCM ciphertext (`totp:v1:`), authenticated to the user ID; encryption key stays in `.env` or the environment |
 | `totp_verified` | BOOLEAN | Whether enrollment is complete |
 | `last_login` | DATETIME | Timestamp of last successful login |
 | `failed_login_attempts` | INTEGER | Resets on successful login |

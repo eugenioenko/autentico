@@ -38,7 +38,7 @@ If the value of `AUTENTICO_PRIVATE_KEY` may be exposed:
 If the SQLite database is accessed by an unauthorized party:
 
 - **Passwords**: bcrypt-hashed, no plaintext exposure. Users' passwords themselves are not directly compromised.
-- **TOTP secrets**: stored in the database. Affected users should be directed to re-enroll TOTP with new secrets.
+- **TOTP secrets**: encrypted in schema 17 using `AUTENTICO_TOTP_ENCRYPTION_KEY`, held outside the database. If that key or a pre-upgrade plaintext database/backup was also exposed, treat the corresponding TOTP seeds as compromised.
 - **Session tokens**: revoke all active sessions immediately.
 - **Refresh tokens**: all existing refresh tokens should be considered compromised. Consider rotating the RSA key to invalidate all tokens.
 - **Notify affected users** per your legal and regulatory obligations.

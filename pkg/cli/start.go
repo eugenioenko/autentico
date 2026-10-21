@@ -49,6 +49,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
 	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
@@ -93,6 +94,10 @@ func RunStart(c *cli.Context) error {
 			return err
 		}
 	} else if err := migrations.Check(db.GetWriteDB()); err != nil {
+		return err
+	}
+
+	if err := user.ValidateTotpEncryption(); err != nil {
 		return err
 	}
 
@@ -411,5 +416,5 @@ func validateBootstrapSecrets(bs *config.BootstrapConfig) error {
 				"run 'autentico init' to generate a .env file with secure values, or set them manually",
 		)
 	}
-	return nil
+	return totpsecret.ValidateKey(bs.TotpEncryptionKey)
 }

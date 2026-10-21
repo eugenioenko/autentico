@@ -104,8 +104,8 @@ The compiled binary is at `./autentico`.
 
 | Command | Description |
 |---|---|
-| `autentico init` | Generate a `.env` with fresh secrets. Use `--url` to set the app URL, `--dev` for local HTTP. |
-| `autentico start` | Start the server. Applies pending migrations automatically. |
+| `autentico init` | Create `.env` with fresh secrets, or add only a missing TOTP encryption key to existing config. `--url` and `--dev` apply to new files. |
+| `autentico start` | Start the server. Applies routine migrations automatically; pending major migrations require explicit `migrate` approval. |
 | `autentico start --auto-setup` | Generate `.env` if missing, then start. Safe to pass on every run. |
 | `autentico start --no-auto-migrate` | Skip automatic migrations. Server refuses to start if the schema is behind. |
 | `autentico migrate` | Interactively apply pending database migrations. |

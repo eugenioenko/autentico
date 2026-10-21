@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -29,11 +30,14 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/sqliteutil"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
 
-const target = 16
+const target = 17
+
+var totpKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{42}, 32))
 
 var binary, root string
 
@@ -151,6 +155,7 @@ func env(path string) []string {
 	return append(values,
 		"AUTENTICO_DB_FILE_PATH="+path,
 		"AUTENTICO_APP_URL=http://localhost:9999",
+		"AUTENTICO_TOTP_ENCRYPTION_KEY="+totpKey,
 		"AUTENTICO_ACCESS_TOKEN_SECRET=migration-test-access-secret",
 		"AUTENTICO_REFRESH_TOKEN_SECRET=migration-test-refresh-secret",
 		"AUTENTICO_CSRF_SECRET_KEY=01234567890123456789012345678901")
@@ -175,7 +180,7 @@ func commandWithBinary(t *testing.T, executable, path, input string, args ...str
 }
 func migrate(t *testing.T, path string) (string, error) {
 	t.Helper()
-	return command(t, path, "", "migrate", "--approve-major=15")
+	return command(t, path, "", "migrate", "--approve-major=15,17")
 }
 func schema(t *testing.T, path string) int {
 	t.Helper()
@@ -220,7 +225,9 @@ func checkPurged(t *testing.T, path string) {
 	require.NoError(t, db.QueryRow(`SELECT username,password,totp_secret,totp_verified FROM users WHERE id='u'`).Scan(&username, &password, &totp, &verified))
 	require.Equal(t, "kept-user", username)
 	require.Equal(t, "kept-password", password)
-	require.Equal(t, "kept-totp", totp)
+	plain, err := totpsecret.Open(totpKey, "u", totp)
+	require.NoError(t, err)
+	require.Equal(t, "kept-totp", plain)
 	require.True(t, verified)
 	require.NoError(t, db.QueryRow(`SELECT value FROM settings WHERE key='migration-fixture'`).Scan(&setting))
 	require.Equal(t, "kept-setting", setting)
@@ -260,7 +267,7 @@ func TestUpgradeHistoricalDatabases(t *testing.T) {
 	}
 }
 
-func TestRoutineTotpReplayUpgradePreservesSessions(t *testing.T) {
+func TestTotpEncryptionUpgradePreservesSessions(t *testing.T) {
 	path, database := fixture(t, 15, "WAL", false)
 	_, err := database.Exec(`INSERT INTO users(id,username,password,totp_secret,totp_verified)
 		VALUES('routine-user','routine-user','kept-password','kept-seed',TRUE);
@@ -269,16 +276,18 @@ func TestRoutineTotpReplayUpgradePreservesSessions(t *testing.T) {
 		INSERT INTO sessions(id,user_id,access_token_hash,refresh_token_hash) VALUES('routine-session','routine-user','kept-access-hash','kept-refresh-hash')`)
 	require.NoError(t, err)
 	require.NoError(t, database.Close())
-	output, err := command(t, path, "", "migrate", "--approve-major=15")
+	output, err := command(t, path, "", "migrate", "--approve-major=15,17")
 	require.NoError(t, err, output)
 	require.Equal(t, target, schema(t, path))
-	require.Empty(t, backups(t, path))
+	require.Len(t, backups(t, path), 1)
 	database = openDB(t, path)
 	var step int64
 	var secret, accessHash, sessionHash string
 	require.NoError(t, database.QueryRow(`SELECT totp_last_used_step,totp_secret FROM users WHERE id='routine-user'`).Scan(&step, &secret))
 	require.Equal(t, int64(-1), step)
-	require.Equal(t, "kept-seed", secret)
+	plain, err := totpsecret.Open(totpKey, "routine-user", secret)
+	require.NoError(t, err)
+	require.Equal(t, "kept-seed", plain)
 	require.NoError(t, database.QueryRow(`SELECT access_token_hash FROM tokens WHERE id='routine-token'`).Scan(&accessHash))
 	require.NoError(t, database.QueryRow(`SELECT access_token_hash FROM sessions WHERE id='routine-session'`).Scan(&sessionHash))
 	require.Equal(t, "kept-access-hash", accessHash)
@@ -294,7 +303,7 @@ func TestEmptyAndFreshInstallations(t *testing.T) {
 			args := []string{"migrate"}
 			if version > 0 {
 				input = ""
-				args = append(args, "--approve-major=15")
+				args = append(args, "--approve-major=15,17")
 			}
 			output, err := command(t, path, input, args...)
 			require.NoError(t, err, output)
@@ -461,7 +470,7 @@ func runUntil(t *testing.T, path, marker string) (*exec.Cmd, *lockedBuffer) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	t.Cleanup(cancel)
-	cmd := exec.CommandContext(ctx, binary, "migrate", "--approve-major=15")
+	cmd := exec.CommandContext(ctx, binary, "migrate", "--approve-major=15,17")
 	cmd.Dir = filepath.Dir(path)
 	cmd.Env = env(path)
 	pipe, err := cmd.StdoutPipe()
@@ -714,7 +723,7 @@ func futureCLI(t *testing.T, major bool) string {
 	data, err := os.ReadFile(sourcePath)
 	require.NoError(t, err)
 	source := strings.Replace(string(data), fmt.Sprintf("var SchemaVersion = %d", target), fmt.Sprintf("var SchemaVersion = %d", target+1), 1)
-	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d},", target, target)
+	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d, Major: true, Func: encryptTotp},", target, target)
 	require.Contains(t, source, anchor)
 	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: %d, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", target+1, major), 1)
 	dir := t.TempDir()
@@ -750,7 +759,7 @@ func TestHeadlessApprovalAcrossFutureMigrations(t *testing.T) {
 				require.Contains(t, output, fmt.Sprintf("Type '%d'", target+1))
 				require.Equal(t, target, schema(t, path))
 			}
-			output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=15")
+			output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=15,17")
 			if major {
 				require.Error(t, err, output)
 				require.Contains(t, output, fmt.Sprintf("Major schema migrations: [%d]", target+1))

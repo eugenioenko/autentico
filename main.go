@@ -59,7 +59,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
-				Usage: "Generate a .env configuration file with secure defaults",
+				Usage: "Create .env or add a missing TOTP encryption key to existing config",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "url",

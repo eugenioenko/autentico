@@ -17,10 +17,13 @@ restoration and retry, process interruption, concurrent migrators, damaged
 backups, invalid database files, file permissions, and new-volume initialization.
 The Linux partial-write case uses a real kernel file-size limit and also works
 when the suite runs as root. Existing account data and TOTP enrollment must
-survive; old tokens, OAuth/SSO sessions, and pending login grants must not.
+survive. Schema 17 encrypts active, pending and deactivated seeds without resetting enrollment, replay or lockout state. Missing or malformed keys must leave the database byte-for-byte unchanged. Encryption update/commit failures and process interruption restore the original enrollments and allow retry. Real post-upgrade login and restart tests prove the existing authenticator still works and replay state persists. Wrong keys reject startup and migration. Schema 15 discards old tokens, OAuth/SSO sessions and pending login grants; schema 17 alone preserves sessions.
 
 CI runs the real database and CLI migration suite on both Linux and Windows,
 including paths containing spaces, Unicode, and URI-reserved characters.
+The functional CI job also runs the Docker Compose migration test against the
+same built binary used by the HTTP tests, including a root-owned `0640` config
+that remains readable by the service group after `init` adds the key.
 
 The migration package additionally tests routine automatic migrations and
 approval of multiple pending major migrations. Endpoint tests in
@@ -42,7 +45,7 @@ python3 tests/migrations/docker_smoke.py --binary /tmp/autentico-migration-smoke
 
 This starts isolated containers using the Debian runtime and the newly built
 binary, with the same entrypoint, working directory, and database mount as the
-application image. It checks startup refusal, headless approval, automatic
+application image. It checks missing-key refusal, safe key addition through `init`, retained service ownership of the existing configuration, encrypted enrollment preservation, startup refusal, headless approval, automatic
 restoration after an injected failure, preserved host ownership, successful
 retry, startup under the service UID after a root-run migration, and idempotent
 deployment-job retry. The test

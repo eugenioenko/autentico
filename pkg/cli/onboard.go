@@ -11,6 +11,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/eugenioenko/autentico/pkg/user"
 )
 
@@ -21,6 +22,9 @@ func RunOnboard(c *cli.Context) error {
 		return err
 	}
 	bs := config.GetBootstrap()
+	if err := totpsecret.ValidateKey(bs.TotpEncryptionKey); err != nil {
+		return err
+	}
 
 	if _, err := db.InitDB(bs.DbFilePath); err != nil {
 		absPath, _ := filepath.Abs(bs.DbFilePath)
@@ -32,6 +36,9 @@ func RunOnboard(c *cli.Context) error {
 		return err
 	}
 	if err := migrations.Run(db.GetWriteDB(), true); err != nil {
+		return err
+	}
+	if err := user.ValidateTotpEncryption(); err != nil {
 		return err
 	}
 

@@ -44,10 +44,12 @@ func TestRunInit(t *testing.T) {
 	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=true")
 	assert.Contains(t, sContent, "AUTENTICO_TRUSTED_PROXIES=\n")
 
-	// Test re-init error
+	// Re-init preserves the complete file, including existing keys.
 	err = RunInit(ctx)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
+	assert.NoError(t, err)
+	again, err := os.ReadFile(".env")
+	assert.NoError(t, err)
+	assert.Equal(t, content, again)
 }
 
 func TestRunInit_WithOutput(t *testing.T) {
@@ -193,5 +195,5 @@ func TestRunInit_EnvDirectoryError(t *testing.T) {
 
 	err := RunInit(ctx)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
+	assert.Contains(t, err.Error(), "regular .env file")
 }

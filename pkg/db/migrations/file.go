@@ -11,8 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/dbguard"
 	"github.com/eugenioenko/autentico/pkg/sqliteutil"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	_ "modernc.org/sqlite"
 )
 
@@ -76,6 +78,35 @@ func InspectFile(path string) (int, []int, error) {
 		return version, nil, nil
 	}
 	return version, MajorVersions(version), nil
+}
+
+// ValidateCurrentFile checks an up-to-date database under a shared lock, so an
+// idempotent deployment check can run alongside the service without upgrading it.
+func ValidateCurrentFile(path string) error {
+	if err := totpsecret.ValidateKey(config.GetBootstrap().TotpEncryptionKey); err != nil {
+		return err
+	}
+	path, err := dbguard.Path(path)
+	if err != nil {
+		return err
+	}
+	lock, err := dbguard.Acquire(path, false)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = lock.Close() }()
+	if err := RecoveryPending(path); err != nil {
+		return err
+	}
+	db, err := openFile(path, true)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	if err := Check(db); err != nil {
+		return err
+	}
+	return validateEncryptedTotp(db)
 }
 
 // MajorVersions returns the major schema versions pending after current.
@@ -175,6 +206,10 @@ func RecoveryPending(path string) error {
 // applying any pending migrations. Failure restores that snapshot with SQLite
 // closed. The backup is retained on success and failure.
 func RunFile(path string, verbose bool, approvedMajors ...int) error {
+	// Validate before opening, checkpointing, recovering or backing up the DB.
+	if err := totpsecret.ValidateKey(config.GetBootstrap().TotpEncryptionKey); err != nil {
+		return err
+	}
 	path, err := dbguard.Path(path)
 	if err != nil {
 		return err
@@ -211,6 +246,11 @@ func RunFile(path string, verbose bool, approvedMajors ...int) error {
 		if err := ValidateApprovals(approvedMajors); err != nil {
 			return err
 		}
+		if version == SchemaVersion && version >= 17 {
+			if err := validateEncryptedTotp(db); err != nil {
+				return err
+			}
+		}
 		return run(db, verbose, true)
 	}
 	if err := requireApprovals(MajorVersions(version), approvedMajors); err != nil {
@@ -245,9 +285,17 @@ func RunFile(path string, verbose bool, approvedMajors ...int) error {
 	db, err = openFile(path, false)
 	if err == nil {
 		err = run(db, verbose, true)
+		if err == nil && version < 17 {
+			// SQLite VACUUM §2: secure_delete cannot scrub historical free
+			// pages retroactively. Rebuild after encryption, outside the
+			// migration transaction, while recovery still protects the upgrade.
+			if _, vacuumErr := db.Exec("VACUUM"); vacuumErr != nil {
+				err = fmt.Errorf("remove historical plaintext after TOTP encryption: %w", vacuumErr)
+			}
+		}
 		if err == nil {
 			// Finish the upgrade with no WAL dependency before removing the
-			// recovery record. secure_delete removes old credential pages.
+			// recovery record, including pages written by the rebuild.
 			var busy, log, checkpointed int
 			err = db.QueryRow("PRAGMA wal_checkpoint(TRUNCATE)").Scan(&busy, &log, &checkpointed)
 			if err == nil && busy != 0 {
@@ -421,9 +469,10 @@ func recoverFile(path string) error {
 	if digest != state.SHA256 {
 		return fmt.Errorf("restoration checksum mismatch")
 	}
-	// No SQLite connections may be open here. Stale WAL must never be replayed
-	// onto the restored database. The durable recovery record survives crashes.
-	for _, suffix := range []string{"-wal", "-shm"} {
+	// No SQLite connections may be open here. SQLite lockingv3 §4.1: a hot
+	// rollback journal is replayed before reads, so neither it nor stale WAL
+	// may accompany a replaced snapshot. The recovery record survives crashes.
+	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
 		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale %s: %w", suffix, err)
 		}

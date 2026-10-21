@@ -3,7 +3,9 @@ package mfa
 import (
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
 )
@@ -52,9 +54,13 @@ func consumeTotpCodeAt(userID, secret, code string, now time.Time) error {
 	if !valid {
 		return ErrInvalidTotp
 	}
+	stored, err := storedTotpEnrollment(userID, secret)
+	if err != nil {
+		return err
+	}
 	result, err := db.GetDB().Exec(`UPDATE users SET totp_last_used_step = ?
 		WHERE id = ? AND totp_secret = ? AND totp_verified = TRUE
-		AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, secret, oldest)
+		AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, stored, oldest)
 	if err != nil {
 		return err
 	}
@@ -76,10 +82,14 @@ func ConfirmTotpEnrollment(userID, secret, code string) error {
 	if !valid {
 		return ErrInvalidTotp
 	}
+	stored, err := storedTotpEnrollment(userID, secret)
+	if err != nil {
+		return err
+	}
 	result, err := db.GetDB().Exec(`UPDATE users SET totp_verified = TRUE,
         two_factor_enabled = TRUE, totp_last_used_step = ?
         WHERE id = ? AND totp_secret = ? AND totp_verified = FALSE
-        AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, secret, oldest)
+        AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, stored, oldest)
 	if err != nil {
 		return err
 	}
@@ -91,4 +101,21 @@ func ConfirmTotpEnrollment(userID, secret, code string) error {
 		return ErrInvalidTotp
 	}
 	return nil
+}
+
+// Randomized encryption cannot be reproduced for SQL comparison. Read and
+// authenticate the exact stored value, then retain it in the conditional write.
+func storedTotpEnrollment(userID, proposed string) (string, error) {
+	var stored string
+	if err := db.GetDB().QueryRow(`SELECT totp_secret FROM users WHERE id = ?`, userID).Scan(&stored); err != nil {
+		return "", err
+	}
+	plain, err := totpsecret.Open(config.GetBootstrap().TotpEncryptionKey, userID, stored)
+	if err != nil {
+		return "", err
+	}
+	if plain != proposed {
+		return "", ErrInvalidTotp
+	}
+	return stored, nil
 }

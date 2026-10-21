@@ -133,6 +133,11 @@ jobs:
           name: autentico-binary
       - name: Make binary executable
         run: chmod +x autentico
+      - name: Run Docker Compose migration tests
+        timeout-minutes: 3
+        run: |
+          docker pull debian:bookworm-slim
+          python3 tests/migrations/docker_smoke.py --binary "$PWD/autentico"
       - name: Install pnpm
         uses: pnpm/action-setup@v4
       - name: Set up Node
