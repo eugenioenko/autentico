@@ -1,8 +1,12 @@
 package magiclink
 
 import (
+	"context"
 	"crypto/rand"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -75,13 +79,44 @@ func recordFailedCodeAttempt(tokenHash string) (int, error) {
 	return attempts, err
 }
 
-func markTokenUsed(tokenHash string) {
-	if _, err := db.GetDB().Exec(
-		`UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?`,
-		tokenHash,
-	); err != nil {
-		slog.Error("magiclink: failed to mark token as used", "error", err)
+// consumeMagicLinkToken claims one eligible challenge for either redemption path.
+// Expiry is checked as a Go time inside the transaction because existing SQLite
+// timestamps can contain different offsets and aren't lexically comparable.
+// Ineligible challenges return sql.ErrNoRows; write/commit failures abort login.
+func consumeMagicLinkToken(tokenHash string) error {
+	ctx := context.Background()
+	conn, err := db.GetWriteDB().Conn(ctx)
+	if err != nil {
+		return err
 	}
+	defer func() { _ = conn.Close() }()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// token_hash is unique, so RETURNING yields exactly one claimed row or none.
+	var expiresAt time.Time
+	if err := tx.QueryRow(
+		`UPDATE magic_link_tokens SET used_at = CURRENT_TIMESTAMP
+		 WHERE token_hash = ? AND used_at IS NULL AND failed_attempts < ?
+		 RETURNING expires_at`, tokenHash, maxCodeAttempts,
+	).Scan(&expiresAt); err != nil {
+		return err
+	}
+	if !time.Now().Before(expiresAt) {
+		return sql.ErrNoRows
+	}
+	if err := tx.Commit(); err != nil {
+		// SQLite may leave the transaction open after database/sql marks it done.
+		if _, rollbackErr := conn.ExecContext(ctx, "ROLLBACK"); rollbackErr != nil {
+			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			err = errors.Join(err, rollbackErr)
+		}
+		return err
+	}
+	return nil
 }
 
 func invalidatePreviousTokens(userID string) {

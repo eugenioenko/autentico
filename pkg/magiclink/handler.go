@@ -240,7 +240,15 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	markTokenUsed(tokenHash)
+	if err := consumeMagicLinkToken(tokenHash); err != nil {
+		if err == sql.ErrNoRows {
+			renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link is invalid or has already been used.", nil)
+		} else {
+			slog.Error("magiclink: failed to consume token", "request_id", reqid.Get(r.Context()), "error", err)
+			renderMagicLink(w, r, "expired", params, authorizeSigValue, "Something went wrong. Please request a new link.", nil)
+		}
+		return
+	}
 
 	completeLogin(w, r, cfg, params, authorizeSigValue, userID)
 }
@@ -308,7 +316,13 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	markTokenUsed(tokenHash)
+	if err := consumeMagicLinkToken(tokenHash); err != nil {
+		if err != sql.ErrNoRows {
+			slog.Error("magiclink: failed to consume code", "request_id", reqid.Get(r.Context()), "error", err)
+		}
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, genericErr, sentExtra)
+		return
+	}
 
 	completeLogin(w, r, cfg, params, authorizeSigValue, usr.ID)
 }
