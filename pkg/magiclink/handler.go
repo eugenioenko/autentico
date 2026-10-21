@@ -460,12 +460,19 @@ func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, p
 
 	audit.Log(audit.EventMagicLinkLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "magic_link"), utils.GetClientIP(r))
 
-	redirectParams := url.Values{}
+	// RFC 6749 §4.1.2: preserve registered callback query parameters.
+	redirectURL, err := url.Parse(params.RedirectURI)
+	if err != nil {
+		view.RenderError(w, r, http.StatusBadRequest, "Invalid redirect_uri")
+		return
+	}
+	redirectParams := redirectURL.Query()
 	redirectParams.Set("code", codeRecord.Code)
 	if params.State != "" {
 		redirectParams.Set("state", params.State)
 	}
-	http.Redirect(w, r, params.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
+	redirectURL.RawQuery = redirectParams.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 func buildMagicLinkURL(rawToken string, p oauthParams, authorizeSig string) string {
