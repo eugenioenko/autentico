@@ -109,7 +109,7 @@ func TestMagicLinkCodeInactiveChallenge(t *testing.T) {
 				_, err := db.GetDB().Exec(`UPDATE magic_link_tokens SET expires_at = ? WHERE token_hash = ?`, time.Now().Add(-time.Hour), hash)
 				require.NoError(t, err)
 			case "used":
-				markTokenUsed(hash)
+				require.NoError(t, consumeMagicLinkToken(hash))
 			case "unknown-email":
 				form.Set("email", "unknown@example.com")
 			}
@@ -184,14 +184,15 @@ func TestCreateAndGetMagicLinkToken(t *testing.T) {
 	assert.Nil(t, usedAt)
 }
 
-func TestMarkMagicLinkTokenUsed(t *testing.T) {
+func TestConsumeMagicLinkToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "ml-user-2")
 
 	_, hash, _ := generateToken()
 	require.NoError(t, createMagicLinkToken("ml-user-2", hash, "", time.Now().Add(time.Hour)))
 
-	markTokenUsed(hash)
+	require.NoError(t, consumeMagicLinkToken(hash))
+	require.ErrorIs(t, consumeMagicLinkToken(hash), sql.ErrNoRows)
 
 	_, _, usedAt, err := getMagicLinkTokenInfo(hash)
 	require.NoError(t, err)
@@ -476,7 +477,7 @@ func TestHandleMagicLinkVerify_UsedToken(t *testing.T) {
 
 	raw, hash, _ := generateToken()
 	require.NoError(t, createMagicLinkToken("ml-used-user", hash, "", time.Now().Add(time.Hour)))
-	markTokenUsed(hash)
+	require.NoError(t, consumeMagicLinkToken(hash))
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?token="+raw, nil)
 	rr := httptest.NewRecorder()
