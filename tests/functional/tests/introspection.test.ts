@@ -148,3 +148,46 @@ describe('Token Introspection — cross-client isolation', () => {
     expect(body.active).toBe(true);
   });
 });
+
+
+describe('Token Introspection — independent access and refresh lifetimes', () => {
+  for (const shortToken of ['access', 'refresh'] as const) {
+    it(`reports each expiry and rejects only the expired ${shortToken} token`, async () => {
+      const admin = await getAdminToken();
+      const clientId = `expiry-${shortToken}`;
+      const secret = 'expiry-client-secret!';
+      const registered = await postJSON(`${OAUTH_URL}/register`, {
+        client_id: clientId, client_name: `Expiry ${shortToken}`, client_secret: secret,
+        redirect_uris: ['http://localhost:3000/callback'],
+        grant_types: ['password', 'refresh_token'], response_types: ['code'],
+        scopes: 'openid offline_access', client_type: 'confidential',
+        token_endpoint_auth_method: 'client_secret_basic',
+        access_token_expiration: shortToken === 'access' ? '3s' : '1h',
+        refresh_token_expiration: shortToken === 'refresh' ? '3s' : '1h',
+      }, admin);
+      expect(registered.status, await registered.text()).toBe(201);
+      const issued = await postFormBasic(`${OAUTH_URL}/token`, {
+        grant_type: 'password', username: 'admin', password: 'Password123!', scope: 'openid offline_access',
+      }, clientId, secret);
+      expect(issued.status).toBe(200);
+      const tokens = await issued.json();
+      const credentials = { access: tokens.access_token, refresh: tokens.refresh_token };
+      const expiries = Object.fromEntries(Object.entries(credentials).map(([kind, value]) => [
+        kind, JSON.parse(Buffer.from(value.split('.')[1], 'base64url').toString()).exp as number,
+      ]));
+      for (const kind of ['access', 'refresh'] as const) {
+        const response = await postFormBasic(INTROSPECT, { token: credentials[kind] }, clientId, secret);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ active: true, exp: expiries[kind] });
+      }
+      await new Promise(resolve => setTimeout(resolve, Math.max(0, expiries[shortToken] * 1000 - Date.now() + 100)));
+      for (const kind of ['access', 'refresh'] as const) {
+        const response = await postFormBasic(INTROSPECT, { token: credentials[kind] }, clientId, secret);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        if (kind === shortToken) expect(body).toEqual({ active: false });
+        else expect(body).toMatchObject({ active: true, exp: expiries[kind] });
+      }
+    });
+  }
+});

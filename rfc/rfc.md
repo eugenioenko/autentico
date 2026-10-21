@@ -907,3 +907,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 |-------|-----------|-------------|--------|
 | Security guidance | OWASP Forgot Password Cheat Sheet, General Security Practices / User Resets Password | Reset tokens must be single-use; invalidate existing sessions after reset | ✅ Conditional reset-token consumption, password update and OAuth/IdP session invalidation commit together; failed writes or commits roll back all changes (#456). |
 | Security consideration | RFC 6238 §5.2 / RFC 4226 §7.3 | Reject replay and exhausted authentication challenges | ✅ One eligible, unchanged browser challenge can be consumed; expiry is rechecked under the writer lock, and no authenticated state is issued before successful consumption (#456). |
+
+## Introspection token expiry
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST | RFC 7662 §4 | Check the presented token's expiry | ✅ Access and refresh credentials are checked against their own stored expiry; a valid partner token cannot extend an expired credential (#459). |
+| Optional field semantics | RFC 7662 §2.2 | `exp` identifies when the presented token expires | ✅ Active responses report the expiry of the matching access or refresh token (#459). |
