@@ -7,6 +7,8 @@ import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 The Authorization Code flow is the recommended OAuth2 grant type for web applications, SPAs, and native apps. Autentico supports PKCE (RFC 7636) for public clients that cannot securely store a client secret.
 
+Callback query parameters already present in the registered `redirect_uri` are preserved. The response URL encodes `code` and `state` as query values, so special characters in `state` round-trip unchanged, including when login requires MFA. Clients should decode query parameters with their URL library and compare the returned state with the original value.
+
 ## Flow overview
 
 ```mermaid

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -189,13 +190,21 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 		if err == nil {
 			for _, allowed := range c.GetPostLogoutRedirectURIs() {
 				if allowed == postLogoutRedirectURI {
-					target := postLogoutRedirectURI
+					target, err := url.Parse(postLogoutRedirectURI)
+					if err != nil {
+						// RP-Initiated Logout 1.0 §3: do not redirect to an invalid URI.
+						slog.Warn("session: invalid registered post-logout redirect URI", "client_id", resolvedClientID)
+						break
+					}
 					if state != "" {
-						target += "?state=" + state
+						// RP-Initiated Logout 1.0 §2: echo opaque state as one query value.
+						query := target.Query()
+						query.Set("state", state)
+						target.RawQuery = query.Encode()
 					}
 					// RP-Initiated Logout 1.0 §2: redirect to post_logout_redirect_uri
 					// with optional state parameter.
-					http.Redirect(w, r, target, http.StatusFound)
+					http.Redirect(w, r, target.String(), http.StatusFound)
 					return
 				}
 			}

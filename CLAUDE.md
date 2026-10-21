@@ -395,3 +395,7 @@ Refresh requests require a registered client, using the shared authentication an
 ## Introspection token lifetimes
 
 `introspect.tokenExpiration` selects access or refresh expiry from the hash that matched the stored pair. Both `IntrospectToken` and the response's `exp` use this helper; expiry at the current second is inactive, matching signed JWT `exp` precision. The shared token record keeps its original access and refresh timestamps for UserInfo and session lookup.
+
+## Callback query encoding
+
+Browser MFA and RP-initiated logout parse registered callback URLs and add response values with `url.Values.Set`/`Encode`, preserving existing query values and round-tripping opaque state. MFA parses the restored callback before issuing authenticated state. Malformed registered logout URLs render the signed-out page without redirection. Passkey, federation and email-verification callbacks already use encoded query construction.

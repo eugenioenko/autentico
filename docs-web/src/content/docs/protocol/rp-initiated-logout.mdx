@@ -24,6 +24,8 @@ Both HTTP methods are supported per the specification (Section 2).
 | `state` | No | Opaque value passed back to the `post_logout_redirect_uri` as a query parameter. |
 | `client_id` | No | Client identifier. Used to validate `post_logout_redirect_uri` when no `id_token_hint` is provided. |
 
+When `state` is supplied, it is URL-encoded as one callback query value and returned unchanged after decoding. Existing query parameters in the registered callback, including repeated values, are preserved. An empty state does not add a callback parameter. These rules apply to both GET and POST logout.
+
 ## Example
 
 ### GET request
