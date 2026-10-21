@@ -146,7 +146,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
-	mux.HandleFunc("GET "+oauth+"/federation/{id}/begin", federation.HandleFederationBegin)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
 	mux.HandleFunc(oauth+"/revoke", revoke.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)

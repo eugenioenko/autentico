@@ -19,7 +19,7 @@ import (
 
 // A real discovery document, signed ID token and JWKS exercise the whole
 // federation callback rather than stopping at a mocked token-verification error.
-func federationIssuer(t *testing.T) (*httptest.Server, *atomic.Int32) {
+func federationIssuer(t *testing.T, onExchange ...func()) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
 	requests := new(atomic.Int32)
 	issuer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +34,9 @@ func federationIssuer(t *testing.T) (*httptest.Server, *atomic.Int32) {
 				"id_token_signing_alg_values_supported": []string{"RS256"},
 			})
 		case "/token":
+			for _, hook := range onExchange {
+				hook()
+			}
 			token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 				"iss": base, "aud": "upstream-client", "sub": "victim-subject",
 				"iat": time.Now().Unix(), "exp": time.Now().Add(time.Minute).Unix(),
@@ -119,7 +122,7 @@ func TestFederation_RejectsInvalidAuthorization(t *testing.T) {
 				require.NoError(t, err)
 			}
 			for _, path := range []string{
-				"/oauth2/federation/test-idp/begin?" + p.Encode(),
+				"/oauth2/federation/test-idp?" + p.Encode(),
 				"/oauth2/federation/test-idp/callback?" + url.Values{"state": {signed}, "code": {"upstream-code"}}.Encode(),
 			} {
 				resp, err := ts.Client.Get(ts.BaseURL + path)
@@ -148,7 +151,7 @@ func TestFederation_ValidFlowAndRegistrationChange(t *testing.T) {
 			p := federationParams()
 			p.Set("redirect_uri", redirect)
 			p.Set("state", "original &code=attacker#fragment?unicode=é")
-			resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/federation/test-idp/begin?" + p.Encode())
+			resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/federation/test-idp?" + p.Encode())
 			require.NoError(t, err)
 			_ = resp.Body.Close()
 			require.Equal(t, http.StatusFound, resp.StatusCode)
@@ -206,4 +209,41 @@ func TestAuthCode_RejectsUnboundCode(t *testing.T) {
 	var count int
 	require.NoError(t, db.GetDB().QueryRow("SELECT count(*) FROM tokens").Scan(&count))
 	require.Zero(t, count)
+}
+
+// A client can change while the server is waiting for the upstream token or
+// signing keys. Re-check after those network calls, before resolving an account.
+func TestFederation_RejectsRegistrationChangedDuringExchange(t *testing.T) {
+	for _, tc := range []struct{ name, sql string }{
+		{name: "client disabled", sql: "UPDATE clients SET is_active=FALSE WHERE client_id='test-client'"},
+		{name: "redirect removed", sql: `UPDATE clients SET redirect_uris='[]' WHERE client_id='test-client'`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := startTestServer(t)
+			federationIssuer(t, func() {
+				if _, err := db.GetDB().Exec(tc.sql); err != nil {
+					t.Errorf("change registration during exchange: %v", err)
+				}
+			})
+			p := federationParams()
+			resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/federation/test-idp?" + p.Encode())
+			require.NoError(t, err)
+			_ = resp.Body.Close()
+			require.Equal(t, http.StatusFound, resp.StatusCode)
+			upstream, err := url.Parse(resp.Header.Get("Location"))
+			require.NoError(t, err)
+			resp, err = ts.Client.Get(ts.BaseURL + "/oauth2/federation/test-idp/callback?" + url.Values{
+				"state": {upstream.Query().Get("state")}, "code": {"upstream-code"},
+			}.Encode())
+			require.NoError(t, err)
+			_ = resp.Body.Close()
+			require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			require.Empty(t, resp.Header.Get("Location"))
+			require.Empty(t, resp.Cookies())
+			requireNoFederationArtifacts(t)
+			var count int
+			require.NoError(t, db.GetDB().QueryRow("SELECT count(*) FROM federated_identities").Scan(&count))
+			require.Zero(t, count)
+		})
+	}
 }

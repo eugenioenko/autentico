@@ -217,6 +217,13 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.1 / §10.6: upstream HTTP calls can outlive a registration
+	// change. Reject it before creating or linking a local account.
+	if _, err := client.ValidateAuthorization(state.authorizeParams()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified, claims.GivenName, claims.FamilyName)
 	if err != nil {
 		slog.Error("federation: failed to resolve user", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)

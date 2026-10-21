@@ -17,7 +17,7 @@ sequenceDiagram
     participant ExtIdP as External Provider
 
     User->>Browser: Click "Sign in with Google"
-    Browser->>IdP: GET /oauth2/federation/{id}/begin?client_id=X&...
+    Browser->>IdP: GET /oauth2/federation/{id}?client_id=X&...
     IdP->>Browser: 302 -> External provider authorize URL
     Browser->>ExtIdP: Authorization request
     ExtIdP->>Browser: Login + consent at external provider
