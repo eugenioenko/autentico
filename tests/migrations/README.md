@@ -33,7 +33,7 @@ for a later routine upgrade while a new major schema requires separate approval.
 
 ## Docker Compose smoke test
 
-On a Unix host with Docker Compose, Python 3, and a Docker daemon:
+As a non-root user on a Unix host with Docker Compose, Python 3, and a Docker daemon:
 
 ```bash
 CGO_ENABLED=0 go build -o /tmp/autentico-migration-smoke .

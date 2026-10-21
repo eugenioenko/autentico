@@ -16,6 +16,10 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
 args = parser.parse_args()
+if os.getuid() == 0:
+    parser.error(
+        "Run as a non-root host user to verify service startup after a root migration."
+    )
 root = Path(__file__).resolve().parents[2]
 temp = Path(tempfile.mkdtemp(prefix="autentico-445-container-"))
 data = temp / "data"

@@ -308,8 +308,8 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables 
 | `passkey_credentials` | Registered WebAuthn credentials (JSON blob) |
 | `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) and account dashboard metadata (`show_in_account`, `client_uri`, `logo_uri`, `description`) |
 | `settings` | Key-value runtime config |
-| `device_codes` | Pending OAuth device authorization grants (migration 013) |
-| `magic_link_tokens` | Pending passwordless email login grants (migration 014) |
+| `device_codes` | Pending OAuth device authorization grants (migration 008) |
+| `magic_link_tokens` | Pending passwordless email login grants (migration 009) |
 | `federation_providers` | External IdP configurations for federated/social login |
 | `federated_identities` | Links between local users and external IdP accounts |
 | `deletion_requests` | User-initiated account deletion requests (admin-reviewed) |
