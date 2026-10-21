@@ -23,8 +23,9 @@ func TestHandleDeleteMfaSharesAccountBudget(t *testing.T) {
 	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 	require.NoError(t, err)
 	const secret = "JBSWY3DPEHPK3PXP"
-	_, err = db.GetDB().Exec(`UPDATE users SET password=?, totp_secret=?, totp_verified=TRUE WHERE id=?`, string(hash), secret, usr.ID)
+	_, err = db.GetDB().Exec(`UPDATE users SET password=? WHERE id=?`, string(hash), usr.ID)
 	require.NoError(t, err)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
 	send := func(password, code string) (int, string) {
 		body, marshalErr := json.Marshal(DisableMfaRequest{CurrentPassword: password, Code: code})
 		require.NoError(t, marshalErr)
