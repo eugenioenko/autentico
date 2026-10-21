@@ -11,10 +11,10 @@
 
 | Severity | Finding | Location | Status |
 |---|---|---|---|
-| HIGH | Refresh tokens stored in plaintext in the `tokens` table — DB leak yields usable refresh tokens for all active sessions. Contrast: password-reset and magic-link tokens are SHA-256-hashed before storage. Rotation/replay detection limits but does not eliminate the blast radius. | `pkg/token/create.go`, `pkg/token/generate.go` | Open |
-| HIGH | Abandoned `dgrijalva/jwt-go` (unmaintained since 2021, CVE-2020-26160) still used in production paths alongside the maintained `golang-jwt/jwt/v5`. Migration should be finished. | `pkg/token/generate.go`, `pkg/token/decode.go`, `pkg/jwtutil/validate.go`, `pkg/session/logout.go` | Open |
-| MEDIUM | TOTP secrets stored in plaintext in `users.totp_secret` — DB compromise bypasses MFA. Encrypting at rest (AES-GCM, key from env) mitigates DB-file-only leaks. | `pkg/user/update.go:182`, `pkg/db/migrations/001_initial_schema.go` | Open |
-| MEDIUM | CSP `form-action *` — the inline comment justifies it by post-login redirects, but `form-action` governs form *submission* targets (always same-origin here), not redirect targets. Likely tightenable to `'self'`; verify against conformance suite. | `pkg/middleware/security_headers.go:31-39` | Open |
+| HIGH | Refresh tokens stored in plaintext in the `tokens` table — DB leak yields usable refresh tokens for all active sessions. Contrast: password-reset and magic-link tokens are SHA-256-hashed before storage. Rotation/replay detection limits but does not eliminate the blast radius. | `pkg/token/create.go`, `pkg/token/generate.go` | Open ([#445](https://github.com/eugenioenko/autentico/issues/445)) |
+| HIGH | Abandoned `dgrijalva/jwt-go` (unmaintained since 2021, CVE-2020-26160) still used in production paths alongside the maintained `golang-jwt/jwt/v5`. Migration should be finished. | `pkg/token/generate.go`, `pkg/token/decode.go`, `pkg/jwtutil/validate.go`, `pkg/session/logout.go` | Resolved ([#382](https://github.com/eugenioenko/autentico/pull/382)) |
+| MEDIUM | TOTP secrets stored in plaintext in `users.totp_secret` — DB compromise bypasses MFA. Encrypting at rest (AES-GCM, key from env) mitigates DB-file-only leaks. | `pkg/user/update.go:182`, `pkg/db/migrations/001_initial_schema.go` | Open ([#444](https://github.com/eugenioenko/autentico/issues/444)) |
+| MEDIUM | CSP `form-action *` — the inline comment justifies it by post-login redirects, but `form-action` governs form *submission* targets (always same-origin here), not redirect targets. Likely tightenable to `'self'`; verify against conformance suite. | `pkg/middleware/security_headers.go:31-39` | Not planned ([#447](https://github.com/eugenioenko/autentico/issues/447)) |
 | LOW | `fmt.Sprintf` interpolates table names into DELETE statements. Safe today (hardcoded table list) but an injection antipattern if refactored. | `pkg/user/delete.go:85` | Open |
 
 ## False positives (investigated and disproved)
