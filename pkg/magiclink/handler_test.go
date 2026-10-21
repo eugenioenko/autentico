@@ -24,7 +24,7 @@ import (
 // newCodeChallenge creates a verified user and a signed request for one live challenge.
 func newCodeChallenge(t *testing.T) (url.Values, string, string) {
 	t.Helper()
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -41,7 +41,7 @@ func newCodeChallenge(t *testing.T) (url.Values, string, string) {
 		"client_id": {"attempt-client"}, "redirect_uri": {"http://localhost:3000/callback"},
 		"scope": {"openid"}, "state": {"attempt-state"},
 	}
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 	return form, rawToken, tokenHash
 }
 
@@ -167,7 +167,7 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestCreateAndGetMagicLinkToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.InsertTestUser(t, "ml-user-1")
 
 	raw, hash, err := generateToken()
@@ -185,7 +185,7 @@ func TestCreateAndGetMagicLinkToken(t *testing.T) {
 }
 
 func TestConsumeMagicLinkToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.InsertTestUser(t, "ml-user-2")
 
 	_, hash, _ := generateToken()
@@ -200,7 +200,7 @@ func TestConsumeMagicLinkToken(t *testing.T) {
 }
 
 func TestInvalidatePreviousMagicLinkTokens(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.InsertTestUser(t, "ml-user-3")
 
 	_, hash1, _ := generateToken()
@@ -217,7 +217,7 @@ func TestInvalidatePreviousMagicLinkTokens(t *testing.T) {
 }
 
 func TestGetMagicLinkTokenInfo_NotFound(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 
 	_, _, _, err := getMagicLinkTokenInfo("nonexistent-hash")
 	assert.Error(t, err)
@@ -226,13 +226,13 @@ func TestGetMagicLinkTokenInfo_NotFound(t *testing.T) {
 // --- Handler tests ---
 
 func TestHandleMagicLink_GET_RendersForm(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = "smtp.test.com"
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?code_challenge=challenge&code_challenge_method=S256&client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
 	rr := httptest.NewRecorder()
 
 	HandleMagicLink(rr, req)
@@ -242,12 +242,12 @@ func TestHandleMagicLink_GET_RendersForm(t *testing.T) {
 }
 
 func TestHandleMagicLink_GET_Disabled(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = false
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?code_challenge=challenge&code_challenge_method=S256&client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
 	rr := httptest.NewRecorder()
 
 	HandleMagicLink(rr, req)
@@ -257,13 +257,13 @@ func TestHandleMagicLink_GET_Disabled(t *testing.T) {
 }
 
 func TestHandleMagicLink_GET_NoSmtp(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = ""
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link?code_challenge=challenge&code_challenge_method=S256&client_id=test&redirect_uri=http://localhost/cb&state=s1&scope=openid", nil)
 	rr := httptest.NewRecorder()
 
 	HandleMagicLink(rr, req)
@@ -273,7 +273,7 @@ func TestHandleMagicLink_GET_NoSmtp(t *testing.T) {
 }
 
 func TestHandleMagicLink_POST_EmptyEmail(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = "smtp.test.com"
@@ -285,7 +285,7 @@ func TestHandleMagicLink_POST_EmptyEmail(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/cb")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -298,7 +298,7 @@ func TestHandleMagicLink_POST_EmptyEmail(t *testing.T) {
 }
 
 func TestHandleMagicLink_POST_NoUser_ShowsSuccess(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = "smtp.test.com"
@@ -310,7 +310,7 @@ func TestHandleMagicLink_POST_NoUser_ShowsSuccess(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/cb")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -325,7 +325,7 @@ func TestHandleMagicLink_POST_NoUser_ShowsSuccess(t *testing.T) {
 }
 
 func TestHandleMagicLink_POST_ValidUser_CreatesToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.MagicLinkExpiration = 15 * time.Minute
@@ -342,7 +342,7 @@ func TestHandleMagicLink_POST_ValidUser_CreatesToken(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/cb")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -360,7 +360,7 @@ func TestHandleMagicLink_POST_ValidUser_CreatesToken(t *testing.T) {
 }
 
 func TestHandleMagicLink_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = "smtp.test.com"
@@ -375,7 +375,7 @@ func TestHandleMagicLink_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/cb")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -393,7 +393,7 @@ func TestHandleMagicLink_POST_UnverifiedEmail_NoTokenCreated(t *testing.T) {
 }
 
 func TestHandleMagicLink_POST_InvalidSig_RejectsRequest(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.SmtpHost = "smtp.test.com"
@@ -420,7 +420,7 @@ func TestHandleMagicLink_POST_InvalidSig_RejectsRequest(t *testing.T) {
 // --- Verify handler tests ---
 
 func TestHandleMagicLinkVerify_MissingToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 	})
@@ -435,7 +435,7 @@ func TestHandleMagicLinkVerify_MissingToken(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_InvalidToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 	})
@@ -450,7 +450,7 @@ func TestHandleMagicLinkVerify_InvalidToken(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_ExpiredToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 	})
@@ -469,7 +469,7 @@ func TestHandleMagicLinkVerify_ExpiredToken(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_UsedToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 	})
@@ -489,7 +489,7 @@ func TestHandleMagicLinkVerify_UsedToken(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_Disabled(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = false
 	})
@@ -504,7 +504,7 @@ func TestHandleMagicLinkVerify_Disabled(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_ValidToken_RedirectsWithCode(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -524,7 +524,7 @@ func TestHandleMagicLinkVerify_ValidToken_RedirectsWithCode(t *testing.T) {
 	q.Set("redirect_uri", "http://localhost:3000/callback")
 	q.Set("state", "teststate")
 	q.Set("scope", "openid")
-	testutils.SetAuthorizeSig(q)
+	signMagicLinkParams(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -539,7 +539,7 @@ func TestHandleMagicLinkVerify_ValidToken_RedirectsWithCode(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_TokenSingleUse(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -559,7 +559,7 @@ func TestHandleMagicLinkVerify_TokenSingleUse(t *testing.T) {
 	q.Set("redirect_uri", "http://localhost:3000/callback")
 	q.Set("state", "s1")
 	q.Set("scope", "openid")
-	testutils.SetAuthorizeSig(q)
+	signMagicLinkParams(q)
 
 	// First use — success (redirect with code)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?"+q.Encode(), nil)
@@ -577,7 +577,7 @@ func TestHandleMagicLinkVerify_TokenSingleUse(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerify_InvalidSig_RejectsRequest(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 	})
@@ -606,7 +606,7 @@ func TestHandleMagicLinkVerify_InvalidSig_RejectsRequest(t *testing.T) {
 // --- Code verify handler tests ---
 
 func TestHandleMagicLinkVerifyCode_NoEmail_Rejected(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -629,7 +629,7 @@ func TestHandleMagicLinkVerifyCode_NoEmail_Rejected(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost:3000/callback")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -642,7 +642,7 @@ func TestHandleMagicLinkVerifyCode_NoEmail_Rejected(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerifyCode_WrongEmail_Rejected(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -666,7 +666,7 @@ func TestHandleMagicLinkVerifyCode_WrongEmail_Rejected(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost:3000/callback")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -679,7 +679,7 @@ func TestHandleMagicLinkVerifyCode_WrongEmail_Rejected(t *testing.T) {
 }
 
 func TestHandleMagicLinkVerifyCode_CorrectEmailAndCode_Success(t *testing.T) {
-	testutils.WithTestDB(t)
+	withMagicLinkTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MagicLinkEnabled = true
 		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
@@ -702,7 +702,7 @@ func TestHandleMagicLinkVerifyCode_CorrectEmailAndCode_Success(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost:3000/callback")
 	form.Set("state", "s1")
 	form.Set("scope", "openid")
-	testutils.SetAuthorizeSig(form)
+	signMagicLinkParams(form)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -743,4 +743,14 @@ func TestBuildMagicLinkURL(t *testing.T) {
 	assert.Contains(t, result, "client_id=client1")
 	assert.Contains(t, result, "state=st1")
 	assert.Contains(t, result, "authorize_sig=")
+}
+
+func withMagicLinkTestDB(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test", []string{"http://localhost/cb", "http://localhost/callback"})
+}
+func signMagicLinkParams(p url.Values) {
+	p.Set("code_challenge", "challenge")
+	p.Set("code_challenge_method", "S256")
+	testutils.SetAuthorizeSig(p)
 }

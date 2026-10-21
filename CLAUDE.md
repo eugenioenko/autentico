@@ -208,7 +208,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/audit` | Audit log recording and querying (`audit_logs` table) |
 | `pkg/auth_code` | Authorization code model (PKCE, nonce, single-use flag) |
 | `pkg/authorize` | `/oauth2/authorize` — validates client + redirect URI, renders login page |
-| `pkg/authzsig` | HMAC signatures for authorize-to-login parameter integrity |
+| `pkg/authzsig` | HMAC signatures and shared parameter extraction; signatures prove integrity, and signup, email verification, magic-link and passkey handlers also require `client.ValidateAuthorization` |
 | `pkg/bearer` | Bearer token extraction utilities |
 | `pkg/cleanup` | Background goroutine purging expired tokens, sessions, MFA challenges, etc. |
 | `pkg/cli` | `init`, `start`, `migrate`, and `onboard` subcommand implementations |

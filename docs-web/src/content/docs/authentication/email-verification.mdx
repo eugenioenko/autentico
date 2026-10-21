@@ -90,13 +90,15 @@ Generates a new verification token and sends a fresh verification email. Accepts
 | `state` | OAuth2 state parameter (carried through) |
 | `client_id` | OAuth2 client ID (carried through) |
 | `scope` | OAuth2 scope (carried through) |
+| `code_challenge`, `code_challenge_method` | PKCE parameters; required for public clients |
+| `authorize_sig` | Signature from the authorization or magic-link form; required |
 
-The endpoint always shows a success message regardless of whether the user exists, to prevent user enumeration. A random delay is added for the same reason.
+Requests must carry a valid authorization signature and pass the current client, redirect URI, scope and PKCE checks before a new verification token is stored or emailed. Invalid authorization requests return HTTP 400. For accepted requests, unknown users receive the sent page.
 
 ## Security considerations
 
 - **Token hashing** -- only the SHA-256 hash of the token is stored; the raw token exists only in the email link
 - **Single-use** -- once verified, the token cannot be reused
 - **Expiration** -- tokens expire after the configured duration (default: 24 hours)
-- **Parameter integrity** -- OAuth2 parameters in the verification link are protected by an HMAC signature (`authorize_sig`) to prevent tampering
+- **Parameter integrity** -- OAuth2 parameters in the verification link are protected by an HMAC signature (`authorize_sig`) to prevent tampering. A signature does not replace authorization: the server also revalidates the active client, registered callback, allowed scopes, code-flow permission and PKCE before sending or redeeming a link. Invalid authorization leaves the verification token unchanged.
 - **Timing-safe** -- the resend endpoint uses random delays to prevent timing-based user enumeration

@@ -113,6 +113,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **JWK Set** — exposes public signing keys at `/oauth2/.well-known/jwks.json` for independent token verification
 - **RS256 JWT Signing** — asymmetric signing; the private key never leaves the IdP
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps; federation validates registered clients, redirect URIs, scopes, and PKCE before issuing codes
+- **Authorization request validation** — signed continuation parameters are checked against the current client, callback URI, scopes, and PKCE before signup, email verification, magic-link login, and passkey authentication.
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
 - **Refresh Token Grant** — long-lived sessions without re-authentication
 - **Token Introspection** (RFC 7662) — for resource servers to validate opaque tokens

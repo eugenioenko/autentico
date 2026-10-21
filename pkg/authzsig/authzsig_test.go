@@ -1,10 +1,29 @@
 package authzsig
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 )
+
+func TestFromValuesPreservesSignedFields(t *testing.T) {
+	p := AuthorizeParams{ClientID: "client", RedirectURI: "https://rp.example/cb?kept=a%2Bb",
+		Scope: "openid email", Nonce: "nonce + é", State: "state&code=injected#fragment",
+		CodeChallenge: "challenge", CodeChallengeMethod: "S256"}
+	v := url.Values{"client_id": {p.ClientID}, "redirect_uri": {p.RedirectURI}, "scope": {p.Scope},
+		"nonce": {p.Nonce}, "state": {p.State}, "code_challenge": {p.CodeChallenge}, "code_challenge_method": {p.CodeChallengeMethod}}
+	decoded, err := url.ParseQuery(v.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := FromValues(decoded); got != p {
+		t.Fatalf("signed values changed: %+v", got)
+	}
+	if got := FromValues(nil); got != (AuthorizeParams{}) {
+		t.Fatalf("missing values gained defaults: %+v", got)
+	}
+}
 
 func init() {
 	config.InitBootstrap()

@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -133,6 +133,13 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.1 / §10.6: a valid signature is not a registration check.
+	// Reject before consuming the verification token or creating a session.
+	if _, err := client.ValidateAuthorization(authzsig.FromValues(r.URL.Query())); err != nil {
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	tokenHash := utils.HashSHA256(rawToken)
 	userID, expiresAt, err := user.GetVerificationTokenInfo(tokenHash)
 	if err != nil {
@@ -191,8 +198,17 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", params.RedirectURI, code.Code, params.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// RFC 6749 §4.1.2: append code and state to the registered callback query.
+	redirectURL, err := url.Parse(params.RedirectURI)
+	if err != nil {
+		http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
+		return
+	}
+	query := redirectURL.Query()
+	query.Set("code", code.Code)
+	query.Set("state", params.State)
+	redirectURL.RawQuery = query.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 // HandleResendVerification handles POST /oauth2/resend-verification
@@ -212,6 +228,17 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 		AuthorizeSig:        r.FormValue("authorize_sig"),
+	}
+
+	// RFC 6749 §10.6: never email a verification link with unvalidated authorization parameters.
+	signedParams := authzsig.FromValues(r.Form)
+	if !authzsig.Verify(signedParams, params.AuthorizeSig) {
+		view.RenderError(w, r, http.StatusBadRequest, "Authorization request parameters have been tampered with")
+		return
+	}
+	if _, err := client.ValidateAuthorization(signedParams); err != nil {
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	usr, err := user.UserByUsername(username)

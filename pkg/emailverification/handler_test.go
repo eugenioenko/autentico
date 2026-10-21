@@ -18,7 +18,7 @@ import (
 )
 
 func TestHandleVerifyEmail_MissingToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email", nil)
 	rr := httptest.NewRecorder()
@@ -29,11 +29,11 @@ func TestHandleVerifyEmail_MissingToken(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_InvalidToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 
 	q := url.Values{}
 	q.Set("token", "invalid-token-xyz")
-	testutils.SetAuthorizeSig(q)
+	signVerificationParams(q)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
@@ -44,7 +44,7 @@ func TestHandleVerifyEmail_InvalidToken(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 
 	u, _ := user.CreateUser("expireduser", "password123", "expired@test.com")
 	rawToken, tokenHash, err := GenerateToken()
@@ -56,7 +56,7 @@ func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
 
 	q := url.Values{}
 	q.Set("token", rawToken)
-	testutils.SetAuthorizeSig(q)
+	signVerificationParams(q)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
 
@@ -67,7 +67,7 @@ func TestHandleVerifyEmail_ExpiredToken(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_ValidToken_RedirectsWithCode(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
 	})
@@ -83,7 +83,7 @@ func TestHandleVerifyEmail_ValidToken_RedirectsWithCode(t *testing.T) {
 	q.Set("state", "abc123")
 	q.Set("client_id", "test-client")
 	q.Set("scope", "openid")
-	testutils.SetAuthorizeSig(q)
+	signVerificationParams(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -98,7 +98,7 @@ func TestHandleVerifyEmail_ValidToken_RedirectsWithCode(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_ValidToken_MarksUserVerified(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
 	})
@@ -112,7 +112,7 @@ func TestHandleVerifyEmail_ValidToken_MarksUserVerified(t *testing.T) {
 	vq.Set("token", rawToken)
 	vq.Set("redirect_uri", "http://localhost/cb")
 	vq.Set("state", "s1")
-	testutils.SetAuthorizeSig(vq)
+	signVerificationParams(vq)
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+vq.Encode(), nil)
 	rr := httptest.NewRecorder()
 
@@ -125,12 +125,13 @@ func TestHandleVerifyEmail_ValidToken_MarksUserVerified(t *testing.T) {
 }
 
 func TestHandleResendVerification_UnknownUser_ShowsSent(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 
 	form := url.Values{}
 	form.Set("username", "nobody")
 	form.Set("redirect_uri", "http://localhost/callback")
 
+	signVerificationParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/resend-verification", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -142,7 +143,7 @@ func TestHandleResendVerification_UnknownUser_ShowsSent(t *testing.T) {
 }
 
 func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 
 	u, _ := user.CreateUser("alreadyverified", "password123", "av@test.com")
 	require.NoError(t, user.MarkEmailVerified(u.ID))
@@ -151,6 +152,7 @@ func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
 	form.Set("username", "alreadyverified")
 	form.Set("redirect_uri", "http://localhost/callback")
 
+	signVerificationParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/resend-verification", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -162,7 +164,7 @@ func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
 }
 
 func TestHandleResendVerification_ValidUser_StoresNewToken(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.EmailVerificationExpiration = time.Hour
 	})
@@ -175,6 +177,7 @@ func TestHandleResendVerification_ValidUser_StoresNewToken(t *testing.T) {
 	form.Set("state", "s1")
 	form.Set("client_id", "c1")
 
+	signVerificationParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/resend-verification", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -201,7 +204,7 @@ func TestGenerateToken_UniqueAndHashable(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
 		config.Values.AuthSsoSessionIdleTimeout = 30 * time.Minute
@@ -218,7 +221,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
 	q.Set("state", "sso-state")
 	q.Set("client_id", "test-client")
 	q.Set("scope", "openid")
-	testutils.SetAuthorizeSig(q)
+	signVerificationParams(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -256,7 +259,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoEnabled(t *testing.T) {
 }
 
 func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoDisabled(t *testing.T) {
-	testutils.WithTestDB(t)
+	withVerificationTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAuthorizationCodeExpiration = 5 * time.Minute
 		config.Values.AuthSsoSessionIdleTimeout = 0
@@ -273,7 +276,7 @@ func TestHandleVerifyEmail_CreatesIdpSession_WhenSsoDisabled(t *testing.T) {
 	q.Set("state", "no-sso-state")
 	q.Set("client_id", "test-client")
 	q.Set("scope", "openid")
-	testutils.SetAuthorizeSig(q)
+	signVerificationParams(q)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/verify-email?"+q.Encode(), nil)
 	rr := httptest.NewRecorder()
@@ -314,4 +317,22 @@ func TestBuildVerifyURL(t *testing.T) {
 	assert.Contains(t, u, "token=mytoken")
 	assert.Contains(t, u, "redirect_uri=")
 	assert.Contains(t, u, "state=s1")
+}
+
+func withVerificationTestDB(t *testing.T) {
+	testutils.WithTestDB(t)
+	for _, id := range []string{"test-client", "c1"} {
+		testutils.InsertTestClient(t, id, []string{"http://localhost/callback", "http://localhost/cb"})
+	}
+}
+func signVerificationParams(p url.Values) {
+	if p.Get("client_id") == "" {
+		p.Set("client_id", "test-client")
+	}
+	if p.Get("redirect_uri") == "" {
+		p.Set("redirect_uri", "http://localhost/callback")
+	}
+	p.Set("code_challenge", "challenge")
+	p.Set("code_challenge_method", "S256")
+	testutils.SetAuthorizeSig(p)
 }
