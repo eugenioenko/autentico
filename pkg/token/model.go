@@ -3,18 +3,22 @@ package token
 import (
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
-	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Token represents a token record in the database
 type Token struct {
-	ID                     string     `db:"id"`                         // Unique token ID
-	UserID                 *string    `db:"user_id"`                    // The user to whom the token belongs (NULL for client_credentials)
-	AccessToken            string     `db:"access_token"`               // The actual access token (JWT or opaque token)
-	RefreshToken           string     `db:"refresh_token"`              // The refresh token used for refreshing access tokens
+	ID                     string     `db:"id"`      // Unique token ID
+	UserID                 *string    `db:"user_id"` // The user to whom the token belongs (NULL for client_credentials)
+	AccessToken            string     `db:"-"`       // Issuance input only; never populated by database reads
+	RefreshToken           string     `db:"-"`       // Issuance input only; never populated by database reads
+	AccessTokenHash        string     `db:"access_token_hash"`
+	RefreshTokenHash       string     `db:"refresh_token_hash"`
+	ClientID               string     `db:"client_id"`
+	ACR                    string     `db:"acr"`                        // Authentication context when this session was issued
 	AccessTokenType        string     `db:"access_token_type"`          // Type of access token (e.g., 'Bearer', 'JWT')
 	RefreshTokenExpiresAt  time.Time  `db:"refresh_token_expires_at"`   // Expiration time for the refresh token (if applicable)
 	RefreshTokenLastUsedAt *time.Time `db:"refresh_token_last_used_at"` // Tracks when the refresh token was last used
@@ -97,6 +101,8 @@ type TokenResponse struct {
 }
 
 type AuthToken struct {
+	ClientID         string
+	ACR              string
 	UserID           string
 	AccessToken      string
 	RefreshToken     string

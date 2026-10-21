@@ -102,8 +102,14 @@ func main() {
 				Action: appCli.RunStart,
 			},
 			{
-				Name:   "migrate",
-				Usage:  "Apply pending database schema migrations",
+				Name:  "migrate",
+				Usage: "Apply pending database schema migrations",
+				Flags: []cli.Flag{
+					&cli.IntSliceFlag{
+						Name:  "approve-major",
+						Usage: "Approve session invalidation for a specific major database schema version (e.g. 15); repeat for multiple major migrations",
+					},
+				},
 				Action: appCli.RunMigrate,
 			},
 			{
@@ -127,7 +133,7 @@ func main() {
 						Usage:   "Admin email address",
 						EnvVars: []string{"AUTENTICO_ADMIN_EMAIL"},
 					},
-&cli.BoolFlag{
+					&cli.BoolFlag{
 						Name:    "enable-admin-password-grant",
 						Usage:   "Seed the autentico-admin client with the password (ROPC) grant so admin-API tokens can be obtained headlessly (for CI/CD). MFA and account lockout still apply.",
 						EnvVars: []string{"AUTENTICO_ENABLE_ADMIN_PASSWORD_GRANT"},

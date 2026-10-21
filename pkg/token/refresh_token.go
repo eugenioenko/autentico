@@ -1,12 +1,9 @@
 package token
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -15,26 +12,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
-
-// extractACR decodes the acr claim from a JWT access token without signature validation.
-// Used to check the authentication context of an existing (possibly expired) token.
-func extractACR(tokenString string) string {
-	parts := strings.SplitN(tokenString, ".", 3)
-	if len(parts) < 2 {
-		return ""
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return ""
-	}
-	var claims struct {
-		ACR string `json:"acr"`
-	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return ""
-	}
-	return claims.ACR
-}
 
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
 	err := ValidateTokenRequestRefresh(request)
@@ -53,7 +30,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
 		slog.Warn("token: refresh token expired")
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token has expired")
-		return nil, err
+		return nil, fmt.Errorf("refresh token expired")
 	}
 
 	sess, err := session.SessionByIDIncludingDeactivated(authToken.SessionID)
@@ -82,8 +59,23 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	// token rotation occurred and someone (attacker or legitimate user) is replaying
 	// a stale token. Revoke all tokens for this user as a protective measure.
 	var revokedAt *time.Time
-	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&revokedAt)
-	if err == nil && revokedAt != nil {
+	var clientID, acr, accessHash, storedUserID string
+	err = db.GetDB().QueryRow(`SELECT revoked_at, client_id, acr, access_token_hash, COALESCE(user_id, '')
+		FROM tokens WHERE refresh_token_hash = ?`, utils.HashToken(request.RefreshToken)).Scan(
+		&revokedAt, &clientID, &acr, &accessHash, &storedUserID)
+	// RFC 6749 §6 and §5.2: validate the refresh token; missing records are invalid_grant.
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
+		return nil, fmt.Errorf("refresh token record unavailable: %w", err)
+	}
+	// RFC 6749 §6 and §10.4: enforce the token's stored client and resource-owner binding.
+	if storedUserID != authToken.UserID || sess.UserID != authToken.UserID ||
+		clientID != authToken.ClientID || sess.AccessTokenHash != accessHash ||
+		sess.RefreshTokenHash != utils.HashToken(request.RefreshToken) {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid refresh token binding")
+		return nil, fmt.Errorf("refresh token storage binding mismatch")
+	}
+	if revokedAt != nil {
 		slog.Warn("token: rotated refresh token replayed — revoking all user tokens",
 			"user_id", authToken.UserID)
 		if _, err := db.GetDB().Exec(
@@ -103,20 +95,12 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
-	// If MFA is required and user has TOTP enrolled, verify the original session
-	// was authenticated with MFA by checking the acr claim in the stored access token.
-	cfg := config.Get()
-	if (cfg.RequireMfa || usr.TotpVerified) && usr.TotpVerified {
-		var storedAccessToken string
-		err := db.GetDB().QueryRow(`SELECT access_token FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&storedAccessToken)
-		if err == nil {
-			acr := extractACR(storedAccessToken)
-			if acr != "2" {
-				slog.Warn("token: refresh rejected — session was not MFA-authenticated", "user_id", usr.ID, "acr", acr)
-				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "Session was not authenticated with MFA. Please re-login.")
-				return nil, fmt.Errorf("session not MFA-authenticated")
-			}
-		}
+	// Preserve the original authentication context even after the access JWT
+	// has expired and its plaintext has been discarded.
+	if usr.TotpVerified && acr != "2" {
+		slog.Warn("token: refresh rejected — session was not MFA-authenticated", "user_id", usr.ID, "acr", acr)
+		utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "Session was not authenticated with MFA. Please re-login.")
+		return nil, fmt.Errorf("session not MFA-authenticated")
 	}
 
 	return usr, nil

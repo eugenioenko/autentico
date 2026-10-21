@@ -89,8 +89,8 @@ func DeactivateWithCascade(idpSessionID string) error {
 	if _, err := tx.Exec(
 		`UPDATE tokens
 		    SET revoked_at = ?
-		  WHERE access_token IN (
-		          SELECT access_token FROM sessions WHERE idp_session_id = ?
+		  WHERE access_token_hash IN (
+		          SELECT access_token_hash FROM sessions WHERE idp_session_id = ?
 		        )
 		    AND revoked_at IS NULL`,
 		now, idpSessionID,

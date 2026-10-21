@@ -48,6 +48,7 @@ func buildAudience(issuer string, clientID string, customAudiences []string) []s
 func GenerateTokens(user user.User, clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
+	acr := acrForUser(user)
 	accessTokenExpiresAt := time.Now().Add(cfg.AuthAccessTokenExpiration).UTC()
 	refreshTokenExpiresAt := time.Now().Add(cfg.AuthRefreshTokenExpiration).UTC()
 
@@ -66,7 +67,7 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 		"typ":       "Bearer",
 		"azp":       clientID,
 		"sid":       sessionID,
-		"acr":       acrForUser(user),
+		"acr":       acr,
 		"scope":     scope,
 		"role":      user.Role,
 	}
@@ -132,6 +133,8 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	}
 
 	result := &AuthToken{
+		ClientID:         clientID,
+		ACR:              acr,
 		UserID:           user.ID,
 		AccessToken:      signedAccessToken,
 		RefreshToken:     signedRefreshToken,
@@ -271,6 +274,8 @@ func GenerateClientCredentialsToken(clientID string, scope string, cfg *config.C
 	}
 
 	return &AuthToken{
+		ClientID:        clientID,
+		ACR:             "1",
 		UserID:          "",
 		AccessToken:     signedAccessToken,
 		RefreshToken:    "",

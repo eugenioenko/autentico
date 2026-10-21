@@ -2,6 +2,7 @@ package idpsession
 
 import (
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,9 +29,9 @@ func linkTestOAuthSession(t *testing.T, userID, idpSessionID, accessToken string
 	t.Helper()
 	sessionID := uuid.New().String()
 	_, err := db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, '', '', '', datetime('now'), datetime('now', '+1 hour'), ?)`,
-		sessionID, userID, accessToken, accessToken+"-refresh", idpSessionID,
+		sessionID, userID, utils.HashToken(accessToken), utils.HashToken(accessToken+"-refresh"), idpSessionID,
 	)
 	require.NoError(t, err)
 	return sessionID
@@ -175,11 +176,11 @@ func TestHandleForceLogoutIdpSession(t *testing.T) {
 	childSession := linkTestOAuthSession(t, "user1", target, "at-child")
 
 	_, err := db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
-		        datetime('now'), 'openid', 'authorization_code')`,
-		"tok-child", "user1", "at-child", "at-child-refresh",
+		        datetime('now'), 'openid', 'authorization_code', ?, ?)`,
+		"tok-child", "user1", utils.HashToken("at-child"), utils.HashToken("at-child-refresh"), testutils.StoredTokenClientID("at-child"), testutils.StoredTokenACR("at-child"),
 	)
 	require.NoError(t, err)
 

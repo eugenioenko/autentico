@@ -23,8 +23,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/cleanup"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/cspnonce"
 	"github.com/eugenioenko/autentico/pkg/consent"
+	"github.com/eugenioenko/autentico/pkg/cspnonce"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/deletion"
@@ -84,6 +84,9 @@ func RunStart(c *cli.Context) error {
 	defer db.CloseDB()
 
 	if !c.Bool("no-auto-migrate") {
+		if err := migrations.CheckAuto(db.GetWriteDB()); err != nil {
+			return err
+		}
 		if err := migrations.Run(db.GetWriteDB(), true); err != nil {
 			return err
 		}

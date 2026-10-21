@@ -487,8 +487,8 @@ func TestHandleResetPassword_POST_Success_InvalidatesSessions(t *testing.T) {
 
 	// Create a session for this user
 	_, err = db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
-		 VALUES (?, ?, 'at1', 'rt1', 'agent', '127.0.0.1', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))`,
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
+		 VALUES (?, ?, '40a50dd5bf87c5d1d97ed375c0a878cc6b16eea912208e4ae3d565bb65936da5', '7abe53e6e34c73b56bb165cc5f155c80c3639671f4c18e5cdac7143326375ce3', 'agent', '127.0.0.1', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))`,
 		"sess-1", u.ID,
 	)
 	require.NoError(t, err)

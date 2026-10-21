@@ -234,6 +234,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 		// Store token with NULL user_id
 		ccErr = CreateToken(Token{
+			ClientID:              ccToken.ClientID,
+			ACR:                   ccToken.ACR,
 			UserID:                nil,
 			AccessToken:           ccToken.AccessToken,
 			RefreshToken:          "",
@@ -281,8 +283,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// tokens at the next refresh.
 		var priorIdp *string
 		if err := db.GetDB().QueryRow(
-			`SELECT idp_session_id FROM sessions WHERE refresh_token = ?`,
-			request.RefreshToken,
+			`SELECT idp_session_id FROM sessions WHERE refresh_token_hash = ?`,
+			utils.HashToken(request.RefreshToken),
 		).Scan(&priorIdp); err != nil {
 			slog.Warn("token: failed to look up prior IdP session for refresh token", "error", err)
 		}
@@ -296,8 +298,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// The old token is invalidated so it cannot be reused. If a revoked token is
 		// later presented, UserByRefreshToken detects the replay and revokes all user tokens.
 		if _, err := db.GetDB().Exec(
-			`UPDATE tokens SET revoked_at = ? WHERE refresh_token = ? AND revoked_at IS NULL`,
-			time.Now().UTC(), request.RefreshToken,
+			`UPDATE tokens SET revoked_at = ? WHERE refresh_token_hash = ? AND revoked_at IS NULL`,
+			time.Now().UTC(), utils.HashToken(request.RefreshToken),
 		); err != nil {
 			slog.Error("token: failed to revoke old refresh token during rotation", "error", err)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to rotate refresh token")
@@ -308,7 +310,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// stored with the original token.
 		var tokenScope string
 		var tokenIssuedAt time.Time
-		if err := db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token = ?`, request.RefreshToken).Scan(&tokenScope, &tokenIssuedAt); err != nil {
+		if err := db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token_hash = ?`, utils.HashToken(request.RefreshToken)).Scan(&tokenScope, &tokenIssuedAt); err != nil {
 			slog.Warn("token: failed to read scope/issued_at from original token", "error", err)
 		}
 		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
@@ -352,6 +354,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = CreateToken(Token{
+		ClientID:              authToken.ClientID,
+		ACR:                   authToken.ACR,
 		UserID:                &authToken.UserID,
 		AccessToken:           authToken.AccessToken,
 		RefreshToken:          authToken.RefreshToken,

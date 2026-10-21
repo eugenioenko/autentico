@@ -1,16 +1,17 @@
 package middleware
 
 import (
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/key"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 )
@@ -275,17 +276,17 @@ func TestAdminAuthMiddlewareAdminUser(t *testing.T) {
 	// Create a session and tokens row so the liveness checks pass
 	sessionID := xid.New().String()
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
-	`, sessionID, userID, token, "", "", "", "")
+	`, sessionID, userID, utils.HashToken(token), utils.HashToken(""), "", "", "")
 	assert.NoError(t, err)
 
 	now := time.Now().UTC()
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
-	`, "tok-"+sessionID[:6], userID, token, "refresh-"+sessionID[:6], now.Add(time.Hour), now.Add(time.Hour), now)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?)
+	`, "tok-"+sessionID[:6], userID, utils.HashToken(token), utils.HashToken("refresh-"+sessionID[:6]), now.Add(time.Hour), now.Add(time.Hour), now, testutils.StoredTokenClientID(token), testutils.StoredTokenACR(token))
 	assert.NoError(t, err)
 
 	handlerCalled := false
@@ -326,9 +327,9 @@ func TestAdminAuthMiddleware_SessionDeactivated(t *testing.T) {
 	// Create a deactivated session
 	sessionID := xid.New().String()
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at, deactivated_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'), CURRENT_TIMESTAMP)
-	`, sessionID, userID, token, "")
+	`, sessionID, userID, utils.HashToken(token), utils.HashToken(""))
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -364,18 +365,18 @@ func TestAdminAuthMiddleware_TokenRevoked(t *testing.T) {
 	// Active session — the session gate should pass.
 	sessionID := xid.New().String()
 	_, err = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
-	`, sessionID, userID, token, "")
+	`, sessionID, userID, utils.HashToken(token), utils.HashToken(""))
 	assert.NoError(t, err)
 
 	// Persisted, revoked tokens row — the new check should catch this.
 	now := time.Now().UTC()
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at)
-		VALUES (?, ?, ?, 'refresh', 'Bearer', ?, ?, ?, 'openid', 'password', ?)
-	`, "tok-"+userID[:6], userID, token, now.Add(time.Hour), now.Add(time.Hour), now, now)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, revoked_at, client_id, acr)
+		VALUES (?, ?, ?, 'd6cc0a088c07683c65cd266860cab8d94b3a1937b17420d9da30ca299c09fb77', 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?, ?)
+	`, "tok-"+userID[:6], userID, utils.HashToken(token), now.Add(time.Hour), now.Add(time.Hour), now, now, testutils.StoredTokenClientID(token), testutils.StoredTokenACR(token))
 	assert.NoError(t, err)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -440,15 +441,15 @@ func TestAdminAuthMiddleware_CaseInsensitiveBearer(t *testing.T) {
 
 	sessionID := xid.New().String()
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at)
 		VALUES (?, ?, ?, ?, '', '', '', CURRENT_TIMESTAMP, datetime('now', '+1 hour'))
-	`, sessionID, userID, token, "")
+	`, sessionID, userID, utils.HashToken(token), utils.HashToken(""))
 	now := time.Now().UTC()
 	_, _ = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password')
-	`, "tok-"+sessionID[:6], userID, token, "refresh-"+sessionID[:6], now.Add(time.Hour), now.Add(time.Hour), now)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?)
+	`, "tok-"+sessionID[:6], userID, utils.HashToken(token), utils.HashToken("refresh-"+sessionID[:6]), now.Add(time.Hour), now.Add(time.Hour), now, testutils.StoredTokenClientID(token), testutils.StoredTokenACR(token))
 
 	handlerCalled := false
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

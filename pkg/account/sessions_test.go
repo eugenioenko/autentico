@@ -2,6 +2,7 @@ package account
 
 import (
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,9 +36,9 @@ func linkOAuthSessionToIdp(t *testing.T, usr *user.User, idpSessionID, accessTok
 	t.Helper()
 	sessionID := uuid.New().String()
 	_, err := db.GetDB().Exec(`
-		INSERT INTO sessions (id, user_id, access_token, refresh_token, user_agent, ip_address, location, created_at, expires_at, idp_session_id)
+		INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, user_agent, ip_address, location, created_at, expires_at, idp_session_id)
 		VALUES (?, ?, ?, ?, '', '', '', datetime('now'), datetime('now', '+1 hour'), ?)`,
-		sessionID, usr.ID, accessToken, accessToken+"-refresh", idpSessionID,
+		sessionID, usr.ID, utils.HashToken(accessToken), utils.HashToken(accessToken+"-refresh"), idpSessionID,
 	)
 	require.NoError(t, err)
 	return sessionID
@@ -164,11 +165,11 @@ func TestHandleRevokeSession_CascadesChildSessionsAndTokens(t *testing.T) {
 	childSession := linkOAuthSessionToIdp(t, usr, target, "at-child")
 	// Also insert a token row so we can assert revocation cascade.
 	_, err := db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
-		        datetime('now'), 'openid', 'authorization_code')`,
-		"tok-child", usr.ID, "at-child", "at-child-refresh",
+		        datetime('now'), 'openid', 'authorization_code', ?, ?)`,
+		"tok-child", usr.ID, utils.HashToken("at-child"), utils.HashToken("at-child-refresh"), testutils.StoredTokenClientID("at-child"), testutils.StoredTokenACR("at-child"),
 	)
 	require.NoError(t, err)
 
@@ -288,22 +289,22 @@ func TestHandleRevokeOtherSessions_RevokesOthersKeepsCurrent(t *testing.T) {
 	idpOther1 := createIdpSessionFor(t, usr)
 	_ = linkOAuthSessionToIdp(t, usr, idpOther1, "at-other1")
 	_, err := db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
-		        datetime('now'), 'openid', 'authorization_code')`,
-		"tok-other1", usr.ID, "at-other1", "at-other1-refresh",
+		        datetime('now'), 'openid', 'authorization_code', ?, ?)`,
+		"tok-other1", usr.ID, utils.HashToken("at-other1"), utils.HashToken("at-other1-refresh"), testutils.StoredTokenClientID("at-other1"), testutils.StoredTokenACR("at-other1"),
 	)
 	require.NoError(t, err)
 
 	idpOther2 := createIdpSessionFor(t, usr)
 	_ = linkOAuthSessionToIdp(t, usr, idpOther2, "at-other2")
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', datetime('now','+1 day'), datetime('now','+1 hour'),
-		        datetime('now'), 'openid', 'authorization_code')`,
-		"tok-other2", usr.ID, "at-other2", "at-other2-refresh",
+		        datetime('now'), 'openid', 'authorization_code', ?, ?)`,
+		"tok-other2", usr.ID, utils.HashToken("at-other2"), utils.HashToken("at-other2-refresh"), testutils.StoredTokenClientID("at-other2"), testutils.StoredTokenACR("at-other2"),
 	)
 	require.NoError(t, err)
 
@@ -346,4 +347,3 @@ func TestHandleRevokeOtherSessions_DbError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.NotContains(t, rr.Body.String(), "SQL")
 }
-

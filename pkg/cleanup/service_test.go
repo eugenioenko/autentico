@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"context"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"testing"
 	"time"
 
@@ -27,9 +28,9 @@ func insertExpiredAuthCode(t *testing.T, id string, expiredAgo time.Duration) {
 func insertExpiredSession(t *testing.T, id string, expiredAgo time.Duration) {
 	t.Helper()
 	_, err := db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, expires_at)
+		`INSERT INTO sessions (id, user_id, access_token_hash, expires_at)
 		 VALUES (?, ?, ?, ?)`,
-		id, "user-1", "token-"+id, time.Now().Add(-expiredAgo),
+		id, "user-1", utils.HashToken("token-"+id), time.Now().Add(-expiredAgo),
 	)
 	require.NoError(t, err)
 }
@@ -72,8 +73,8 @@ func TestRun_DeletesExpiredAuthCodes(t *testing.T) {
 	old := xid.New().String()
 	recent := xid.New().String()
 
-	insertExpiredAuthCode(t, old, 48*time.Hour)    // expired 48h ago → should be deleted
-	insertExpiredAuthCode(t, recent, 1*time.Hour)  // expired 1h ago  → within 24h retention, kept
+	insertExpiredAuthCode(t, old, 48*time.Hour)   // expired 48h ago → should be deleted
+	insertExpiredAuthCode(t, recent, 1*time.Hour) // expired 1h ago  → within 24h retention, kept
 
 	Run(24 * time.Hour)
 
@@ -208,35 +209,35 @@ func TestRun_DeactivatesIdleIdpSessions_CascadesToChildSessionsAndTokens(t *test
 
 	// Child OAuth sessions linked to the idle IdP session.
 	_, err = db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at, idp_session_id)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		"sess-child-1", "user-1", "at-child-1", "rt-child-1", time.Now().Add(time.Hour), idleID,
+		"sess-child-1", "user-1", utils.HashToken("at-child-1"), utils.HashToken("rt-child-1"), time.Now().Add(time.Hour), idleID,
 	)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at, idp_session_id)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		"sess-child-2", "user-1", "at-child-2", "rt-child-2", time.Now().Add(time.Hour), idleID,
+		"sess-child-2", "user-1", utils.HashToken("at-child-2"), utils.HashToken("rt-child-2"), time.Now().Add(time.Hour), idleID,
 	)
 	require.NoError(t, err)
 
 	// Tokens for those child sessions.
 	_, err = db.GetDB().Exec(
-		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"tok-child-1", "user-1", "at-child-1", "rt-child-1", "Bearer",
+		`INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-child-1", "user-1", utils.HashToken("at-child-1"), utils.HashToken("rt-child-1"), "Bearer",
 		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
-		time.Now(), "openid", "authorization_code",
+		time.Now(), "openid", "authorization_code", testutils.StoredTokenClientID("at-child-1"), testutils.StoredTokenACR("at-child-1"),
 	)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(
-		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"tok-child-2", "user-1", "at-child-2", "rt-child-2", "Bearer",
+		`INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-child-2", "user-1", utils.HashToken("at-child-2"), utils.HashToken("rt-child-2"), "Bearer",
 		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
-		time.Now(), "openid", "authorization_code",
+		time.Now(), "openid", "authorization_code", testutils.StoredTokenClientID("at-child-2"), testutils.StoredTokenACR("at-child-2"),
 	)
 	require.NoError(t, err)
 
@@ -371,35 +372,35 @@ func TestRun_DeactivatesExpiredMaxAgeIdpSessions_CascadesToChildSessionsAndToken
 
 	// Child OAuth sessions.
 	_, err = db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at, idp_session_id)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		"sess-ma-1", "user-1", "at-ma-1", "rt-ma-1", time.Now().Add(time.Hour), expiredID,
+		"sess-ma-1", "user-1", utils.HashToken("at-ma-1"), utils.HashToken("rt-ma-1"), time.Now().Add(time.Hour), expiredID,
 	)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(
-		`INSERT INTO sessions (id, user_id, access_token, refresh_token, expires_at, idp_session_id)
+		`INSERT INTO sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at, idp_session_id)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
-		"sess-ma-2", "user-1", "at-ma-2", "rt-ma-2", time.Now().Add(time.Hour), expiredID,
+		"sess-ma-2", "user-1", utils.HashToken("at-ma-2"), utils.HashToken("rt-ma-2"), time.Now().Add(time.Hour), expiredID,
 	)
 	require.NoError(t, err)
 
 	// Tokens for those sessions.
 	_, err = db.GetDB().Exec(
-		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"tok-ma-1", "user-1", "at-ma-1", "rt-ma-1", "Bearer",
+		`INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-ma-1", "user-1", utils.HashToken("at-ma-1"), utils.HashToken("rt-ma-1"), "Bearer",
 		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
-		time.Now(), "openid", "authorization_code",
+		time.Now(), "openid", "authorization_code", testutils.StoredTokenClientID("at-ma-1"), testutils.StoredTokenACR("at-ma-1"),
 	)
 	require.NoError(t, err)
 	_, err = db.GetDB().Exec(
-		`INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"tok-ma-2", "user-1", "at-ma-2", "rt-ma-2", "Bearer",
+		`INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"tok-ma-2", "user-1", utils.HashToken("at-ma-2"), utils.HashToken("rt-ma-2"), "Bearer",
 		time.Now().Add(24*time.Hour), time.Now().Add(time.Hour),
-		time.Now(), "openid", "authorization_code",
+		time.Now(), "openid", "authorization_code", testutils.StoredTokenClientID("at-ma-2"), testutils.StoredTokenACR("at-ma-2"),
 	)
 	require.NoError(t, err)
 
@@ -467,13 +468,13 @@ func TestRun_EmptyTablesNoError(t *testing.T) {
 func TestStart(t *testing.T) {
 	testutils.WithTestDB(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Start with a very short interval
 	go Start(ctx, 10*time.Millisecond, 24*time.Hour)
-	
+
 	// Let it run for a bit
 	time.Sleep(50 * time.Millisecond)
-	
+
 	// Cancel and ensure it stops
 	cancel()
 	time.Sleep(20 * time.Millisecond)
@@ -481,10 +482,10 @@ func TestStart(t *testing.T) {
 
 func TestRun_DbError(t *testing.T) {
 	testutils.WithTestDB(t)
-	
+
 	// Close DB to trigger error
 	db.CloseDB()
-	
+
 	// Should not panic, just log errors
 	Run(time.Hour)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/api"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 // TokenByAccessToken returns the active token row matching the access token.
@@ -21,16 +22,20 @@ import (
 // forged (impossible with an uncompromised signing key). Callers should
 // treat this as a rejection, not a pass.
 func TokenByAccessToken(accessToken string) (*Token, error) {
+	if accessToken == "" {
+		return nil, sql.ErrNoRows
+	}
 	var t Token
 	err := db.GetDB().QueryRow(`
-		SELECT id, user_id, access_token, refresh_token, access_token_type,
+		SELECT id, user_id, access_token_hash, refresh_token_hash, access_token_type,
 			refresh_token_expires_at, refresh_token_last_used_at,
-			access_token_expires_at, issued_at, scope, grant_type, revoked_at
-		FROM tokens WHERE access_token = ? AND revoked_at IS NULL
-	`, accessToken).Scan(
-		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken, &t.AccessTokenType,
+			access_token_expires_at, issued_at, scope, grant_type, revoked_at, client_id, acr
+		FROM tokens WHERE access_token_hash = ? AND revoked_at IS NULL
+	`, utils.HashToken(accessToken)).Scan(
+		&t.ID, &t.UserID, &t.AccessTokenHash, &t.RefreshTokenHash, &t.AccessTokenType,
 		&t.RefreshTokenExpiresAt, &t.RefreshTokenLastUsedAt,
 		&t.AccessTokenExpiresAt, &t.IssuedAt, &t.Scope, &t.GrantType, &t.RevokedAt,
+		&t.ClientID, &t.ACR,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -54,15 +59,15 @@ var tokenListConfig = api.ListConfig{
 }
 
 type TokenRow struct {
-	ID                    string
-	UserID                *string
-	Username              string
-	Email                 string
-	Scope                 string
-	GrantType             string
-	AccessTokenExpiresAt  time.Time
-	IssuedAt              time.Time
-	RevokedAt             *time.Time
+	ID                   string
+	UserID               *string
+	Username             string
+	Email                string
+	Scope                string
+	GrantType            string
+	AccessTokenExpiresAt time.Time
+	IssuedAt             time.Time
+	RevokedAt            *time.Time
 }
 
 func ListTokensWithParams(params api.ListParams, dateWhere string, dateArgs []any) ([]TokenRow, int, error) {

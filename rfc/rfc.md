@@ -107,7 +107,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §4.3 | ROPC: `invalid_grant` vs `invalid_client` error codes | `pkg/token/handler.go` password block |
 | §4.6 | Refresh: `scope` MUST NOT exceed original; `scope` MUST appear in response | `pkg/token/refresh_token.go` |
 | §5.2 | Error response: `error`, `error_description`, HTTP 400 (401 only for `invalid_client`) | `pkg/utils/responses.go` |
-| §10.6 | Auth code replay: revoke all tokens for user/client | `pkg/token/revoke.go` |
+| §10.6 | Auth code replay: revoke authorization-code tokens for the affected user and client | `pkg/token/revoke.go` |
 
 **MUST / SHOULD / MAY compliance:**
 
@@ -119,7 +119,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §5.2 | Use HTTP 400 for all errors except `invalid_client` (401) | ✅ Verified + annotated (2026-03-30) |
 | MUST NOT | §4.6 | Refresh grant MUST NOT issue scope broader than original | ✅ Fixed (2026-03-30) |
 | SHOULD | §4.1.4 | Omit `scope` from token response if identical to requested | ⏭ Skipped — always including scope is safe and aids client transparency |
-| SHOULD | §10.6 | Revoke all tokens on auth code replay detection | ✅ Verified + annotated (2026-03-30) |
+| SHOULD | §10.6 | Revoke affected client's authorization-code tokens on auth code replay detection | ✅ Verified + annotated (2026-03-30) |
 
 **Security Considerations (§10):**
 - [x] §10.3: Auth codes MUST be single-use and short-lived — `auth_codes.used` flag enforced, expiry validated in `authorization_code.go`

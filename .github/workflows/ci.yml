@@ -12,6 +12,22 @@ env:
   GO_VERSION: "1.25"
 
 jobs:
+  windows-migrations:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Create UI placeholders
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pkg/admin/dist, pkg/account/dist
+          Set-Content pkg/admin/dist/index.html '<!doctype html>'
+          Set-Content pkg/account/dist/index.html '<!doctype html>'
+      - name: Run database and migration tests on Windows
+        run: go test -p 1 -v ./pkg/sqliteutil ./pkg/dbguard ./pkg/db/... ./tests/migrations
+
   lint:
     runs-on: ubuntu-latest
     steps:

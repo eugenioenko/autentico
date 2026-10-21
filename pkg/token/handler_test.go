@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -265,11 +266,19 @@ func TestHandleToken_AuthorizationCodeReuse_RevokesIssuedTokens(t *testing.T) {
 
 	// Seed a previously issued token as if it came from an authorization_code exchange
 	_, err = db.GetDB().Exec(`
-		INSERT INTO tokens (id, user_id, access_token, refresh_token, access_token_type,
-			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type)
-		VALUES ('tok-reuse-1', ?, 'reuse-access-token', 'reuse-refresh-token', 'Bearer',
-			datetime('now', '+30 days'), datetime('now', '+15 minutes'), datetime('now'), 'openid', 'authorization_code')
+		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
+			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
+		VALUES ('tok-reuse-1', ?, '10d575f618689e24239ac2b4949a8b3b53b5de8addef31bf616d0d29fe523e42', 'e914ec60fdbbd84cd8528c78dea57e04040ccb3e47828b4729da230b1b4a271d', 'Bearer',
+			datetime('now', '+30 days'), datetime('now', '+15 minutes'), datetime('now'), 'openid', 'authorization_code', 'code-client', '')
 	`, usr.ID)
+	assert.NoError(t, err)
+
+	// The same user's other client and other grant must survive the replay.
+	_, err = db.GetDB().Exec(`INSERT INTO tokens (id,user_id,access_token_hash,refresh_token_hash,access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type,client_id)
+        SELECT 'other-client',user_id,'other-access','other-refresh',access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type,'another-client' FROM tokens WHERE id='tok-reuse-1'`)
+	assert.NoError(t, err)
+	_, err = db.GetDB().Exec(`INSERT INTO tokens (id,user_id,access_token_hash,refresh_token_hash,access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type,client_id)
+        SELECT 'other-grant',user_id,'password-access','password-refresh',access_token_type,refresh_token_expires_at,access_token_expires_at,scope,'password',client_id FROM tokens WHERE id='tok-reuse-1'`)
 	assert.NoError(t, err)
 
 	// Present a reused (already-used) auth code
@@ -303,6 +312,10 @@ func TestHandleToken_AuthorizationCodeReuse_RevokesIssuedTokens(t *testing.T) {
 	err = db.GetDB().QueryRow(`SELECT revoked_at FROM tokens WHERE id = 'tok-reuse-1'`).Scan(&revokedAt)
 	assert.NoError(t, err)
 	assert.NotNil(t, revokedAt, "token issued for this user must be revoked on code reuse")
+	var survivors int
+	assert.NoError(t, db.GetDB().QueryRow(`SELECT count(*) FROM tokens WHERE id IN ('other-client','other-grant') AND revoked_at IS NULL`).Scan(&survivors))
+	assert.Equal(t, 2, survivors)
+
 }
 
 func TestHandleToken_AuthorizationCodeGrant_ExpiredCode(t *testing.T) {
@@ -562,7 +575,7 @@ func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Delete the session so refresh fails
-	_, err = db.GetDB().Exec(`DELETE FROM sessions WHERE access_token = ?`, tokenResp.AccessToken)
+	_, err = db.GetDB().Exec(`DELETE FROM sessions WHERE access_token_hash = ?`, utils.HashToken(tokenResp.AccessToken))
 	assert.NoError(t, err)
 
 	// Try to refresh
