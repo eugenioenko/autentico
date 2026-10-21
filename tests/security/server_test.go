@@ -32,6 +32,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/userclaim"
 	"github.com/eugenioenko/autentico/pkg/userinfo"
 	"github.com/eugenioenko/autentico/pkg/wellknown"
+	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/gorilla/csrf"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -44,6 +45,7 @@ type TestServer struct {
 
 func startTestServer(t *testing.T) *TestServer {
 	t.Helper()
+	testutils.WithTotpKey(t)
 
 	_, err := db.InitTestDB()
 	if err != nil {

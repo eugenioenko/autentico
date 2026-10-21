@@ -12,6 +12,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
 )
@@ -85,7 +86,7 @@ func TestRefreshUsesStoredMFAContext(t *testing.T) {
 	ts := startTestServer(t)
 	usr := createTestUser(t, "mfa-storage@example.com", "password123", "mfa-storage@example.com")
 	seed := "JBSWY3DPEHPK3PXP"
-	_, err := db.GetDB().Exec(`UPDATE users SET totp_secret=?,totp_verified=1 WHERE id=?`, seed, usr.ID)
+	err := user.SaveTotpSecret(usr.ID, seed)
 	require.NoError(t, err)
 	code, err := totp.GenerateCode(seed, time.Now())
 	require.NoError(t, err)

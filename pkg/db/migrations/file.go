@@ -11,8 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/dbguard"
 	"github.com/eugenioenko/autentico/pkg/sqliteutil"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	_ "modernc.org/sqlite"
 )
 
@@ -76,6 +78,35 @@ func InspectFile(path string) (int, []int, error) {
 		return version, nil, nil
 	}
 	return version, MajorVersions(version), nil
+}
+
+// ValidateCurrentFile checks an up-to-date database under a shared lock, so an
+// idempotent deployment check can run alongside the service without upgrading it.
+func ValidateCurrentFile(path string) error {
+	if err := totpsecret.ValidateKey(config.GetBootstrap().TotpEncryptionKey); err != nil {
+		return err
+	}
+	path, err := dbguard.Path(path)
+	if err != nil {
+		return err
+	}
+	lock, err := dbguard.Acquire(path, false)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = lock.Close() }()
+	if err := RecoveryPending(path); err != nil {
+		return err
+	}
+	db, err := openFile(path, true)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	if err := Check(db); err != nil {
+		return err
+	}
+	return validateEncryptedTotp(db)
 }
 
 // MajorVersions returns the major schema versions pending after current.
@@ -175,6 +206,10 @@ func RecoveryPending(path string) error {
 // applying any pending migrations. Failure restores that snapshot with SQLite
 // closed. The backup is retained on success and failure.
 func RunFile(path string, verbose bool, approvedMajors ...int) error {
+	// Validate before opening, checkpointing, recovering or backing up the DB.
+	if err := totpsecret.ValidateKey(config.GetBootstrap().TotpEncryptionKey); err != nil {
+		return err
+	}
 	path, err := dbguard.Path(path)
 	if err != nil {
 		return err
@@ -210,6 +245,11 @@ func RunFile(path string, verbose bool, approvedMajors ...int) error {
 	if version >= SchemaVersion || !populated || !pendingMajor(version) {
 		if err := ValidateApprovals(approvedMajors); err != nil {
 			return err
+		}
+		if version == SchemaVersion && version >= 17 {
+			if err := validateEncryptedTotp(db); err != nil {
+				return err
+			}
 		}
 		return run(db, verbose, true)
 	}

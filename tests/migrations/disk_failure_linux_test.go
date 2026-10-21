@@ -18,7 +18,7 @@ func TestMigrationFileLimitHelper(t *testing.T) {
 	}
 	require.NoError(t, syscall.Setrlimit(syscall.RLIMIT_FSIZE, &syscall.Rlimit{Cur: 4096, Max: 4096}))
 	app := os.Getenv("AUTENTICO_TEST_APP")
-	require.NoError(t, syscall.Exec(app, []string{app, "migrate", "--approve-major=15"}, os.Environ()))
+	require.NoError(t, syscall.Exec(app, []string{app, "migrate", "--approve-major=15,17"}, os.Environ()))
 }
 
 func TestPartialBackupWriteFailsBeforeMigration(t *testing.T) {

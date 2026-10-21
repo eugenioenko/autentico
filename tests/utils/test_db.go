@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func WithTestDB(t *testing.T) {
+	WithTotpKey(t)
 	_, err := db.InitTestDB()
 	if err != nil {
 		t.Fail()
@@ -18,6 +21,17 @@ func WithTestDB(t *testing.T) {
 	t.Cleanup(func() {
 		db.CloseDB()
 	})
+}
+
+// WithTotpKey installs test-only encryption configuration with automatic cleanup.
+func WithTotpKey(t *testing.T) {
+	t.Helper()
+	previous := config.Bootstrap.TotpEncryptionKey
+	key, err := totpsecret.GenerateKey()
+	require.NoError(t, err)
+	config.Bootstrap.TotpEncryptionKey = key
+	t.Setenv(totpsecret.EnvName, key)
+	t.Cleanup(func() { config.Bootstrap.TotpEncryptionKey = previous })
 }
 
 // InsertTestClient inserts a minimal active OAuth2 client row for tests.

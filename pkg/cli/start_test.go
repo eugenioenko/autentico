@@ -68,7 +68,9 @@ func TestValidateBootstrapSecrets_MissingOne(t *testing.T) {
 }
 
 func TestValidateBootstrapSecrets_AllSet(t *testing.T) {
+	testutils.WithTotpKey(t)
 	bs := &config.BootstrapConfig{
+		TotpEncryptionKey:           config.GetBootstrap().TotpEncryptionKey,
 		AuthAccessTokenSecret:       "secret1",
 		AuthRefreshTokenSecret:      "secret2",
 		AuthCSRFProtectionSecretKey: "secret3",
@@ -79,10 +81,10 @@ func TestValidateBootstrapSecrets_AllSet(t *testing.T) {
 
 func TestSeedClients_Errors(t *testing.T) {
 	testutils.WithTestDB(t)
-	
+
 	// Close DB to trigger errors in seeding
 	db.CloseDB()
-	
+
 	// These should not panic but will log warnings
 	seedAdminClient(false)
 	seedAccountClient()

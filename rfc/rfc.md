@@ -872,3 +872,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | Level | Reference | Requirement | Status |
 |-------|-----------|-------------|--------|
 | Security consideration | RFC 7239 §8.1 | Clients can forge forwarding claims; accept only a validated trusted proxy chain | ✅ Network peer by default; explicit proxy CIDRs; right-to-left X-Forwarded-For traversal stops at the first untrusted hop (#464). |
+
+## Encrypted TOTP enrollment storage
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| SHOULD | RFC 6238 §5.1 | Protect stored shared secrets against unauthorized access | ✅ AES-256-GCM encrypts persisted seeds with a separate persistent bootstrap key; ciphertext authenticates the owning user and format version (#444). |
+| MUST NOT | RFC 6238 §5.2 | Do not accept a previously successful timestep | ✅ Encryption and migration preserve the existing conditional replay watermark; changed enrollments cannot reuse stale forms (#444). |

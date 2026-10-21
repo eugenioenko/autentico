@@ -371,3 +371,9 @@ Public passkey registration checks current self-signup policy (including client 
 ## Trusted proxy client IPs
 
 `AUTENTICO_TRUSTED_PROXIES` is a bootstrap list of IPv4/IPv6 CIDRs, empty by default. `InitBootstrap` returns an error for invalid entries; CLI callers must propagate it. `utils.GetClientIP` uses the network peer unless trusted, then walks all `X-Forwarded-For` fields from right to left until the first untrusted hop. Rate limits, audit logs and session records use this same resolver. Forwarding values before that boundary, `X-Real-IP`, and `Forwarded` do not establish identity.
+
+## TOTP encryption and schema 17
+
+`pkg/totpsecret` uses AES-256-GCM with a fresh nonce and authenticated user ID/version. `AUTENTICO_TOTP_ENCRYPTION_KEY` is a required persistent base64-encoded 32-byte bootstrap key. Fresh `init`/auto-setup include it; re-running `init` on an existing regular `.env` only adds a missing key and preserves existing settings and secrets. Startup and migration reject missing/invalid keys; startup and up-to-date migration validate stored enrollments against the key. There is no plaintext or ephemeral-key fallback.
+
+Schema 17 is a major offline transformation with backup/recovery and explicit approval. It encrypts all nonempty active, pending and deactivated TOTP seeds in place, preserving enrollment flags, replay state and lockout. It does not discard sessions. Schema 15 still discards old bearer credentials. Pre-v3 unattended upgrades approve `15,17`; schema 15/16 upgrades approve `17`. Keep the original encryption key for all restarts and database restores.

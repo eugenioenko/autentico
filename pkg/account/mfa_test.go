@@ -71,7 +71,8 @@ func TestHandleDeleteMfa(t *testing.T) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	secret := "JBSWY3DPEHPK3PXP"
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = ?, totp_verified = TRUE WHERE id = ?", string(hashedPassword), secret, usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: code}
@@ -85,7 +86,8 @@ func TestHandleDeleteMfa_NoCode(t *testing.T) {
 	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, "JBSWY3DPEHPK3PXP"))
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(deleteReq)
@@ -98,7 +100,8 @@ func TestHandleDeleteMfa_InvalidCode(t *testing.T) {
 	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, "JBSWY3DPEHPK3PXP"))
 
 	deleteReq := DisableMfaRequest{CurrentPassword: "password", Code: "000000"}
 	body, _ := json.Marshal(deleteReq)
@@ -112,7 +115,8 @@ func TestHandleDeleteMfa_NoPassword(t *testing.T) {
 
 	// User has no password (passkey-only) but has TOTP
 	secret := "JBSWY3DPEHPK3PXP"
-	_, _ = db.GetDB().Exec("UPDATE users SET password = '', totp_secret = ?, totp_verified = TRUE WHERE id = ?", secret, usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = '' WHERE id = ?", usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
 
 	code, _ := totp.GenerateCode(secret, time.Now())
 	deleteReq := DisableMfaRequest{Code: code}
@@ -133,7 +137,8 @@ func TestHandleDeleteMfa_WrongPassword(t *testing.T) {
 	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, "JBSWY3DPEHPK3PXP"))
 
 	req := DisableMfaRequest{CurrentPassword: "wrong"}
 	body, _ := json.Marshal(req)
@@ -146,7 +151,8 @@ func TestHandleDeleteMfa_UniformErrorResponse(t *testing.T) {
 	_, usr, info := setupTestUserAndSession(t)
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPassword), usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPassword), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, "JBSWY3DPEHPK3PXP"))
 
 	cases := []DisableMfaRequest{
 		{CurrentPassword: "wrong", Code: "000000"},
@@ -235,7 +241,8 @@ func TestHandleDeleteMfaReplayWriteFailureAndPasswordFailure(t *testing.T) {
 	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 	const secret = "JBSWY3DPEHPK3PXP"
-	_, err = db.GetDB().Exec(`UPDATE users SET password=?,totp_secret=?,totp_verified=TRUE WHERE id=?`, string(hash), secret, usr.ID)
+	_, err = db.GetDB().Exec(`UPDATE users SET password=? WHERE id=?`, string(hash), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
 	require.NoError(t, err)
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
@@ -309,7 +316,8 @@ func TestHandleSetupTotp_AlreadyEnrolled(t *testing.T) {
 
 	// Set password and mark TOTP as verified
 	hashedPw, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashedPw), usr.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashedPw), usr.ID)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, "JBSWY3DPEHPK3PXP"))
 
 	setupReq := PasswordConfirmRequest{CurrentPassword: "password"}
 	body, _ := json.Marshal(setupReq)
@@ -349,7 +357,8 @@ func TestHandleDeleteMfa_DbError(t *testing.T) {
 
 	// Set a valid hashed password and TOTP so the handler proceeds past validation
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-	_, _ = db.GetDB().Exec("UPDATE users SET password = ?, totp_secret = 'JBSWY3DPEHPK3PXP', totp_verified = TRUE WHERE id = ?", string(hashed), u.ID)
+	_, _ = db.GetDB().Exec("UPDATE users SET password = ? WHERE id = ?", string(hashed), u.ID)
+	require.NoError(t, user.SaveTotpSecret(u.ID, "JBSWY3DPEHPK3PXP"))
 
 	// Refresh before closing DB so context has the updated user
 	freshUsr, _ := user.UserByID(u.ID)

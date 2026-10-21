@@ -13,6 +13,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v2"
 
+	"github.com/eugenioenko/autentico/pkg/dbguard"
 	"github.com/eugenioenko/autentico/pkg/key"
 )
 
@@ -26,6 +27,7 @@ type envParams struct {
 	refreshSecret string
 	csrfSecret    string
 	privateKeyB64 string
+	totpKey       string
 	dev           bool
 }
 
@@ -63,10 +65,12 @@ func buildEnvContent(p envParams) string {
 		fmt.Sprintf("AUTENTICO_LISTEN_PORT=%s", p.listenPort),
 		"",
 		"# ── Cryptographic secrets ────────────────────────────────────────────────────",
-		"# Keep these private. Changing them invalidates existing tokens and sessions.",
+		"# Keep these private. Changing token/CSRF secrets invalidates existing tokens and sessions.",
 		fmt.Sprintf("AUTENTICO_ACCESS_TOKEN_SECRET=%s", p.accessSecret),
 		fmt.Sprintf("AUTENTICO_REFRESH_TOKEN_SECRET=%s", p.refreshSecret),
 		fmt.Sprintf("AUTENTICO_CSRF_SECRET_KEY=%s", p.csrfSecret),
+		"# Persistent AES-256 key for TOTP encryption. Keep it when restarting or restoring the DB.",
+		fmt.Sprintf("AUTENTICO_TOTP_ENCRYPTION_KEY=%s", p.totpKey),
 		"",
 		"# ── RSA key for JWT signing ──────────────────────────────────────────────────",
 		"# Base64-encoded RSA private key PEM. Used to sign access tokens and ID tokens (RS256).",
@@ -132,8 +136,19 @@ func buildEnvContent(p envParams) string {
 func RunInit(c *cli.Context) error {
 	outputDir := c.String("output")
 	envPath := filepath.Join(outputDir, ".env")
+	lockPath, err := dbguard.Path(envPath)
+	if err != nil {
+		return err
+	}
+	lock, err := dbguard.Acquire(lockPath, true)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = lock.Close() }()
 	if _, err := os.Stat(envPath); err == nil {
-		return fmt.Errorf("%s already exists. Delete it first if you want to reinitialize", envPath)
+		return addMissingTotpKey(envPath)
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 
 	appURL := c.String("url")
@@ -178,6 +193,10 @@ func RunInit(c *cli.Context) error {
 	}
 
 	dev := c.Bool("dev")
+	totpKey, err := configuredTotpKey()
+	if err != nil {
+		return err
+	}
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
@@ -186,10 +205,11 @@ func RunInit(c *cli.Context) error {
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
 		privateKeyB64: key.EncodeKeyToBase64(rsaKey),
+		totpKey:       totpKey,
 		dev:           dev,
 	})
 
-	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
+	if err := createEnvFile(envPath, content); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
 
@@ -261,6 +281,10 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 	}
 
 	dev := devFlag || u.Scheme != "https"
+	totpKey, err := configuredTotpKey()
+	if err != nil {
+		return err
+	}
 	content := buildEnvContent(envParams{
 		appURL:        appURL,
 		listenPort:    listenPort,
@@ -269,10 +293,11 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 		refreshSecret: refreshSecret,
 		csrfSecret:    csrfSecret,
 		privateKeyB64: key.EncodeKeyToBase64(rsaKey),
+		totpKey:       totpKey,
 		dev:           dev,
 	})
 
-	if err := os.WriteFile(".env", []byte(content), 0600); err != nil {
+	if err := createEnvFile(".env", content); err != nil {
 		return fmt.Errorf("auto-setup: failed to write .env: %w", err)
 	}
 

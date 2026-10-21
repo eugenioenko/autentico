@@ -8,6 +8,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/totpsecret"
 )
 
 var (
@@ -44,6 +45,10 @@ func verifyPasswordGrantTotpAt(userID, code string, now time.Time) error {
 	var lockedUntil *time.Time
 	err = tx.QueryRow(`SELECT totp_secret, totp_verified, totp_failed_attempts, totp_locked_until, totp_last_used_step
 		FROM users WHERE id = ? AND deactivated_at IS NULL`, userID).Scan(&secret, &verified, &attempts, &lockedUntil, &lastUsedStep)
+	if err != nil {
+		return err
+	}
+	secret, err = totpsecret.Open(config.GetBootstrap().TotpEncryptionKey, userID, secret)
 	if err != nil {
 		return err
 	}

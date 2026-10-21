@@ -11,7 +11,7 @@ Autentico uses explicit, versioned schema migrations. Routine migrations run aut
 
 Autentico uses SQLite's built-in `PRAGMA user_version` to track the current schema version. Each release that changes the schema increments this version. On startup, the binary compares the database version against the version it expects and applies any pending migrations.
 
-The schema number is independent of the release number: v3 introduces major schema **15**. Later routine migrations can raise the target schema without changing that major approval. Fresh databases run the schema migrations on first start without requiring approval.
+The schema number is independent of the release number: v3 introduces major schemas **15** (token hashing) and **17** (TOTP encryption). Later routine migrations can raise the target schema without changing that major approval. Fresh databases run the schema migrations on first start without requiring approval.
 
 ## Upgrading
 
@@ -56,17 +56,48 @@ autentico migrate
 
 This shows the current and target schema versions and asks you to type the target number to confirm. A major migration also describes its impact. Type anything else to cancel. If a major migration is pending, startup refuses the entire pending upgrade, including any preceding routine migrations.
 
-## Upgrading to v3: schema 15
+## Upgrading to v3: schemas 15 and 17
 
-Schema 15 stores SHA-256 hashes of access and refresh tokens instead of the original JWTs. Existing sessions are discarded rather than converted. This is a **major migration**: updating the image alone will stop startup with instructions to run `autentico migrate`.
+Schema 15 stores SHA-256 hashes of access and refresh tokens instead of the original JWTs. Existing sessions are discarded rather than converted. Schema 17 encrypts existing TOTP secrets with `AUTENTICO_TOTP_ENCRYPTION_KEY`, preserving enrollments, verification flags, and replay/lockout state. Users keep their existing authenticator app setup. Databases already on schema 15 or 16 also need the schema 17 upgrade; that upgrade alone preserves existing sessions. This is a **major migration**: updating the image alone will stop startup with instructions to run `autentico migrate`.
 
 <Aside type="caution">
-The upgrade invalidates **all access and refresh tokens, OAuth sessions, SSO sessions, and pending login grants**, including admin sessions and client-credentials tokens. Everyone must sign in again, and service clients must obtain new tokens. Users, passwords, TOTP enrollment, trusted devices, client configuration, and settings are preserved.
+When schema 15 is pending, the upgrade invalidates **all access and refresh tokens, OAuth sessions, SSO sessions, and pending login grants**, including admin sessions and client-credentials tokens. Everyone must sign in again, and service clients must obtain new tokens. Users, passwords, TOTP enrollment, trusted devices, client configuration, and settings are preserved.
 </Aside>
 
 Stop every Autentico instance and any other process using the database before running the migration. There is no separate session-revocation step: invalidation and the schema changes happen together in the migration transaction.
 
 Autentico rejects the old credentials after the upgrade. External applications that validate JWTs locally can still accept an existing access token until it expires; their own application sessions follow their own expiration policies.
+
+### Prepare the TOTP encryption key
+
+Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.
+
+If the deployment has an existing `.env`, run the updated initializer in the same directory:
+
+```bash
+autentico init
+```
+
+It adds a random base64-encoded 32-byte `AUTENTICO_TOTP_ENCRYPTION_KEY` only when missing. Existing settings and signing secrets are preserved; repeating `init` keeps the same key. Fresh `init` and fresh `start --auto-setup` configurations include the key automatically. Startup does not silently add a missing key to an existing configuration.
+
+For deployments managed entirely through environment variables or a secret manager, generate the key once:
+
+```bash
+openssl rand -base64 32
+```
+
+Save the result as `AUTENTICO_TOTP_ENCRYPTION_KEY` in the deployment configuration or secret manager, then pass it to both migration and application containers. With Compose, a host `.env` variable must be explicitly forwarded, for example:
+
+```yaml
+services:
+  autentico:
+    environment:
+      AUTENTICO_TOTP_ENCRYPTION_KEY: ${AUTENTICO_TOTP_ENCRYPTION_KEY:?Set the persistent TOTP encryption key}
+```
+
+For a container using the image's persistent `/app/data/.env`, use the `init` command shown below instead of creating a second configuration file on the host.
+
+Keep a protected copy of this key with your recovery material, separate from database-only exports. Do not generate a new key on each deployment or replace it after encryption: a different key cannot decrypt existing enrollments. If the key is lost, restore the original key from backup. `start` refuses a wrong key or corrupt encrypted enrollment rather than disabling MFA. The migration itself preserves the original seeds; it does not reset enrollments or ask users to scan new QR codes.
 
 ### Docker Compose
 
@@ -75,10 +106,12 @@ With the service named `autentico` and the existing database volume mounted:
 ```bash
 docker compose pull autentico
 docker compose stop autentico
+# For the image's existing persistent .env; adds only the missing TOTP key.
+docker compose run --rm autentico init
 docker compose run --rm autentico migrate
 ```
 
-The command warns that everyone will be signed out. Type the **target schema number shown by the command** to approve the upgrade (currently **`16`**). After it succeeds:
+If schema 15 is pending, the command warns that everyone will be signed out. It also explains that schema 17 preserves and encrypts TOTP enrollments. Type the **target schema number shown by the command** to approve the upgrade (currently **`17`**). After it succeeds:
 
 ```bash
 docker compose up -d autentico
@@ -91,13 +124,13 @@ Use the same image, environment, and database volume for the migration container
 Approve the specific **schema number**, not the application release:
 
 ```bash
-docker compose run --rm -T autentico migrate --approve-major=15 \
+docker compose run --rm -T autentico migrate --approve-major=15,17 \
   && docker compose up -d autentico
 ```
 
-Stop the old application before running this command. `--approve-major=15` explicitly accepts session invalidation for schema 15 and skips the interactive prompt. Approval for 15 does not approve a future major schema migration. Unknown major schema numbers are rejected. Repeating the command after a successful upgrade is safe and reports that the database is already up to date.
+Stop the old application and configure the TOTP encryption key before running this command. `--approve-major=15,17` explicitly accepts session invalidation for schema 15 and the protected encryption upgrade for schema 17 and skips the interactive prompt. Approval for 15 alone does not approve 17. An installation already on schema 15 or 16 only needs `--approve-major=17`. Unknown major schema numbers are rejected. Repeating the command after a successful upgrade is safe and reports that the database is already up to date.
 
-For a binary deployment, stop the service, run `autentico migrate --approve-major=15`, and restart the service only if the command succeeds. Keep this as a deployment step; the normal container command remains `start`. The same approval keeps later routine-only upgrades noninteractive; a future major migration needs its own schema approval.
+For a binary deployment, stop the service, run `autentico migrate --approve-major=15,17`, and restart the service only if the command succeeds. Keep this as a deployment step; the normal container command remains `start`. The same approval keeps later routine-only upgrades noninteractive; a future major migration needs its own schema approval.
 
 ### Backup, locking, and recovery
 
@@ -105,11 +138,11 @@ Before an existing database undergoes a major upgrade, Autentico:
 
 1. Acquires an exclusive OS lock using the database's `.lock` sidecar file.
 2. Checkpoints committed WAL data into the database and verifies the checkpoint succeeded.
-3. Closes SQLite and creates a backup beside the database, such as `autentico.db.pre-v16-<random>.db`, with owner-only permissions.
+3. Closes SQLite and creates a backup beside the database, such as `autentico.db.pre-v17-<random>.db`, with owner-only permissions.
 4. Verifies the backup's checksum, schema version, and SQLite integrity, then writes a durable `.migration.json` recovery record.
 5. Applies the migrations, checkpoints the result, and removes the recovery record after success.
 
-If migration fails, Autentico closes SQLite, restores the pre-upgrade backup, and exits with an error. Restoration includes the original tokens and sessions, file permissions, and Unix ownership. The deployment must remain stopped until the failure is resolved and migration succeeds. If the process is interrupted, server startup refuses to use the database while the recovery record remains. Running `autentico migrate` restores the verified backup before requesting approval to retry; automation can retry with `--approve-major=15`.
+If migration fails, Autentico closes SQLite, restores the pre-upgrade backup, and exits with an error. Restoration includes the original tokens and sessions, file permissions, and Unix ownership. The deployment must remain stopped until the failure is resolved and migration succeeds. If the process is interrupted, server startup refuses to use the database while the recovery record remains. Running `autentico migrate` restores the verified backup before requesting approval to retry; automation can retry with `--approve-major=15,17`.
 
 On Unix, a migration run as root assigns the lock file the database owner and applicable read/write permissions so the service user can restart afterward. The lock file stays in place to keep all processes locking the same file.
 
@@ -118,7 +151,7 @@ An OS lock is released when its process exits. A leftover `.lock` file alone doe
 The advisory lock coordinates binaries supporting this migration protocol. Older binaries and external SQLite tools do not honor it; stop them yourself before migrating.
 
 <Aside type="caution">
-Backups contain the old plaintext tokens and must remain protected. Budget space for a full database copy plus migration WAL and recovery staging files. Keep the backup until the upgrade has been verified, then remove it according to your backup retention policy. To roll back the application release, stop all database users and restore the matching pre-upgrade database first; an older binary cannot use schema 15.
+Backups contain the original plaintext TOTP seeds and may contain old plaintext tokens; they must remain protected. Budget space for a full database copy plus migration WAL and recovery staging files. Keep the backup until the upgrade has been verified, then remove it according to your backup retention policy. To roll back the application release, stop all database users and restore the matching pre-upgrade database first; an older binary cannot use schema 17 or decrypt its TOTP storage.
 </Aside>
 
 <Aside type="tip">

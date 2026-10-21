@@ -101,6 +101,10 @@ func AuthenticateUser(username, password string) (*User, error) {
 		return nil, fmt.Errorf("failed to retrieve user: %w", err)
 	}
 	user.LockedUntil = lockedUntil
+	user.TotpSecret, err = decryptTotpSecret(user.ID, user.TotpSecret)
+	if err != nil {
+		return nil, err
+	}
 
 	if user.Password == "" {
 		return nil, fmt.Errorf("invalid username or password")

@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
-target_schema = 16
+target_schema = 17
 args = parser.parse_args()
 if os.getuid() == 0:
     parser.error(
@@ -33,7 +33,7 @@ for v in range(1, 15):
     db.executescript(sql)
     db.execute(f"PRAGMA user_version={v}")
 db.executescript(
-    "INSERT INTO users(id,username,password) VALUES('u','kept-user','kept-password'); INSERT INTO tokens(id,user_id,access_token,refresh_token,access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type) VALUES('t','u','old-access','old-refresh','Bearer',datetime('now','+1 day'),datetime('now','+1 hour'),'openid','password'); INSERT INTO sessions(id,user_id,access_token,refresh_token) VALUES('s','u','old-access','old-refresh'); CREATE TRIGGER fail_migration BEFORE DELETE ON sessions BEGIN SELECT RAISE(ABORT,'injected container failure'); END;"
+    "INSERT INTO users(id,username,password,totp_secret,totp_verified) VALUES('u','kept-user','kept-password','JBSWY3DPEHPK3PXP',1); INSERT INTO tokens(id,user_id,access_token,refresh_token,access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type) VALUES('t','u','old-access','old-refresh','Bearer',datetime('now','+1 day'),datetime('now','+1 hour'),'openid','password'); INSERT INTO sessions(id,user_id,access_token,refresh_token) VALUES('s','u','old-access','old-refresh'); CREATE TRIGGER fail_migration BEFORE DELETE ON sessions BEGIN SELECT RAISE(ABORT,'injected container failure'); END;"
 )
 db.close()
 config = {
@@ -58,6 +58,11 @@ config = {
         }
     }
 }
+# Model an existing service-owned v2 configuration, upgraded by a root CLI.
+envpath = data / ".env"
+original_env = "# existing configuration\nAUTENTICO_REFRESH_TOKEN_SECRET=container-test-refresh\n"
+envpath.write_text(original_env)
+envpath.chmod(0o600)
 compose = temp / "compose.json"
 compose.write_text(json.dumps(config))
 base = [
@@ -90,6 +95,18 @@ def call(args, success=True, contains=None):
 
 
 try:
+    before = dbpath.read_bytes()
+    call(["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15,17"], False, "AUTENTICO_TOTP_ENCRYPTION_KEY is required")
+    assert dbpath.read_bytes() == before
+    assert not list(data.glob("*.pre-v17-*.db"))
+    print("Docker migration refuses missing key without changing the database", flush=True)
+    call(["run", "--rm", "-T", "autentico", "init"], True, "other settings and keys were preserved")
+    after_init = envpath.read_bytes()
+    assert after_init.startswith(original_env.encode())
+    assert envpath.stat().st_uid == os.getuid(), "init changed existing config owner"
+    call(["run", "--rm", "-T", "--user", f"{os.getuid()}:{os.getgid()}", "autentico", "init"], True, "no changes made")
+    assert envpath.read_bytes() == after_init
+    print("Docker init adds the key once and preserves config ownership and secrets", flush=True)
     call(
         ["run", "--rm", "-T", "autentico", "start"],
         False,
@@ -99,7 +116,7 @@ try:
     call(["run", "--rm", "-T", "autentico", "migrate"], False, "failed to read input")
     print("Docker headless migration requires approval", flush=True)
     call(
-        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15"],
+        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15,17"],
         False,
         "restored schema v14",
     )
@@ -112,7 +129,7 @@ try:
     db.close()
     print("Docker failed migration restores schema and credentials", flush=True)
     call(
-        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15"],
+        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15,17"],
         True,
         "Migration v15 applied",
     )
@@ -121,8 +138,11 @@ try:
     assert db.execute("SELECT count(*) FROM tokens").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
     assert db.execute("SELECT username FROM users").fetchone()[0] == "kept-user"
+    stored, verified = db.execute("SELECT totp_secret,totp_verified FROM users WHERE id='u'").fetchone()
+    assert stored.startswith("totp:v1:") and "JBSWY3DPEHPK3PXP" not in stored
+    assert verified == 1
     db.close()
-    print("Docker approved retry purges sessions and preserves account", flush=True)
+    print("Docker approved retry purges old sessions and preserves encrypted TOTP enrollment", flush=True)
     # Privileged migration must leave the persistent lock usable by the service.
     service_user = f"{os.getuid()}:{os.getgid()}"
     lockpath = Path(str(dbpath) + ".lock")
@@ -136,7 +156,7 @@ try:
             service_user,
             "autentico",
             "migrate",
-            "--approve-major=15",
+            "--approve-major=15,17",
         ],
         True,
         "Already up to date",
@@ -162,7 +182,7 @@ try:
         flush=True,
     )
     call(
-        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15"],
+        ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15,17"],
         True,
         "Already up to date",
     )
