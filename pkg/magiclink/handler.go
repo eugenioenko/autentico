@@ -279,8 +279,7 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	codeHash := utils.HashSHA256(code)
-	tokenHash, expiresAt, usedAt, err := getMagicLinkTokenByCodeHash(usr.ID, codeHash)
+	tokenHash, codeHash, expiresAt, failedAttempts, err := getLatestUnusedMagicLinkToken(usr.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			renderMagicLink(w, r, "sent", params, authorizeSigValue, genericErr, sentExtra)
@@ -291,7 +290,20 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if usedAt != nil || time.Now().After(expiresAt) {
+	if time.Now().After(expiresAt) || failedAttempts >= maxCodeAttempts {
+		renderMagicLink(w, r, "sent", params, authorizeSigValue, genericErr, sentExtra)
+		return
+	}
+
+	if utils.HashSHA256(code) != codeHash {
+		attempts, err := recordFailedCodeAttempt(tokenHash)
+		if err != nil && err != sql.ErrNoRows {
+			slog.Error("magiclink: failed to record invalid code attempt", "request_id", reqid.Get(r.Context()), "error", err)
+		}
+		if err == nil && attempts == maxCodeAttempts {
+			audit.Log(audit.EventLoginFailed, nil, audit.TargetUser, usr.ID,
+				audit.Detail("method", "magic_link", "reason", "code_attempts_exhausted"), utils.GetClientIP(r))
+		}
 		renderMagicLink(w, r, "sent", params, authorizeSigValue, genericErr, sentExtra)
 		return
 	}

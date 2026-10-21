@@ -289,3 +289,26 @@ func TestRun_CommitFailureRollsBackVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, version)
 }
+
+// TestRun_MagicLinkAttemptsUpgrade preserves live tokens when upgrading a v12 database.
+func TestRun_MagicLinkAttemptsUpgrade(t *testing.T) {
+	db := newTestDB(t)
+	allMigrations := migrations
+	useTestMigrations(t, allMigrations[:12])
+	require.NoError(t, Run(db, false))
+	_, err := db.Exec(`INSERT INTO users (id, username) VALUES ('upgrade-user', 'upgrade-user');
+		INSERT INTO magic_link_tokens (id, user_id, token_hash, code_hash, expires_at)
+		VALUES ('upgrade-link', 'upgrade-user', 'existing-hash', 'existing-code', '2099-01-01 00:00:00')`)
+	require.NoError(t, err)
+	migrations, SchemaVersion = allMigrations, 13
+	require.NoError(t, Run(db, false))
+	var hash, code string
+	var attempts int
+	require.NoError(t, db.QueryRow(`SELECT token_hash, code_hash, failed_attempts FROM magic_link_tokens WHERE id = 'upgrade-link'`).Scan(&hash, &code, &attempts))
+	assert.Equal(t, "existing-hash", hash)
+	assert.Equal(t, "existing-code", code)
+	assert.Zero(t, attempts)
+	version, err := getUserVersion(db)
+	require.NoError(t, err)
+	assert.Equal(t, 13, version)
+}
