@@ -51,6 +51,7 @@ func TestPasswordGrant_RefreshTokenRotation(t *testing.T) {
 	// Refresh
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", tokenResp.RefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -302,6 +303,7 @@ func TestLogout_InvalidatesRefresh(t *testing.T) {
 	// Refresh must fail: the cascade revoked the token row.
 	refreshForm := url.Values{}
 	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("client_id", "test-client")
 	refreshForm.Set("refresh_token", tokenResp.RefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)

@@ -95,6 +95,7 @@ describe('Token endpoint — Refresh', () => {
 
     const resp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: original.refresh_token,
     });
     expect(resp.ok).toBe(true);
@@ -111,6 +112,7 @@ describe('Token endpoint — Refresh', () => {
     // Use refresh token — should rotate
     const resp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: original.refresh_token,
     });
     expect(resp.ok).toBe(true);
@@ -121,6 +123,7 @@ describe('Token endpoint — Refresh', () => {
     // Old refresh token must be rejected
     const replayResp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: original.refresh_token,
     });
     expect(replayResp.status).toBe(400);
@@ -135,6 +138,7 @@ describe('Token endpoint — Refresh', () => {
     // Rotate
     const resp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: original.refresh_token,
     });
     expect(resp.ok).toBe(true);
@@ -143,6 +147,7 @@ describe('Token endpoint — Refresh', () => {
     // Replay old token — triggers theft detection
     const replayResp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: original.refresh_token,
     });
     expect(replayResp.status).toBe(400);
@@ -150,9 +155,29 @@ describe('Token endpoint — Refresh', () => {
     // New token should also be revoked (all user tokens invalidated)
     const newResp = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'refresh_token',
+      client_id: String(decodeJwtPayload(original.refresh_token).azp),
       refresh_token: rotated.refresh_token,
     });
     expect(newResp.status).toBe(400);
+  });
+});
+
+describe('Refresh client identification', () => {
+  it('rejects an absent client without consuming the token, then preserves the issuing client', async () => {
+    const original = await obtainTokenViaROPC(ADMIN_USERNAME, ADMIN_PASSWORD);
+    const clientID = String(decodeJwtPayload(original.refresh_token).azp);
+    const rejected = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token', refresh_token: original.refresh_token,
+    });
+    expect(rejected.status).toBe(401);
+    expect((await rejected.json()).error).toBe('invalid_client');
+    const accepted = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token', refresh_token: original.refresh_token, client_id: clientID,
+    });
+    expect(accepted.status).toBe(200);
+    const rotated = await accepted.json();
+    expect(decodeJwtPayload(rotated.access_token).azp).toBe(clientID);
+    expect(decodeJwtPayload(rotated.refresh_token).azp).toBe(clientID);
   });
 });
 

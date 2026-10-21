@@ -273,6 +273,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "refresh_token":
+		// RFC 6749 §6 / §10.4: identify and authenticate the registered issuing client.
+		if authenticatedClient == nil {
+			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for refresh_token grant")
+			return
+		}
 		usr, err = UserByRefreshToken(w, request)
 		if err != nil {
 			return

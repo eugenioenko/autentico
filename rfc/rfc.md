@@ -879,3 +879,9 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 |-------|-----------|-------------|--------|
 | SHOULD | RFC 6238 §5.1 | Protect stored shared secrets against unauthorized access | ✅ AES-256-GCM encrypts persisted seeds with a separate persistent bootstrap key; ciphertext authenticates the owning user and format version (#444). |
 | MUST NOT | RFC 6238 §5.2 | Do not accept a previously successful timestep | ✅ Encryption and migration preserve the existing conditional replay watermark; changed enrollments cannot reuse stale forms (#444). |
+
+## Refresh client authentication
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST | RFC 6749 §6 / §10.4 | Authenticate confidential clients and preserve refresh-token client binding | ✅ Refresh requires a registered active client with the refresh grant; confidential clients authenticate using the shared request helper. Unbound historical tokens and client mismatches are rejected (#466). |

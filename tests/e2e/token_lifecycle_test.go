@@ -146,6 +146,8 @@ func TestRevokedToken_RefreshRejects(t *testing.T) {
 	// Attempt refresh with the revoked token's refresh_token
 	refreshForm := url.Values{}
 	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("client_id", "e2e-confidential")
+	refreshForm.Set("client_secret", "e2e-secret")
 	refreshForm.Set("refresh_token", tokens.RefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", refreshForm)
@@ -166,6 +168,7 @@ func TestRefreshToken_RotationBehavior(t *testing.T) {
 	// Refresh to get new tokens
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", oldRefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -198,6 +201,7 @@ func TestRefreshToken_RotationBehavior(t *testing.T) {
 	// RFC 6819 §5.2.2.3: old refresh token must be revoked after rotation
 	replayForm := url.Values{}
 	replayForm.Set("grant_type", "refresh_token")
+	replayForm.Set("client_id", "test-client")
 	replayForm.Set("refresh_token", oldRefreshToken)
 
 	replayResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", replayForm)
@@ -209,6 +213,7 @@ func TestRefreshToken_RotationBehavior(t *testing.T) {
 	// (replay detection revokes all user tokens, so the new token should also be revoked)
 	secondRefreshForm := url.Values{}
 	secondRefreshForm.Set("grant_type", "refresh_token")
+	secondRefreshForm.Set("client_id", "test-client")
 	secondRefreshForm.Set("refresh_token", newTokens.RefreshToken)
 
 	secondResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", secondRefreshForm)
@@ -230,6 +235,7 @@ func TestRefreshToken_ReplayDetection(t *testing.T) {
 	// Step 1: Legitimate refresh — rotates the token
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", oldRefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -244,6 +250,7 @@ func TestRefreshToken_ReplayDetection(t *testing.T) {
 	// Step 2: Attacker replays the old refresh token
 	replayForm := url.Values{}
 	replayForm.Set("grant_type", "refresh_token")
+	replayForm.Set("client_id", "test-client")
 	replayForm.Set("refresh_token", oldRefreshToken)
 
 	replayResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", replayForm)
@@ -254,6 +261,7 @@ func TestRefreshToken_ReplayDetection(t *testing.T) {
 	// Step 3: Legitimate user's new token is also revoked (theft mitigation)
 	legitimateForm := url.Values{}
 	legitimateForm.Set("grant_type", "refresh_token")
+	legitimateForm.Set("client_id", "test-client")
 	legitimateForm.Set("refresh_token", newTokens.RefreshToken)
 
 	legitimateResp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", legitimateForm)
@@ -277,6 +285,7 @@ func TestRefreshToken_ExpiredRefresh(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", tokens.RefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -291,6 +300,7 @@ func TestRefreshToken_InvalidRefreshToken(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", "totally-invalid-random-string")
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -341,6 +351,7 @@ func TestRefreshToken_AfterLogout(t *testing.T) {
 	// Refresh must fail: cascade revoked the token.
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", "test-client")
 	form.Set("refresh_token", tokens.RefreshToken)
 
 	resp, err := ts.Client.PostForm(ts.BaseURL+"/oauth2/token", form)
@@ -408,11 +419,11 @@ func TestCrossClient_RevokeIsNoOp(t *testing.T) {
 	createTestClient(t, ts, adminToken, map[string]interface{}{
 		"client_name":                "Cross Client",
 		"client_secret":              "cross-secret",
-		"redirect_uris":             []string{"http://localhost:3000/callback"},
-		"grant_types":               []string{"authorization_code", "refresh_token"},
-		"response_types":            []string{"code"},
-		"scopes":                    "openid profile email",
-		"client_type":               "confidential",
+		"redirect_uris":              []string{"http://localhost:3000/callback"},
+		"grant_types":                []string{"authorization_code", "refresh_token"},
+		"response_types":             []string{"code"},
+		"scopes":                     "openid profile email",
+		"client_type":                "confidential",
 		"token_endpoint_auth_method": "client_secret_basic",
 	})
 	// Find the client_id assigned by the server
