@@ -55,46 +55,67 @@ func TestRefreshClient_AuthenticationAndPolicy(t *testing.T) {
 		{name: "secret without identity", secret: "sec-secret", errorCode: "invalid_client", status: 401},
 		{name: "missing secret", clientID: "sec-confidential", errorCode: "invalid_client", status: 401},
 		{name: "wrong secret", clientID: "sec-confidential", secret: "wrong", errorCode: "invalid_client", status: 401},
+		{name: "unknown client", clientID: "unknown-client", errorCode: "invalid_client", status: 401},
+		{name: "invalid basic credentials", clientID: "sec-confidential", secret: "wrong", basic: true, errorCode: "invalid_client", status: 401},
+		{name: "missing basic secret", clientID: "sec-confidential", basic: true, errorCode: "invalid_client", status: 401},
 		{name: "another public client", clientID: "test-client", errorCode: "invalid_grant", status: 400},
 		{name: "inactive client", clientID: "sec-confidential", secret: "sec-secret", sql: "UPDATE clients SET is_active=FALSE WHERE client_id='sec-confidential'", errorCode: "invalid_client", status: 401},
 		{name: "refresh not allowed", clientID: "sec-confidential", secret: "sec-secret", sql: `UPDATE clients SET grant_types='["authorization_code","password"]' WHERE client_id='sec-confidential'`, errorCode: "unauthorized_client", status: 400},
 		{name: "valid secret post", clientID: "sec-confidential", secret: "sec-secret", status: 200},
 		{name: "valid basic auth", clientID: "sec-confidential", secret: "sec-secret", basic: true, status: 200},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ts := startTestServer(t)
-			createTestUser(t, "refresh-client-user", "password123", "client@example.com")
-			initial := obtainTokensViaConfidentialROPC(t, ts, "refresh-client-user", "password123")
-			if tc.sql != "" {
-				_, err := db.GetDB().Exec(tc.sql)
-				require.NoError(t, err)
+		for _, alreadyRotated := range []bool{false, true} {
+			if alreadyRotated && tc.status == 200 {
+				continue
 			}
-			resp, body := refreshClientRequest(t, ts, initial.RefreshToken, tc.clientID, tc.secret, tc.basic)
-			require.Equal(t, tc.status, resp.StatusCode, string(body))
-			if tc.status != 200 {
-				var rejected struct {
-					Error string `json:"error"`
+			state := "live"
+			if alreadyRotated {
+				state = "rotated"
+			}
+			t.Run(tc.name+"/"+state, func(t *testing.T) {
+				ts := startTestServer(t)
+				createTestUser(t, "refresh-client-user", "password123", "client@example.com")
+				initial := obtainTokensViaConfidentialROPC(t, ts, "refresh-client-user", "password123")
+				current := initial
+				wantTotal, wantRevoked := 1, 0
+				if alreadyRotated {
+					response, rotatedBody := refreshClientRequest(t, ts, initial.RefreshToken, "sec-confidential", "sec-secret", true)
+					require.Equal(t, http.StatusOK, response.StatusCode, string(rotatedBody))
+					current = &token.TokenResponse{}
+					require.NoError(t, json.Unmarshal(rotatedBody, current))
+					wantTotal, wantRevoked = 2, 1
 				}
-				require.NoError(t, json.Unmarshal(body, &rejected))
-				require.Equal(t, tc.errorCode, rejected.Error)
-				var total, revoked int
-				require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*),COUNT(revoked_at) FROM tokens").Scan(&total, &revoked))
-				require.Equal(t, 1, total, "rejection must not mint tokens")
-				require.Zero(t, revoked, "unauthenticated/unauthorized requests must not rotate or revoke the token")
-				_, err := db.GetDB().Exec(`UPDATE clients SET is_active=TRUE,grant_types='["authorization_code","password","refresh_token"]' WHERE client_id='sec-confidential'`)
+				if tc.sql != "" {
+					_, err := db.GetDB().Exec(tc.sql)
+					require.NoError(t, err)
+				}
+				resp, body := refreshClientRequest(t, ts, initial.RefreshToken, tc.clientID, tc.secret, tc.basic)
+				require.Equal(t, tc.status, resp.StatusCode, string(body))
+				if tc.status != 200 {
+					var rejected struct {
+						Error string `json:"error"`
+					}
+					require.NoError(t, json.Unmarshal(body, &rejected))
+					require.Equal(t, tc.errorCode, rejected.Error)
+					var total, revoked int
+					require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*),COUNT(revoked_at) FROM tokens").Scan(&total, &revoked))
+					require.Equal(t, wantTotal, total, "rejection must not mint tokens")
+					require.Equal(t, wantRevoked, revoked, "client rejection must not rotate a live token or cascade-revoke after a stale-token attempt")
+					_, err := db.GetDB().Exec(`UPDATE clients SET is_active=TRUE,grant_types='["authorization_code","password","refresh_token"]' WHERE client_id='sec-confidential'`)
+					require.NoError(t, err)
+					resp, body = refreshClientRequest(t, ts, current.RefreshToken, "sec-confidential", "sec-secret", true)
+					require.Equal(t, 200, resp.StatusCode, "legitimate client can still redeem after rejection: %s", body)
+				}
+				var rotated token.TokenResponse
+				require.NoError(t, json.Unmarshal(body, &rotated))
+				claims, err := token.DecodeRefreshToken(rotated.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 				require.NoError(t, err)
-				resp, body = refreshClientRequest(t, ts, initial.RefreshToken, "sec-confidential", "sec-secret", true)
-				require.Equal(t, 200, resp.StatusCode, "legitimate client can still redeem after rejection: %s", body)
-			}
-			var rotated token.TokenResponse
-			require.NoError(t, json.Unmarshal(body, &rotated))
-			claims, err := token.DecodeRefreshToken(rotated.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
-			require.NoError(t, err)
-			require.Equal(t, "sec-confidential", claims.ClientID)
-			var boundClient string
-			require.NoError(t, db.GetDB().QueryRow("SELECT client_id FROM tokens WHERE refresh_token_hash=?", utils.HashToken(rotated.RefreshToken)).Scan(&boundClient))
-			require.Equal(t, "sec-confidential", boundClient)
-		})
+				require.Equal(t, "sec-confidential", claims.ClientID)
+				var boundClient string
+				require.NoError(t, db.GetDB().QueryRow("SELECT client_id FROM tokens WHERE refresh_token_hash=?", utils.HashToken(rotated.RefreshToken)).Scan(&boundClient))
+				require.Equal(t, "sec-confidential", boundClient)
+			})
+		}
 	}
 }
 
@@ -128,7 +149,11 @@ func TestRefreshClient_HistoricalUnboundTokenCannotAcquireClient(t *testing.T) {
 	resp, body := refreshClientRequest(t, ts, legacy.RefreshToken, "test-client", "", false)
 	require.Equal(t, 400, resp.StatusCode, string(body))
 	require.Contains(t, string(body), "invalid_grant")
-	var n int
-	require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*) FROM tokens").Scan(&n))
-	require.Equal(t, 1, n)
+	var total, revoked int
+	require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*),COUNT(revoked_at) FROM tokens").Scan(&total, &revoked))
+	require.Equal(t, 1, total)
+	require.Zero(t, revoked)
+	var clientID string
+	require.NoError(t, db.GetDB().QueryRow("SELECT client_id FROM tokens WHERE refresh_token_hash=?", utils.HashToken(legacy.RefreshToken)).Scan(&clientID))
+	require.Empty(t, clientID, "rejection must not assign the historical token to a client")
 }
