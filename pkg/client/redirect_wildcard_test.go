@@ -87,3 +87,12 @@ func TestRedirectWildcardKeepsFixedQueryAndExactRegistrations(t *testing.T) {
 	require.True(t, IsValidRedirectURI(registered, "https://rp.example/exact/%61?fixed=1"))
 	require.False(t, IsValidRedirectURI(registered, "https://rp.example/exact/a?fixed=1"))
 }
+
+func TestRedirectWildcardPreservesConformanceAliasCallback(t *testing.T) {
+	raw, err := json.Marshal([]string{"https://localhost.emobix.co.uk:8443/test/a/*/callback"})
+	require.NoError(t, err)
+	registered := &Client{RedirectURIs: string(raw)}
+	require.True(t, IsValidRedirectURI(registered, "https://localhost.emobix.co.uk:8443/test/a/autentico/callback"))
+	require.False(t, IsValidRedirectURI(registered, "https://localhost.emobix.co.uk:8443/test/a/alias/module/callback"))
+	require.False(t, IsValidRedirectURI(registered, "https://localhost.emobix.co.uk:8443/test/a/../callback"))
+}

@@ -3,7 +3,7 @@ import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, putJSON, getResponse, obt
 
 const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
-const pattern = 'http://localhost:3000/test/*/callback?fixed=1';
+const pattern = 'http://localhost:3000/test/a/*/callback?fixed=1';
 
 describe('Redirect wildcard boundaries', () => {
   it('accepts a conformance identifier and rejects traversal/query variants before redirecting', async () => {
@@ -14,23 +14,23 @@ describe('Redirect wildcard boundaries', () => {
       client_type: 'public', token_endpoint_auth_method: 'none',
     }, admin);
     expect(registered.status).toBe(201);
-    const callback = 'http://localhost:3000/test/run-123_a.b~/callback?fixed=1';
+    const callback = 'http://localhost:3000/test/a/run-123_a.b~/callback?fixed=1';
     const authorized = await obtainAuthorizationCode('bounded-wildcard', callback, 'admin', 'Password123!', 'openid');
     const target = new URL(authorized.redirectURL);
-    expect(target.pathname).toBe('/test/run-123_a.b~/callback');
+    expect(target.pathname).toBe('/test/a/run-123_a.b~/callback');
     expect(target.searchParams.get('fixed')).toBe('1');
     const exchange = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code', client_id: 'bounded-wildcard',
       code: authorized.code, redirect_uri: callback, code_verifier: verifier });
     expect(exchange.status).toBe(200);
     for (const candidate of [
-      'http://localhost:3000/test/a/../../other/callback?fixed=1',
-      'http://localhost:3000/test/../callback?fixed=1',
-      'http://localhost:3000/test/%2e%2e/callback?fixed=1',
-      'http://localhost:3000/test/%252e%252e/callback?fixed=1',
-      'http://localhost:3000/test/a%2fb/callback?fixed=1',
-      'http://localhost:3000/test/a?next=/callback?fixed=1',
-      'http://localhost:3000/test/a#/callback?fixed=1',
-      'http://localhost:3000/test/run/callback?fixed=2',
+      'http://localhost:3000/test/a/a/../../other/callback?fixed=1',
+      'http://localhost:3000/test/a/../callback?fixed=1',
+      'http://localhost:3000/test/a/%2e%2e/callback?fixed=1',
+      'http://localhost:3000/test/a/%252e%252e/callback?fixed=1',
+      'http://localhost:3000/test/a/a%2fb/callback?fixed=1',
+      'http://localhost:3000/test/a/a?next=/callback?fixed=1',
+      'http://localhost:3000/test/a/a#/callback?fixed=1',
+      'http://localhost:3000/test/a/run/callback?fixed=2',
     ]) {
       // Keep the candidate as a query value so the test client cannot normalize
       // dot segments before the authorization server receives them.
@@ -49,10 +49,10 @@ describe('Redirect wildcard boundaries', () => {
     }, admin);
     expect(created.status).toBe(201);
     for (const invalid of [
-      'http://localhost:3000/test/pre*suf/callback',
-      'http://localhost:3000/test/*/*/callback',
+      'http://localhost:3000/test/a/pre*suf/callback',
+      'http://localhost:3000/test/a/*/*/callback',
       'http://localhost:3000/callback?next=*',
-      'http://localhost:3000/test/../*/callback',
+      'http://localhost:3000/test/a/../*/callback',
     ]) {
       const registered = await postJSON(`${OAUTH_URL}/register`, {
         client_name: 'Invalid wildcard', redirect_uris: [invalid],

@@ -68,7 +68,7 @@ Stop every Autentico instance and any other process using the database before ru
 
 Autentico rejects the old credentials after the upgrade. External applications that validate JWTs locally can still accept an existing access token until it expires; their own application sessions follow their own expiration policies.
 
-Review registered redirect wildcards when upgrading: `*` now matches only one plain path segment. Broader patterns that previously matched nested paths or query content are rejected. Replace them with concrete callback URLs or the [documented single-segment form](/clients/registering/#redirect_uris). The conformance pattern `/test/*/callback` remains supported.
+Review registered redirect wildcards when upgrading: `*` now matches only one plain path segment. Broader patterns that previously matched nested paths or query content are rejected. Replace them with concrete callback URLs or the [documented single-segment form](/clients/registering/#redirect_uris). For the OpenID Foundation suite, replace the broad `/test/*/callback` pattern with `/test/a/*/callback`, or register the exact `/test/a/<ALIAS>/callback` for the selected alias.
 
 ### Prepare the TOTP encryption key
 
