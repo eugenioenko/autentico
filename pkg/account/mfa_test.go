@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -15,6 +16,51 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestHandleDeleteMfaSharesAccountBudget(t *testing.T) {
+	testutils.WithTestDB(t)
+	_, usr, info := setupTestUserAndSession(t)
+	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+	require.NoError(t, err)
+	const secret = "JBSWY3DPEHPK3PXP"
+	_, err = db.GetDB().Exec(`UPDATE users SET password=? WHERE id=?`, string(hash), usr.ID)
+	require.NoError(t, err)
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
+	send := func(password, code string) (int, string) {
+		body, marshalErr := json.Marshal(DisableMfaRequest{CurrentPassword: password, Code: code})
+		require.NoError(t, marshalErr)
+		rr := mockAuthRequest(t, string(body), http.MethodDelete, "/account/api/mfa/totp", HandleDeleteMfa, info)
+		return rr.Code, rr.Body.String()
+	}
+	// Malformed codes are invalid in every timestep, without a numeric-code collision.
+	for range 4 {
+		status, _ := send("password123", "invalid")
+		require.Equal(t, http.StatusForbidden, status)
+	}
+	valid, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+	status, body := send("wrong-password", valid)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Contains(t, body, "invalid_credentials")
+	var attempts int
+	require.NoError(t, db.GetDB().QueryRow(`SELECT totp_failed_attempts FROM users WHERE id=?`, usr.ID).Scan(&attempts))
+	require.Equal(t, 4, attempts, "password failure must neither verify nor count a TOTP guess")
+	// A failure at another entry point uses the same remaining attempt.
+	require.ErrorIs(t, mfa.VerifyPasswordGrantTotp(usr.ID, "invalid"), mfa.ErrTotpLocked)
+	status, body = send("password123", valid)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Contains(t, body, "mfa_locked")
+	current, err := user.UserByID(usr.ID)
+	require.NoError(t, err)
+	require.True(t, current.TotpVerified)
+	_, err = db.GetDB().Exec(`UPDATE users SET totp_locked_until=? WHERE id=?`, time.Now().Add(-time.Second), usr.ID)
+	require.NoError(t, err)
+	status, body = send("password123", valid)
+	require.Equal(t, http.StatusOK, status, body)
+	current, err = user.UserByID(usr.ID)
+	require.NoError(t, err)
+	require.False(t, current.TotpVerified)
+}
 
 func TestHandleGetMfaStatus(t *testing.T) {
 	testutils.WithTestDB(t)

@@ -893,3 +893,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | MUST / SHOULD | RFC 6749 §4.1.2 | Reject repeated code exchange; revoke previously issued grant tokens where possible | ✅ Conditional single-use claim commits with token/session insertion. Replay follows browser-session linkage across refresh rotation; legacy unlinked codes use a user/client fallback (#467). |
 | Security consideration | RFC 6749 §6 / §10.4 | Rotate refresh tokens without allowing concurrent forks | ✅ One conditional claim and replacement token/session insertion in the same transaction; failed issuance rolls back, and existing replay revocation applies (#467). |
 | Security consideration | RFC 8628 §3.5 | An approved device code must not issue multiple token sets | ✅ Only an authorized, unconsumed code can win the issuance transaction; pending, denied and consumed codes cannot win (#467). |
+
+## Shared enrolled-TOTP attempt budget
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| Security consideration | RFC 4226 §7.3 / RFC 6238 §5.2 | Throttle online OTP guesses across login sessions | ✅ Browser MFA, password grants and TOTP removal share a persistent five-failure account budget. Valid codes are rejected during cooldown; new challenges and password success cannot reset it (#469). |
+| MUST NOT | RFC 6238 §5.2 | Do not accept a previously successful timestep again | ✅ The shared budget verifier retains the existing atomic per-user replay watermark; removal verifies the password before consuming a code (#469). |

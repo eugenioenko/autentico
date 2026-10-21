@@ -9,12 +9,45 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/user"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestHandleMfaAccountBudgetSurvivesNewChallenges(t *testing.T) {
+	userID, valid, invalid := passwordGrantTotpUser(t)
+	testutils.InsertTestClient(t, "budget-client", []string{"http://localhost/cb"})
+	for _, id := range []string{"one", "two", "three", "four", "five", "locked"} {
+		require.NoError(t, CreateMfaChallenge(MfaChallenge{ID: id, UserID: userID, Method: "totp",
+			ExpiresAt: time.Now().Add(time.Minute), LoginState: `{"client_id":"budget-client","redirect_uri":"http://localhost/cb","scope":"openid"}`}))
+		code := invalid
+		if id == "locked" {
+			code = valid
+		}
+		form := url.Values{"challenge_id": {id}, "code": {code}}
+		req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+		HandleMfa(rr, req)
+		if id == "five" || id == "locked" {
+			require.Equal(t, http.StatusFound, rr.Code)
+			require.Contains(t, rr.Header().Get("Location"), "Too+many+failed+TOTP+attempts")
+		} else {
+			require.Equal(t, http.StatusOK, rr.Code)
+			require.Contains(t, rr.Body.String(), "Invalid verification code")
+		}
+	}
+	var attempts int
+	require.NoError(t, db.GetDB().QueryRow(`SELECT totp_failed_attempts FROM users WHERE id=?`, userID).Scan(&attempts))
+	require.Equal(t, maxTotpAttempts, attempts)
+	require.ErrorIs(t, VerifyPasswordGrantTotp(userID, valid), ErrTotpLocked)
+	_, err := db.GetDB().Exec(`UPDATE users SET totp_locked_until=? WHERE id=?`, time.Now().Add(-time.Second), userID)
+	require.NoError(t, err)
+	require.NoError(t, VerifyEnrolledTotp(userID, valid))
+}
 
 func TestHandleMfaRejectsTotpReuseOnNewChallenge(t *testing.T) {
 	id := replayUser(t)
@@ -732,7 +765,7 @@ func TestHandleMfa_Post_TotpLockedAfter5Attempts(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleMfa(rr, req)
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "error=Too+many+failed+attempts")
+	assert.Contains(t, rr.Header().Get("Location"), "error=Too+many+failed+TOTP+attempts")
 
 	// 6th attempt — challenge is used, should be rejected
 	form = url.Values{}

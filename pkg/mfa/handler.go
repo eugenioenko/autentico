@@ -190,7 +190,16 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 		} else {
 			// RFC 6238 §5.2: an enrolled timestep may authenticate only once.
-			if err := ConsumeTotpCode(usr.ID, usr.TotpSecret, code); err != nil {
+			// RFC 4226 §7.3: fresh challenges do not reset the account's attempt budget.
+			if err := VerifyEnrolledTotp(usr.ID, code); err != nil {
+				if errors.Is(err, ErrTotpLocked) {
+					_ = IncrementFailedAttempts(challenge.ID)
+					_ = MarkChallengeUsed(challenge.ID)
+					audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID,
+						audit.Detail("method", "totp", "reason", "account_attempts_exhausted"), utils.GetClientIP(r))
+					redirectToLoginWithError(w, r, challenge, "Too many failed TOTP attempts. Please try again later.")
+					return
+				}
 				if !errors.Is(err, ErrInvalidTotp) {
 					slog.Error("mfa: failed to persist TOTP replay state", "request_id", reqid.Get(r.Context()), "error", err)
 					redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { clearEmails, extractMagicLinkCode, getLastEmail } from "../smtp-helper";
 import type { CapturedEmail } from "../smtp-helper";
-import { generateFreshTOTP } from "../totp-helper";
+import { generateFreshTOTP, generateTOTP } from "../totp-helper";
 import {
   startServer,
   stopServer,
@@ -178,4 +178,29 @@ test("magic link login requires TOTP", async ({ browser }) => {
   });
 
   await context.close();
+});
+
+test("fresh password challenges share the account TOTP lockout", async ({ page, context }) => {
+  const candidates = new Set([-1, 0, 1].map(offset => generateTOTP(totpSecret, Date.now() + offset * 30000)));
+  let invalid = '000000';
+  while (candidates.has(invalid)) invalid = String(Number(invalid) + 1).padStart(6, '0');
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await context.clearCookies();
+    await page.goto(`${BASE_URL}/account/`);
+    await page.waitForURL('**/oauth2/authorize**', { timeout: TIMEOUT });
+    await page.fill('#username', USER);
+    await page.fill('#password', PASSWORD);
+    await page.click('button[type="submit"]');
+    await expect(page.locator('#code')).toBeVisible({ timeout: TIMEOUT });
+    // The sixth fresh challenge must reject even a fresh valid code during lockout.
+    await page.fill('#code', attempt === 5 ? await generateFreshTOTP(totpSecret) : invalid);
+    await page.click('button:has-text("Verify")');
+    if (attempt < 4) {
+      await expect(page.getByText('Invalid verification code', { exact: true })).toBeVisible();
+    } else {
+      await page.waitForURL('**/oauth2/authorize**', { timeout: TIMEOUT });
+      await expect(page.getByText('Too many failed TOTP attempts. Please try again later.', { exact: true })).toBeVisible();
+    }
+    await expect(page.getByTestId('account-dashboard')).not.toBeVisible();
+  }
 });

@@ -183,9 +183,14 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 6238 §5.2: consume only after the password succeeds; a replay cannot disable MFA.
+	// RFC 4226 §7.3: use the same account attempt budget as login verification.
 	totpOk := false
 	if passwordOk && req.Code != "" {
-		err := mfa.ConsumeTotpCode(usr.ID, usr.TotpSecret, req.Code)
+		err := mfa.VerifyEnrolledTotp(usr.ID, req.Code)
+		if errors.Is(err, mfa.ErrTotpLocked) {
+			utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_locked", err.Error())
+			return
+		}
 		if err != nil && !errors.Is(err, mfa.ErrInvalidTotp) {
 			slog.Error("account: failed to persist TOTP replay state", "error", err, "user_id", usr.ID)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to verify TOTP code")

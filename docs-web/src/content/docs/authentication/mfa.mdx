@@ -43,6 +43,8 @@ TOTP uses time-based one-time passwords compatible with any RFC 6238 authenticat
 
 Each TOTP code can be accepted only once across browser login, password grants, and account actions. Enrollment confirmation also uses up its code, so wait for the authenticator to show the next code before signing in or disabling MFA. Codes use 30-second timesteps with one timestep of clock tolerance in either direction; a previously accepted or older timestep cannot be reused.
 
+Enrolled TOTP has a shared account budget of five failed verifications across browser login, the password grant, and TOTP removal. Starting a new login challenge, changing IPs, or entering the correct password does not reset it. After five failures, even valid TOTP codes are rejected until `account_lockout_duration` expires (15 minutes when configured as zero or a negative duration). Successful TOTP verification resets the failure count. The account API and password grant return `403 mfa_locked` during lockout; the browser redirects to login with a cooldown message. Password failures on removal do not spend TOTP attempts.
+
 The TOTP secret is encrypted per-user in the database with AES-256-GCM and the persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` from `.env` or the environment. Schema 17 encrypts existing enrollments in place, so existing authenticator apps keep working. Keep the original encryption key when restarting or restoring the database. The QR code is generated server-side — no third-party service is involved.
 
 **Issuer name** displayed in the authenticator app comes from the `theme_title` setting.

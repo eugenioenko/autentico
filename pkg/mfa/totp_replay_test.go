@@ -77,14 +77,14 @@ func TestTotpReplayAcrossVerificationPaths(t *testing.T) {
 			id := replayUser(t)
 			code := replayCode(t, replayTime)
 			if passwordFirst {
-				require.NoError(t, verifyPasswordGrantTotpAt(id, code, replayTime))
+				require.NoError(t, verifyEnrolledTotpAt(id, code, replayTime))
 				require.ErrorIs(t, consumeTotpCodeAt(id, replaySecret, code, replayTime), ErrInvalidTotp)
 			} else {
 				require.NoError(t, consumeTotpCodeAt(id, replaySecret, code, replayTime))
-				require.ErrorIs(t, verifyPasswordGrantTotpAt(id, code, replayTime), ErrInvalidTotp)
+				require.ErrorIs(t, verifyEnrolledTotpAt(id, code, replayTime), ErrInvalidTotp)
 			}
 			next := replayTime.Add(30 * time.Second)
-			require.NoError(t, verifyPasswordGrantTotpAt(id, replayCode(t, next), next))
+			require.NoError(t, verifyEnrolledTotpAt(id, replayCode(t, next), next))
 			require.ErrorIs(t, consumeTotpCodeAt(id, replaySecret, code, next), ErrInvalidTotp)
 		})
 	}
@@ -99,11 +99,11 @@ func TestTotpReplayCollisionAcrossOverlappingWindows(t *testing.T) {
 		t.Run(fmt.Sprint(passwordFirst), func(t *testing.T) {
 			id := replayUser(t)
 			if passwordFirst {
-				require.NoError(t, verifyPasswordGrantTotpAt(id, code, first))
+				require.NoError(t, verifyEnrolledTotpAt(id, code, first))
 				require.ErrorIs(t, consumeTotpCodeAt(id, replaySecret, code, second), ErrInvalidTotp)
 			} else {
 				require.NoError(t, consumeTotpCodeAt(id, replaySecret, code, first))
-				require.ErrorIs(t, verifyPasswordGrantTotpAt(id, code, second), ErrInvalidTotp)
+				require.ErrorIs(t, verifyEnrolledTotpAt(id, code, second), ErrInvalidTotp)
 			}
 			var used int64
 			require.NoError(t, db.GetDB().QueryRow("SELECT totp_last_used_step FROM users WHERE id=?", id).Scan(&used))
@@ -124,7 +124,7 @@ func TestTotpConcurrentReplayAcrossPaths(t *testing.T) {
 			if i%2 == 0 {
 				results <- consumeTotpCodeAt(id, replaySecret, code, replayTime)
 			} else {
-				results <- verifyPasswordGrantTotpAt(id, code, replayTime)
+				results <- verifyEnrolledTotpAt(id, code, replayTime)
 			}
 		})
 	}

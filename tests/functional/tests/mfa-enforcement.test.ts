@@ -112,6 +112,41 @@ beforeAll(async () => {
   expect(resp.status).toBe(201);
 });
 
+describe('Shared account TOTP lockout', () => {
+  it('combines password-grant and removal failures and rejects valid codes while locked', async () => {
+    const admin = await getAdminToken();
+    const username = 'totp-shared-budget';
+    await createUser(admin, username, 'Password123!', `${username}@test.com`);
+    const accessToken = await getUserToken(username, 'Password123!');
+    const enrollment = await setupAndVerifyTotp(accessToken);
+    // A next-step code is within the supported clock-skew window and not consumed by enrollment.
+    const valid = new TOTP({ secret: enrollment.secret }).generate({ timestamp: (enrollment.step + 1) * 30000 });
+    for (let i = 0; i < 2; i++) {
+      const response = await ropcLogin(username, 'Password123!', 'invalid');
+      expect(response.status).toBe(403);
+      expect((await response.json()).error).toBe('invalid_mfa_code');
+    }
+    for (let i = 0; i < 3; i++) {
+      const response = await deleteWithBody(`${ACCOUNT_API}/mfa/totp`, {
+        current_password: 'Password123!', code: 'invalid',
+      }, accessToken);
+      expect(response.status).toBe(403);
+      expect((await response.json()).error).toBe(i === 2 ? 'mfa_locked' : 'invalid_credentials');
+    }
+    const password = await ropcLogin(username, 'Password123!', valid);
+    expect(password.status).toBe(403);
+    expect((await password.json()).error).toBe('mfa_locked');
+    const removal = await deleteWithBody(`${ACCOUNT_API}/mfa/totp`, {
+      current_password: 'Password123!', code: valid,
+    }, accessToken);
+    expect(removal.status).toBe(403);
+    expect((await removal.json()).error).toBe('mfa_locked');
+    const status = await fetch(`${ACCOUNT_API}/mfa`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    expect(status.status).toBe(200);
+    expect((await status.json()).data.totp_enabled).toBe(true);
+  });
+});
+
 // --- Fix 1: Password grant enforces MFA ---
 
 describe('Password grant MFA enforcement', () => {
