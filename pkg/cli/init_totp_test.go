@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -85,4 +86,19 @@ func TestConcurrentInitDoesNotReplaceKeys(t *testing.T) {
 	values, err := godotenv.Unmarshal(string(content))
 	require.NoError(t, err)
 	require.NoError(t, totpsecret.ValidateKey(values[totpsecret.EnvName]))
+}
+
+func TestInitPreservesGroupReadAccess(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX group permissions")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	require.NoError(t, os.WriteFile(path, []byte("# service group reads this config\n"), 0640))
+	set := flag.NewFlagSet("init", flag.ContinueOnError)
+	set.String("output", dir, "")
+	require.NoError(t, RunInit(cli.NewContext(&cli.App{}, set, nil)))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0640), info.Mode().Perm())
 }

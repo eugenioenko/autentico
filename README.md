@@ -255,7 +255,7 @@ The full setup requires three commands: initialize configuration, start the serv
 Download the latest binary from [GitHub Releases](https://github.com/eugenioenko/autentico/releases), then:
 
 ```bash
-# Generate .env with RSA key, CSRF secret, and token secrets
+# Generate .env with RSA key, TOTP encryption key, CSRF secret, and token secrets
 ./autentico init
 
 # Create the first admin account (or use the browser at /onboard after starting)

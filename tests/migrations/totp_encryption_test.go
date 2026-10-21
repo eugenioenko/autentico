@@ -101,6 +101,10 @@ func TestTotpMigrationPreservesEnrollmentAndCodesAcrossRestart(t *testing.T) {
 			require.EqualValues(t, 123, step)
 			require.Equal(t, 2, attempts)
 			require.NoError(t, database.Close())
+			rawDatabase, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.NotContains(t, string(rawDatabase), seed, "old plaintext seeds must not remain in the upgraded database pages")
+			require.NotContains(t, string(rawDatabase), totpKey, "the encryption key must stay outside the database")
 			before := digest(t, path)
 			output, err = command(t, path, "", "migrate", "--approve-major=17")
 			require.NoError(t, err, output)
@@ -139,41 +143,43 @@ func TestTotpMigrationPreservesEnrollmentAndCodesAcrossRestart(t *testing.T) {
 }
 
 func TestTotpEncryptionFailureRestoresPlaintextAndCanRetry(t *testing.T) {
-	for _, failure := range []string{"update", "commit"} {
-		t.Run(failure, func(t *testing.T) {
-			path, database := fixture(t, 16, "WAL", false)
-			_, err := database.Exec(`INSERT INTO users(id,username,totp_secret,totp_verified,totp_last_used_step)
+	for _, journal := range []string{"DELETE", "WAL"} {
+		for _, failure := range []string{"update", "commit"} {
+			t.Run(journal+"/"+failure, func(t *testing.T) {
+				path, database := fixture(t, 16, journal, false)
+				_, err := database.Exec(`INSERT INTO users(id,username,totp_secret,totp_verified,totp_last_used_step)
 				VALUES('a','a','FIRST-SEED',TRUE,22),('z','z','LAST-SEED',TRUE,33)`)
-			require.NoError(t, err)
-			if failure == "update" {
-				_, err = database.Exec(`CREATE TRIGGER fail_totp BEFORE UPDATE OF totp_secret ON users WHEN OLD.id='z'
+				require.NoError(t, err)
+				if failure == "update" {
+					_, err = database.Exec(`CREATE TRIGGER fail_totp BEFORE UPDATE OF totp_secret ON users WHEN OLD.id='z'
 					BEGIN SELECT RAISE(ABORT,'injected encryption failure'); END`)
-			} else {
-				_, err = database.Exec(`CREATE TABLE parent(id INTEGER PRIMARY KEY);
+				} else {
+					_, err = database.Exec(`CREATE TABLE parent(id INTEGER PRIMARY KEY);
 					CREATE TABLE deferred_failure(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);
 					CREATE TRIGGER fail_totp AFTER UPDATE OF totp_secret ON users WHEN OLD.id='z'
 					BEGIN INSERT INTO deferred_failure VALUES(1); END`)
-			}
-			require.NoError(t, err)
-			require.NoError(t, database.Close())
-			before := digest(t, path)
-			output, err := command(t, path, "", "migrate", "--approve-major=17")
-			require.Error(t, err, output)
-			require.Contains(t, output, "restored schema v16")
-			require.Equal(t, 16, schema(t, path))
-			require.Equal(t, before, digest(t, path))
-			noRecovery(t, path)
-			database = openDB(t, path)
-			var secret string
-			require.NoError(t, database.QueryRow(`SELECT totp_secret FROM users WHERE id='a'`).Scan(&secret))
-			require.Equal(t, "FIRST-SEED", secret, "an earlier row must not remain encrypted after rollback")
-			_, err = database.Exec("DROP TRIGGER fail_totp")
-			require.NoError(t, err)
-			require.NoError(t, database.Close())
-			output, err = command(t, path, "", "migrate", "--approve-major=17")
-			require.NoError(t, err, output)
-			require.Equal(t, 17, schema(t, path))
-		})
+				}
+				require.NoError(t, err)
+				require.NoError(t, database.Close())
+				before := digest(t, path)
+				output, err := command(t, path, "", "migrate", "--approve-major=17")
+				require.Error(t, err, output)
+				require.Contains(t, output, "restored schema v16")
+				require.Equal(t, 16, schema(t, path))
+				require.Equal(t, before, digest(t, path))
+				noRecovery(t, path)
+				database = openDB(t, path)
+				var secret string
+				require.NoError(t, database.QueryRow(`SELECT totp_secret FROM users WHERE id='a'`).Scan(&secret))
+				require.Equal(t, "FIRST-SEED", secret, "an earlier row must not remain encrypted after rollback")
+				_, err = database.Exec("DROP TRIGGER fail_totp")
+				require.NoError(t, err)
+				require.NoError(t, database.Close())
+				output, err = command(t, path, "", "migrate", "--approve-major=17")
+				require.NoError(t, err, output)
+				require.Equal(t, 17, schema(t, path))
+			})
+		}
 	}
 }
 
