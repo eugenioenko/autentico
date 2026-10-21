@@ -18,7 +18,7 @@ import (
 )
 
 func TestHandleSignup_DisabledReturns405(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	// Seed 'onboarded' as true to simulate an already-setup system
 	_ = appsettings.SetSetting("onboarded", "true")
 	testutils.WithConfigOverride(t, func() {
@@ -34,7 +34,7 @@ func TestHandleSignup_DisabledReturns405(t *testing.T) {
 }
 
 func TestHandleSignup_WrongMethod(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 	})
@@ -48,7 +48,7 @@ func TestHandleSignup_WrongMethod(t *testing.T) {
 }
 
 func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 	})
@@ -60,7 +60,7 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 	form.Set("redirect_uri", "not-a-valid-uri") // syntactically invalid
 	form.Set("state", "xyz123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestHandleSignup_Post_InvalidRedirectURI(t *testing.T) {
 }
 
 func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 	})
@@ -84,7 +84,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -98,7 +98,7 @@ func TestHandleSignup_Post_PasswordMismatch(t *testing.T) {
 }
 
 func TestHandleSignup_Post_ValidationError(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ValidationMinUsernameLength = 4
@@ -111,7 +111,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -125,7 +125,7 @@ func TestHandleSignup_Post_ValidationError(t *testing.T) {
 }
 
 func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldEmail = "hidden"
@@ -141,7 +141,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "xyz123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -155,7 +155,7 @@ func TestHandleSignup_Post_DuplicateUser(t *testing.T) {
 }
 
 func TestHandleSignup_Post_Success(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldEmail = "hidden"
@@ -163,17 +163,15 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 		config.Bootstrap.AuthIdpSessionCookieName = "autentico_idp_session"
 	})
 
-	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback"})
-
 	form := url.Values{}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "abc123")
+	form.Set("state", "abc&code=attacker#fragment")
 	form.Set("client_id", "test-client")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -183,10 +181,14 @@ func TestHandleSignup_Post_Success(t *testing.T) {
 	usr, err := user.UserByUsername("newuser")
 	require.NoError(t, err)
 	testutils.AssertPostAuthInvariants(t, rr, usr.ID)
+	callback, err := url.Parse(rr.Header().Get("Location"))
+	require.NoError(t, err)
+	assert.Equal(t, form.Get("state"), callback.Query().Get("state"))
+	assert.Len(t, callback.Query()["code"], 1)
 }
 
 func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldEmail = "hidden"
@@ -201,7 +203,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("state", "abc123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -224,7 +226,7 @@ func TestHandleSignup_Post_SetsIdpSessionCookie(t *testing.T) {
 }
 
 func TestHandleSignup_Post_PasskeyOnly(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.AuthMode = "passkey_only"
@@ -239,7 +241,7 @@ func TestHandleSignup_Post_PasskeyOnly(t *testing.T) {
 }
 
 func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldGivenName = "required"
@@ -252,7 +254,7 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// given_name is missing
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -266,7 +268,7 @@ func TestHandleSignup_Post_RequiredFieldsMissing(t *testing.T) {
 }
 
 func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.ProfileFieldEmail = "is_username"
@@ -279,7 +281,7 @@ func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	// email is NOT set explicitly
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -287,13 +289,13 @@ func TestHandleSignup_Post_EmailIsUsername(t *testing.T) {
 	HandleSignup(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
-	
+
 	u, _ := user.UserByUsername("user@example.com")
 	assert.Equal(t, "user@example.com", u.Email)
 }
 
 func TestHandleSignupPost_Disabled(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = false
 	})
@@ -303,7 +305,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -313,7 +315,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 }
 
 func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.RequireEmailVerification = true
@@ -330,7 +332,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	form.Set("state", "xyz")
 	form.Set("client_id", "test-client")
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -344,7 +346,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 }
 
 func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 		config.Values.RequireEmailVerification = true
@@ -364,7 +366,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 	form.Set("client_id", "test-client")
 	// No email provided
 
-	testutils.SetAuthorizeSig(form)
+	signSignupParams(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
@@ -377,7 +379,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 }
 
 func TestHandleSignupPost_InvalidForm(t *testing.T) {
-	testutils.WithTestDB(t)
+	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
 	})
@@ -388,4 +390,17 @@ func TestHandleSignupPost_InvalidForm(t *testing.T) {
 	HandleSignup(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func withSignupTestDB(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "test-client", []string{"http://localhost/callback", "http://localhost/cb"})
+}
+func signSignupParams(p url.Values) {
+	if p.Get("client_id") == "" {
+		p.Set("client_id", "test-client")
+	}
+	p.Set("code_challenge", "challenge")
+	p.Set("code_challenge_method", "S256")
+	testutils.SetAuthorizeSig(p)
 }

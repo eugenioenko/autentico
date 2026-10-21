@@ -3,6 +3,7 @@ package magiclink
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -108,15 +109,12 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		params := paramsFromQuery(r)
-		sig := authzsig.Sign(authzsig.AuthorizeParams{
-			ClientID:            params.ClientID,
-			RedirectURI:         params.RedirectURI,
-			Scope:               params.Scope,
-			Nonce:               params.Nonce,
-			CodeChallenge:       params.CodeChallenge,
-			CodeChallengeMethod: params.CodeChallengeMethod,
-			State:               params.State,
-		})
+		// RFC 6749 §4.1.1 / §10.6: signing parameters must not authorize an arbitrary client or redirect.
+		if _, err := client.ValidateAuthorization(params.authorizeParams()); err != nil {
+			view.RenderError(w, r, http.StatusBadRequest, err.Error())
+			return
+		}
+		sig := authzsig.Sign(params.authorizeParams())
 		renderMagicLink(w, r, "form", params, sig, "", nil)
 		return
 	}
@@ -137,18 +135,10 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 
 	sentExtra := map[string]any{"Email": emailAddr}
 
-	// Verify HMAC signature to prevent parameter tampering
-	if !authzsig.Verify(authzsig.AuthorizeParams{
-		ClientID:            params.ClientID,
-		RedirectURI:         params.RedirectURI,
-		Scope:               params.Scope,
-		Nonce:               params.Nonce,
-		CodeChallenge:       params.CodeChallenge,
-		CodeChallengeMethod: params.CodeChallengeMethod,
-		State:               params.State,
-	}, authorizeSigValue) {
-		slog.Warn("magiclink: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest, "Authorization request parameters have been tampered with.")
+	// RFC 6749 §10.6: validate integrity and registration before sending credentials.
+	if _, err := validateSignedAuthorization(params, authorizeSigValue); err != nil {
+		slog.Warn("magiclink: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -240,6 +230,13 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §10.6: invalid authorization must not consume a valid login credential.
+	if _, err := validateSignedAuthorization(params, authorizeSigValue); err != nil {
+		slog.Warn("magiclink: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	if err := consumeMagicLinkToken(tokenHash); err != nil {
 		if err == sql.ErrNoRows {
 			renderMagicLink(w, r, "expired", params, authorizeSigValue, "This magic link is invalid or has already been used.", nil)
@@ -316,6 +313,13 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §10.6: invalid authorization must not consume a valid login credential.
+	if _, err := validateSignedAuthorization(params, authorizeSigValue); err != nil {
+		slog.Warn("magiclink: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	if err := consumeMagicLinkToken(tokenHash); err != nil {
 		if err != sql.ErrNoRows {
 			slog.Error("magiclink: failed to consume code", "request_id", reqid.Get(r.Context()), "error", err)
@@ -330,36 +334,11 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 // completeLogin performs the post-verification login flow: signature check,
 // client validation, MFA, consent, IdP session, and auth code issuance.
 func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, params oauthParams, authorizeSigValue, userID string) {
-	if !authzsig.Verify(authzsig.AuthorizeParams{
-		ClientID:            params.ClientID,
-		RedirectURI:         params.RedirectURI,
-		Scope:               params.Scope,
-		Nonce:               params.Nonce,
-		CodeChallenge:       params.CodeChallenge,
-		CodeChallengeMethod: params.CodeChallengeMethod,
-		State:               params.State,
-	}, authorizeSigValue) {
-		slog.Warn("magiclink: authorize parameter signature mismatch on verify", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest, "Authorization request parameters have been tampered with.")
-		return
-	}
-
-	registeredClient, err := client.ClientByClientID(params.ClientID)
+	// RFC 6749 §10.6: re-check the current registration before issuance.
+	registeredClient, err := validateSignedAuthorization(params, authorizeSigValue)
 	if err != nil {
-		slog.Warn("magiclink: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID)
-		view.RenderError(w, r, http.StatusBadRequest, "Unknown client.")
-		return
-	}
-	if !registeredClient.IsActive {
-		view.RenderError(w, r, http.StatusBadRequest, "Client is inactive.")
-		return
-	}
-	if !client.IsValidRedirectURI(registeredClient, params.RedirectURI) {
-		view.RenderError(w, r, http.StatusBadRequest, "Redirect URI not allowed for this client.")
-		return
-	}
-	if !client.ValidateScopes(registeredClient, params.Scope) {
-		view.RenderError(w, r, http.StatusBadRequest, "One or more requested scopes are not allowed for this client.")
+		slog.Warn("magiclink: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID, "ip", utils.GetClientIP(r), "error", err)
+		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -506,4 +485,18 @@ func buildMagicLinkURL(rawToken string, p oauthParams, authorizeSig string) stri
 		q.Set("code_challenge_method", p.CodeChallengeMethod)
 	}
 	return bs.AppURL + bs.AppOAuthPath + "/magic-link/verify?" + q.Encode()
+}
+
+func (p oauthParams) authorizeParams() authzsig.AuthorizeParams {
+	return authzsig.AuthorizeParams{ClientID: p.ClientID, RedirectURI: p.RedirectURI, Scope: p.Scope, Nonce: p.Nonce,
+		State: p.State, CodeChallenge: p.CodeChallenge, CodeChallengeMethod: p.CodeChallengeMethod}
+}
+
+func validateSignedAuthorization(p oauthParams, signature string) (*client.Client, error) {
+	// RFC 6749 §10.6: integrity is necessary but does not authorize a redirect or scope.
+	params := p.authorizeParams()
+	if !authzsig.Verify(params, signature) {
+		return nil, errors.New("authorization request parameters have been tampered with")
+	}
+	return client.ValidateAuthorization(params)
 }

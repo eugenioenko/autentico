@@ -15,12 +15,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/deletion"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
+	"github.com/eugenioenko/autentico/pkg/magiclink"
 	"github.com/eugenioenko/autentico/pkg/middleware"
+	"github.com/eugenioenko/autentico/pkg/passkey"
 	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
@@ -157,6 +160,12 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/authorize", plaintextCSRF(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
+	mux.Handle(oauth+"/magic-link", plaintextCSRF(http.HandlerFunc(magiclink.HandleMagicLink)))
+	mux.Handle("GET "+oauth+"/verify-email", plaintextCSRF(http.HandlerFunc(emailverification.HandleVerifyEmail)))
+	mux.Handle("POST "+oauth+"/resend-verification", plaintextCSRF(http.HandlerFunc(emailverification.HandleResendVerification)))
+	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
+	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
+	mux.HandleFunc("GET "+oauth+"/passkey/discoverable/begin", passkey.HandleDiscoverableLoginBegin)
 
 	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))
 	mux.Handle("GET "+oauth+"/register/{client_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleGetClient)))

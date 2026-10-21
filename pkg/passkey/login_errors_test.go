@@ -6,15 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHandleLoginBegin_UserNotFound(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username=nonexistent"), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username=nonexistent"), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -25,11 +24,11 @@ func TestHandleLoginBegin_UserNotFound(t *testing.T) {
 }
 
 func TestHandleLoginBegin_NoPasskeys(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 	_, username := setupPasskeyTestUser(t) // This user has no passkeys yet
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -40,7 +39,7 @@ func TestHandleLoginBegin_NoPasskeys(t *testing.T) {
 }
 
 func TestHandleLoginBegin_EmptyUsername(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin", nil)

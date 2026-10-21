@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -41,13 +42,13 @@ func withPasskeyConfig(t *testing.T) {
 // --- HandleRegisterBegin ---
 
 func TestHandleRegisterBegin_Success(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	username := "new-passkey-user@example.com"
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
@@ -60,7 +61,7 @@ func TestHandleRegisterBegin_Success(t *testing.T) {
 }
 
 func TestHandleRegisterBegin_MissingUsername(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/register/begin", nil)
@@ -74,11 +75,11 @@ func TestHandleRegisterBegin_MissingUsername(t *testing.T) {
 }
 
 func TestHandleRegisterBegin_UserExists(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 	_, username := setupPasskeyTestUser(t)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/register/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/register/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
 
@@ -89,13 +90,13 @@ func TestHandleRegisterBegin_UserExists(t *testing.T) {
 }
 
 func TestHandleRegisterBegin_Success_Extra(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
-	
+
 	// User does not exist - should be created automatically
 	username := "brand-new-user"
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/register/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/register/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
 
@@ -109,7 +110,7 @@ func TestHandleRegisterBegin_Success_Extra(t *testing.T) {
 // --- HandleLoginBegin ---
 
 func TestHandleLoginBegin_MissingUsername(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/passkey/login/begin", nil)
 	rr := httptest.NewRecorder()
@@ -122,9 +123,9 @@ func TestHandleLoginBegin_MissingUsername(t *testing.T) {
 }
 
 func TestHandleLoginBegin_UnknownUser(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username=nobody@example.com"), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username=nobody@example.com"), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -136,12 +137,12 @@ func TestHandleLoginBegin_UnknownUser(t *testing.T) {
 }
 
 func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "password" })
 
 	_, username := setupPasskeyTestUser(t)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -152,12 +153,12 @@ func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
 }
 
 func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "password_and_passkey" })
 
 	_, username := setupPasskeyTestUser(t)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -169,13 +170,13 @@ func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
 }
 
 func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "passkey_only" })
 
 	_, username := setupPasskeyTestUser(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -189,7 +190,7 @@ func TestHandleLoginBegin_NoCreds_PasskeyOnlyMode(t *testing.T) {
 }
 
 func TestHandleLoginBegin_WithCreds(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "password_and_passkey" })
 
@@ -201,7 +202,7 @@ func TestHandleLoginBegin_WithCreds(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -216,7 +217,7 @@ func TestHandleLoginBegin_WithCreds(t *testing.T) {
 
 // TestHandleLoginBegin_WithCreds_CreatesChallenge checks that an authentication challenge is persisted in the DB.
 func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 	testutils.WithConfigOverride(t, func() { config.Values.AuthMode = "passkey_only" })
 
@@ -228,7 +229,7 @@ func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/login/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
@@ -249,9 +250,9 @@ func TestHandleLoginBegin_WithCreds_CreatesChallenge(t *testing.T) {
 }
 
 func TestHandleLoginBegin_Success_Extra(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
-	
+
 	// Create a user with NO password but WITH a passkey
 	userID := "u1"
 	username := "passkeyuser"
@@ -263,7 +264,7 @@ func TestHandleLoginBegin_Success_Extra(t *testing.T) {
 		VALUES ('pk1', ?, 'Passkey 1', '{}', CURRENT_TIMESTAMP)
 	`, userID)
 
-	req := httptest.NewRequest(http.MethodGet, testutils.SignedURL("/oauth2/passkey/login/begin?username="+username), nil)
+	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username="+username), nil)
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
@@ -277,7 +278,7 @@ func TestHandleLoginBegin_Success_Extra(t *testing.T) {
 // --- HandleLoginFinish ---
 
 func TestHandleLoginFinish_MissingChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/login/finish", nil)
 	rr := httptest.NewRecorder()
@@ -290,7 +291,7 @@ func TestHandleLoginFinish_MissingChallengeID(t *testing.T) {
 }
 
 func TestHandleLoginFinish_InvalidChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/login/finish?challenge_id=nonexistent", nil)
 	rr := httptest.NewRecorder()
@@ -303,7 +304,7 @@ func TestHandleLoginFinish_InvalidChallengeID(t *testing.T) {
 }
 
 func TestHandleLoginFinish_ExpiredChallenge(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -311,7 +312,7 @@ func TestHandleLoginFinish_ExpiredChallenge(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(-1 * time.Minute),
 	}))
 
@@ -326,7 +327,7 @@ func TestHandleLoginFinish_ExpiredChallenge(t *testing.T) {
 }
 
 func TestHandleLoginFinish_AlreadyUsed(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -334,7 +335,7 @@ func TestHandleLoginFinish_AlreadyUsed(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 		Used:          true,
 	}))
@@ -350,7 +351,7 @@ func TestHandleLoginFinish_AlreadyUsed(t *testing.T) {
 }
 
 func TestHandleLoginFinish_WrongType(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	// Registration challenge presented to login/finish
@@ -359,7 +360,7 @@ func TestHandleLoginFinish_WrongType(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 	}))
 
@@ -374,7 +375,7 @@ func TestHandleLoginFinish_WrongType(t *testing.T) {
 }
 
 func TestHandleLoginFinish_InvalidJSON(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/login/finish?challenge_id=c1", strings.NewReader("{invalid"))
 	rr := httptest.NewRecorder()
 	HandleLoginFinish(rr, req)
@@ -384,7 +385,7 @@ func TestHandleLoginFinish_InvalidJSON(t *testing.T) {
 // --- HandleRegisterFinish ---
 
 func TestHandleRegisterFinish_MissingChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/register/finish", nil)
 	rr := httptest.NewRecorder()
@@ -397,7 +398,7 @@ func TestHandleRegisterFinish_MissingChallengeID(t *testing.T) {
 }
 
 func TestHandleRegisterFinish_InvalidChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/register/finish?challenge_id=nonexistent", nil)
 	rr := httptest.NewRecorder()
@@ -410,7 +411,7 @@ func TestHandleRegisterFinish_InvalidChallengeID(t *testing.T) {
 }
 
 func TestHandleRegisterFinish_ExpiredChallenge(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -418,7 +419,7 @@ func TestHandleRegisterFinish_ExpiredChallenge(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(-1 * time.Minute),
 	}))
 
@@ -433,7 +434,7 @@ func TestHandleRegisterFinish_ExpiredChallenge(t *testing.T) {
 }
 
 func TestHandleRegisterFinish_AlreadyUsed(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -441,7 +442,7 @@ func TestHandleRegisterFinish_AlreadyUsed(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 		Used:          true,
 	}))
@@ -457,7 +458,7 @@ func TestHandleRegisterFinish_AlreadyUsed(t *testing.T) {
 }
 
 func TestHandleRegisterFinish_WrongType(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	// Authentication challenge presented to register/finish
@@ -466,7 +467,7 @@ func TestHandleRegisterFinish_WrongType(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 	}))
 
@@ -481,7 +482,7 @@ func TestHandleRegisterFinish_WrongType(t *testing.T) {
 }
 
 func TestHandleRegisterFinish_InvalidJSON(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/register/finish?challenge_id=c1", strings.NewReader("{invalid"))
 	rr := httptest.NewRecorder()
 	HandleRegisterFinish(rr, req)
@@ -512,7 +513,7 @@ func setupRegisteredPasskeyUser(t *testing.T, id, username string) {
 // TestHandleRegisterFinish_FailedCeremony_DeletesNewUser verifies that a failed
 // registration hard-deletes the user when registered_at is NULL (new unregistered user).
 func TestHandleRegisterFinish_FailedCeremony_DeletesNewUser(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	userID := "pending-pk-user"
@@ -523,7 +524,7 @@ func TestHandleRegisterFinish_FailedCeremony_DeletesNewUser(t *testing.T) {
 		UserID:        userID,
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 	}))
 
@@ -545,7 +546,7 @@ func TestHandleRegisterFinish_FailedCeremony_DeletesNewUser(t *testing.T) {
 // TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser verifies that a failed
 // registration does NOT delete the user when registered_at is set (already registered).
 func TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	userID := "registered-pk-user"
@@ -556,7 +557,7 @@ func TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser(t *testing.
 		UserID:        userID,
 		ChallengeData: sampleChallengeData(),
 		Type:          "registration",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 	}))
 
@@ -615,7 +616,7 @@ func TestNewWebAuthn(t *testing.T) {
 // --- completeAuthFlow ---
 
 func TestCompleteAuthFlow_Success(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthSsoSessionIdleTimeout = 0
@@ -625,9 +626,7 @@ func TestCompleteAuthFlow_Success(t *testing.T) {
 	usr, err := user.CreateUser("authflow-user", "password123", "authflow@test.com")
 	require.NoError(t, err)
 
-	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
-
-	loginState := `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"n1","code_challenge":"","code_challenge_method":""}`
+	loginState := `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"n1","code_challenge":"challenge","code_challenge_method":"S256"}`
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/finish", nil)
@@ -670,7 +669,7 @@ func TestCompleteAuthFlow_Success(t *testing.T) {
 }
 
 func TestCompleteAuthFlow_InvalidLoginState(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	usr, _ := user.CreateUser("authflow-bad", "password123", "bad@test.com")
@@ -686,7 +685,7 @@ func TestCompleteAuthFlow_InvalidLoginState(t *testing.T) {
 // --- HandleRegisterBegin tampered sig ---
 
 func TestHandleRegisterBegin_StaleIncompleteUser(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	// Create a user with no password and no registered_at (incomplete signup)
@@ -694,7 +693,7 @@ func TestHandleRegisterBegin_StaleIncompleteUser(t *testing.T) {
 	setupPendingPasskeyUser(t, "stale-id", username)
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleRegisterBegin(rr, req)
@@ -707,7 +706,7 @@ func TestHandleRegisterBegin_StaleIncompleteUser(t *testing.T) {
 }
 
 func TestHandleRegisterBegin_TamperedSig(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
@@ -723,7 +722,7 @@ func TestHandleRegisterBegin_TamperedSig(t *testing.T) {
 }
 
 func TestHandleLoginBegin_TamperedSig(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
@@ -741,11 +740,11 @@ func TestHandleLoginBegin_TamperedSig(t *testing.T) {
 // --- HandleDiscoverableLoginBegin ---
 
 func TestHandleDiscoverableLoginBegin_Success(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleDiscoverableLoginBegin(rr, req)
@@ -759,11 +758,11 @@ func TestHandleDiscoverableLoginBegin_Success(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginBegin_ConditionalMediation(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid&mediation=conditional"),
+		signedPasskeyURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid&mediation=conditional"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleDiscoverableLoginBegin(rr, req)
@@ -779,7 +778,7 @@ func TestHandleDiscoverableLoginBegin_ConditionalMediation(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginBegin_TamperedSig(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
@@ -795,11 +794,11 @@ func TestHandleDiscoverableLoginBegin_TamperedSig(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginBegin_CreatesChallenge(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet,
-		testutils.SignedURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
+		signedPasskeyURL("/oauth2/passkey/discoverable/begin?redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),
 		nil)
 	rr := httptest.NewRecorder()
 	HandleDiscoverableLoginBegin(rr, req)
@@ -821,7 +820,7 @@ func TestHandleDiscoverableLoginBegin_CreatesChallenge(t *testing.T) {
 // --- HandleDiscoverableLoginFinish ---
 
 func TestHandleDiscoverableLoginFinish_MissingChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish", nil)
 	rr := httptest.NewRecorder()
@@ -834,7 +833,7 @@ func TestHandleDiscoverableLoginFinish_MissingChallengeID(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginFinish_InvalidChallengeID(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/passkey/discoverable/finish?challenge_id=nonexistent", nil)
 	rr := httptest.NewRecorder()
@@ -847,7 +846,7 @@ func TestHandleDiscoverableLoginFinish_InvalidChallengeID(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginFinish_WrongType(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
@@ -855,7 +854,7 @@ func TestHandleDiscoverableLoginFinish_WrongType(t *testing.T) {
 		UserID:        "user-1",
 		ChallengeData: sampleChallengeData(),
 		Type:          "authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 	}))
 
@@ -870,13 +869,13 @@ func TestHandleDiscoverableLoginFinish_WrongType(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginFinish_ExpiredChallenge(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "expired-discoverable",
 		ChallengeData: sampleChallengeData(),
 		Type:          "discoverable-authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(-1 * time.Minute),
 	}))
 
@@ -891,13 +890,13 @@ func TestHandleDiscoverableLoginFinish_ExpiredChallenge(t *testing.T) {
 }
 
 func TestHandleDiscoverableLoginFinish_AlreadyUsed(t *testing.T) {
-	testutils.WithTestDB(t)
+	withPasskeyTestDB(t)
 
 	require.NoError(t, CreatePasskeyChallenge(PasskeyChallenge{
 		ID:            "used-discoverable",
 		ChallengeData: sampleChallengeData(),
 		Type:          "discoverable-authentication",
-		LoginState:    `{}`,
+		LoginState:    `{"client_id":"c1","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:     time.Now().Add(5 * time.Minute),
 		Used:          true,
 	}))
@@ -927,4 +926,24 @@ func TestCredentialsToWebAuthn_InvalidJSON(t *testing.T) {
 	res := CredentialsToWebAuthn(creds)
 	// It should skip the invalid one
 	assert.Len(t, res, 1)
+}
+
+func withPasskeyTestDB(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
+}
+func signedPasskeyURL(raw string) string {
+	u, _ := url.Parse(raw)
+	q := u.Query()
+	if q.Get("client_id") == "" {
+		q.Set("client_id", "c1")
+	}
+	if q.Get("redirect_uri") == "" {
+		q.Set("redirect_uri", "http://localhost/cb")
+	}
+	q.Set("code_challenge", "challenge")
+	q.Set("code_challenge_method", "S256")
+	testutils.SetAuthorizeSig(q)
+	u.RawQuery = q.Encode()
+	return u.String()
 }

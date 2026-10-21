@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -58,6 +60,12 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 	}, q.Get("authorize_sig")) {
 		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
+		return
+	}
+
+	// RFC 6749 §4.1.1 / §10.6: signatures protect integrity, not client authorization.
+	if _, err := client.ValidateAuthorization(authzsig.FromValues(q)); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -207,6 +215,12 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.1 / §10.6: signatures protect integrity, not client authorization.
+	if _, err := client.ValidateAuthorization(authzsig.FromValues(q)); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	usr, err := user.UserByUsername(username)
 	if err != nil {
 		// Prevent timing-based user enumeration
@@ -317,6 +331,11 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
+	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
+	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
@@ -400,6 +419,11 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal([]byte(challenge.ChallengeData), &session); err != nil {
 		slog.Error("passkey: failed to parse registration session data", "request_id", reqid.Get(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
+	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -504,6 +528,12 @@ func HandleDiscoverableLoginBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.1 / §10.6: signatures protect integrity, not client authorization.
+	if _, err := client.ValidateAuthorization(authzsig.FromValues(q)); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	loginState := LoginState{
 		RedirectURI:         q.Get("redirect_uri"),
 		State:               q.Get("state"),
@@ -591,6 +621,11 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
+	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
+	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	wauthn, err := NewWebAuthn()
 	if err != nil {
@@ -649,9 +684,9 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 
 // completeAuthFlow creates an IdP session and auth code, returning the redirect URL.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, loginStateJSON string) (string, error) {
-	var loginState LoginState
-	if err := json.Unmarshal([]byte(loginStateJSON), &loginState); err != nil {
-		return "", fmt.Errorf("failed to restore login state")
+	loginState, err := validatedLoginState(loginStateJSON)
+	if err != nil {
+		return "", err
 	}
 
 	cfg := config.Get()
@@ -679,11 +714,35 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		return "", fmt.Errorf("failed to create authorization code")
 	}
 
-	return fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State), nil
+	// RFC 6749 §4.1.2: preserve callback queries and URL-encode code/state.
+	redirectURL, err := url.Parse(loginState.RedirectURI)
+	if err != nil {
+		return "", err
+	}
+	query := redirectURL.Query()
+	query.Set("code", ac.Code)
+	query.Set("state", loginState.State)
+	redirectURL.RawQuery = query.Encode()
+	return redirectURL.String(), nil
 }
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func validatedLoginState(raw string) (*LoginState, error) {
+	var state LoginState
+	if err := json.Unmarshal([]byte(raw), &state); err != nil {
+		return nil, fmt.Errorf("failed to restore login state")
+	}
+	// RFC 6749 §10.6 / RFC 9700 §2.1.1: stored ceremony state must still be authorized.
+	if _, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
+		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope, Nonce: state.Nonce,
+		State: state.State, CodeChallenge: state.CodeChallenge, CodeChallengeMethod: state.CodeChallengeMethod,
+	}); err != nil {
+		return nil, err
+	}
+	return &state, nil
 }

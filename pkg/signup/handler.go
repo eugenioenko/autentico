@@ -1,7 +1,6 @@
 package signup
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -11,6 +10,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
@@ -88,6 +88,12 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.1 / §10.6: validate the current client and callback before creating an account.
+	if _, err := client.ValidateAuthorization(authzsig.FromValues(r.Form)); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
@@ -127,16 +133,16 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		"address_country":     r.FormValue("address_country"),
 	}
 	fieldVisibility := map[string]string{
-		"given_name":   cfg.ProfileFieldGivenName,
-		"family_name":  cfg.ProfileFieldFamilyName,
-		"phone_number": cfg.ProfileFieldPhone,
-		"picture":      cfg.ProfileFieldPicture,
-		"locale":       cfg.ProfileFieldLocale,
-		"address_street": cfg.ProfileFieldAddress,
-		"address_locality": cfg.ProfileFieldAddress,
-		"address_region": cfg.ProfileFieldAddress,
+		"given_name":          cfg.ProfileFieldGivenName,
+		"family_name":         cfg.ProfileFieldFamilyName,
+		"phone_number":        cfg.ProfileFieldPhone,
+		"picture":             cfg.ProfileFieldPicture,
+		"locale":              cfg.ProfileFieldLocale,
+		"address_street":      cfg.ProfileFieldAddress,
+		"address_locality":    cfg.ProfileFieldAddress,
+		"address_region":      cfg.ProfileFieldAddress,
 		"address_postal_code": cfg.ProfileFieldAddress,
-		"address_country": cfg.ProfileFieldAddress,
+		"address_country":     cfg.ProfileFieldAddress,
 	}
 	for field, visibility := range fieldVisibility {
 		if visibility == "required" && profileFields[field] == "" {
@@ -233,8 +239,17 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", params.RedirectURI, code.Code, params.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// RFC 6749 §4.1.2: echo state without allowing query-parameter injection.
+	redirectURL, err := url.Parse(params.RedirectURI)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		return
+	}
+	query := redirectURL.Query()
+	query.Set("code", code.Code)
+	query.Set("state", params.State)
+	redirectURL.RawQuery = query.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 type SignupParams struct {
@@ -267,8 +282,8 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"AuthorizeSig":        params.AuthorizeSig,
 		"Error":               errMsg,
 		"AuthMode":            cfg.AuthMode,
-		"ProfileFieldEmail":        cfg.ProfileFieldEmail,
-		"ShowOptionalFields":       cfg.SignupShowOptionalFields,
+		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
+		"ShowOptionalFields":  cfg.SignupShowOptionalFields,
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
@@ -304,4 +319,3 @@ func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupPa
 	q.Set("code_challenge_method", params.CodeChallengeMethod)
 	http.Redirect(w, r, config.GetBootstrap().AppOAuthPath+"/authorize?"+q.Encode(), http.StatusFound)
 }
-

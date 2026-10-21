@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"net/url"
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -54,4 +55,10 @@ func canonicalize(p AuthorizeParams) string {
 		p.CodeChallengeMethod,
 		p.State,
 	}, "\n")
+}
+
+// FromValues reads the signed fields without normalizing their contents.
+func FromValues(v url.Values) AuthorizeParams {
+	return AuthorizeParams{ClientID: v.Get("client_id"), RedirectURI: v.Get("redirect_uri"), Scope: v.Get("scope"),
+		Nonce: v.Get("nonce"), CodeChallenge: v.Get("code_challenge"), CodeChallengeMethod: v.Get("code_challenge_method"), State: v.Get("state")}
 }
