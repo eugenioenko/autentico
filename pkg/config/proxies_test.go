@@ -20,7 +20,9 @@ func TestTrustedProxyBootstrap(t *testing.T) {
 	require.Empty(t, Bootstrap.TrustedProxies)
 	for _, raw := range []string{"localhost", "127.0.0.1", "127.0.0.1/33", "::1/129", "fe80::1%eth0/64", "127.0.0.1/32,", ",", "127.0.0.1/32,bad"} {
 		t.Setenv("AUTENTICO_TRUSTED_PROXIES", raw)
+		Bootstrap.AppURL = "http://sentinel.invalid"
 		require.ErrorContains(t, InitBootstrap(), "AUTENTICO_TRUSTED_PROXIES", raw)
-		require.Empty(t, Bootstrap.TrustedProxies, "failed loading must not partially replace configuration")
+		require.Equal(t, "http://sentinel.invalid", Bootstrap.AppURL, "failed loading must not replace configuration")
+		require.Empty(t, Bootstrap.TrustedProxies)
 	}
 }
