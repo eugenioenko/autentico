@@ -21,6 +21,9 @@ survive. Schema 17 encrypts active, pending and deactivated seeds without resett
 
 CI runs the real database and CLI migration suite on both Linux and Windows,
 including paths containing spaces, Unicode, and URI-reserved characters.
+The functional CI job also runs the Docker Compose migration test against the
+same built binary used by the HTTP tests, including a root-owned `0640` config
+that remains readable by the service group after `init` adds the key.
 
 The migration package additionally tests routine automatic migrations and
 approval of multiple pending major migrations. Endpoint tests in

@@ -107,6 +107,21 @@ try:
     call(["run", "--rm", "-T", "--user", f"{os.getuid()}:{os.getgid()}", "autentico", "init"], True, "no changes made")
     assert envpath.read_bytes() == after_init
     print("Docker init adds the key once and preserves config ownership and secrets", flush=True)
+    groupdir = data / "group-config"
+    groupdir.mkdir()
+    groupenv = groupdir / ".env"
+    groupenv.write_text(original_env)
+    container_groupenv = "/app/data/group-config/.env"
+    call(["run", "--rm", "-T", "--entrypoint", "chown", "autentico", f"0:{os.getgid()}", container_groupenv])
+    call(["run", "--rm", "-T", "--entrypoint", "chmod", "autentico", "0640", container_groupenv])
+    call(["run", "--rm", "-T", "autentico", "init", "--output", "/app/data/group-config"], True, "other settings and keys were preserved")
+    assert groupenv.stat().st_uid == 0 and groupenv.stat().st_gid == os.getgid()
+    assert groupenv.stat().st_mode & 0o777 == 0o640
+    assert groupenv.read_text().startswith(original_env)
+    call(["run", "--rm", "-T", "--user", f"{os.getuid()}:{os.getgid()}",
+          "--workdir", "/app/data/group-config", "-e", "AUTENTICO_DB_FILE_PATH=/app/data/group-config/read-check.db",
+          "autentico", "onboard", "--username", "group-read-check", "--password", "Password123!", "--email", "group@test.com"], True, "Onboarding complete")
+    print("Docker root:service 0640 config remains readable by the service after key addition", flush=True)
     call(
         ["run", "--rm", "-T", "autentico", "start"],
         False,

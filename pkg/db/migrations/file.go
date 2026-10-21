@@ -461,9 +461,10 @@ func recoverFile(path string) error {
 	if digest != state.SHA256 {
 		return fmt.Errorf("restoration checksum mismatch")
 	}
-	// No SQLite connections may be open here. Stale WAL must never be replayed
-	// onto the restored database. The durable recovery record survives crashes.
-	for _, suffix := range []string{"-wal", "-shm"} {
+	// No SQLite connections may be open here. SQLite lockingv3 §4.1: a hot
+	// rollback journal is replayed before reads, so neither it nor stale WAL
+	// may accompany a replaced snapshot. The recovery record survives crashes.
+	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
 		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale %s: %w", suffix, err)
 		}

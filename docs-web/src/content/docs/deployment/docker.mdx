@@ -70,8 +70,11 @@ All configuration is via [Bootstrap Settings](/configuration/bootstrap/). Key va
 | `AUTENTICO_APP_URL` | No | Public URL. Defaults to `http://localhost:9999`. Used in OIDC discovery and redirects. |
 | `AUTENTICO_DB_FILE_PATH` | No | SQLite database path. Defaults to `./autentico.db`. |
 | `AUTENTICO_LISTEN_PORT` | No | Port the server binds to. Defaults to the port in `AUTENTICO_APP_URL`. |
+| `AUTENTICO_TOTP_ENCRYPTION_KEY` | Yes | Persistent base64-encoded 32-byte TOTP encryption key. Keep the same key for migration, restarts and database restores. |
 
-When using `--auto-setup`, secrets (`AUTENTICO_PRIVATE_KEY`, `AUTENTICO_CSRF_SECRET_KEY`, `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`) are generated automatically. When using a pre-generated `.env` or inline environment variables, all four are required.
+Fresh `init` and fresh `--auto-setup` generate `AUTENTICO_PRIVATE_KEY`, `AUTENTICO_CSRF_SECRET_KEY`, `AUTENTICO_ACCESS_TOKEN_SECRET`, `AUTENTICO_REFRESH_TOKEN_SECRET`, and `AUTENTICO_TOTP_ENCRYPTION_KEY`. Environment-managed production deployments must supply all five and retain them across restarts.
+
+For an existing `.env`, the updated `init` command adds only a missing TOTP encryption key, preserving other settings and signing secrets. Startup does not silently add a key to an existing configuration. Before upgrading to v3, follow [the migration guide](/deployment/migrations/) to prepare the persistent key, stop the old service and approve the migration. Existing authenticator enrollments are encrypted in place and preserved.
 
 ## Health check
 

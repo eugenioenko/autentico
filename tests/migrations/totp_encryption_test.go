@@ -1,6 +1,7 @@
 package migrationstest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -218,6 +219,66 @@ func TestTotpEncryptionInterruptedUpgradeRecoversEnrollments(t *testing.T) {
 	text, err = command(t, path, "", "migrate", "--approve-major=17")
 	require.NoError(t, err, text)
 	require.Equal(t, 17, schema(t, path))
+}
+
+func TestTotpRecoveryDiscardsHotDeleteJournalAfterCommittedMigration(t *testing.T) {
+	path, database := fixture(t, 15, "DELETE", false)
+	// Persist a small default page cache so the child migrator spills dirty
+	// pages before COMMIT, creating a genuinely hot rollback journal.
+	_, err := database.Exec(`PRAGMA default_cache_size=1;
+		WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<2000)
+		INSERT INTO users(id,username,totp_secret,totp_verified)
+		SELECT printf('user-%04d',x),printf('user-%04d',x),'JBSWY3DPEHPK3PXP',TRUE FROM n;
+		CREATE TRIGGER slow_totp AFTER UPDATE OF totp_secret ON users WHEN OLD.id='user-2000' BEGIN
+		SELECT sum(x) FROM (WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<10000000) SELECT x FROM n); END`)
+	require.NoError(t, err)
+	require.NoError(t, database.Close())
+	original := digest(t, path)
+	cmd, output := runUntil(t, path, "Applying migration v17")
+	// Schema 16 has committed, but schema 17 is still uncommitted. A nonzero
+	// journal header proves this is not merely an empty journal placeholder.
+	magic := []byte{0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		journal, err := os.ReadFile(path + "-journal")
+		if err == nil && len(journal) > 512 && bytes.Equal(journal[:8], magic) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("did not observe a hot rollback journal: " + output.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.NoError(t, cmd.Process.Kill())
+	require.Error(t, cmd.Wait(), output.String())
+	journal, err := os.ReadFile(path + "-journal")
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(journal[:8], magic))
+	// Do not open the live database before recovery: SQLite would replay the
+	// journal and hide the stale-journal/snapshot replacement regression.
+	text, err := command(t, path, "cancel\n", "migrate")
+	require.NoError(t, err, text)
+	require.Contains(t, text, "Restored pre-migration database")
+	require.Equal(t, original, digest(t, path), "recovery must restore the original schema-15 snapshot byte for byte")
+	require.Equal(t, 15, schema(t, path), "a stale journal must not restore the intermediate schema 16")
+	_, err = os.Stat(path + "-journal")
+	require.True(t, os.IsNotExist(err))
+	noRecovery(t, path)
+	database = openDB(t, path)
+	var count int
+	require.NoError(t, database.QueryRow(`SELECT count(*) FROM users WHERE totp_secret='JBSWY3DPEHPK3PXP' AND totp_verified=TRUE`).Scan(&count))
+	require.Equal(t, 2000, count)
+	require.NoError(t, database.QueryRow(`SELECT count(*) FROM pragma_table_info('users') WHERE name='totp_last_used_step'`).Scan(&count))
+	require.Zero(t, count)
+	_, err = database.Exec(`DROP TRIGGER slow_totp; PRAGMA default_cache_size=2000`)
+	require.NoError(t, err)
+	require.NoError(t, database.Close())
+	text, err = command(t, path, "", "migrate", "--approve-major=17")
+	require.NoError(t, err, text)
+	require.Equal(t, 17, schema(t, path))
+	database = openDB(t, path)
+	require.NoError(t, database.QueryRow(`SELECT count(*) FROM users WHERE totp_secret LIKE 'totp:v1:%' AND totp_verified=TRUE`).Scan(&count))
+	require.Equal(t, 2000, count)
 }
 
 func startTotpServer(t *testing.T, path string) (string, func()) {
