@@ -140,7 +140,8 @@ Before an existing database undergoes a major upgrade, Autentico:
 2. Checkpoints committed WAL data into the database and verifies the checkpoint succeeded.
 3. Closes SQLite and creates a backup beside the database, such as `autentico.db.pre-v17-<random>.db`, with owner-only permissions.
 4. Verifies the backup's checksum, schema version, and SQLite integrity, then writes a durable `.migration.json` recovery record.
-5. Applies the migrations, checkpoints the result, and removes the recovery record after success.
+5. Applies the migrations. When upgrading through schema 17, rebuilds the database with SQLite `VACUUM` after encryption to remove plaintext fragments from historical free pages. This rebuild remains protected by the backup and recovery record.
+6. Checkpoints the result and removes the recovery record after success.
 
 If migration fails, Autentico closes SQLite, restores the pre-upgrade backup, and exits with an error. Restoration includes the original tokens and sessions, file permissions, and Unix ownership. The deployment must remain stopped until the failure is resolved and migration succeeds. If the process is interrupted, server startup refuses to use the database while the recovery record remains. Running `autentico migrate` restores the verified backup before requesting approval to retry; automation can retry with `--approve-major=15,17`.
 
@@ -151,7 +152,7 @@ An OS lock is released when its process exits. A leftover `.lock` file alone doe
 The advisory lock coordinates binaries supporting this migration protocol. Older binaries and external SQLite tools do not honor it; stop them yourself before migrating.
 
 <Aside type="caution">
-Backups contain the original plaintext TOTP seeds and may contain old plaintext tokens; they must remain protected. Budget space for a full database copy plus migration WAL and recovery staging files. Keep the backup until the upgrade has been verified, then remove it according to your backup retention policy. To roll back the application release, stop all database users and restore the matching pre-upgrade database first; an older binary cannot use schema 17 or decrypt its TOTP storage.
+Backups contain the original plaintext TOTP seeds and may contain old plaintext tokens; they must remain protected. Budget space for the full backup, up to twice the database size in additional space for the SQLite rebuild, and recovery staging files. The rebuild sanitizes the upgraded SQLite file; it cannot erase old backups, filesystem snapshots, or underlying storage copies. Keep the backup until the upgrade has been verified, then remove it according to your backup retention policy. To roll back the application release, stop all database users and restore the matching pre-upgrade database first; an older binary cannot use schema 17 or decrypt its TOTP storage.
 </Aside>
 
 <Aside type="tip">

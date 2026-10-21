@@ -285,9 +285,17 @@ func RunFile(path string, verbose bool, approvedMajors ...int) error {
 	db, err = openFile(path, false)
 	if err == nil {
 		err = run(db, verbose, true)
+		if err == nil && version < 17 {
+			// SQLite VACUUM §2: secure_delete cannot scrub historical free
+			// pages retroactively. Rebuild after encryption, outside the
+			// migration transaction, while recovery still protects the upgrade.
+			if _, vacuumErr := db.Exec("VACUUM"); vacuumErr != nil {
+				err = fmt.Errorf("remove historical plaintext after TOTP encryption: %w", vacuumErr)
+			}
+		}
 		if err == nil {
 			// Finish the upgrade with no WAL dependency before removing the
-			// recovery record. secure_delete removes old credential pages.
+			// recovery record, including pages written by the rebuild.
 			var busy, log, checkpointed int
 			err = db.QueryRow("PRAGMA wal_checkpoint(TRUNCATE)").Scan(&busy, &log, &checkpointed)
 			if err == nil && busy != 0 {

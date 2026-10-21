@@ -143,6 +143,41 @@ func TestTotpMigrationPreservesEnrollmentAndCodesAcrossRestart(t *testing.T) {
 	}
 }
 
+func TestTotpMigrationRemovesHistoricalPlaintextFromFreePages(t *testing.T) {
+	for _, journal := range []string{"DELETE", "WAL"} {
+		t.Run(journal, func(t *testing.T) {
+			path, database := fixture(t, 16, journal, false)
+			const seed = "JBSWY3DPEHPK3PXP"
+			_, err := database.Exec(`PRAGMA secure_delete=OFF;
+				INSERT INTO users(id,username,password,totp_secret,totp_verified)
+				VALUES('active','active','',?,TRUE);
+				WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<256)
+				INSERT INTO users(id,username,password,totp_secret)
+				SELECT 'deleted-'||x,hex(zeroblob(1500))||x,'',? FROM n;
+				DELETE FROM users WHERE id<>'active'`, seed, seed)
+			require.NoError(t, err)
+			var freePages int
+			require.NoError(t, database.QueryRow(`PRAGMA freelist_count`).Scan(&freePages))
+			require.Positive(t, freePages, "fixture must have historical free pages")
+			require.NoError(t, database.Close())
+			before, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Greater(t, bytes.Count(before, []byte(seed)), 1, "fixture must retain historical plaintext")
+			output, err := command(t, path, "", "migrate", "--approve-major=17")
+			require.NoError(t, err, output)
+			after, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.False(t, bytes.Contains(after, []byte(seed)), "historical plaintext must not survive in upgraded database free pages")
+			database = openDB(t, path)
+			var stored string
+			require.NoError(t, database.QueryRow(`SELECT totp_secret FROM users WHERE id='active'`).Scan(&stored))
+			plain, err := totpsecret.Open(totpKey, "active", stored)
+			require.NoError(t, err)
+			require.Equal(t, seed, plain)
+		})
+	}
+}
+
 func TestTotpEncryptionFailureRestoresPlaintextAndCanRetry(t *testing.T) {
 	for _, journal := range []string{"DELETE", "WAL"} {
 		for _, failure := range []string{"update", "commit"} {
