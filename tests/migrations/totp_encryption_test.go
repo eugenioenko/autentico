@@ -110,9 +110,9 @@ func TestTotpMigrationPreservesEnrollmentAndCodesAcrossRestart(t *testing.T) {
 			output, err = command(t, path, "", "migrate", "--approve-major=17")
 			require.NoError(t, err, output)
 			require.Equal(t, before, digest(t, path), "repeated migrate must not re-encrypt")
+			base, stop := startTotpServer(t, path)
 			code, err := totp.GenerateCode(seed, time.Now())
 			require.NoError(t, err)
-			base, stop := startTotpServer(t, path)
 			post := func(base string) int {
 				resp, err := http.PostForm(base+"/oauth2/token", url.Values{"grant_type": {"password"}, "client_id": {"totp-client"}, "username": {"active"}, "password": {"Password123!"}, "totp_code": {code}})
 				require.NoError(t, err)
@@ -322,7 +322,9 @@ func startTotpServer(t *testing.T, path string) (string, func()) {
 	require.NoError(t, err)
 	port := listener.Addr().(*net.TCPAddr).Port
 	require.NoError(t, listener.Close())
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// Windows runners can spend over 15 seconds starting the process and
+	// preparing its ephemeral signing key; readiness is still bounded.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	cmd := exec.CommandContext(ctx, binary, "start")
 	cmd.Dir = filepath.Dir(path)
 	base := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -351,7 +353,7 @@ func startTotpServer(t *testing.T, path string) (string, func()) {
 		}
 		select {
 		case <-ctx.Done():
-			t.Fatal(output.String())
+			t.Fatalf("server readiness failed: %v\n%s", ctx.Err(), output.String())
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
