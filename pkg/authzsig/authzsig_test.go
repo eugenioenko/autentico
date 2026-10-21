@@ -26,7 +26,9 @@ func TestFromValuesPreservesSignedFields(t *testing.T) {
 }
 
 func init() {
-	config.InitBootstrap()
+	if err := config.InitBootstrap(); err != nil {
+		panic(err)
+	}
 }
 
 func TestSignAndVerify(t *testing.T) {

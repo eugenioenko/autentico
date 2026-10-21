@@ -367,3 +367,7 @@ Tests run with `-p 1` (sequential) to avoid SQLite conflicts.
 ## Passkey signup policy
 
 Public passkey registration checks current self-signup policy (including client overrides) and passkey auth mode at begin and finish. A five-minute HttpOnly cookie binds pending registration to its browser. Required email verification gates registration and both passkey login modes before session/code issuance. The internal `/oauth2/verify-email/pending` page resumes the existing resend flow without exposing the email token. Registration routes share the authentication rate limiter. Named and discoverable login recheck that the auth mode allows passkeys at begin, finish, and final session/code issuance.
+
+## Trusted proxy client IPs
+
+`AUTENTICO_TRUSTED_PROXIES` is a bootstrap list of IPv4/IPv6 CIDRs, empty by default. `InitBootstrap` returns an error for invalid entries; CLI callers must propagate it. `utils.GetClientIP` uses the network peer unless trusted, then walks all `X-Forwarded-For` fields from right to left until the first untrusted hop. Rate limits, audit logs and session records use this same resolver. Forwarding values before that boundary, `X-Real-IP`, and `Forwarded` do not establish identity.

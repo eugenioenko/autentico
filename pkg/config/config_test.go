@@ -32,7 +32,7 @@ func TestInitBootstrap_Defaults(t *testing.T) {
 	saved := Bootstrap
 	t.Cleanup(func() { Bootstrap = saved })
 
-	InitBootstrap()
+	assert.NoError(t, InitBootstrap())
 
 	assert.Equal(t, "http://localhost:9999", Bootstrap.AppURL)
 	assert.Equal(t, "/oauth2", Bootstrap.AppOAuthPath)
@@ -56,7 +56,7 @@ func TestInitBootstrap_EnvOverride(t *testing.T) {
 	t.Setenv("AUTENTICO_RATE_LIMIT_RPS", "10.5")
 	t.Setenv("AUTENTICO_RATE_LIMIT_BURST", "20")
 
-	InitBootstrap()
+	assert.NoError(t, InitBootstrap())
 
 	assert.Equal(t, "https://example.com", Bootstrap.AppURL)
 	assert.Equal(t, "/auth", Bootstrap.AppOAuthPath)
@@ -96,7 +96,7 @@ func TestGetForClient_WithOverrides(t *testing.T) {
 	sso := "30m"
 	trust := true
 	trustExp := "48h"
-	
+
 	cfg := GetForClient(ClientOverrides{
 		AccessTokenExpiration:       &exp,
 		RefreshTokenExpiration:      &rexp,
@@ -107,7 +107,7 @@ func TestGetForClient_WithOverrides(t *testing.T) {
 		TrustDeviceEnabled:          &trust,
 		TrustDeviceExpiration:       &trustExp,
 	})
-	
+
 	assert.Equal(t, time.Hour, cfg.AuthAccessTokenExpiration)
 	assert.Equal(t, 24*time.Hour, cfg.AuthRefreshTokenExpiration)
 	assert.Equal(t, 5*time.Minute, cfg.AuthAuthorizationCodeExpiration)

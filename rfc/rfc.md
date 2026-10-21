@@ -866,3 +866,9 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | MUST | WebAuthn §7.1 | Verify registration responses in the RP's account creation flow | ✅ Real attestation verification; self-signup/client override and auth-mode checks at begin and finish (#465). |
 | Local policy | Email verification | Do not issue a session or authorization code before required email verification | ✅ Passkey signup and both passkey login paths resume verification until the address is verified (#465). |
 | Local policy | RFC 6265 §4.1.2.5–6 | Protect browser registration ownership | ✅ Short-lived host-only HttpOnly cookie; pending-account reclamation checks ownership/expiry and completed credentials in a transaction (#465). |
+
+## Forwarding header trust
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| Security consideration | RFC 7239 §8.1 | Clients can forge forwarding claims; accept only a validated trusted proxy chain | ✅ Network peer by default; explicit proxy CIDRs; right-to-left X-Forwarded-For traversal stops at the first untrusted hop (#464). |

@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"fmt"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/ratelimit"
@@ -84,7 +87,10 @@ func TestRateLimitMiddleware_DisabledStore(t *testing.T) {
 	}
 }
 
-func TestRateLimitMiddleware_UsesXForwardedFor(t *testing.T) {
+func TestRateLimitMiddleware_UsesTrustedXForwardedFor(t *testing.T) {
+	saved := config.Bootstrap
+	t.Cleanup(func() { config.Bootstrap = saved })
+	config.Bootstrap.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}
 	store := ratelimit.NewStore(5, 1, 100, 100)
 	handler := RateLimitMiddleware(store)(http.HandlerFunc(okHandler))
 
@@ -103,4 +109,35 @@ func TestRateLimitMiddleware_UsesXForwardedFor(t *testing.T) {
 	rr2 := httptest.NewRecorder()
 	handler.ServeHTTP(rr2, req2)
 	assert.Equal(t, http.StatusTooManyRequests, rr2.Code)
+}
+
+func TestRateLimitMiddleware_RejectsSpoofedForwardedRotation(t *testing.T) {
+	for _, trusted := range []bool{false, true} {
+		t.Run(fmt.Sprint("trusted proxy=", trusted), func(t *testing.T) {
+			saved := config.Bootstrap
+			t.Cleanup(func() { config.Bootstrap = saved })
+			config.Bootstrap.TrustedProxies = nil
+			if trusted {
+				config.Bootstrap.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}
+			}
+			store := ratelimit.NewStore(0.001, 1, 0, 100)
+			handler := RateLimitMiddleware(store)(http.HandlerFunc(okHandler))
+			for i := 0; i < 30; i++ {
+				r := httptest.NewRequest("POST", "/oauth2/token", nil)
+				r.RemoteAddr = "127.0.0.1:5000"
+				forwarded := fmt.Sprintf("203.0.113.%d", i+1)
+				if trusted {
+					forwarded += ", 198.51.100.10"
+				} // nginx appends the actual peer
+				r.Header.Set("X-Forwarded-For", forwarded)
+				w := httptest.NewRecorder()
+				handler.ServeHTTP(w, r)
+				want := http.StatusTooManyRequests
+				if i == 0 {
+					want = http.StatusOK
+				}
+				assert.Equal(t, want, w.Code, "request %d", i)
+			}
+		})
+	}
 }

@@ -92,6 +92,16 @@ curl -X PUT \
 
 Use specific origins in production. Set `*` to allow all origins (development only). Leave empty to disable CORS and handle it at the reverse proxy level instead.
 
-## Headers
+## Client IPs and trusted proxies
 
-The `X-Forwarded-For` and `X-Real-IP` headers are logged with each request. Ensure your proxy sets them so the logs reflect real client IPs rather than the proxy's IP.
+Autentico ignores forwarding headers by default. For nginx or Caddy on the same host, configure and restart Autentico:
+
+```ini
+AUTENTICO_TRUSTED_PROXIES=127.0.0.1/32,::1/128
+```
+
+For container proxies, use the proxy's address or a dedicated proxy network as seen by Autentico, rather than loopback. See [Docker Compose](/deployment/docker-compose/).
+
+A trusted proxy must append its actual incoming peer to `X-Forwarded-For` (as nginx's `$proxy_add_x_forwarded_for` does above), or replace the header with the verified client address. Autentico walks from right to left and stops at the first untrusted address. A client-supplied leftmost value cannot override that address. Every proxy hop that should be skipped must be configured; the first untrusted intermediate proxy is treated as the client.
+
+Rate limiting, session IPs and audit logs use this resolved address. Without a trusted-proxy setting, all users behind a proxy share its IP and rate-limit budget. `X-Real-IP` is not used to establish client identity. Only allow the intended proxy to reach the application's internal port when you configure proxy trust.

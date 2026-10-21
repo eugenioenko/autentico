@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/urfave/cli/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli/v2"
 )
 
 func TestRunInit(t *testing.T) {
@@ -42,6 +42,7 @@ func TestRunInit(t *testing.T) {
 	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=true")
 	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY=false")
 	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=true")
+	assert.Contains(t, sContent, "AUTENTICO_TRUSTED_PROXIES=\n")
 
 	// Test re-init error
 	err = RunInit(ctx)
@@ -162,7 +163,7 @@ func TestRunInit_URLParsingError(t *testing.T) {
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.String("url", "http://[::1]:80:80", "") // Invalid port
 	ctx := cli.NewContext(app, set, nil)
-	
+
 	err := RunInit(ctx)
 	assert.Error(t, err)
 
@@ -177,11 +178,11 @@ func TestRunInit_EnvDirectoryError(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, _ := os.MkdirTemp("", "autentico-cli-write-test")
 	defer func() { _ = os.RemoveAll(tmpDir) }()
-	
+
 	origDir, _ := os.Getwd()
 	_ = os.Chdir(tmpDir)
 	defer func() { _ = os.Chdir(origDir) }()
-	
+
 	// Create .env as a directory so WriteFile fails
 	_ = os.Mkdir(".env", 0755)
 
