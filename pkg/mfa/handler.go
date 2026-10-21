@@ -65,7 +65,8 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
+	// RFC 6238 §5.2 / RFC 4226 §7.3: reject replay, expiry and exhausted challenges.
+	if challenge.Used || !time.Now().Before(challenge.ExpiresAt) || challenge.FailedAttempts >= 5 {
 		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
 		return
 	}
@@ -153,7 +154,8 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if challenge.Used || time.Now().After(challenge.ExpiresAt) {
+	// RFC 6238 §5.2 / RFC 4226 §7.3: reject replay, expiry and exhausted challenges.
+	if challenge.Used || !time.Now().Before(challenge.ExpiresAt) || challenge.FailedAttempts >= 5 {
 		redirectToLoginWithError(w, r, challenge, "Verification session has expired. Please log in again.")
 		return
 	}
@@ -236,7 +238,15 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = MarkChallengeUsed(challenge.ID)
+	// RFC 6238 §5.2 / RFC 4226 §7.3: no authenticated state or trusted-device
+	// cookie may be issued unless this exact eligible challenge was consumed.
+	if err := ConsumeMfaChallenge(r.Context(), *challenge); err != nil {
+		if !errors.Is(err, ErrChallengeUnavailable) {
+			slog.Error("mfa: failed to consume challenge", "request_id", reqid.Get(r.Context()), "error", err)
+		}
+		redirectToLoginWithError(w, r, challenge, "Verification session has expired or could not be completed. Please log in again.")
+		return
+	}
 	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
 
 	// Save trusted device if requested

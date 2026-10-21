@@ -385,3 +385,9 @@ Refresh requests require a registered client, using the shared authentication an
 ## Atomic token issuance
 
 `token.storeGrantTokens` claims authorization codes, approved device codes or refresh tokens through a conditional update and inserts the replacement token/session pair in one writer transaction. A failed insert or commit rolls back consumption; no refresh cookie or successful response precedes commit. Expiry is checked again inside the transaction. Code-replay revocation follows the existing browser IdP-session linkage through refresh rotation; codes without linkage conservatively revoke code/refresh grants for that user/client. Refresh replay keeps the existing account-wide revocation policy. No schema migration is required.
+
+## Atomic password resets and MFA challenges
+
+`passwordreset.resetPassword` hashes outside the writer lock, then conditionally consumes one unused reset token, updates the active user's password, and deactivates OAuth/IdP sessions in one transaction. Expiry is rechecked after obtaining the writer. Failed writes or commits leave the token, password and sessions unchanged; success and its audit event follow commit.
+
+`mfa.ConsumeMfaChallenge` conditionally consumes the verified snapshot (user, method, code and login state), rejecting reused, exhausted, changed or expired challenges. The browser handler must commit consumption before success audit, trusted-device cookies, authenticated sessions, consent or authorization-code issuance. Both paths explicitly clean up SQLite transactions after failed commits. No schema migration is required.

@@ -17,6 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func markResetUsedForTest(t *testing.T, hash string) {
+	t.Helper()
+	_, err := db.GetDB().Exec(`UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE token_hash=?`, hash)
+	require.NoError(t, err)
+}
+
 // --- Store tests ---
 
 func TestGenerateToken(t *testing.T) {
@@ -45,20 +51,6 @@ func TestCreateAndGetResetToken(t *testing.T) {
 	assert.Equal(t, "rst-user-1", userID)
 	assert.WithinDuration(t, expires, expiresAt, time.Second)
 	assert.Nil(t, usedAt)
-}
-
-func TestMarkTokenUsed(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestUser(t, "rst-user-2")
-
-	_, hash, _ := generateToken()
-	require.NoError(t, createResetToken("rst-user-2", hash, time.Now().Add(time.Hour)))
-
-	markTokenUsed(hash)
-
-	_, _, usedAt, err := getResetTokenInfo(hash)
-	require.NoError(t, err)
-	assert.NotNil(t, usedAt)
 }
 
 func TestInvalidatePreviousTokens(t *testing.T) {
@@ -305,7 +297,7 @@ func TestHandleResetPassword_GET_UsedToken(t *testing.T) {
 
 	raw, hash, _ := generateToken()
 	require.NoError(t, createResetToken("rst-used-user", hash, time.Now().Add(time.Hour)))
-	markTokenUsed(hash)
+	markResetUsedForTest(t, hash)
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/reset-password?token="+raw, nil)
 	rr := httptest.NewRecorder()
@@ -412,7 +404,7 @@ func TestHandleResetPassword_POST_AlreadyUsedToken(t *testing.T) {
 
 	raw, hash, _ := generateToken()
 	require.NoError(t, createResetToken("rst-reuse-user", hash, time.Now().Add(time.Hour)))
-	markTokenUsed(hash)
+	markResetUsedForTest(t, hash)
 
 	form := url.Values{}
 	form.Set("token", raw)

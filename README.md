@@ -130,6 +130,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Passkey signup policy** — self-signup and client overrides apply at ceremony start and completion. Required email verification precedes sessions and authorization codes; registration is rate-limited and bound to the initiating browser.
 - **TOTP MFA** — time-based one-time passwords with in-browser QR code enrollment (no out-of-band enrollment link required)
 - **TOTP attempt budget** — five failed verifications lock enrolled TOTP across browser login, password grants and removal. Fresh challenges and successful password checks do not reset the budget.
+- **Single-use recovery and MFA** — concurrent requests can redeem a password reset link or browser MFA challenge only once. Password reset commits the new password and OAuth/SSO session invalidation together.
 - **Email OTP MFA** — one-time codes delivered via SMTP
 - **Trusted Devices** — after MFA, users can mark a device as trusted for a configurable period, skipping MFA on return visits
 - **Account Lockout** — configurable failed-attempt threshold and lockout duration, with admin unlock capability

@@ -2,6 +2,7 @@ package passwordreset
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -254,19 +254,17 @@ func HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the user's password
-	if err := user.UpdateUser(userID, user.UserUpdateRequest{Password: password}); err != nil {
-		slog.Error("reset-password: failed to update password", "request_id", reqID, "error", err)
+	// OWASP Forgot Password §General Security Practices: only one request may
+	// consume this token; all password/session changes must commit with it.
+	if err := resetPassword(r.Context(), tokenHash, password); err != nil {
+		if errors.Is(err, errResetUnavailable) {
+			renderResetPassword(w, r, "expired", "", params, "This password reset link has expired or has already been used.")
+			return
+		}
+		slog.Error("reset-password: failed to commit password reset", "request_id", reqID, "error", err)
 		renderResetPassword(w, r, "form", rawToken, params, "Failed to update password. Please try again.")
 		return
 	}
-
-	// Mark token as used
-	markTokenUsed(tokenHash)
-
-	// Invalidate all sessions for this user (security: password was compromised)
-	deactivateUserSessions(userID)
-	_ = idpsession.DeactivateAllForUser(userID)
 
 	audit.Log(audit.EventPasswordResetCompleted, nil, audit.TargetUser, userID, nil, utils.GetClientIP(r))
 	renderResetPassword(w, r, "success", "", params, "")
