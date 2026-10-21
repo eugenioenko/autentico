@@ -29,6 +29,8 @@ sequenceDiagram
 
 The MFA challenge is a short-lived, single-use token (5 minutes). If it expires, the user is redirected back to the login page.
 
+A verified challenge is consumed before issuing a session, authorization code or trusted-device cookie. Concurrent submissions can succeed only once. Used, expired, exhausted or changed challenges are rejected; a database failure while consuming the challenge cannot complete login.
+
 ## TOTP (Authenticator App)
 
 TOTP uses time-based one-time passwords compatible with any RFC 6238 authenticator app — Google Authenticator, Authy, 1Password, Bitwarden, and others.

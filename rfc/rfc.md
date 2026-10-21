@@ -900,3 +900,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 |-------|-----------|-------------|--------|
 | Security consideration | RFC 4226 §7.3 / RFC 6238 §5.2 | Throttle online OTP guesses across login sessions | ✅ Browser MFA, password grants and TOTP removal share a persistent five-failure account budget. Valid codes are rejected during cooldown; new challenges and password success cannot reset it (#469). |
 | MUST NOT | RFC 6238 §5.2 | Do not accept a previously successful timestep again | ✅ The shared budget verifier retains the existing atomic per-user replay watermark; removal verifies the password before consuming a code (#469). |
+
+## Atomic recovery and browser MFA redemption
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| Security guidance | OWASP Forgot Password Cheat Sheet, General Security Practices / User Resets Password | Reset tokens must be single-use; invalidate existing sessions after reset | ✅ Conditional reset-token consumption, password update and OAuth/IdP session invalidation commit together; failed writes or commits roll back all changes (#456). |
+| Security consideration | RFC 6238 §5.2 / RFC 4226 §7.3 | Reject replay and exhausted authentication challenges | ✅ One eligible, unchanged browser challenge can be consumed; expiry is rechecked under the writer lock, and no authenticated state is issued before successful consumption (#456). |

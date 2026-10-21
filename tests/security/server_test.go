@@ -26,6 +26,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/passkey"
+	"github.com/eugenioenko/autentico/pkg/passwordreset"
 	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
@@ -165,6 +166,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/authorize", plaintextCSRF(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
 	mux.Handle(oauth+"/mfa", plaintextCSRF(http.HandlerFunc(mfa.HandleMfa)))
+	mux.Handle(oauth+"/reset-password", plaintextCSRF(http.HandlerFunc(passwordreset.HandleResetPassword)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 	mux.Handle(oauth+"/magic-link", plaintextCSRF(http.HandlerFunc(magiclink.HandleMagicLink)))
 	mux.Handle("GET "+oauth+"/verify-email", plaintextCSRF(http.HandlerFunc(emailverification.HandleVerifyEmail)))
