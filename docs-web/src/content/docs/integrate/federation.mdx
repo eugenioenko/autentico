@@ -133,7 +133,7 @@ These endpoints are used during the login flow and are not authenticated.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `{oauth_path}/federation/{id}/begin` | Start federation login (redirects to external provider) |
+| `GET` | `{oauth_path}/federation/{id}` | Start federation login (redirects to external provider) |
 | `GET` | `{oauth_path}/federation/{id}/callback` | Handle callback from external provider |
 | `GET` | `{oauth_path}/federation/{id}/icon` | Serve the provider's SVG icon |
 
@@ -142,7 +142,7 @@ These endpoints are used during the login flow and are not authenticated.
 The begin endpoint accepts the standard OAuth2 authorization parameters as query strings so they can be preserved through the external provider redirect:
 
 ```
-GET /oauth2/federation/google/begin?client_id=my-app&redirect_uri=https://app.example.com/callback&scope=openid+profile+email&state=abc123&code_challenge=...&code_challenge_method=S256
+GET /oauth2/federation/google?client_id=my-app&redirect_uri=https://app.example.com/callback&scope=openid+profile+email&state=abc123&code_challenge=...&code_challenge_method=S256
 ```
 
 ## Provider icon security
