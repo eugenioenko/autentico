@@ -47,7 +47,7 @@ func IntrospectToken(tokenID string) (*token.Token, error) {
 
 	// RFC 7662 §4 / §2.2: check this credential at the same whole-second
 	// precision as its signed JWT exp and the introspection response.
-	if time.Now().Unix() >= tokenExpiration(&t, hash).Unix() {
+	if tokenExpired(&t, hash, time.Now()) {
 		return nil, errors.New("token has expired")
 	}
 
@@ -61,4 +61,10 @@ func tokenExpiration(t *token.Token, presentedHash string) time.Time {
 		return t.AccessTokenExpiresAt
 	}
 	return t.RefreshTokenExpiresAt
+}
+
+// tokenExpired uses JWT exp precision and accepts now explicitly so both sides
+// of the expiration-second boundary can be tested without a wall-clock race.
+func tokenExpired(t *token.Token, presentedHash string, now time.Time) bool {
+	return now.Unix() >= tokenExpiration(t, presentedHash).Unix()
 }

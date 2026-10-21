@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/token"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -63,15 +64,31 @@ func TestIntrospectionUsesPresentedTokenExpiry(t *testing.T) {
 }
 
 func TestIntrospectionRejectsAtReportedExpirationSecond(t *testing.T) {
-	testutils.WithTestDB(t)
-	testutils.InsertTestUser(t, "expiry-boundary")
-	access, _, err := generateTestTokenAndStore("expiry-boundary")
-	require.NoError(t, err)
-	// SQLite retains fractional seconds, but RFC 7662 §2.2 exp and JWT exp
-	// report an integer. The credential must already be inactive at that second.
-	expiresAt := time.Unix(time.Now().Unix(), 999999999)
-	_, err = db.GetDB().Exec("UPDATE tokens SET access_token_expires_at=?", expiresAt)
-	require.NoError(t, err)
-	_, err = IntrospectToken(access)
-	require.Error(t, err)
+	// Stored timestamps retain fractional seconds; signed JWT and introspection
+	// exp are integers. Freeze now around each credential's reported expiry.
+	stored := token.Token{AccessTokenHash: "access-hash", RefreshTokenHash: "refresh-hash",
+		AccessTokenExpiresAt:  time.Unix(1900000000, 999999999),
+		RefreshTokenExpiresAt: time.Unix(1900003600, 999999999)}
+	for _, credential := range []struct {
+		kind, hash string
+		expiry     time.Time
+	}{
+		{"access", stored.AccessTokenHash, stored.AccessTokenExpiresAt},
+		{"refresh", stored.RefreshTokenHash, stored.RefreshTokenExpiresAt},
+	} {
+		for _, boundary := range []struct {
+			name    string
+			offset  time.Duration
+			expired bool
+		}{
+			{"immediately before", -time.Nanosecond, false},
+			{"at reported exp", 0, true},
+			{"immediately after", time.Nanosecond, true},
+		} {
+			t.Run(credential.kind+"/"+boundary.name, func(t *testing.T) {
+				now := time.Unix(credential.expiry.Unix(), 0).Add(boundary.offset)
+				require.Equal(t, boundary.expired, tokenExpired(&stored, credential.hash, now))
+			})
+		}
+	}
 }
