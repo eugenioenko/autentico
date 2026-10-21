@@ -48,12 +48,31 @@ func getMagicLinkTokenInfo(tokenHash string) (userID string, expiresAt time.Time
 	return
 }
 
-func getMagicLinkTokenByCodeHash(userID, codeHash string) (tokenHash string, expiresAt time.Time, usedAt *time.Time, err error) {
+const maxCodeAttempts = 5
+
+// getLatestUnusedMagicLinkToken identifies the challenge even when its code is wrong.
+func getLatestUnusedMagicLinkToken(userID string) (tokenHash, codeHash string, expiresAt time.Time, failedAttempts int, err error) {
 	err = db.GetDB().QueryRow(
-		`SELECT token_hash, expires_at, used_at FROM magic_link_tokens WHERE user_id = ? AND code_hash = ? ORDER BY created_at DESC LIMIT 1`,
-		userID, codeHash,
-	).Scan(&tokenHash, &expiresAt, &usedAt)
+		`SELECT token_hash, code_hash, expires_at, failed_attempts FROM magic_link_tokens
+		 WHERE user_id = ? AND used_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1`,
+		userID,
+	).Scan(&tokenHash, &codeHash, &expiresAt, &failedAttempts)
 	return
+}
+
+// recordFailedCodeAttempt atomically exhausts both credentials on the fifth failure.
+// Exhausted or concurrently consumed challenges return sql.ErrNoRows.
+func recordFailedCodeAttempt(tokenHash string) (int, error) {
+	var attempts int
+	err := db.GetWriteDB().QueryRow(
+		`UPDATE magic_link_tokens
+		 SET failed_attempts = failed_attempts + 1,
+		     used_at = CASE WHEN failed_attempts + 1 >= ? THEN CURRENT_TIMESTAMP ELSE used_at END
+		 WHERE token_hash = ? AND used_at IS NULL AND failed_attempts < ?
+		 RETURNING failed_attempts`,
+		maxCodeAttempts, tokenHash, maxCodeAttempts,
+	).Scan(&attempts)
+	return attempts, err
 }
 
 func markTokenUsed(tokenHash string) {

@@ -1,10 +1,13 @@
 package magiclink
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +20,140 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// newCodeChallenge creates a verified user and a signed request for one live challenge.
+func newCodeChallenge(t *testing.T) (url.Values, string, string) {
+	t.Helper()
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.MagicLinkEnabled = true
+		config.Values.AuthAuthorizationCodeExpiration = 10 * time.Minute
+		config.Values.AuditLogRetentionStr = "30d"
+	})
+	testutils.InsertTestClient(t, "attempt-client", []string{"http://localhost:3000/callback"})
+	testutils.InsertTestUser(t, "attempt-user")
+	require.NoError(t, user.MarkEmailVerified("attempt-user"))
+	rawToken, tokenHash, err := generateToken()
+	require.NoError(t, err)
+	require.NoError(t, createMagicLinkToken("attempt-user", tokenHash, utils.HashSHA256("123456"), time.Now().Add(time.Hour)))
+	form := url.Values{
+		"email": {"attempt-user@test.com"}, "code": {"123456"},
+		"client_id": {"attempt-client"}, "redirect_uri": {"http://localhost:3000/callback"},
+		"scope": {"openid"}, "state": {"attempt-state"},
+	}
+	testutils.SetAuthorizeSig(form)
+	return form, rawToken, tokenHash
+}
+
+// verifyCodeRequest exercises the typed-code handler with signed form parameters.
+func verifyCodeRequest(form url.Values) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/magic-link/verify", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	HandleMagicLinkVerifyCode(rr, req)
+	return rr
+}
+
+// TestMagicLinkCodeAttemptBudget covers success before exhaustion and rejection afterward.
+func TestMagicLinkCodeAttemptBudget(t *testing.T) {
+	for _, failures := range []int{0, maxCodeAttempts - 1, maxCodeAttempts} {
+		t.Run(fmt.Sprintf("failures_%d", failures), func(t *testing.T) {
+			form, raw, hash := newCodeChallenge(t)
+			form.Set("code", "000000")
+			for range failures {
+				rr := verifyCodeRequest(form)
+				require.Equal(t, http.StatusOK, rr.Code)
+				require.Contains(t, rr.Body.String(), "Invalid code")
+			}
+			var attempts int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT failed_attempts FROM magic_link_tokens WHERE token_hash = ?`, hash).Scan(&attempts))
+			assert.Equal(t, failures, attempts)
+			_, _, used, err := getMagicLinkTokenInfo(hash)
+			require.NoError(t, err)
+			if failures < maxCodeAttempts {
+				assert.Nil(t, used)
+				form.Set("code", "123456")
+				rr := verifyCodeRequest(form)
+				require.Equal(t, http.StatusFound, rr.Code)
+				require.Contains(t, rr.Header().Get("Location"), "code=")
+				return
+			}
+			require.NotNil(t, used)
+			form.Set("code", "123456")
+			rr := verifyCodeRequest(form)
+			require.Contains(t, rr.Body.String(), "Invalid code")
+			assert.Empty(t, rr.Header().Get("Location"))
+			query := url.Values{}
+			for key, values := range form {
+				query[key] = append([]string(nil), values...)
+			}
+			query.Set("token", raw)
+			linkResponse := httptest.NewRecorder()
+			HandleMagicLinkVerify(linkResponse, httptest.NewRequest(http.MethodGet, "/oauth2/magic-link/verify?"+query.Encode(), nil))
+			assert.Contains(t, linkResponse.Body.String(), "already been used")
+			assert.Empty(t, linkResponse.Header().Get("Location"))
+			var audits int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM audit_logs WHERE event = 'login_failed' AND target_id = ? AND json_extract(detail, '$.reason') = 'code_attempts_exhausted'`, "attempt-user").Scan(&audits))
+			assert.Equal(t, 1, audits)
+		})
+	}
+}
+
+// TestMagicLinkCodeInactiveChallenge verifies expired, used, and unknown challenges aren't counted.
+func TestMagicLinkCodeInactiveChallenge(t *testing.T) {
+	for _, state := range []string{"expired", "used", "unknown-email"} {
+		t.Run(state, func(t *testing.T) {
+			form, _, hash := newCodeChallenge(t)
+			switch state {
+			case "expired":
+				_, err := db.GetDB().Exec(`UPDATE magic_link_tokens SET expires_at = ? WHERE token_hash = ?`, time.Now().Add(-time.Hour), hash)
+				require.NoError(t, err)
+			case "used":
+				markTokenUsed(hash)
+			case "unknown-email":
+				form.Set("email", "unknown@example.com")
+			}
+			form.Set("code", "000000")
+			rr := verifyCodeRequest(form)
+			assert.Contains(t, rr.Body.String(), "Invalid code")
+			var attempts int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT failed_attempts FROM magic_link_tokens WHERE token_hash = ?`, hash).Scan(&attempts))
+			assert.Zero(t, attempts)
+		})
+	}
+}
+
+// TestMagicLinkCodeConcurrentFailures verifies atomic counting and one exhaustion transition.
+func TestMagicLinkCodeConcurrentFailures(t *testing.T) {
+	_, _, hash := newCodeChallenge(t)
+	type result struct {
+		attempts int
+		err      error
+	}
+	results := make(chan result, 20)
+	var workers sync.WaitGroup
+	for range cap(results) {
+		workers.Go(func() {
+			attempts, err := recordFailedCodeAttempt(hash)
+			results <- result{attempts, err}
+		})
+	}
+	workers.Wait()
+	close(results)
+	seen := make(map[int]bool)
+	for result := range results {
+		if result.err == sql.ErrNoRows {
+			continue
+		}
+		require.NoError(t, result.err)
+		assert.False(t, seen[result.attempts], "each failure count must be returned once")
+		seen[result.attempts] = true
+	}
+	assert.Len(t, seen, maxCodeAttempts)
+	_, _, used, err := getMagicLinkTokenInfo(hash)
+	require.NoError(t, err)
+	assert.NotNil(t, used)
+}
 
 // --- Store tests ---
 
