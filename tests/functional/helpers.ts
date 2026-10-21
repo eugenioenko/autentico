@@ -161,15 +161,15 @@ async function obtainTokenViaAuthCodeInternal(
 /** Obtain an unused authorization code through the browser login endpoints. */
 export async function obtainAuthorizationCode(
   clientId: string, redirectUri: string, username: string, password: string,
-  scope = 'openid profile email',
-): Promise<{ code: string; idpSessionCookie: string }> {
+  scope = 'openid profile email', state = 'helper-state',
+): Promise<{ code: string; idpSessionCookie: string; redirectURL: string }> {
   // Step 1: GET /authorize — renders login page with CSRF token
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
   authorizeURL.searchParams.set('client_id', clientId);
   authorizeURL.searchParams.set('redirect_uri', redirectUri);
   authorizeURL.searchParams.set('scope', scope);
-  authorizeURL.searchParams.set('state', 'helper-state');
+  authorizeURL.searchParams.set('state', state);
   authorizeURL.searchParams.set('code_challenge', TEST_CODE_CHALLENGE);
   authorizeURL.searchParams.set('code_challenge_method', 'S256');
 
@@ -206,7 +206,7 @@ export async function obtainAuthorizationCode(
       client_id: clientId,
       redirect_uri: redirectUri,
       scope,
-      state: 'helper-state',
+      state,
       response_type: 'code',
       code_challenge: TEST_CODE_CHALLENGE,
       code_challenge_method: 'S256',
@@ -230,7 +230,7 @@ export async function obtainAuthorizationCode(
   const idpCookieLine = loginCookies.find((c) => c.startsWith('autentico_idp_session='));
   const idpSessionCookie = idpCookieLine ? idpCookieLine.split(';')[0] : '';
 
-  return { code, idpSessionCookie };
+  return { code, idpSessionCookie, redirectURL: location };
 }
 
 /**

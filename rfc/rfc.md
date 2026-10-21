@@ -919,5 +919,5 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 
 | Level | Reference | Requirement | Status |
 |-------|-----------|-------------|--------|
-| MUST | RFC 6749 §3.1.2 / §4.1.2 | Retain registered callback query parameters and return the exact state value using form encoding | ✅ Browser MFA encodes code/state with `url.Values`, matching passkey, federation and email-verification callbacks (#477). |
+| MUST | RFC 6749 §3.1.2 / §4.1.2 | Retain registered callback query parameters and return the exact state value using form encoding | ✅ Password login, SSO, consent approval/denial, authorization errors and browser MFA merge encoded response values into callback queries, matching passkey, federation and email-verification callbacks (#477). |
 | Required response semantics | RP-Initiated Logout 1.0 §2–3 | Return supplied opaque state to the registered post-logout callback | ✅ GET and POST logout encode state as one query value and preserve existing query parameters; malformed registered URLs do not redirect (#477). |

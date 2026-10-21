@@ -66,7 +66,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Validate redirect_uri format first — if invalid we cannot redirect back safely
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
-		view.RenderError(w, r, http.StatusBadRequest,"Invalid redirect_uri")
+		view.RenderError(w, r, http.StatusBadRequest, "Invalid redirect_uri")
 		return
 	}
 
@@ -74,13 +74,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("authorize: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest,"Unknown client_id")
+		view.RenderError(w, r, http.StatusBadRequest, "Unknown client_id")
 		return
 	}
 
 	if !registeredClient.IsActive {
 		slog.Warn("authorize: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
-		view.RenderError(w, r, http.StatusBadRequest,"Client is inactive")
+		view.RenderError(w, r, http.StatusBadRequest, "Client is inactive")
 		return
 	}
 
@@ -88,7 +88,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// if invalid, do not redirect — render an error page instead to avoid open redirector.
 	if !client.IsValidRedirectURI(registeredClient, request.RedirectURI) {
 		slog.Warn("authorize: invalid redirect_uri for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "redirect_uri", request.RedirectURI)
-		view.RenderError(w, r, http.StatusBadRequest,"Redirect URI not allowed for this client")
+		view.RenderError(w, r, http.StatusBadRequest, "Redirect URI not allowed for this client")
 		return
 	}
 
@@ -254,7 +254,13 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 // redirectWithError redirects back to the redirect_uri with OAuth2 error params.
 // Per RFC 6749 §4.1.2.1 and Appendix B, all query values are percent-encoded.
 func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, state, errCode, errDesc string) {
-	q := url.Values{}
+	// RFC 6749 §3.1.2: preserve the callback query for error responses too.
+	redirectURL, err := url.Parse(redirectURI)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		return
+	}
+	q := redirectURL.Query()
 	q.Set("error", errCode)
 	if errDesc != "" {
 		q.Set("error_description", errDesc)
@@ -262,7 +268,8 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, redirectURI, stat
 	if state != "" {
 		q.Set("state", state)
 	}
-	http.Redirect(w, r, redirectURI+"?"+q.Encode(), http.StatusFound)
+	redirectURL.RawQuery = q.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 type autoLoginResult struct {
@@ -324,6 +331,12 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 		return autoLoginResult{needsConsent: true, hasSession: true, userID: session.UserID}
 	}
 
+	// RFC 6749 §3.1.2: parse before issuing a code and retain existing queries.
+	redirectURL, err := url.Parse(request.RedirectURI)
+	if err != nil {
+		return autoLoginResult{hasSession: true, userID: session.UserID}
+	}
+
 	code, err := authcode.GenerateSecureCode()
 	if err != nil {
 		return autoLoginResult{hasSession: true, userID: session.UserID}
@@ -348,12 +361,13 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	}
 
 	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
-	redirectParams := url.Values{}
+	redirectParams := redirectURL.Query()
 	redirectParams.Set("code", ac.Code)
 	if request.State != "" {
 		redirectParams.Set("state", request.State)
 	}
-	return autoLoginResult{redirectURL: request.RedirectURI + "?" + redirectParams.Encode(), hasSession: true, userID: session.UserID}
+	redirectURL.RawQuery = redirectParams.Encode()
+	return autoLoginResult{redirectURL: redirectURL.String(), hasSession: true, userID: session.UserID}
 }
 
 // parseMaxAge parses the max_age query parameter as seconds.
@@ -368,4 +382,3 @@ func parseMaxAge(s string) int64 {
 	}
 	return v
 }
-
