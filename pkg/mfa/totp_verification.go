@@ -18,14 +18,19 @@ var (
 
 const maxTotpAttempts = 5
 
-// VerifyPasswordGrantTotp enforces a persistent account-level TOTP attempt budget.
+// VerifyEnrolledTotp enforces a persistent account-level TOTP attempt budget.
 // Password checks and source IPs do not reset it. Five failures lock verification
 // for account_lockout_duration (15 minutes when that duration is nonpositive).
-func VerifyPasswordGrantTotp(userID, code string) error {
-	return verifyPasswordGrantTotpAt(userID, code, time.Now())
+func VerifyEnrolledTotp(userID, code string) error {
+	return verifyEnrolledTotpAt(userID, code, time.Now())
 }
 
-func verifyPasswordGrantTotpAt(userID, code string, now time.Time) error {
+// VerifyPasswordGrantTotp retains the password-grant API with the shared budget.
+func VerifyPasswordGrantTotp(userID, code string) error {
+	return VerifyEnrolledTotp(userID, code)
+}
+
+func verifyEnrolledTotpAt(userID, code string, now time.Time) error {
 	ctx := context.Background()
 	conn, err := db.GetWriteDB().Conn(ctx)
 	if err != nil {
@@ -62,7 +67,8 @@ func verifyPasswordGrantTotpAt(userID, code string, now time.Time) error {
 
 	var verificationErr error
 	oldest, newest, valid := matchingTotpSteps(secret, code, now)
-	// RFC 6238 §5.2: share the replay watermark with browser and account verification.
+	// RFC 4226 §7.3 / RFC 6238 §5.2: share the attempt budget and replay
+	// watermark across browser login, password grant and TOTP removal.
 	if !verified || !valid || oldest <= lastUsedStep {
 		attempts++
 		verificationErr = ErrInvalidTotp

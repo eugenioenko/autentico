@@ -342,7 +342,7 @@ Migrations are the single source of truth for the schema. `001_initial_schema.go
 2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''\``
 3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`; use `Major: true` for upgrades requiring explicit approval and protected recovery
 
-TOTP verification uses the shared per-enrollment `totp_last_used_step` watermark (RFC 6238 §5.2). Browser login, password grants, account actions, and enrollment confirmation consume accepted timesteps atomically. Six-digit SHA-1 codes retain ±1 timestep clock tolerance; already accepted or older steps are rejected. Schema 16 adds this field as a routine migration and preserves existing enrollments and sessions.
+TOTP verification uses the shared per-enrollment `totp_last_used_step` watermark (RFC 6238 §5.2). Browser login, password grants, account actions, and enrollment confirmation consume accepted timesteps atomically. Six-digit SHA-1 codes retain ±1 timestep clock tolerance; already accepted or older steps are rejected. Schema 16 adds this field as a routine migration and preserves existing enrollments and sessions. `mfa.VerifyEnrolledTotp` also enforces the persistent account-level five-attempt budget for browser MFA, password grants and TOTP removal. The old password-grant helper delegates to it. Lock duration uses `account_lockout_duration`, with a 15-minute fallback when nonpositive; fresh challenges and password success do not clear it. Removal checks the password before verifying/counting TOTP.
 
 ### Testing
 
