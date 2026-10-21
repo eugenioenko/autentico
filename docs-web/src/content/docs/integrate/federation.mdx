@@ -30,6 +30,8 @@ sequenceDiagram
 
 The OAuth2 authorization parameters (client_id, redirect_uri, scope, state, code_challenge) are preserved through the federation flow using an HMAC-signed state parameter.
 
+Federation requires an active registered client, an allowed redirect URI and scopes, and permission to use the authorization code flow. Public clients must supply PKCE; the configured S256 policy also applies. These checks run before contacting the external provider and again before issuing a local authorization code, so removing a redirect URI or disabling a client also blocks an in-progress login. Codes without a client binding cannot be exchanged.
+
 ## User resolution
 
 When a user authenticates through a federation provider, Autentico resolves the local user account in this order:

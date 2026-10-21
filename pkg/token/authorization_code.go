@@ -44,8 +44,8 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, fmt.Errorf("authorization code is invalid or has expired")
 	}
 
-	// Validate that client_id matches the one used when the code was issued
-	if code.ClientID != "" && code.ClientID != request.ClientID {
+	// RFC 6749 §4.1.3: every code must be bound to the requesting client.
+	if code.ClientID == "" || code.ClientID != request.ClientID {
 		slog.Warn("token: client_id mismatch on code exchange", "expected_client", code.ClientID, "got_client", request.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Client ID mismatch")
 		return nil, nil, fmt.Errorf("client ID mismatch")

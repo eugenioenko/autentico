@@ -3,6 +3,8 @@ package federation
 import (
 	"database/sql"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 )
 
 // FederationProvider represents a registered OIDC identity provider.
@@ -60,4 +62,9 @@ type FederationProviderRequest struct {
 	IconSVG      string `json:"icon_svg"`
 	Enabled      *bool  `json:"enabled"`
 	SortOrder    int    `json:"sort_order"`
+}
+
+func (s *FederationState) authorizeParams() authzsig.AuthorizeParams {
+	return authzsig.AuthorizeParams{ClientID: s.ClientID, RedirectURI: s.RedirectURI, Scope: s.Scope,
+		Nonce: s.Nonce, State: s.State, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod}
 }

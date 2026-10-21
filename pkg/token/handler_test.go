@@ -150,6 +150,7 @@ func TestHandleToken_PasswordGrant_MissingUsername(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -161,7 +162,7 @@ func TestHandleToken_AuthorizationCodeGrant(t *testing.T) {
 	code := authcode.AuthCode{
 		Code:        "test-auth-code",
 		UserID:      usr.ID,
-		ClientID:    "",
+		ClientID:    "auth-code-client",
 		RedirectURI: "http://localhost/callback",
 		Scope:       "read write",
 		ExpiresAt:   time.Now().Add(10 * time.Minute),
@@ -172,6 +173,7 @@ func TestHandleToken_AuthorizationCodeGrant(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "test-auth-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -222,11 +224,13 @@ func TestHandleToken_AuthorizationCodeGrant_InvalidCode(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_UsedCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
 	code := authcode.AuthCode{
+		ClientID:    "auth-code-client",
 		Code:        "used-code",
 		UserID:      usr.ID,
 		RedirectURI: "http://localhost/callback",
@@ -243,6 +247,7 @@ func TestHandleToken_AuthorizationCodeGrant_UsedCode(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "used-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -320,11 +325,13 @@ func TestHandleToken_AuthorizationCodeReuse_RevokesIssuedTokens(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_ExpiredCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
 	code := authcode.AuthCode{
+		ClientID:    "auth-code-client",
 		Code:        "expired-code",
 		UserID:      usr.ID,
 		RedirectURI: "http://localhost/callback",
@@ -337,6 +344,7 @@ func TestHandleToken_AuthorizationCodeGrant_ExpiredCode(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "expired-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -352,11 +360,13 @@ func TestHandleToken_AuthorizationCodeGrant_ExpiredCode(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_RedirectMismatch(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
 	code := authcode.AuthCode{
+		ClientID:    "auth-code-client",
 		Code:        "redirect-mismatch-code",
 		UserID:      usr.ID,
 		RedirectURI: "http://localhost/callback",
@@ -369,6 +379,7 @@ func TestHandleToken_AuthorizationCodeGrant_RedirectMismatch(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "redirect-mismatch-code")
 	form.Add("redirect_uri", "http://different-host/callback")
 
@@ -937,6 +948,7 @@ func TestUserByRefreshToken_SessionNotFound(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -948,7 +960,7 @@ func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 	code := authcode.AuthCode{
 		Code:        "test-auth-code-idtoken",
 		UserID:      usr.ID,
-		ClientID:    "",
+		ClientID:    "auth-code-client",
 		RedirectURI: "http://localhost/callback",
 		Scope:       "openid profile email",
 		Nonce:       "test-nonce-xyz",
@@ -960,6 +972,7 @@ func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "test-auth-code-idtoken")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -982,6 +995,7 @@ func TestHandleToken_AuthorizationCodeGrant_ReturnsIDToken(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -993,7 +1007,7 @@ func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testi
 	code := authcode.AuthCode{
 		Code:        "test-auth-code-no-openid",
 		UserID:      usr.ID,
-		ClientID:    "",
+		ClientID:    "auth-code-client",
 		RedirectURI: "http://localhost/callback",
 		Scope:       "read write",
 		ExpiresAt:   time.Now().Add(10 * time.Minute),
@@ -1004,6 +1018,7 @@ func TestHandleToken_AuthorizationCodeGrant_NoIDTokenWithoutOpenidScope(t *testi
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "test-auth-code-no-openid")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -1094,6 +1109,7 @@ func pkceS256Challenge(verifier string) string {
 
 func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -1105,6 +1121,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
 	challenge := pkceS256Challenge(verifier)
 
 	code := authcode.AuthCode{
+		ClientID:            "auth-code-client",
 		Code:                "pkce-test-code",
 		UserID:              usr.ID,
 		RedirectURI:         "http://localhost/callback",
@@ -1119,6 +1136,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "pkce-test-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("code_verifier", verifier)
@@ -1135,11 +1153,13 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_S256_Success(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_PKCE_MissingVerifier(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
 
 	code := authcode.AuthCode{
+		ClientID:            "auth-code-client",
 		Code:                "pkce-missing-verifier",
 		UserID:              usr.ID,
 		RedirectURI:         "http://localhost/callback",
@@ -1154,6 +1174,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_MissingVerifier(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "pkce-missing-verifier")
 	form.Add("redirect_uri", "http://localhost/callback")
 	// No code_verifier!
@@ -1170,6 +1191,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_MissingVerifier(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 
 	usr, err := user.CreateUser("testuser", "password123", "testuser@example.com")
 	assert.NoError(t, err)
@@ -1178,6 +1200,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 	challenge := pkceS256Challenge(verifier)
 
 	code := authcode.AuthCode{
+		ClientID:            "auth-code-client",
 		Code:                "pkce-wrong-verifier",
 		UserID:              usr.ID,
 		RedirectURI:         "http://localhost/callback",
@@ -1192,6 +1215,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "pkce-wrong-verifier")
 	form.Add("redirect_uri", "http://localhost/callback")
 	form.Add("code_verifier", "wrong-verifier-value-padded-to-43-chars-abcde")
@@ -1208,6 +1232,7 @@ func TestHandleToken_AuthorizationCodeGrant_PKCE_WrongVerifier(t *testing.T) {
 
 func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -1217,6 +1242,7 @@ func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
 
 	// Auth code without PKCE should still work
 	code := authcode.AuthCode{
+		ClientID:    "auth-code-client",
 		Code:        "no-pkce-code",
 		UserID:      usr.ID,
 		RedirectURI: "http://localhost/callback",
@@ -1229,6 +1255,7 @@ func TestHandleToken_AuthorizationCodeGrant_NoPKCE_StillWorks(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "no-pkce-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 
@@ -1329,6 +1356,7 @@ func TestHandleToken_RefreshTokenGrant_ClientMismatch(t *testing.T) {
 // original login. See https://github.com/eugenioenko/autentico/issues/376
 func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -1353,6 +1381,7 @@ func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.
 
 	// Issue tokens via authorization_code linked to the IdP session.
 	code := authcode.AuthCode{
+		ClientID:     "auth-code-client",
 		Code:         "idle-test-code",
 		UserID:       usr.ID,
 		RedirectURI:  "http://localhost/callback",
@@ -1364,6 +1393,7 @@ func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", "auth-code-client")
 	form.Add("code", "idle-test-code")
 	form.Add("redirect_uri", "http://localhost/callback")
 

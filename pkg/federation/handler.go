@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -82,6 +84,13 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 	}
 
+	// RFC 6749 §4.1.2.1 / §10.6: validate before signing or contacting the provider;
+	// never redirect an invalid request to an attacker-controlled URI.
+	if _, err := client.ValidateAuthorization(state.authorizeParams()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	signedState, err := SignState(state)
 	if err != nil {
 		slog.Error("federation: failed to sign state", "request_id", reqid.Get(r.Context()), "error", err)
@@ -139,6 +148,13 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 	if state.ProviderID != providerID {
 		slog.Warn("federation: provider_id mismatch in state", "request_id", reqid.Get(r.Context()), "expected", providerID, "got", state.ProviderID)
 		http.Error(w, "invalid state", http.StatusBadRequest)
+		return
+	}
+
+	// RFC 6749 §4.1.1 / §10.6: the registration may have changed since begin.
+	// A valid state signature alone does not authorize the client or redirect URI.
+	if _, err := client.ValidateAuthorization(state.authorizeParams()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -284,6 +300,14 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 
 // completeAuthFlow issues an auth code and redirects back to the client.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
+	// RFC 6749 §4.1.1 / §10.6: re-check immediately before creating a session or code.
+	if _, err := client.ValidateAuthorization(state.authorizeParams()); err != nil {
+		return fmt.Errorf("invalid authorization request: %w", err)
+	}
+	redirectURL, err := url.Parse(state.RedirectURI)
+	if err != nil {
+		return err
+	}
 	cfg := config.Get()
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
@@ -311,8 +335,12 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, st
 		return fmt.Errorf("failed to create auth code: %w", err)
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", state.RedirectURI, ac.Code, state.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	// RFC 6749 §4.1.2: preserve existing query parameters and echo state unchanged.
+	query := redirectURL.Query()
+	query.Set("code", ac.Code)
+	query.Set("state", state.State)
+	redirectURL.RawQuery = query.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 	return nil
 }
 

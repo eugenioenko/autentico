@@ -115,7 +115,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 |---------|---------|-------------|--------|
 | MUST | §4.1.2 | Echo `state` unchanged in auth response | ✅ Fixed (2026-03-30) |
 | MUST | §4.1.2.1 | URL-encode `error_description` in redirect | ✅ Fixed (PR #108) |
-| MUST | §4.1.3 | Validate `redirect_uri` matches registered value | ✅ Verified + annotated (2026-03-30) |
+| MUST | §4.1.3 / §10.6 | Validate registered client and redirect URI; reject codes without a client binding | ✅ Federation validates at begin, callback and issuance; code exchange rejects empty client bindings (#462) |
 | MUST | §5.2 | Use HTTP 400 for all errors except `invalid_client` (401) | ✅ Verified + annotated (2026-03-30) |
 | MUST NOT | §4.6 | Refresh grant MUST NOT issue scope broader than original | ✅ Fixed (2026-03-30) |
 | SHOULD | §4.1.4 | Omit `scope` from token response if identical to requested | ⏭ Skipped — always including scope is safe and aids client transparency |
