@@ -1,7 +1,10 @@
 package migrations
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 )
 
@@ -13,6 +16,9 @@ var SchemaVersion = 12
 type Migration struct {
 	Version int
 	SQL     string
+	// Func optionally transforms data after SQL, in the same transaction.
+	// Use SQL for schema changes. Func must use tx and leave its lifecycle to Run.
+	Func func(tx *sql.Tx) error
 }
 
 // migrations is the ordered list of schema changes.
@@ -74,15 +80,53 @@ func Run(db *sql.DB, verbose bool) error {
 		if verbose {
 			fmt.Printf("Applying migration v%d...\n", m.Version)
 		}
-		if _, err := db.Exec(m.SQL); err != nil {
-			return fmt.Errorf("migrations: failed to apply v%d: %w", m.Version, err)
-		}
-		if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", m.Version)); err != nil {
-			return fmt.Errorf("migrations: failed to set user_version to %d: %w", m.Version, err)
+		if err := applyMigration(db, m); err != nil {
+			return err
 		}
 		if verbose {
 			fmt.Printf("Migration v%d applied.\n", m.Version)
 		}
+	}
+	return nil
+}
+
+// applyMigration commits the schema, data transformation, and version together.
+func applyMigration(db *sql.DB, m Migration) error {
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("migrations: failed to acquire connection for v%d: %w", m.Version, err)
+	}
+	defer func() { _ = conn.Close() }()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("migrations: failed to begin v%d: %w", m.Version, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if m.SQL != "" {
+		if _, err := tx.Exec(m.SQL); err != nil {
+			return fmt.Errorf("migrations: failed to apply SQL for v%d: %w", m.Version, err)
+		}
+	}
+	if m.Func != nil {
+		if err := m.Func(tx); err != nil {
+			return fmt.Errorf("migrations: failed to transform data for v%d: %w", m.Version, err)
+		}
+	}
+	if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", m.Version)); err != nil {
+		return fmt.Errorf("migrations: failed to set user_version to %d: %w", m.Version, err)
+	}
+	if err := tx.Commit(); err != nil {
+		// database/sql marks tx done even when COMMIT fails. SQLite can
+		// leave it open (e.g. a deferred foreign-key violation), so roll
+		// back on the same reserved connection before returning it.
+		if _, rollbackErr := conn.ExecContext(ctx, "ROLLBACK"); rollbackErr != nil {
+			// Never return a connection with unknown transaction state to the pool.
+			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			err = errors.Join(err, fmt.Errorf("failed to roll back: %w", rollbackErr))
+		}
+		return fmt.Errorf("migrations: failed to commit v%d: %w", m.Version, err)
 	}
 	return nil
 }
