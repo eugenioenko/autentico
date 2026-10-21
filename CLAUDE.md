@@ -27,7 +27,7 @@ make lint                     # Requires golangci-lint
 make fmt                      # Format code with gofmt
 go vet ./...                  # Static analysis
 
-# Bootstrap a new .env (RSA key, CSRF secret, token signing secrets)
+# Bootstrap a new .env (RSA key, TOTP encryption key, CSRF secret, token signing secrets)
 ./autentico init              # or: ./autentico init --url https://auth.example.com
 
 # Admin UI (frontend only, copies built assets into pkg/admin/dist)
@@ -184,9 +184,9 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callba
 ### CLI Entry Points
 
 `main.go` delegates to `pkg/cli/`. Subcommands:
-- `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), CSRF secret, and token signing secrets
+- `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), TOTP encryption key, CSRF secret, and token signing secrets; on an existing `.env`, adds only a missing TOTP key and preserves other settings and secrets
 - `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
-- `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts for the target schema number; --approve-major=15 permits unattended schema 15 upgrades with a verified backup and rollback on failure
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `17`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
 - `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -330,7 +330,7 @@ Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expe
 - `autentico start` checks `migrations.CheckAuto()` before applying routine migrations. Existing databases with pending `Major: true` upgrades are refused before any migration runs
 - `autentico start --no-auto-migrate` calls `migrations.Check()` instead — refuses to start if the DB is behind, printing a message to run `autentico migrate`
 - `autentico migrate` shows versions and requires typing the target schema number. Schema 15 explicitly warns that tokens, OAuth/SSO sessions, and pending login grants are discarded; accounts and enrollment remain
-- Unattended Docker deployments must stop the service, run `autentico migrate --approve-major=15`, then start it. Approval is schema-specific and never approves a later major migration; later routine upgrades stay noninteractive
+- Unattended Docker deployments must stop the service, prepare a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY`, run `autentico migrate --approve-major=15,17` (`--approve-major=17` from schema 15/16), then start it. Approval is schema-specific and never approves a later major migration; later routine upgrades stay noninteractive
 - Major migrations hold an exclusive OS lock, checkpoint WAL, close SQLite, create and verify a protected snapshot, and persist a recovery record before writes. Failed or interrupted upgrades restore the snapshot before retry. Startup refuses pending recovery
 - The persistent `.lock` file is never unlinked; Unix root-run migrations preserve database ownership on the lock so the service user can restart. `.migration.json` tracks recovery; protected backups retain old bearer tokens and need secure retention
 - SQLite file URIs use `pkg/sqliteutil` to handle Windows drives and reserved characters; CI runs the real database and CLI migration tests on Windows
