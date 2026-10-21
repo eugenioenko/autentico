@@ -114,6 +114,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **RS256 JWT Signing** — asymmetric signing; the private key never leaves the IdP
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps; federation validates registered clients, redirect URIs, scopes, and PKCE before issuing codes
 - **Authorization request validation** — signed continuation parameters are checked against the current client, callback URI, scopes, and PKCE before signup, email verification, magic-link login, and passkey authentication.
+- **Atomic grant redemption** — authorization codes, device codes and refresh tokens have one winning exchange. Credential consumption and token/session storage commit together; failed storage leaves the credential available for retry.
 - **Refresh client authentication** — every refresh identifies the issuing client; confidential clients authenticate with their secret. Inactive clients, disallowed refresh grants, mismatched clients and unbound historical tokens are rejected.
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
 - **Refresh Token Grant** — long-lived sessions without re-authentication

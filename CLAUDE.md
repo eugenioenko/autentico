@@ -381,3 +381,7 @@ Schema 17 is a major offline transformation with backup/recovery and explicit ap
 ## Refresh client binding
 
 Refresh requests require a registered client, using the shared authentication and active/grant checks. Confidential clients supply their secret; public clients identify themselves with `client_id`. The refresh JWT, stored token and session must agree on client/user binding. Historical tokens with no client binding are rejected rather than reassigned; no migration is required.
+
+## Atomic token issuance
+
+`token.storeGrantTokens` claims authorization codes, approved device codes or refresh tokens through a conditional update and inserts the replacement token/session pair in one writer transaction. A failed insert or commit rolls back consumption; no refresh cookie or successful response precedes commit. Expiry is checked again inside the transaction. Code-replay revocation follows the existing browser IdP-session linkage through refresh rotation; codes without linkage conservatively revoke code/refresh grants for that user/client. Refresh replay keeps the existing account-wide revocation policy. No schema migration is required.

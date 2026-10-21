@@ -147,6 +147,22 @@ async function obtainTokenViaAuthCodeInternal(
   token_type: string;
   idpSessionCookie: string;
 }> {
+  const { code, idpSessionCookie } = await obtainAuthorizationCode(clientId, redirectUri, username, password, scope);
+  const tokenResp = await postForm(`${OAUTH_URL}/token`, {
+    grant_type: 'authorization_code', code, redirect_uri: redirectUri,
+    client_id: clientId, code_verifier: TEST_CODE_VERIFIER,
+  });
+  if (!tokenResp.ok) {
+    throw new Error(`Token exchange failed (${tokenResp.status}): ${await tokenResp.text()}`);
+  }
+  return { ...(await tokenResp.json()), idpSessionCookie };
+}
+
+/** Obtain an unused authorization code through the browser login endpoints. */
+export async function obtainAuthorizationCode(
+  clientId: string, redirectUri: string, username: string, password: string,
+  scope = 'openid profile email',
+): Promise<{ code: string; idpSessionCookie: string }> {
   // Step 1: GET /authorize — renders login page with CSRF token
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
@@ -214,22 +230,7 @@ async function obtainTokenViaAuthCodeInternal(
   const idpCookieLine = loginCookies.find((c) => c.startsWith('autentico_idp_session='));
   const idpSessionCookie = idpCookieLine ? idpCookieLine.split(';')[0] : '';
 
-  // Step 3: POST /token — exchange code
-  const tokenResp = await postForm(`${OAUTH_URL}/token`, {
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    client_id: clientId,
-    code_verifier: TEST_CODE_VERIFIER,
-  });
-
-  if (!tokenResp.ok) {
-    const text = await tokenResp.text();
-    throw new Error(`Token exchange failed (${tokenResp.status}): ${text}`);
-  }
-
-  const tokens = await tokenResp.json();
-  return { ...tokens, idpSessionCookie };
+  return { code, idpSessionCookie };
 }
 
 /**

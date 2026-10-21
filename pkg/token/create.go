@@ -1,13 +1,22 @@
 package token
 
 import (
+	"database/sql"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/utils"
 
 	"github.com/rs/xid"
 )
 
+type tokenExecer interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
 func CreateToken(token Token) error {
+	return createToken(db.GetDB(), token)
+}
+
+func createToken(exec tokenExecer, token Token) error {
 	query := `
 		INSERT INTO tokens (
 			id, user_id, access_token_hash, refresh_token_hash,
@@ -16,7 +25,7 @@ func CreateToken(token Token) error {
 			issued_at, scope, grant_type, revoked_at, client_id, acr
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
-	_, err := db.GetDB().Exec(query,
+	_, err := exec.Exec(query,
 		xid.New().String(),
 		token.UserID,
 		utils.HashToken(token.AccessToken),

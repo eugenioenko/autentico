@@ -885,3 +885,11 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | Level | Reference | Requirement | Status |
 |-------|-----------|-------------|--------|
 | MUST | RFC 6749 §6 / §10.4 | Authenticate confidential clients and preserve refresh-token client binding | ✅ Refresh requires a registered active client with the refresh grant; confidential clients authenticate using the shared request helper. Unbound historical tokens and client mismatches are rejected (#466). |
+
+## Concurrent grant redemption
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST / SHOULD | RFC 6749 §4.1.2 | Reject repeated code exchange; revoke previously issued grant tokens where possible | ✅ Conditional single-use claim commits with token/session insertion. Replay follows browser-session linkage across refresh rotation; legacy unlinked codes use a user/client fallback (#467). |
+| Security consideration | RFC 6749 §6 / §10.4 | Rotate refresh tokens without allowing concurrent forks | ✅ One conditional claim and replacement token/session insertion in the same transaction; failed issuance rolls back, and existing replay revocation applies (#467). |
+| Security consideration | RFC 8628 §3.5 | An approved device code must not issue multiple token sets | ✅ Only an authorized, unconsumed code can win the issuance transaction; pending, denied and consumed codes cannot win (#467). |

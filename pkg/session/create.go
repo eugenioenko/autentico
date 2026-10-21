@@ -1,11 +1,26 @@
 package session
 
 import (
+	"database/sql"
+
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+type sessionExecer interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
 func CreateSession(session Session) error {
+	return createSession(db.GetDB(), session)
+}
+
+// CreateSessionTx persists the session in its token issuance transaction.
+func CreateSessionTx(tx *sql.Tx, session Session) error {
+	return createSession(tx, session)
+}
+
+func createSession(exec sessionExecer, session Session) error {
 	query := `
 		INSERT INTO sessions (
 			id, user_id, access_token_hash, refresh_token_hash,
@@ -18,7 +33,7 @@ func CreateSession(session Session) error {
 	if session.IdpSessionID != nil && *session.IdpSessionID != "" {
 		idpSession = *session.IdpSessionID
 	}
-	_, err := db.GetDB().Exec(query,
+	_, err := exec.Exec(query,
 		session.ID,
 		session.UserID,
 		utils.HashToken(session.AccessToken),

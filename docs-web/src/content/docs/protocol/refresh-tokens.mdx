@@ -53,7 +53,7 @@ Missing client identification or invalid credentials return `invalid_client`. A 
 }
 ```
 
-A new refresh token is issued with each refresh. Store the new refresh token — the old one is invalidated.
+A new refresh token is issued with each refresh. Store the new refresh token — the old one is invalidated. Send one refresh request at a time: concurrent requests using the same token have one winner, and replay detection revokes all of the user’s tokens. Rotation and replacement token/session storage commit together, so a storage failure leaves the original token available for retry. An invalid scope request also leaves it usable.
 
 ## Refresh token lifetime
 

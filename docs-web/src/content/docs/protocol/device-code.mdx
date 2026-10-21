@@ -139,7 +139,7 @@ Once approved, the next poll returns a normal token response:
 }
 ```
 
-A `device_code` can only be exchanged once.
+A `device_code` can only be exchanged once. Concurrent polls have at most one successful exchange. Consumption and token/session storage commit together; if storage fails, the approved code remains available for a later poll. Continue to observe the polling interval after an error.
 
 ## Example: CLI login script
 
