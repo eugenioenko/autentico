@@ -211,8 +211,18 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
+// Eight detached resend deliveries may be outstanding per process. Admission
+// never blocks the public response or invalidates an existing link on overload.
+var verificationDeliveries = make(chan struct{}, 8)
+
 // HandleResendVerification handles POST /oauth2/resend-verification
 func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
+	handleResendVerification(w, r, email.SendVerificationEmail, verificationDeliveries)
+}
+
+// handleResendVerification starts the supplied sender after storing a validated
+// link. Delivery runs independently of the generic HTTP response.
+func handleResendVerification(w http.ResponseWriter, r *http.Request, send func(string, string) error, inFlight chan struct{}) {
 	if err := r.ParseForm(); err != nil {
 		RenderVerifyEmail(w, r, "expired", "", OAuthParams{}, "Invalid request. Please try again.")
 		return
@@ -241,43 +251,58 @@ func HandleResendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// OWASP Authentication §Authentication Responses / Forgot Password
+	// §Forgot Password Request: use the same response and delay policy for all
+	// accepted requests, including unknown, verified and undeliverable accounts.
+	utils.RandomDelay()
+	defer RenderVerifyEmail(w, r, "sent", username, params, "")
+
 	usr, err := user.UserByUsername(username)
-	if err != nil {
-		// Don't leak whether the user exists — show success anyway.
-		// Prevent timing-based user enumeration.
-		utils.RandomDelay()
-		RenderVerifyEmail(w, r, "sent", username, params, "")
+	if err != nil || usr == nil || usr.IsEmailVerified || usr.Email == "" {
 		return
 	}
 
-	if usr.IsEmailVerified {
-		RenderVerifyEmail(w, r, "sent", username, params, "Your email is already verified. You can now log in.")
+	reqID := reqid.Get(r.Context())
+	cfg := config.Get()
+	if cfg.SmtpHost == "" {
+		slog.Error("resend-verification: SMTP is not configured", "request_id", reqID)
 		return
 	}
-
-	if usr.Email == "" {
-		RenderVerifyEmail(w, r, "sent", username, params, "")
+	// OWASP Forgot Password §Forgot Password Request: bound background work
+	// without revealing overload, waiting for SMTP or replacing an unsent link.
+	select {
+	case inFlight <- struct{}{}:
+	default:
+		slog.Warn("resend-verification: delivery capacity reached", "request_id", reqID)
 		return
 	}
-
+	transferred := false
+	defer func() {
+		if !transferred {
+			<-inFlight
+		}
+	}()
 	rawToken, tokenHash, err := GenerateToken()
 	if err != nil {
-		slog.Error("resend-verification: failed to generate token", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
+		slog.Error("resend-verification: failed to generate token", "request_id", reqID, "error", err)
 		return
 	}
 
-	expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
+	expiresAt := time.Now().Add(cfg.EmailVerificationExpiration)
 	if err := user.SetEmailVerificationToken(usr.ID, tokenHash, expiresAt); err != nil {
-		slog.Error("resend-verification: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "sent", username, params, "Something went wrong. Please try again.")
+		slog.Error("resend-verification: failed to store token", "request_id", reqID, "error", err)
 		return
 	}
 
 	verifyURL := BuildVerifyURL(rawToken, params)
-	if err := email.SendVerificationEmail(usr.Email, verifyURL); err != nil {
-		slog.Error("resend-verification: failed to send email", "request_id", reqid.Get(r.Context()), "error", err)
-	}
-
-	RenderVerifyEmail(w, r, "sent", username, params, "")
+	to := usr.Email
+	// OWASP Forgot Password §Forgot Password Request: SMTP latency must not
+	// distinguish deliverable accounts. Capture values, not the HTTP request.
+	transferred = true
+	go func() {
+		defer func() { <-inFlight }()
+		if err := send(to, verifyURL); err != nil {
+			slog.Error("resend-verification: failed to send email", "request_id", reqID, "error", err)
+		}
+	}()
 }

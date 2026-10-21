@@ -797,6 +797,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **CSRF** — `gorilla/csrf` protects all browser-facing form endpoints. The CSRF secret must be stable across restarts (so set `AUTENTICO_CSRF_SECRET_KEY` explicitly in production rather than regenerating it).
 - **Redirect URI validation** — redirect URIs are strictly matched against registered client URIs. Wildcards are not supported.
 - **Client secrets** — stored as bcrypt hashes. The plaintext is only available at registration time.
+- **Verification resend privacy** — accepted resend requests use one generic response and delay policy; SMTP delivery runs in the background with bounded concurrency and operation timeouts.
 - **Opaque redirect state** — authorization and logout callbacks URL-encode state and preserve existing callback query parameters.
 - **Token introspection** — access and refresh tokens are checked against their own expiry, and `exp` reports the submitted token's lifetime.
 - **Password hashing** — user passwords are bcrypt-hashed.

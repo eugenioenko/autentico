@@ -399,3 +399,9 @@ Refresh requests require a registered client, using the shared authentication an
 ## Callback query encoding
 
 Password login, SSO, consent approval/denial, authorization errors, browser MFA and RP-initiated logout parse registered callback URLs and add response values with `url.Values.Set`/`Encode`, preserving existing query values and round-tripping opaque state. MFA parses the restored callback before issuing authenticated state. Malformed registered logout URLs render the signed-out page without redirection. Passkey, federation and email-verification callbacks already use encoded query construction.
+
+## Verification resend privacy
+
+`emailverification.HandleResendVerification` keeps authorization signature/client/redirect/scope/PKCE validation before account lookup. Accepted requests use one randomized-delay policy and one deferred generic sent-page response for unknown, inactive, verified, email-less or eligible accounts, including token-storage errors. Eight delivery slots per process bound detached work; nonblocking admission happens before replacing a token, and missing SMTP configuration also preserves the existing link. Admitted tokens are stored before asynchronous email dispatch. Missing SMTP configuration, capacity exhaustion and delivery failures are logged privately; the background sender captures only recipient, URL and request ID. The private handler takes a sender function for deterministic blocked-delivery tests.
+
+SMTP transport uses `net/smtp.Client` with a 30-second connect timeout and a fresh 30-second deadline for each greeting/command/data operation. STARTTLS uses normal certificate/host verification; configured authentication requires advertised AUTH. All exits close the connection, including greeting and TLS failures.

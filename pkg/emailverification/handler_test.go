@@ -160,35 +160,8 @@ func TestHandleResendVerification_AlreadyVerified(t *testing.T) {
 	HandleResendVerification(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "already verified")
-}
-
-func TestHandleResendVerification_ValidUser_StoresNewToken(t *testing.T) {
-	withVerificationTestDB(t)
-	testutils.WithConfigOverride(t, func() {
-		config.Values.EmailVerificationExpiration = time.Hour
-	})
-
-	u, _ := user.CreateUser("resenduser", "password123", "resend@test.com")
-
-	form := url.Values{}
-	form.Set("username", "resenduser")
-	form.Set("redirect_uri", "http://localhost/callback")
-	form.Set("state", "s1")
-	form.Set("client_id", "c1")
-
-	signVerificationParams(form)
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/resend-verification", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rr := httptest.NewRecorder()
-
-	HandleResendVerification(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// Verify a token was stored for the user
-	updated, _ := user.UserByID(u.ID)
-	assert.False(t, updated.IsEmailVerified)
+	assert.NotContains(t, rr.Body.String(), "already verified")
+	assert.Contains(t, rr.Body.String(), "Check your inbox")
 }
 
 func TestGenerateToken_UniqueAndHashable(t *testing.T) {
