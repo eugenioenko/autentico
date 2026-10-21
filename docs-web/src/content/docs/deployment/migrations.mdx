@@ -66,6 +66,8 @@ The upgrade invalidates **all access and refresh tokens, OAuth sessions, SSO ses
 
 Stop every Autentico instance and any other process using the database before running the migration. There is no separate session-revocation step: invalidation and the schema changes happen together in the migration transaction.
 
+Autentico rejects the old credentials after the upgrade. External applications that validate JWTs locally can still accept an existing access token until it expires; their own application sessions follow their own expiration policies.
+
 ### Docker Compose
 
 With the service named `autentico` and the existing database volume mounted:
@@ -95,7 +97,7 @@ docker compose run --rm -T autentico migrate --approve-major=15 \
 
 Stop the old application before running this command. `--approve-major=15` explicitly accepts session invalidation for schema 15 and skips the interactive prompt. Approval for 15 does not approve a future major schema migration. Unknown major schema numbers are rejected. Repeating the command after a successful upgrade is safe and reports that the database is already up to date.
 
-For a binary deployment, stop the service, run `autentico migrate --approve-major=15`, and restart the service only if the command succeeds. Keep this as a deployment step; the normal container command remains `start`.
+For a binary deployment, stop the service, run `autentico migrate --approve-major=15`, and restart the service only if the command succeeds. Keep this as a deployment step; the normal container command remains `start`. The same approval keeps later routine-only upgrades noninteractive; a future major migration needs its own schema approval.
 
 ### Backup, locking, and recovery
 

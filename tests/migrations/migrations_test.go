@@ -158,9 +158,14 @@ func env(path string) []string {
 
 func command(t *testing.T, path, input string, args ...string) (string, error) {
 	t.Helper()
+	return commandWithBinary(t, binary, path, input, args...)
+}
+
+func commandWithBinary(t *testing.T, executable, path, input string, args ...string) (string, error) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd := exec.CommandContext(ctx, executable, args...)
 	cmd.Dir = filepath.Dir(path)
 	cmd.Env = env(path)
 	cmd.Stdin = strings.NewReader(input)
@@ -642,4 +647,90 @@ func TestHeadlessMigrationOnNewVolume(t *testing.T) {
 	require.Equal(t, target, schema(t, path))
 	require.Empty(t, backups(t, path))
 	noRecovery(t, path)
+}
+
+func TestRecoveryRunsBeforeAlreadyUpToDateCheck(t *testing.T) {
+	path, database := fixture(t, 14, "WAL", true)
+	slowMigration(t, database)
+	require.NoError(t, database.Close())
+	cmd, output := runUntil(t, path, "Applying migration v15")
+	require.NoError(t, cmd.Process.Kill())
+	require.Error(t, cmd.Wait(), output.String())
+	record, err := os.ReadFile(path + ".migration.json")
+	require.NoError(t, err)
+	text, err := migrate(t, path)
+	require.NoError(t, err, text)
+	require.Equal(t, target, schema(t, path))
+	noRecovery(t, path)
+	// Recreate a real, verified recovery record to model interruption after the
+	// final commit but before record removal. Schema 15 must not bypass recovery.
+	require.NoError(t, os.WriteFile(path+".migration.json", record, 0600))
+	text, err = command(t, path, "", "start")
+	require.Error(t, err, text)
+	require.Contains(t, text, "interrupted major migration")
+	text, err = command(t, path, "no\n", "migrate")
+	require.NoError(t, err, text)
+	require.Contains(t, text, "Restored pre-migration database")
+	require.NotContains(t, text, "Already up to date")
+	require.Equal(t, 14, schema(t, path))
+	noRecovery(t, path)
+}
+
+// Build a future CLI using Go's source overlay, leaving the working tree
+// untouched. This exercises the actual approval flow across a later routine
+// migration and proves a previous approval cannot approve a new major one.
+func futureCLI(t *testing.T, major bool) string {
+	t.Helper()
+	sourcePath := filepath.Join(root, "pkg/db/migrations/migrations.go")
+	data, err := os.ReadFile(sourcePath)
+	require.NoError(t, err)
+	source := strings.Replace(string(data), "var SchemaVersion = 15", "var SchemaVersion = 16", 1)
+	anchor := "{Version: 15, SQL: migration015, Major: true},"
+	require.Contains(t, source, anchor)
+	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: 16, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", major), 1)
+	dir := t.TempDir()
+	replacement := filepath.Join(dir, "migrations.go")
+	require.NoError(t, os.WriteFile(replacement, []byte(source), 0600))
+	overlay, err := json.Marshal(map[string]map[string]string{"Replace": {sourcePath: replacement}})
+	require.NoError(t, err)
+	overlayPath := filepath.Join(dir, "overlay.json")
+	require.NoError(t, os.WriteFile(overlayPath, overlay, 0600))
+	executable := filepath.Join(dir, "autentico-future")
+	if runtime.GOOS == "windows" {
+		executable += ".exe"
+	}
+	cmd := exec.Command("go", "build", "-overlay", overlayPath, "-o", executable, ".")
+	cmd.Dir = root
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(output))
+	return executable
+}
+
+func TestHeadlessApprovalAcrossFutureMigrations(t *testing.T) {
+	for _, major := range []bool{false, true} {
+		t.Run(fmt.Sprintf("major_%t", major), func(t *testing.T) {
+			executable := futureCLI(t, major)
+			path, database := fixture(t, 14, "WAL", true)
+			require.NoError(t, database.Close())
+			output, err := migrate(t, path)
+			require.NoError(t, err, output)
+			if !major {
+				// Explicit manual routine migrations keep numeric confirmation.
+				output, err = commandWithBinary(t, executable, path, "no\n", "migrate")
+				require.NoError(t, err, output)
+				require.Contains(t, output, "Type '16'")
+				require.Equal(t, 15, schema(t, path))
+			}
+			output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=15")
+			if major {
+				require.Error(t, err, output)
+				require.Contains(t, output, "Major schema migrations: [16]")
+				require.Equal(t, 15, schema(t, path))
+				output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=16")
+			}
+			require.NoError(t, err, output)
+			require.Equal(t, 16, schema(t, path))
+			require.NotContains(t, output, "Type '")
+		})
+	}
 }

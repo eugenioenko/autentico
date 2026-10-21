@@ -24,6 +24,10 @@ approval of multiple pending major migrations. Endpoint tests in
 `tests/e2e/token_storage_test.go` exercise storage, metadata, MFA refresh, and
 rejection of database hashes as HTTP credentials.
 
+Go source overlays build hypothetical future CLI versions without modifying the
+working tree. These verify that the deployment command remains noninteractive
+for a later routine upgrade while a new major schema requires separate approval.
+
 ## Docker Compose smoke test
 
 On a Unix host with Docker Compose, Python 3, and a Docker daemon:

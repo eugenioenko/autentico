@@ -68,6 +68,7 @@ base = [
 def call(args, success=True, contains=None):
     r = subprocess.run(
         base + args,
+        check=False,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -141,6 +142,7 @@ try:
 finally:
     subprocess.run(
         base + ["down", "--volumes", "--remove-orphans"],
+        check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         timeout=30,

@@ -42,25 +42,23 @@ func RunMigrate(c *cli.Context) error {
 	fmt.Println("Stop all Autentico instances and other database users before proceeding.")
 	fmt.Printf("  DB file: %s\n", bs.DbFilePath)
 	fmt.Println()
-	if current == 0 && len(majorVersions) == 0 && len(approved) > 0 {
-		// The same deployment job must work on a new, empty volume too.
-		return migrations.RunFile(bs.DbFilePath, true, approved...)
-	}
 	confirmation := fmt.Sprintf("%d", migrations.SchemaVersion)
+	allApproved := len(approved) > 0
+	for _, version := range majorVersions {
+		found := false
+		for _, value := range approved {
+			found = found || value == version
+		}
+		allApproved = allApproved && found
+	}
 	if len(majorVersions) > 0 {
 		fmt.Printf("Major schema migrations: %v\n", majorVersions)
 		fmt.Println("WARNING: All access/refresh tokens, OAuth/SSO sessions, and pending login grants will be invalidated. Everyone must sign in again.")
-		allApproved := true
-		for _, version := range majorVersions {
-			found := false
-			for _, value := range approved {
-				found = found || value == version
-			}
-			allApproved = allApproved && found
-		}
-		if allApproved {
-			return migrations.RunFile(bs.DbFilePath, true, approved...)
-		}
+	}
+	// Explicit approvals also keep deployment jobs noninteractive for new
+	// volumes and later routine upgrades. A new major still needs approval.
+	if allApproved {
+		return migrations.RunFile(bs.DbFilePath, true, approved...)
 	}
 	fmt.Printf("Type '%s' to confirm and apply migrations: ", confirmation)
 
