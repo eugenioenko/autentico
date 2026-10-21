@@ -124,7 +124,7 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 6238 §5.2: enrollment confirmation consumes its code in the activation write.
-	if err := mfa.ConfirmTotpEnrollment(*currUser, currUser.TotpSecret, req.Code); err != nil {
+	if err := mfa.ConfirmTotpEnrollment(usr.ID, currUser.TotpSecret, req.Code); err != nil {
 		if errors.Is(err, mfa.ErrInvalidTotp) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_code", "Invalid TOTP code or enrollment changed")
 		} else {

@@ -176,7 +176,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// RFC 6238 §5.2: activate enrollment and consume its confirmation code atomically.
-			if err := ConfirmTotpEnrollment(*usr, totpSecret, code); err != nil {
+			if err := ConfirmTotpEnrollment(usr.ID, totpSecret, code); err != nil {
 				if errors.Is(err, ErrInvalidTotp) {
 					slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 					audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
@@ -408,6 +408,24 @@ func renderEnrollPage(w http.ResponseWriter, r *http.Request, challenge *MfaChal
 		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
 		return
 	}
+
+	// Persist the displayed enrollment before accepting confirmation. Reuse a
+	// pending secret so a stale browser page cannot overwrite newer setup.
+	secret, err = user.EnsurePendingTotpSecret(usr.ID, secret)
+	if err != nil {
+		slog.Error("mfa: failed to persist pending TOTP enrollment", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return
+	}
+	enrollmentURL, err := url.Parse(otpauthURL)
+	if err != nil {
+		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+		return
+	}
+	parameters := enrollmentURL.Query()
+	parameters.Set("secret", secret)
+	enrollmentURL.RawQuery = parameters.Encode()
+	otpauthURL = enrollmentURL.String()
 
 	png, err := qrcode.Encode(otpauthURL, qrcode.Medium, 200)
 	if err != nil {

@@ -56,9 +56,9 @@ func verifyPasswordGrantTotpAt(userID, code string, now time.Time) error {
 	}
 
 	var verificationErr error
-	step, valid := matchingTotpStep(secret, code, now)
+	oldest, newest, valid := matchingTotpSteps(secret, code, now)
 	// RFC 6238 §5.2: share the replay watermark with browser and account verification.
-	if !verified || !valid || step <= lastUsedStep {
+	if !verified || !valid || oldest <= lastUsedStep {
 		attempts++
 		verificationErr = ErrInvalidTotp
 		if attempts >= maxTotpAttempts {
@@ -72,7 +72,7 @@ func verifyPasswordGrantTotpAt(userID, code string, now time.Time) error {
 		}
 	} else {
 		attempts = 0
-		lastUsedStep = step
+		lastUsedStep = newest
 	}
 	if _, err := tx.Exec(`UPDATE users SET totp_failed_attempts = ?, totp_locked_until = ?, totp_last_used_step = ? WHERE id = ?`,
 		attempts, lockedUntil, lastUsedStep, userID); err != nil {

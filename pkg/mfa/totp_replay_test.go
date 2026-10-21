@@ -89,6 +89,28 @@ func TestTotpReplayAcrossVerificationPaths(t *testing.T) {
 	}
 }
 
+func TestTotpReplayCollisionAcrossOverlappingWindows(t *testing.T) {
+	// Independent RFC 4226 vector: this seed produces 945099 at both steps.
+	const code = "945099"
+	first := time.Unix(61831282*30+5, 0)
+	second := time.Unix(61831284*30+5, 0)
+	for _, passwordFirst := range []bool{true, false} {
+		t.Run(fmt.Sprint(passwordFirst), func(t *testing.T) {
+			id := replayUser(t)
+			if passwordFirst {
+				require.NoError(t, verifyPasswordGrantTotpAt(id, code, first))
+				require.ErrorIs(t, consumeTotpCodeAt(id, replaySecret, code, second), ErrInvalidTotp)
+			} else {
+				require.NoError(t, consumeTotpCodeAt(id, replaySecret, code, first))
+				require.ErrorIs(t, verifyPasswordGrantTotpAt(id, code, second), ErrInvalidTotp)
+			}
+			var used int64
+			require.NoError(t, db.GetDB().QueryRow("SELECT totp_last_used_step FROM users WHERE id=?", id).Scan(&used))
+			require.Equal(t, int64(61831283), used)
+		})
+	}
+}
+
 func TestTotpConcurrentReplayAcrossPaths(t *testing.T) {
 	id := replayUser(t)
 	code := replayCode(t, replayTime)
@@ -122,13 +144,14 @@ func TestTotpConcurrentReplayAcrossPaths(t *testing.T) {
 func TestTotpConcurrentEnrollmentConfirmation(t *testing.T) {
 	id := replayUser(t)
 	require.NoError(t, user.DisableMfa(id))
+	require.NoError(t, user.StoreTotpSecretPending(id, replaySecret))
 	current, err := user.UserByID(id)
 	require.NoError(t, err)
 	code := replayCode(t, time.Now())
 	results := make(chan error, 10)
 	var workers sync.WaitGroup
 	for range cap(results) {
-		workers.Go(func() { results <- ConfirmTotpEnrollment(*current, replaySecret, code) })
+		workers.Go(func() { results <- ConfirmTotpEnrollment(current.ID, replaySecret, code) })
 	}
 	workers.Wait()
 	close(results)
@@ -181,18 +204,18 @@ func TestTotpEnrollmentConfirmationConsumesCode(t *testing.T) {
 	current, err := user.UserByID(id)
 	require.NoError(t, err)
 	code := replayCode(t, time.Now())
-	require.NoError(t, ConfirmTotpEnrollment(*current, replaySecret, code))
-	require.ErrorIs(t, ConfirmTotpEnrollment(*current, replaySecret, code), ErrInvalidTotp)
+	require.NoError(t, ConfirmTotpEnrollment(current.ID, replaySecret, code))
+	require.ErrorIs(t, ConfirmTotpEnrollment(current.ID, replaySecret, code), ErrInvalidTotp)
 	require.ErrorIs(t, ConsumeTotpCode(id, replaySecret, code), ErrInvalidTotp)
 	require.ErrorIs(t, VerifyPasswordGrantTotp(id, code), ErrInvalidTotp)
 	// A replacement enrollment has independent replay state and must prove its new seed.
 	require.NoError(t, user.DisableMfa(id))
 	newSecret := "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
 	require.NoError(t, user.StoreTotpSecretPending(id, newSecret))
-	require.ErrorIs(t, ConfirmTotpEnrollment(*current, replaySecret, code), ErrInvalidTotp)
+	require.ErrorIs(t, ConfirmTotpEnrollment(current.ID, replaySecret, code), ErrInvalidTotp)
 	current, err = user.UserByID(id)
 	require.NoError(t, err)
 	newCode, err := totp.GenerateCode(newSecret, time.Now())
 	require.NoError(t, err)
-	require.NoError(t, ConfirmTotpEnrollment(*current, newSecret, newCode))
+	require.NoError(t, ConfirmTotpEnrollment(current.ID, newSecret, newCode))
 }

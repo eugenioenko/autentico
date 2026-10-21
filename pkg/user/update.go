@@ -195,6 +195,18 @@ func StoreTotpSecretPending(userID, secret string) error {
 	return nil
 }
 
+// EnsurePendingTotpSecret initializes browser setup without replacing a pending
+// secret from a newer setup request. Active enrollment is never modified.
+func EnsurePendingTotpSecret(userID, proposed string) (string, error) {
+	var secret string
+	err := db.GetWriteDB().QueryRow(`UPDATE users
+		SET totp_last_used_step = CASE WHEN totp_secret = '' THEN -1 ELSE totp_last_used_step END,
+		totp_secret = CASE WHEN totp_secret = '' THEN ? ELSE totp_secret END
+		WHERE id = ? AND totp_verified = FALSE AND deactivated_at IS NULL
+		RETURNING totp_secret`, proposed, userID).Scan(&secret)
+	return secret, err
+}
+
 // SaveTotpSecret stores enrollment state without validating an OTP. Interactive
 // enrollment must use mfa.ConfirmTotpEnrollment to consume the confirmation code.
 func SaveTotpSecret(userID, secret string) error {

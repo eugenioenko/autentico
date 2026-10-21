@@ -4,20 +4,19 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
 )
 
 const totpPeriod = int64(30)
 
-// matchingTotpStep retains the existing six-digit SHA-1 policy and ±1-step
-// clock tolerance. Prefer the latest match if a code collides across steps so
-// replaying it cannot advance through multiple matches in the same window.
-func matchingTotpStep(secret, code string, now time.Time) (int64, bool) {
+// matchingTotpSteps retains the six-digit SHA-1 policy and ±1-step clock
+// tolerance. All matching steps matter: a collision must not make an already
+// consumed code reusable as the receiving window advances.
+func matchingTotpSteps(secret, code string, now time.Time) (oldest, newest int64, found bool) {
 	// RFC 6238 §3: verification requires an enrolled shared secret.
 	if secret == "" {
-		return 0, false
+		return 0, 0, false
 	}
 	// RFC 6238 §4.2: T is the Unix timestamp divided by the agreed step size.
 	current := now.Unix() / totpPeriod
@@ -29,13 +28,16 @@ func matchingTotpStep(secret, code string, now time.Time) (int64, bool) {
 			Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1,
 		})
 		if err != nil {
-			return 0, false
+			return 0, 0, false
 		}
 		if valid {
-			return step, true
+			if !found {
+				newest = step
+			}
+			oldest, found = step, true
 		}
 	}
-	return 0, false
+	return oldest, newest, found
 }
 
 // ConsumeTotpCode accepts an enrolled code once across all authentication paths.
@@ -45,14 +47,14 @@ func ConsumeTotpCode(userID, secret, code string) error {
 }
 
 func consumeTotpCodeAt(userID, secret, code string, now time.Time) error {
-	step, valid := matchingTotpStep(secret, code, now)
+	oldest, newest, valid := matchingTotpSteps(secret, code, now)
 	// RFC 6238 §5.2: reject invalid codes and any previously accepted timestep.
 	if !valid {
 		return ErrInvalidTotp
 	}
 	result, err := db.GetDB().Exec(`UPDATE users SET totp_last_used_step = ?
 		WHERE id = ? AND totp_secret = ? AND totp_verified = TRUE
-		AND deactivated_at IS NULL AND totp_last_used_step < ?`, step, userID, secret, step)
+		AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, secret, oldest)
 	if err != nil {
 		return err
 	}
@@ -66,19 +68,18 @@ func consumeTotpCodeAt(userID, secret, code string, now time.Time) error {
 	return nil
 }
 
-// ConfirmTotpEnrollment activates the expected pending enrollment and consumes
-// its confirmation code in one write. Concurrent setup/confirmation cannot
-// overwrite an already active or newly replaced enrollment.
-func ConfirmTotpEnrollment(current user.User, secret, code string) error {
-	step, valid := matchingTotpStep(secret, code, time.Now())
-	// RFC 6238 §5.2: enrollment confirmation must not leave its OTP reusable.
-	if !valid || current.TotpVerified {
+// ConfirmTotpEnrollment activates the persisted pending secret and consumes its
+// code in one write. A stale browser form cannot replace newer pending setup.
+func ConfirmTotpEnrollment(userID, secret, code string) error {
+	oldest, newest, valid := matchingTotpSteps(secret, code, time.Now())
+	// RFC 6238 §5.2: consume every matching step while activating only this enrollment.
+	if !valid {
 		return ErrInvalidTotp
 	}
-	result, err := db.GetDB().Exec(`UPDATE users SET totp_secret = ?, totp_verified = TRUE,
-		two_factor_enabled = TRUE, totp_last_used_step = ?
-		WHERE id = ? AND totp_secret = ? AND totp_verified = FALSE AND deactivated_at IS NULL`,
-		secret, step, current.ID, current.TotpSecret)
+	result, err := db.GetDB().Exec(`UPDATE users SET totp_verified = TRUE,
+        two_factor_enabled = TRUE, totp_last_used_step = ?
+        WHERE id = ? AND totp_secret = ? AND totp_verified = FALSE
+        AND deactivated_at IS NULL AND totp_last_used_step < ?`, newest, userID, secret, oldest)
 	if err != nil {
 		return err
 	}

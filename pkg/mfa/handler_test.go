@@ -120,6 +120,7 @@ func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
+	require.NoError(t, user.StoreTotpSecretPending(u.ID, secret))
 
 	c := MfaChallenge{
 		ID:         "chall1",
