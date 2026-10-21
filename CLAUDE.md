@@ -409,3 +409,7 @@ SMTP transport uses `net/smtp.Client` with a 30-second connect timeout and a fre
 ## Redirect wildcard compatibility
 
 Exact redirect registrations compare byte-for-byte. The explicit conformance-callback extension permits one `*` as an entire path segment, matching a nonempty plain unreserved identifier (`A-Z a-z 0-9 - . _ ~`) other than `.` or `..`. `redirectWildcardParts` validates pattern shape and rejects traversal/fragments; `matchesRedirectWildcard` retains literal prefix/suffix bytes and never decodes the candidate. Variable separators, percent escaping, queries, fragments, backslashes and controls cannot match. Invalid patterns fail at registration/update and at runtime for older stored rows. Conformance `/test/a/*/callback` still works; root `/*` no longer matches multiple path segments.
+
+## OAuth session cleanup lifetimes
+
+New token grants set session expiry to the later access/refresh expiry. `cleanup.cleanTokenSessions` uses a writer transaction to extend older session metadata from the matching stored user/access/refresh binding and purge only after both token lifetimes plus retention. Revoked rows are retained for replay detection, deactivation/revocation flags are unchanged, and orphan sessions use their own nullable expiry. Parsed Go timestamps avoid lexical comparisons across UTC offsets. This repair runs during ordinary startup/periodic cleanup and needs no schema migration.
