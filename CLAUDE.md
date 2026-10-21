@@ -293,11 +293,11 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 15):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 16):
 
 | Table | Purpose |
 |-------|---------|
-| `users` | Accounts — password hash, TOTP secret, email, lockout fields, soft delete |
+| `users` | Accounts — password hash, TOTP secret, persistent last-used TOTP timestep, email, lockout fields, soft delete |
 | `tokens` | SHA-256 access/refresh token hashes with explicit client ID and ACR metadata; revocation support |
 | `sessions` | SHA-256 access/refresh token hashes (refresh lookup indexed); OAuth sessions — device info, `last_activity_at`, `deactivated_at`, `idp_session_id` (FK into `idp_sessions`, nullable for non-browser grants like ROPC / client_credentials) |
 | `auth_codes` | Single-use authorization codes (PKCE, nonce, `idp_session_id` carried from `/authorize` to `/oauth2/token`) |
@@ -341,6 +341,8 @@ Migrations are the single source of truth for the schema. `001_initial_schema.go
 1. Increment `SchemaVersion` in `pkg/db/migrations/migrations.go`
 2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''\``
 3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`; use `Major: true` for upgrades requiring explicit approval and protected recovery
+
+TOTP verification uses the shared per-enrollment `totp_last_used_step` watermark (RFC 6238 §5.2). Browser login, password grants, account actions, and enrollment confirmation consume accepted timesteps atomically. Six-digit SHA-1 codes retain ±1 timestep clock tolerance; already accepted or older steps are rejected. Schema 16 adds this field as a routine migration and preserves existing enrollments and sessions.
 
 ### Testing
 

@@ -336,3 +336,24 @@ func TestRun_TotpAttemptLimitsUpgrade(t *testing.T) {
 	assert.Zero(t, attempts)
 	assert.Nil(t, lockedUntil)
 }
+
+func TestRun_TotpReplayIsRoutineAndPreservesEnrollment(t *testing.T) {
+	database := newTestDB(t)
+	plan := migrations
+	useTestMigrations(t, plan[:15])
+	require.NoError(t, Run(database, false))
+	_, err := database.Exec(`INSERT INTO users(id,username,password,totp_secret,totp_verified)
+		VALUES('replay-upgrade','replay-upgrade','kept-password','kept-seed',TRUE)`)
+	require.NoError(t, err)
+	migrations, SchemaVersion = plan, 16
+	require.NoError(t, CheckAuto(database))
+	require.NoError(t, Run(database, false))
+	var secret string
+	var verified bool
+	var step int64
+	require.NoError(t, database.QueryRow(`SELECT totp_secret,totp_verified,totp_last_used_step
+		FROM users WHERE id='replay-upgrade'`).Scan(&secret, &verified, &step))
+	require.Equal(t, "kept-seed", secret)
+	require.True(t, verified)
+	require.Equal(t, int64(-1), step)
+}

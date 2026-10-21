@@ -47,7 +47,7 @@ async function getUserToken(username: string, password: string, totpCode?: strin
 /**
  * Helper: setup and verify TOTP for a user, returning the secret.
  */
-async function setupAndVerifyTotp(userToken: string, password = 'Password123!'): Promise<string> {
+async function setupAndVerifyTotp(userToken: string, password = 'Password123!'): Promise<{ secret: string; code: string; step: number }> {
   // Setup TOTP
   const setupResp = await postJSON(`${ACCOUNT_API}/mfa/totp/setup`, { current_password: password }, userToken);
   expect(setupResp.status).toBe(200);
@@ -56,21 +56,24 @@ async function setupAndVerifyTotp(userToken: string, password = 'Password123!'):
 
   // Generate valid code
   const totp = new TOTP({ secret });
-  const code = totp.generate();
+  const generatedAt = Date.now();
+  const code = totp.generate({ timestamp: generatedAt });
 
   // Verify TOTP
   const verifyResp = await postJSON(`${ACCOUNT_API}/mfa/totp/verify`, { code }, userToken);
   expect(verifyResp.status).toBe(200);
 
-  return secret;
+  return { secret, code, step: Math.floor(generatedAt / 30000) };
 }
 
 /**
  * Helper: generate a TOTP code from a secret.
  */
-function generateCode(secret: string): string {
-  const totp = new TOTP({ secret });
-  return totp.generate();
+async function nextCode(secret: string, usedStep: number): Promise<string> {
+  // Use the real next timestep; enrollment confirmation already consumed its code.
+  const remaining = (usedStep + 1) * 30000 - Date.now();
+  if (remaining >= 0) await new Promise(resolve => setTimeout(resolve, remaining + 25));
+  return new TOTP({ secret }).generate();
 }
 
 /**
@@ -126,7 +129,7 @@ describe('Password grant MFA enforcement', () => {
 
     // Get token and enroll TOTP
     const userToken = await getUserToken('mfa-ropc2', 'Password123!');
-    const secret = await setupAndVerifyTotp(userToken);
+    const enrollment = await setupAndVerifyTotp(userToken);
 
     // ROPC without totp_code should fail
     const resp = await ropcLogin('mfa-ropc2', 'Password123!');
@@ -134,11 +137,16 @@ describe('Password grant MFA enforcement', () => {
     const body = await resp.json();
     expect(body.error).toBe('mfa_required');
 
-    // ROPC with valid totp_code should succeed
-    const code = generateCode(secret);
+    // Reusing the enrollment confirmation code must fail.
+    const replay = await ropcLogin('mfa-ropc2', 'Password123!', enrollment.code);
+    expect(replay.status).toBe(403);
+    expect((await replay.json()).error).toBe('invalid_mfa_code');
+
+    // A fresh authenticator timestep succeeds.
+    const code = await nextCode(enrollment.secret, enrollment.step);
     const resp2 = await ropcLogin('mfa-ropc2', 'Password123!', code);
     expect(resp2.status).toBe(200);
-  });
+  }, 45000);
 
   it('ROPC with invalid totp_code is rejected', async () => {
     const adminToken = await getAdminToken();
@@ -207,14 +215,20 @@ describe('TOTP disable requires OTP code', () => {
     await createUser(adminToken, 'mfa-disable3', 'Password123!', 'mfa-disable3@test.com');
 
     const userToken = await getUserToken('mfa-disable3', 'Password123!');
-    const secret = await setupAndVerifyTotp(userToken);
+    const enrollment = await setupAndVerifyTotp(userToken);
 
-    const code = generateCode(secret);
+    const replay = await deleteWithBody(
+      `${ACCOUNT_API}/mfa/totp`,
+      { current_password: 'Password123!', code: enrollment.code },
+      userToken
+    );
+    expect(replay.status).toBe(403);
+    const code = await nextCode(enrollment.secret, enrollment.step);
     const resp = await deleteWithBody(
       `${ACCOUNT_API}/mfa/totp`,
       { current_password: 'Password123!', code },
       userToken
     );
     expect(resp.status).toBe(200);
-  });
+  }, 45000);
 });

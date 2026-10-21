@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { clearEmails, extractMagicLinkCode, getLastEmail } from "../smtp-helper";
 import type { CapturedEmail } from "../smtp-helper";
-import { generateTOTP } from "../totp-helper";
+import { generateFreshTOTP } from "../totp-helper";
 import {
   startServer,
   stopServer,
@@ -10,6 +10,9 @@ import {
   BASE_URL,
   TIMEOUT,
 } from "../server-manager";
+
+// MFA flows can wait up to one real 30-second timestep for a fresh code.
+test.setTimeout(60000);
 
 const USER = "totpuser";
 const USER_EMAIL = "totpuser@test.com";
@@ -94,7 +97,7 @@ test("first password login triggers TOTP enrollment", async ({ page }) => {
   expect(secretText).toBeTruthy();
   totpSecret = secretText!.trim();
 
-  const code = generateTOTP(totpSecret);
+  const code = await generateFreshTOTP(totpSecret);
   await page.fill("#code", code);
   await page.click('button:has-text("Verify")');
 
@@ -118,7 +121,7 @@ test("password login requires TOTP", async ({ page }) => {
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("text=Setup Authenticator")).not.toBeVisible();
 
-  const code = generateTOTP(totpSecret);
+  const code = await generateFreshTOTP(totpSecret);
   await page.fill("#code", code);
   await page.click('button:has-text("Verify")');
 
@@ -166,7 +169,7 @@ test("magic link login requires TOTP", async ({ browser }) => {
   await expect(page.locator("#code")).toBeVisible({ timeout: TIMEOUT });
   await expect(page.locator("text=Setup Authenticator")).not.toBeVisible();
 
-  const totpCode = generateTOTP(totpSecret);
+  const totpCode = await generateFreshTOTP(totpSecret);
   await page.fill("#code", totpCode);
   await page.click('button:has-text("Verify")');
 

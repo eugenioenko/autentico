@@ -9,17 +9,18 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/account"
 	"github.com/eugenioenko/autentico/pkg/admin"
-	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/appsettings"
 	"github.com/eugenioenko/autentico/pkg/authorize"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/consent"
-	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/deletion"
+	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
@@ -142,6 +143,7 @@ func startTestServer(t *testing.T) *TestServer {
 	// CSRF-protected routes (using plaintext wrapper for HTTP test server)
 	mux.Handle(oauth+"/authorize", plaintextCSRF(http.HandlerFunc(authorize.HandleAuthorize)))
 	mux.Handle(oauth+"/login", plaintextCSRF(http.HandlerFunc(login.HandleLoginUser)))
+	mux.Handle(oauth+"/mfa", plaintextCSRF(http.HandlerFunc(mfa.HandleMfa)))
 	mux.Handle(oauth+"/consent", plaintextCSRF(http.HandlerFunc(consent.HandleConsent)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
 

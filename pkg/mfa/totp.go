@@ -15,6 +15,8 @@ func GenerateTotpSecret(username, issuer string) (secret string, otpauthURL stri
 	return key.Secret(), key.URL(), nil
 }
 
+// ValidateTotpCode checks only the code and time window, without replay state.
+// Authentication must use ConsumeTotpCode or VerifyPasswordGrantTotp instead.
 func ValidateTotpCode(secret, code string) bool {
 	return totp.Validate(code, secret)
 }

@@ -1,7 +1,7 @@
 import { createHmac } from "crypto";
 
-export function generateTOTP(base32Secret: string): string {
-  const time = Math.floor(Date.now() / 1000 / 30);
+export function generateTOTP(base32Secret: string, timestamp = Date.now()): string {
+  const time = Math.floor(timestamp / 1000 / 30);
   const buf = Buffer.alloc(8);
   buf.writeUInt32BE(0, 0);
   buf.writeUInt32BE(time, 4);
@@ -30,4 +30,18 @@ export function generateTOTP(base32Secret: string): string {
       (hmac[offset + 3] & 0xff)) %
     1000000;
   return code.toString().padStart(6, "0");
+}
+
+const lastGeneratedStep = new Map<string, number>();
+
+// Serial browser flows must wait for a new real timestep after successful use.
+export async function generateFreshTOTP(base32Secret: string): Promise<string> {
+  const previous = lastGeneratedStep.get(base32Secret);
+  let timestamp = Date.now();
+  while (previous !== undefined && Math.floor(timestamp / 30000) <= previous) {
+    await new Promise(resolve => setTimeout(resolve, (previous + 1) * 30000 - Date.now() + 25));
+    timestamp = Date.now();
+  }
+  lastGeneratedStep.set(base32Secret, Math.floor(timestamp / 30000));
+  return generateTOTP(base32Secret, timestamp);
 }

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { clearEmails, extractLink, waitForNewEmail } from "../smtp-helper";
-import { generateTOTP } from "../totp-helper";
+import { generateFreshTOTP } from "../totp-helper";
 import {
   startServer,
   stopServer,
@@ -9,6 +9,9 @@ import {
   BASE_URL,
   TIMEOUT,
 } from "../server-manager";
+
+// MFA flows can wait up to one real 30-second timestep for a fresh code.
+test.setTimeout(60000);
 
 test.beforeAll(async () => {
   await startServer();
@@ -86,7 +89,7 @@ test("signup → email verify → MFA enroll → login with TOTP", async ({
   expect(secretText).toBeTruthy();
   const totpSecret = secretText!.trim();
 
-  const enrollCode = generateTOTP(totpSecret);
+  const enrollCode = await generateFreshTOTP(totpSecret);
   await page.fill("#code", enrollCode);
   await page.click('button:has-text("Verify")');
 
@@ -112,7 +115,7 @@ test("signup → email verify → MFA enroll → login with TOTP", async ({
     page.locator("text=Setup Authenticator")
   ).not.toBeVisible();
 
-  const loginCode = generateTOTP(totpSecret);
+  const loginCode = await generateFreshTOTP(totpSecret);
   await page.fill("#code", loginCode);
   await page.click('button:has-text("Verify")');
 
