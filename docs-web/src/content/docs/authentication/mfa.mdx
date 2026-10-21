@@ -41,6 +41,8 @@ TOTP uses time-based one-time passwords compatible with any RFC 6238 authenticat
 2. Enter the 6-digit code from the app to confirm enrollment
 3. On all future logins, enter the code from the app
 
+Each TOTP code can be accepted only once across browser login, password grants, and account actions. Enrollment confirmation also uses up its code, so wait for the authenticator to show the next code before signing in or disabling MFA. Codes use 30-second timesteps with one timestep of clock tolerance in either direction; a previously accepted or older timestep cannot be reused.
+
 The TOTP secret is stored per-user in the database. The QR code is generated server-side — no third-party service is involved.
 
 **Issuer name** displayed in the authenticator app comes from the `theme_title` setting.

@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
+target_schema = 16
 args = parser.parse_args()
 if os.getuid() == 0:
     parser.error(
@@ -116,7 +117,7 @@ try:
         "Migration v15 applied",
     )
     db = sqlite3.connect(dbpath)
-    assert db.execute("PRAGMA user_version").fetchone()[0] == 15
+    assert db.execute("PRAGMA user_version").fetchone()[0] == target_schema
     assert db.execute("SELECT count(*) FROM tokens").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
     assert db.execute("SELECT username FROM users").fetchone()[0] == "kept-user"

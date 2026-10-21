@@ -19,6 +19,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPasswordGrantRejectsSuccessfulTotpReplay(t *testing.T) {
+	testutils.WithTestDB(t)
+	usr, err := user.CreateUser("grant-replay", "password123", "grant-replay@example.com")
+	require.NoError(t, err)
+	const secret = "JBSWY3DPEHPK3PXP"
+	require.NoError(t, user.SaveTotpSecret(usr.ID, secret))
+	insertROPCTestClient(t)
+	code, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+	for i := range 2 {
+		form := url.Values{
+			"grant_type": {"password"}, "client_id": {"ropc-test-client"},
+			"username": {"grant-replay"}, "password": {"password123"}, "totp_code": {code},
+		}
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		HandleToken(rr, req)
+		if i == 0 {
+			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		} else {
+			require.Equal(t, http.StatusForbidden, rr.Code, rr.Body.String())
+			require.Contains(t, rr.Body.String(), "invalid_mfa_code")
+		}
+	}
+	var issued int
+	require.NoError(t, db.GetDB().QueryRow("SELECT count(*) FROM tokens WHERE user_id=?", usr.ID).Scan(&issued))
+	require.Equal(t, 1, issued)
+}
+
 // TestPasswordGrantTotpBudgetAcrossIPs verifies repeated correct passwords cannot bypass MFA lockout.
 func TestPasswordGrantTotpBudgetAcrossIPs(t *testing.T) {
 	testutils.WithTestDB(t)

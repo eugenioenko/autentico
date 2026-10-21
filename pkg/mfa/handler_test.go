@@ -13,7 +13,36 @@ import (
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestHandleMfaRejectsTotpReuseOnNewChallenge(t *testing.T) {
+	id := replayUser(t)
+	testutils.InsertTestClient(t, "replay-client", []string{"http://localhost/cb"})
+	code := replayCode(t, time.Now())
+	for i, challengeID := range []string{"replay-first", "replay-second"} {
+		require.NoError(t, CreateMfaChallenge(MfaChallenge{
+			ID: challengeID, UserID: id, Method: "totp", ExpiresAt: time.Now().Add(time.Minute),
+			LoginState: `{"client_id":"replay-client","redirect_uri":"http://localhost/cb","scope":"openid"}`,
+		}))
+		form := url.Values{"challenge_id": {challengeID}, "code": {code}}
+		req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+		HandleMfa(rr, req)
+		if i == 0 {
+			require.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
+			require.Contains(t, rr.Header().Get("Location"), "http://localhost/cb")
+		} else {
+			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+			require.Contains(t, rr.Body.String(), "Invalid verification code")
+			challenge, err := MfaChallengeByIDIncludingExpired(challengeID)
+			require.NoError(t, err)
+			require.Equal(t, 1, challenge.FailedAttempts)
+		}
+	}
+	require.ErrorIs(t, VerifyPasswordGrantTotp(id, code), ErrInvalidTotp)
+}
 
 func TestHandleMfa_MissingChallengeID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/mfa", nil)
@@ -33,7 +62,7 @@ func TestHandleMfa_NotFound(t *testing.T) {
 func TestHandleMfa_GetEnroll(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -154,7 +183,7 @@ func TestHandleMfa_Post_WrongCode(t *testing.T) {
 func TestHandleMfa_ExpiredChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "expired",
 		UserID:     u.ID,
@@ -175,7 +204,7 @@ func TestHandleMfa_ExpiredChallenge(t *testing.T) {
 func TestHandleMfa_UsedChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "used",
 		UserID:     u.ID,
@@ -209,7 +238,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 	_ = user.UpdateUser(u.ID, user.UserUpdateRequest{
 		TotpVerified: boolPtr(true),
 	})
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -231,7 +260,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -309,7 +338,7 @@ func TestHandleMfa_Post_TrustDevice(t *testing.T) {
 func TestHandleMfa_Post_UnknownMethod(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -342,7 +371,7 @@ func TestHandleMfa_MethodNotAllowed(t *testing.T) {
 func TestHandleMfa_GetEmail(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -368,7 +397,7 @@ func TestHandleMfa_GetEmail(t *testing.T) {
 func TestHandleMfa_Get_UnknownMethod(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
@@ -388,7 +417,7 @@ func TestHandleMfa_Get_UnknownMethod(t *testing.T) {
 
 func TestHandleMfa_Post_ChallengeNotFound(t *testing.T) {
 	testutils.WithTestDB(t)
-	
+
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", nil)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// Use dummy form with nonexistent challenge

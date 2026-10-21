@@ -423,6 +423,7 @@ When `mfa_enabled` is `true`, all users must complete an MFA step after password
 - Users who have not yet enrolled are shown a QR code on their next login
 - The QR code can be scanned with any TOTP app (Google Authenticator, Authy, 1Password, Bitwarden, etc.)
 - Once enrolled, TOTP is required on every subsequent login (unless on a trusted device)
+- Each authenticator code can be used only once across login and account actions, including enrollment confirmation; wait for the next code before another action
 - The secret is stored per-user in the database; enrollment happens in-browser without any email or out-of-band step
 
 **Email OTP**

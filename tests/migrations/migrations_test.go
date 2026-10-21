@@ -33,7 +33,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const target = 15
+const target = 16
 
 var binary, root string
 
@@ -187,7 +187,7 @@ func schema(t *testing.T, path string) int {
 }
 func backups(t *testing.T, path string) []string {
 	t.Helper()
-	files, err := filepath.Glob(path + ".pre-v15-*.db")
+	files, err := filepath.Glob(path + fmt.Sprintf(".pre-v%d-*.db", target))
 	require.NoError(t, err)
 	return files
 }
@@ -260,12 +260,37 @@ func TestUpgradeHistoricalDatabases(t *testing.T) {
 	}
 }
 
+func TestRoutineTotpReplayUpgradePreservesSessions(t *testing.T) {
+	path, database := fixture(t, 15, "WAL", false)
+	_, err := database.Exec(`INSERT INTO users(id,username,password,totp_secret,totp_verified)
+		VALUES('routine-user','routine-user','kept-password','kept-seed',TRUE);
+		INSERT INTO tokens(id,user_id,access_token_hash,refresh_token_hash,access_token_type,refresh_token_expires_at,access_token_expires_at,scope,grant_type)
+		VALUES('routine-token','routine-user','kept-access-hash','kept-refresh-hash','Bearer',datetime('now','+1 day'),datetime('now','+1 hour'),'openid','password');
+		INSERT INTO sessions(id,user_id,access_token_hash,refresh_token_hash) VALUES('routine-session','routine-user','kept-access-hash','kept-refresh-hash')`)
+	require.NoError(t, err)
+	require.NoError(t, database.Close())
+	output, err := command(t, path, "", "migrate", "--approve-major=15")
+	require.NoError(t, err, output)
+	require.Equal(t, target, schema(t, path))
+	require.Empty(t, backups(t, path))
+	database = openDB(t, path)
+	var step int64
+	var secret, accessHash, sessionHash string
+	require.NoError(t, database.QueryRow(`SELECT totp_last_used_step,totp_secret FROM users WHERE id='routine-user'`).Scan(&step, &secret))
+	require.Equal(t, int64(-1), step)
+	require.Equal(t, "kept-seed", secret)
+	require.NoError(t, database.QueryRow(`SELECT access_token_hash FROM tokens WHERE id='routine-token'`).Scan(&accessHash))
+	require.NoError(t, database.QueryRow(`SELECT access_token_hash FROM sessions WHERE id='routine-session'`).Scan(&sessionHash))
+	require.Equal(t, "kept-access-hash", accessHash)
+	require.Equal(t, accessHash, sessionHash)
+}
+
 func TestEmptyAndFreshInstallations(t *testing.T) {
 	for _, version := range []int{0, 1, 14} {
 		t.Run(strconv.Itoa(version), func(t *testing.T) {
 			path, db := fixture(t, version, "WAL", false)
 			require.NoError(t, db.Close())
-			input := "15\n"
+			input := fmt.Sprintf("%d\n", target)
 			args := []string{"migrate"}
 			if version > 0 {
 				input = ""
@@ -291,7 +316,7 @@ func TestMajorApprovalAndStartupGate(t *testing.T) {
 		message     string
 	}{
 		{"cancel", "no\n", []string{"migrate"}, "Migration cancelled"},
-		{"numeric_confirmation", "15\n", []string{"migrate"}, "Everyone must sign in again"},
+		{"numeric_confirmation", fmt.Sprintf("%d\n", target), []string{"migrate"}, "Everyone must sign in again"},
 		{"EOF", "", []string{"migrate"}, "failed to read input"},
 		{"wrong_version", "", []string{"migrate", "--approve-major=16"}, "not a known major"},
 		{"release_instead_of_schema", "", []string{"migrate", "--approve-major=v3"}, "invalid value"},
@@ -667,7 +692,7 @@ func TestRecoveryRunsBeforeAlreadyUpToDateCheck(t *testing.T) {
 	require.Equal(t, target, schema(t, path))
 	noRecovery(t, path)
 	// Recreate a real, verified recovery record to model interruption after the
-	// final commit but before record removal. Schema 15 must not bypass recovery.
+	// final commit but before record removal. The latest schema must not bypass recovery.
 	require.NoError(t, os.WriteFile(path+".migration.json", record, 0600))
 	text, err = command(t, path, "", "start")
 	require.Error(t, err, text)
@@ -688,10 +713,10 @@ func futureCLI(t *testing.T, major bool) string {
 	sourcePath := filepath.Join(root, "pkg/db/migrations/migrations.go")
 	data, err := os.ReadFile(sourcePath)
 	require.NoError(t, err)
-	source := strings.Replace(string(data), "var SchemaVersion = 15", "var SchemaVersion = 16", 1)
-	anchor := "{Version: 15, SQL: migration015, Major: true},"
+	source := strings.Replace(string(data), fmt.Sprintf("var SchemaVersion = %d", target), fmt.Sprintf("var SchemaVersion = %d", target+1), 1)
+	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d},", target, target)
 	require.Contains(t, source, anchor)
-	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: 16, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", major), 1)
+	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: %d, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", target+1, major), 1)
 	dir := t.TempDir()
 	replacement := filepath.Join(dir, "migrations.go")
 	require.NoError(t, os.WriteFile(replacement, []byte(source), 0600))
@@ -722,18 +747,18 @@ func TestHeadlessApprovalAcrossFutureMigrations(t *testing.T) {
 				// Explicit manual routine migrations keep numeric confirmation.
 				output, err = commandWithBinary(t, executable, path, "no\n", "migrate")
 				require.NoError(t, err, output)
-				require.Contains(t, output, "Type '16'")
-				require.Equal(t, 15, schema(t, path))
+				require.Contains(t, output, fmt.Sprintf("Type '%d'", target+1))
+				require.Equal(t, target, schema(t, path))
 			}
 			output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=15")
 			if major {
 				require.Error(t, err, output)
-				require.Contains(t, output, "Major schema migrations: [16]")
-				require.Equal(t, 15, schema(t, path))
-				output, err = commandWithBinary(t, executable, path, "", "migrate", "--approve-major=16")
+				require.Contains(t, output, fmt.Sprintf("Major schema migrations: [%d]", target+1))
+				require.Equal(t, target, schema(t, path))
+				output, err = commandWithBinary(t, executable, path, "", "migrate", fmt.Sprintf("--approve-major=%d", target+1))
 			}
 			require.NoError(t, err, output)
-			require.Equal(t, 16, schema(t, path))
+			require.Equal(t, target+1, schema(t, path))
 			require.NotContains(t, output, "Type '")
 		})
 	}

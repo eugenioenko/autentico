@@ -169,7 +169,7 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 
 // DisableMfa clears the TOTP secret and marks MFA as disabled.
 func DisableMfa(userID string) error {
-	_, err := db.GetDB().Exec(`UPDATE users SET totp_secret = '', totp_verified = FALSE WHERE id = ?`, userID)
+	_, err := db.GetDB().Exec(`UPDATE users SET totp_secret = '', totp_verified = FALSE, totp_last_used_step = -1 WHERE id = ?`, userID)
 	if err != nil {
 		return fmt.Errorf("failed to disable MFA: %v", err)
 	}
@@ -177,19 +177,30 @@ func DisableMfa(userID string) error {
 }
 
 // StoreTotpSecretPending stores the TOTP secret without marking it as verified.
-// Used during the setup flow — call SaveTotpSecret after the user confirms the code.
+// Interactive setup must activate through mfa.ConfirmTotpEnrollment.
 func StoreTotpSecretPending(userID, secret string) error {
-	query := `UPDATE users SET totp_secret = ?, totp_verified = FALSE WHERE id = ?`
-	_, err := db.GetDB().Exec(query, secret, userID)
+	query := `UPDATE users SET totp_last_used_step = CASE WHEN totp_secret = ? THEN totp_last_used_step ELSE -1 END,
+        totp_secret = ?, totp_verified = FALSE WHERE id = ? AND totp_verified = FALSE AND deactivated_at IS NULL`
+	result, err := db.GetDB().Exec(query, secret, secret, userID)
 	if err != nil {
-		return fmt.Errorf("failed to store pending TOTP secret: %v", err)
+		return fmt.Errorf("failed to store pending TOTP secret: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return fmt.Errorf("TOTP enrollment changed or account is unavailable")
 	}
 	return nil
 }
 
+// SaveTotpSecret stores enrollment state without validating an OTP. Interactive
+// enrollment must use mfa.ConfirmTotpEnrollment to consume the confirmation code.
 func SaveTotpSecret(userID, secret string) error {
-	query := `UPDATE users SET totp_secret = ?, totp_verified = TRUE, two_factor_enabled = TRUE WHERE id = ?`
-	_, err := db.GetDB().Exec(query, secret, userID)
+	query := `UPDATE users SET totp_last_used_step = CASE WHEN totp_secret = ? THEN totp_last_used_step ELSE -1 END,
+        totp_secret = ?, totp_verified = TRUE, two_factor_enabled = TRUE WHERE id = ?`
+	_, err := db.GetDB().Exec(query, secret, secret, userID)
 	if err != nil {
 		return fmt.Errorf("failed to save TOTP secret: %v", err)
 	}

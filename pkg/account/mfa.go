@@ -123,14 +123,14 @@ func HandleVerifyTotp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !mfa.ValidateTotpCode(currUser.TotpSecret, req.Code) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_code", "Invalid TOTP code")
-		return
-	}
-
-	if err := user.SaveTotpSecret(usr.ID, currUser.TotpSecret); err != nil {
-		slog.Error("account: failed to save TOTP secret", "error", err, "user_id", usr.ID)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to save TOTP secret")
+	// RFC 6238 §5.2: enrollment confirmation consumes its code in the activation write.
+	if err := mfa.ConfirmTotpEnrollment(*currUser, currUser.TotpSecret, req.Code); err != nil {
+		if errors.Is(err, mfa.ErrInvalidTotp) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_code", "Invalid TOTP code or enrollment changed")
+		} else {
+			slog.Error("account: failed to confirm TOTP enrollment", "error", err, "user_id", usr.ID)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to save TOTP secret")
+		}
 		return
 	}
 
@@ -182,7 +182,17 @@ func HandleDeleteMfa(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	totpOk := req.Code != "" && mfa.ValidateTotpCode(usr.TotpSecret, req.Code)
+	// RFC 6238 §5.2: consume only after the password succeeds; a replay cannot disable MFA.
+	totpOk := false
+	if passwordOk && req.Code != "" {
+		err := mfa.ConsumeTotpCode(usr.ID, usr.TotpSecret, req.Code)
+		if err != nil && !errors.Is(err, mfa.ErrInvalidTotp) {
+			slog.Error("account: failed to persist TOTP replay state", "error", err, "user_id", usr.ID)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to verify TOTP code")
+			return
+		}
+		totpOk = err == nil
+	}
 
 	if !passwordOk || !totpOk {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_credentials", "Invalid password or TOTP code")

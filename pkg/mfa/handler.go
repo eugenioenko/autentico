@@ -3,6 +3,7 @@ package mfa
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -174,21 +175,27 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				renderEnrollPage(w, r, challenge, usr, cfg, "Missing TOTP secret")
 				return
 			}
-			if !ValidateTotpCode(totpSecret, code) {
-				slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
-				renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code")
-				return
-			}
-			if err := user.SaveTotpSecret(usr.ID, totpSecret); err != nil {
-				slog.Error("mfa: failed to save TOTP secret", "request_id", reqid.Get(r.Context()), "error", err)
-				renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again.")
+			// RFC 6238 §5.2: activate enrollment and consume its confirmation code atomically.
+			if err := ConfirmTotpEnrollment(*usr, totpSecret, code); err != nil {
+				if errors.Is(err, ErrInvalidTotp) {
+					slog.Warn("mfa: invalid TOTP code during enrollment", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
+					audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp", "phase", "enrollment"), utils.GetClientIP(r))
+					renderEnrollPage(w, r, challenge, usr, cfg, "Invalid verification code or enrollment changed. Please try again.")
+				} else {
+					slog.Error("mfa: failed to save TOTP enrollment", "request_id", reqid.Get(r.Context()), "error", err)
+					renderEnrollPage(w, r, challenge, usr, cfg, "Failed to save authenticator. Please try again.")
+				}
 				return
 			}
 			audit.Log(audit.EventMfaEnrolled, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
 		} else {
-			// Verification flow: validate against stored secret
-			if !ValidateTotpCode(usr.TotpSecret, code) {
+			// RFC 6238 §5.2: an enrolled timestep may authenticate only once.
+			if err := ConsumeTotpCode(usr.ID, usr.TotpSecret, code); err != nil {
+				if !errors.Is(err, ErrInvalidTotp) {
+					slog.Error("mfa: failed to persist TOTP replay state", "request_id", reqid.Get(r.Context()), "error", err)
+					redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
+					return
+				}
 				_ = IncrementFailedAttempts(challenge.ID)
 				slog.Warn("mfa: invalid TOTP verification code", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r), "attempts", challenge.FailedAttempts+1)
 				audit.Log(audit.EventMfaFailed, usr, audit.TargetUser, usr.ID, audit.Detail("method", "totp"), utils.GetClientIP(r))
@@ -357,8 +364,6 @@ func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaCh
 	http.Redirect(w, r, mfaURL, http.StatusFound)
 	return true
 }
-
-
 
 func renderVerifyPage(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config, errorMsg string, infoMsg string) {
 	tmpl, err := view.ParseTemplate("mfa")
