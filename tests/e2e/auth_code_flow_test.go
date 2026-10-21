@@ -757,6 +757,7 @@ func TestAuthorizationCodeFlow_ScopeExpansionOnRefresh_Rejected(t *testing.T) {
 	// Refresh and request a broader scope — must be rejected
 	refreshForm := url.Values{}
 	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("client_id", "test-client")
 	refreshForm.Set("refresh_token", tokens.RefreshToken)
 	refreshForm.Set("scope", "openid profile email") // more than "openid"
 
@@ -808,6 +809,7 @@ func TestAuthorizationCodeFlow_ScopeDownscope(t *testing.T) {
 	// Refresh with a narrower scope — must succeed
 	refreshForm := url.Values{}
 	refreshForm.Set("grant_type", "refresh_token")
+	refreshForm.Set("client_id", "test-client")
 	refreshForm.Set("refresh_token", tokens.RefreshToken)
 	refreshForm.Set("scope", "openid") // subset of "openid profile"
 

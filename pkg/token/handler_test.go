@@ -465,6 +465,7 @@ func TestHandleToken_RefreshTokenGrant(t *testing.T) {
 	// Now use refresh token to get new tokens
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
@@ -510,6 +511,7 @@ func TestHandleToken_RefreshTokenGrant_ScopeInResponse(t *testing.T) {
 	// Refresh and assert scope is present in the response
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
 	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -526,9 +528,11 @@ func TestHandleToken_RefreshTokenGrant_ScopeInResponse(t *testing.T) {
 
 func TestHandleToken_RefreshTokenGrant_MissingToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "refresh_token")
+	form.Add("client_id", "ropc-test-client")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -542,9 +546,11 @@ func TestHandleToken_RefreshTokenGrant_MissingToken(t *testing.T) {
 
 func TestHandleToken_RefreshTokenGrant_InvalidToken(t *testing.T) {
 	testutils.WithTestDB(t)
+	insertROPCTestClient(t)
 
 	form := url.Values{}
 	form.Add("grant_type", "refresh_token")
+	form.Add("client_id", "ropc-test-client")
 	form.Add("refresh_token", "invalid-refresh-token")
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form.Encode()))
@@ -592,6 +598,7 @@ func TestHandleToken_RefreshTokenGrant_SessionNotFound(t *testing.T) {
 	// Try to refresh
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
@@ -906,6 +913,7 @@ func TestHandleToken_RefreshTokenGrant_ExpiredRefreshToken(t *testing.T) {
 	// Attempt refresh with expired refresh token
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))
@@ -1357,6 +1365,8 @@ func TestHandleToken_RefreshTokenGrant_ClientMismatch(t *testing.T) {
 func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestClient(t, "auth-code-client", []string{"http://localhost/callback"})
+	_, grantErr := db.GetDB().Exec(`UPDATE clients SET grant_types='["authorization_code","refresh_token"]' WHERE client_id='auth-code-client'`)
+	require.NoError(t, grantErr)
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AuthRefreshTokenCookieOnly = false
 	})
@@ -1409,6 +1419,7 @@ func TestHandleToken_RefreshTokenGrant_UpdatesIdpSessionLastActivity(t *testing.
 	// Refresh the token.
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "auth-code-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 
 	req2 := httptest.NewRequest(http.MethodPost, "/oauth2/token", strings.NewReader(form2.Encode()))

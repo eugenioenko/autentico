@@ -28,7 +28,7 @@ func TestIsScopeSubset(t *testing.T) {
 		{"openid offline_access", "openid profile email", false}, // offline_access not in original
 		{"openid profile admin", "openid profile email", false},  // admin not in original
 		{"", "openid profile email", true},                       // empty requested = subset
-		{"openid", "", false},                                     // non-empty requested, empty original
+		{"openid", "", false},                                    // non-empty requested, empty original
 		{"openid", "openid", true},                               // exact match
 	}
 	for _, tc := range tests {
@@ -73,6 +73,7 @@ func TestHandleToken_RefreshTokenGrant_ScopeExpansion_Rejected(t *testing.T) {
 	// Refresh and request a broader scope — must be rejected
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 	form2.Add("scope", "openid profile email") // more than "openid"
 
@@ -120,6 +121,7 @@ func TestHandleToken_RefreshTokenGrant_ScopeDownscope(t *testing.T) {
 	// Refresh with a narrower scope — must succeed and return the downscoped value
 	form2 := url.Values{}
 	form2.Add("grant_type", "refresh_token")
+	form2.Add("client_id", "ropc-test-client")
 	form2.Add("refresh_token", tokenResp.RefreshToken)
 	form2.Add("scope", "openid") // subset of original "openid profile"
 
