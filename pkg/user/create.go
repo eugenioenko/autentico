@@ -20,7 +20,7 @@ func CreatePasskeyUser(username, email string) (*UserResponse, error) {
 		emailParam = email
 	}
 	query := `INSERT INTO users (id, username, email) VALUES (?, ?, ?) RETURNING created_at`
-	row := db.GetDB().QueryRow(query, id, username, emailParam)
+	row := db.GetWriteDB().QueryRow(query, id, username, emailParam)
 	if err := row.Scan(&createdAt); err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}

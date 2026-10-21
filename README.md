@@ -124,7 +124,8 @@ It is not designed for organizations that require horizontal scaling of the auth
 ### Authentication
 
 - **Three auth modes** — `password`, `password_and_passkey`, or `passkey_only` — switchable at runtime without restart
-- **Passkeys (WebAuthn)** — hardware-backed FIDO2 authentication via platform authenticators and security keys; passkey-only mode supports first-login registration in one flow
+- **Passkeys (WebAuthn)** — hardware-backed FIDO2 authentication via platform authenticators and security keys; passkey-only mode supports signup without passwords
+- **Passkey signup policy** — self-signup and client overrides apply at ceremony start and completion. Required email verification precedes sessions and authorization codes; registration is rate-limited and bound to the initiating browser.
 - **TOTP MFA** — time-based one-time passwords with in-browser QR code enrollment (no out-of-band enrollment link required)
 - **Email OTP MFA** — one-time codes delivered via SMTP
 - **Trusted Devices** — after MFA, users can mark a device as trusted for a configurable period, skipping MFA on return visits
@@ -411,7 +412,7 @@ Auténtico's `auth_mode` setting controls which credential types are accepted. I
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `password`             | Standard username + password. MFA is applied on top if `mfa_enabled` is true.                                                                                                 |
 | `password_and_passkey` | Users can authenticate with either password or a registered passkey. Password flow optionally includes MFA.                                                                   |
-| `passkey_only`         | Password authentication is disabled. Users authenticate exclusively with passkeys. First-time users are guided through passkey registration during their first login attempt. |
+| `passkey_only`         | Password authentication is disabled. Users authenticate exclusively with passkeys. New users can sign up when self-signup is enabled. |
 
 ---
 

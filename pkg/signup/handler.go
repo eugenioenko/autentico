@@ -103,6 +103,12 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		emailAddr = username
 	}
 
+	// Local verification policy requires an address even if the profile field is optional.
+	if config.Get().RequireEmailVerification && emailAddr == "" {
+		redirectSignupError(w, r, params, "Email is required for verification")
+		return
+	}
+
 	if password != confirmPassword {
 		redirectSignupError(w, r, params, "Passwords do not match")
 		return
@@ -272,22 +278,23 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 	}
 
 	data := map[string]any{
-		"State":               params.State,
-		"RedirectURI":         params.RedirectURI,
-		"ClientID":            params.ClientID,
-		"Scope":               params.Scope,
-		"Nonce":               params.Nonce,
-		"CodeChallenge":       params.CodeChallenge,
-		"CodeChallengeMethod": params.CodeChallengeMethod,
-		"AuthorizeSig":        params.AuthorizeSig,
-		"Error":               errMsg,
-		"AuthMode":            cfg.AuthMode,
-		"ProfileFieldEmail":   cfg.ProfileFieldEmail,
-		"ShowOptionalFields":  cfg.SignupShowOptionalFields,
-		csrf.TemplateTag:      csrf.TemplateField(r),
-		"ThemeTitle":          cfg.Theme.Title,
-		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
-		"ThemeTagline":        cfg.Theme.Tagline,
+		"State":                    params.State,
+		"RedirectURI":              params.RedirectURI,
+		"ClientID":                 params.ClientID,
+		"Scope":                    params.Scope,
+		"Nonce":                    params.Nonce,
+		"CodeChallenge":            params.CodeChallenge,
+		"CodeChallengeMethod":      params.CodeChallengeMethod,
+		"AuthorizeSig":             params.AuthorizeSig,
+		"Error":                    errMsg,
+		"AuthMode":                 cfg.AuthMode,
+		"ProfileFieldEmail":        cfg.ProfileFieldEmail,
+		"RequireEmailVerification": cfg.RequireEmailVerification,
+		"ShowOptionalFields":       cfg.SignupShowOptionalFields,
+		csrf.TemplateTag:           csrf.TemplateField(r),
+		"ThemeTitle":               cfg.Theme.Title,
+		"ThemeLogoUrl":             cfg.Theme.LogoUrl,
+		"ThemeTagline":             cfg.Theme.Tagline,
 		// Profile field visibility
 		"ProfileFieldGivenName":  cfg.ProfileFieldGivenName,
 		"ProfileFieldFamilyName": cfg.ProfileFieldFamilyName,

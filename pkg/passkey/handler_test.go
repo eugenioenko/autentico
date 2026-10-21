@@ -36,6 +36,8 @@ func withPasskeyConfig(t *testing.T) {
 		config.Bootstrap.AppDomain = "localhost"
 		config.Bootstrap.AppURL = "http://localhost:9999"
 		config.Values.PasskeyRPName = "Test"
+		config.Values.AuthAllowSelfSignup = true
+		config.Values.AuthMode = "password_and_passkey"
 	})
 }
 
@@ -124,6 +126,7 @@ func TestHandleLoginBegin_MissingUsername(t *testing.T) {
 
 func TestHandleLoginBegin_UnknownUser(t *testing.T) {
 	withPasskeyTestDB(t)
+	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username=nobody@example.com"), nil)
 	rr := httptest.NewRecorder()
@@ -146,10 +149,10 @@ func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "invalid username or passkey")
+	assert.Contains(t, resp["error"], "passkey login is disabled")
 }
 
 func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {
@@ -532,6 +535,7 @@ func TestHandleRegisterFinish_FailedCeremony_DeletesNewUser(t *testing.T) {
 		"/oauth2/passkey/register/finish?challenge_id=reg-challenge-pending",
 		strings.NewReader(`{"invalid":"body"}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: registrationCookieName(), Value: req.URL.Query().Get("challenge_id")})
 	rr := httptest.NewRecorder()
 	HandleRegisterFinish(rr, req)
 
@@ -565,6 +569,7 @@ func TestHandleRegisterFinish_FailedCeremony_PreservesRegisteredUser(t *testing.
 		"/oauth2/passkey/register/finish?challenge_id=reg-challenge-registered",
 		strings.NewReader(`{"invalid":"body"}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: registrationCookieName(), Value: req.URL.Query().Get("challenge_id")})
 	rr := httptest.NewRecorder()
 	HandleRegisterFinish(rr, req)
 
@@ -691,6 +696,8 @@ func TestHandleRegisterBegin_StaleIncompleteUser(t *testing.T) {
 	// Create a user with no password and no registered_at (incomplete signup)
 	username := "stale-user"
 	setupPendingPasskeyUser(t, "stale-id", username)
+	_, err := db.GetDB().Exec("UPDATE users SET created_at = datetime('now', '-10 minutes') WHERE id = 'stale-id'")
+	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet,
 		signedPasskeyURL("/oauth2/passkey/register/begin?username="+username+"&redirect_uri=http://localhost/cb&state=st1&client_id=c1&scope=openid"),

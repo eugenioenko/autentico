@@ -345,7 +345,7 @@ func TestHandleSignup_Post_RequireEmailVerification_ShowsVerifyPage(t *testing.T
 	assert.Contains(t, rr.Body.String(), "inbox")
 }
 
-func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
+func TestHandleSignup_Post_RequireEmailVerification_MissingEmail(t *testing.T) {
 	withSignupTestDB(t)
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AuthAllowSelfSignup = true
@@ -354,9 +354,7 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 		config.Values.AuthSsoSessionIdleTimeout = 0
 	})
 
-	// Pre-create user with admin role so signup flow picks it up
-	// Actually signup always creates regular users — so test with no email
-	// (no email → verification skipped even when required)
+	// A hidden profile field must not bypass required email verification.
 	form := url.Values{}
 	form.Set("username", "noemailuser")
 	form.Set("password", "password123")
@@ -373,9 +371,12 @@ func TestHandleSignup_Post_RequireEmailVerification_AdminExempt(t *testing.T) {
 
 	HandleSignup(rr, req)
 
-	// No email → verification gate skipped → redirect with auth code
+	// Return to signup without creating an account or issuing an authorization code.
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "code=")
+	assert.Contains(t, rr.Header().Get("Location"), "error=Email+is+required")
+	assert.NotContains(t, rr.Header().Get("Location"), "?code=")
+	_, err := user.UserByUsername("noemailuser")
+	assert.Error(t, err)
 }
 
 func TestHandleSignupPost_InvalidForm(t *testing.T) {
