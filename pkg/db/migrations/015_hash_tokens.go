@@ -17,6 +17,7 @@ ALTER TABLE tokens RENAME COLUMN access_token TO access_token_hash;
 ALTER TABLE tokens RENAME COLUMN refresh_token TO refresh_token_hash;
 ALTER TABLE sessions RENAME COLUMN access_token TO access_token_hash;
 ALTER TABLE sessions RENAME COLUMN refresh_token TO refresh_token_hash;
+CREATE INDEX idx_sessions_refresh_token_hash ON sessions(refresh_token_hash);
 ALTER TABLE tokens ADD COLUMN client_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE tokens ADD COLUMN acr TEXT NOT NULL DEFAULT '';
 `

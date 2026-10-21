@@ -111,6 +111,8 @@ Before an existing database undergoes a major upgrade, Autentico:
 
 If migration fails, Autentico closes SQLite, restores the pre-upgrade backup, and exits with an error. Restoration includes the original tokens and sessions, file permissions, and Unix ownership. The deployment must remain stopped until the failure is resolved and migration succeeds. If the process is interrupted, server startup refuses to use the database while the recovery record remains. Running `autentico migrate` restores the verified backup before requesting approval to retry; automation can retry with `--approve-major=15`.
 
+On Unix, a migration run as root assigns the lock file the database owner and applicable read/write permissions so the service user can restart afterward. The lock file stays in place to keep all processes locking the same file.
+
 An OS lock is released when its process exits. A leftover `.lock` file alone does not mean a migration is running. Do not remove a `.migration.json` recovery record to bypass recovery. If the backup is missing or damaged, automatic recovery stops and reports the problem rather than replacing the database with unverified data.
 
 The advisory lock coordinates binaries supporting this migration protocol. Older binaries and external SQLite tools do not honor it; stop them yourself before migrating.

@@ -185,8 +185,8 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callba
 
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), CSRF secret, and token signing secrets
-- `autentico start` — loads config, initializes DB, auto-applies pending migrations, seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
-- `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts user to type the target version number to confirm (irreversible)
+- `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; prompts for the target schema number; --approve-major=15 permits unattended schema 15 upgrades with a verified backup and rollback on failure
 - `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -293,13 +293,13 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables listed below (SchemaVersion 12):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 15):
 
 | Table | Purpose |
 |-------|---------|
 | `users` | Accounts — password hash, TOTP secret, email, lockout fields, soft delete |
-| `tokens` | Access + refresh token pairs, revocation support |
-| `sessions` | OAuth sessions — device info, `last_activity_at`, `deactivated_at`, `idp_session_id` (FK into `idp_sessions`, nullable for non-browser grants like ROPC / client_credentials) |
+| `tokens` | SHA-256 access/refresh token hashes with explicit client ID and ACR metadata; revocation support |
+| `sessions` | SHA-256 access/refresh token hashes (refresh lookup indexed); OAuth sessions — device info, `last_activity_at`, `deactivated_at`, `idp_session_id` (FK into `idp_sessions`, nullable for non-browser grants like ROPC / client_credentials) |
 | `auth_codes` | Single-use authorization codes (PKCE, nonce, `idp_session_id` carried from `/authorize` to `/oauth2/token`) |
 | `idp_sessions` | SSO browser sessions — one row per browser/device; parent of OAuth sessions via `sessions.idp_session_id`. `idpsession.DeactivateWithCascade` revokes the row + every child OAuth session + their tokens in one transaction. |
 | `mfa_challenges` | Pending TOTP/email OTP challenges |
@@ -308,6 +308,8 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables 
 | `passkey_credentials` | Registered WebAuthn credentials (JSON blob) |
 | `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) and account dashboard metadata (`show_in_account`, `client_uri`, `logo_uri`, `description`) |
 | `settings` | Key-value runtime config |
+| `device_codes` | Pending OAuth device authorization grants (migration 013) |
+| `magic_link_tokens` | Pending passwordless email login grants (migration 014) |
 | `federation_providers` | External IdP configurations for federated/social login |
 | `federated_identities` | Links between local users and external IdP accounts |
 | `deletion_requests` | User-initiated account deletion requests (admin-reviewed) |
@@ -324,17 +326,21 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 20 tables 
 
 Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expected version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go`.
 
-- `InitDB()` stamps `user_version = 1` on fresh databases (when `user_version == 0`)
-- `autentico start` calls `migrations.Run()` by default, applying pending migrations automatically on startup
+- `InitDB()` runs all migrations on fresh, empty databases; existing databases retain their current version until migration
+- `autentico start` checks `migrations.CheckAuto()` before applying routine migrations. Existing databases with pending `Major: true` upgrades are refused before any migration runs
 - `autentico start --no-auto-migrate` calls `migrations.Check()` instead — refuses to start if the DB is behind, printing a message to run `autentico migrate`
-- `autentico migrate` is the interactive migration command — shows versions, warns about irreversibility, requires typing the target version number to confirm
+- `autentico migrate` shows versions and requires typing the target schema number. Schema 15 explicitly warns that tokens, OAuth/SSO sessions, and pending login grants are discarded; accounts and enrollment remain
+- Unattended Docker deployments must stop the service, run `autentico migrate --approve-major=15`, then start it. Approval is schema-specific and never approves a later major migration; later routine upgrades stay noninteractive
+- Major migrations hold an exclusive OS lock, checkpoint WAL, close SQLite, create and verify a protected snapshot, and persist a recovery record before writes. Failed or interrupted upgrades restore the snapshot before retry. Startup refuses pending recovery
+- The persistent `.lock` file is never unlinked; Unix root-run migrations preserve database ownership on the lock so the service user can restart. `.migration.json` tracks recovery; protected backups retain old bearer tokens and need secure retention
+- SQLite file URIs use `pkg/sqliteutil` to handle Windows drives and reserved characters; CI runs the real database and CLI migration tests on Windows
 
 Migrations are the single source of truth for the schema. `001_initial_schema.go` creates all tables and is the baseline. Fresh databases run all migrations from scratch; existing databases run only pending ones.
 
 **Adding a new migration:**
 1. Increment `SchemaVersion` in `pkg/db/migrations/migrations.go`
 2. Create `pkg/db/migrations/NNN_description.go` (same package) with the SQL as a named constant, e.g. `const migration002 = \`ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''\``
-3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`
+3. Append `{Version: N, SQL: migrationNNN}` to the `migrations` slice in `migrations.go`; use `Major: true` for upgrades requiring explicit approval and protected recovery
 
 ### Testing
 

@@ -16,6 +16,24 @@ import (
 
 func ptrStr(s string) *string { return &s }
 
+func TestCreateTokenAcceptsOpaqueCredentialsWithExplicitMetadata(t *testing.T) {
+	testutils.WithTestDB(t)
+	require.NoError(t, CreateToken(Token{
+		AccessToken: "opaque-access", RefreshToken: "opaque-refresh",
+		ClientID: "explicit-client", ACR: "2", AccessTokenType: "Bearer",
+		AccessTokenExpiresAt:  time.Now().Add(time.Hour),
+		RefreshTokenExpiresAt: time.Now().Add(24 * time.Hour), IssuedAt: time.Now(),
+		Scope: "read", GrantType: "client_credentials",
+	}))
+	stored, err := TokenByAccessToken("opaque-access")
+	require.NoError(t, err)
+	require.Equal(t, "explicit-client", stored.ClientID)
+	require.Equal(t, "2", stored.ACR)
+	require.Equal(t, utils.HashToken("opaque-refresh"), stored.RefreshTokenHash)
+	_, err = TokenByAccessToken(stored.AccessTokenHash)
+	require.Error(t, err, "a stored hash is not a bearer credential")
+}
+
 func TestCreateToken(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
@@ -23,6 +41,8 @@ func TestCreateToken(t *testing.T) {
 	require.NoError(t, err)
 
 	token := Token{
+		ClientID:              issued.ClientID,
+		ACR:                   issued.ACR,
 		UserID:                ptrStr("user-1"),
 		AccessToken:           issued.AccessToken,
 		RefreshToken:          issued.RefreshToken,
@@ -55,7 +75,7 @@ func TestEmptyCredentialCannotMatchClientCredentials(t *testing.T) {
 	testutils.WithTestDB(t)
 	issued, err := GenerateClientCredentialsToken("service-client", "read", config.Get())
 	require.NoError(t, err)
-	require.NoError(t, CreateToken(Token{AccessToken: issued.AccessToken, AccessTokenType: "Bearer", AccessTokenExpiresAt: issued.AccessExpiresAt, RefreshTokenExpiresAt: issued.AccessExpiresAt, IssuedAt: time.Now(), Scope: "read", GrantType: "client_credentials"}))
+	require.NoError(t, CreateToken(Token{ClientID: issued.ClientID, ACR: issued.ACR, AccessToken: issued.AccessToken, AccessTokenType: "Bearer", AccessTokenExpiresAt: issued.AccessExpiresAt, RefreshTokenExpiresAt: issued.AccessExpiresAt, IssuedAt: time.Now(), Scope: "read", GrantType: "client_credentials"}))
 	_, err = TokenByAccessToken("")
 	require.Error(t, err)
 	require.NoError(t, RevokeByTokenValue(""))

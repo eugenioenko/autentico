@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/url"
 	"runtime"
 
 	_ "modernc.org/sqlite"
@@ -13,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db/migrations"
 	"github.com/eugenioenko/autentico/pkg/dbguard"
+	"github.com/eugenioenko/autentico/pkg/sqliteutil"
 )
 
 var (
@@ -68,7 +68,7 @@ func (d *DB) PingContext(ctx context.Context) error {
 
 // dsn builds a SQLite URI with PRAGMAs applied on every new connection.
 func dsn(dbFilePath string) string {
-	u := url.URL{Scheme: "file", Path: dbFilePath}
+	u := sqliteutil.FileURL(dbFilePath)
 	if dbFilePath == ":memory:" {
 		return "file::memory:?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 	}

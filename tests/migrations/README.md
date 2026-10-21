@@ -19,6 +19,9 @@ The Linux partial-write case uses a real kernel file-size limit and also works
 when the suite runs as root. Existing account data and TOTP enrollment must
 survive; old tokens, OAuth/SSO sessions, and pending login grants must not.
 
+CI runs the real database and CLI migration suite on both Linux and Windows,
+including paths containing spaces, Unicode, and URI-reserved characters.
+
 The migration package additionally tests routine automatic migrations and
 approval of multiple pending major migrations. Endpoint tests in
 `tests/e2e/token_storage_test.go` exercise storage, metadata, MFA refresh, and
@@ -41,6 +44,7 @@ This starts isolated containers using the Debian runtime and the newly built
 binary, with the same entrypoint, working directory, and database mount as the
 application image. It checks startup refusal, headless approval, automatic
 restoration after an injected failure, preserved host ownership, successful
-retry, application readiness, and idempotent deployment-job retry. The test
+retry, startup under the service UID after a root-run migration, and idempotent
+deployment-job retry. The test
 creates its own temporary data and Compose project and cleans them up afterward.
 An existing compatible runtime image can be supplied with `--runtime-image`.

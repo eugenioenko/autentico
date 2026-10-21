@@ -101,6 +101,8 @@ type TokenResponse struct {
 }
 
 type AuthToken struct {
+	ClientID         string
+	ACR              string
 	UserID           string
 	AccessToken      string
 	RefreshToken     string

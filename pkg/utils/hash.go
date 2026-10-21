@@ -3,7 +3,6 @@ package utils
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/eugenioenko/autentico/pkg/tokenstore"
 )
 
 func HashSHA256(s string) string {
@@ -14,5 +13,8 @@ func HashSHA256(s string) string {
 // HashToken hashes every nonempty credential, including strings that already
 // look like hashes. Empty means no refresh token (client_credentials).
 func HashToken(token string) string {
-	return tokenstore.Hash(token)
+	if token == "" {
+		return ""
+	}
+	return HashSHA256(token)
 }

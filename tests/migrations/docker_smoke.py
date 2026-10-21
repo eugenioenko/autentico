@@ -118,6 +118,26 @@ try:
     assert db.execute("SELECT username FROM users").fetchone()[0] == "kept-user"
     db.close()
     print("Docker approved retry purges sessions and preserves account", flush=True)
+    # Privileged migration must leave the persistent lock usable by the service.
+    service_user = f"{os.getuid()}:{os.getgid()}"
+    lockpath = Path(str(dbpath) + ".lock")
+    assert lockpath.stat().st_uid == os.getuid(), "migration changed lock owner"
+    call(
+        [
+            "run",
+            "--rm",
+            "-T",
+            "--user",
+            service_user,
+            "autentico",
+            "migrate",
+            "--approve-major=15",
+        ],
+        True,
+        "Already up to date",
+    )
+    config["services"]["autentico"]["user"] = service_user
+    compose.write_text(json.dumps(config))
     call(["up", "-d", "autentico"])
     address = call(["port", "autentico", "9999"]).strip()
     deadline = time.time() + 20
@@ -132,7 +152,10 @@ try:
             if time.time() > deadline:
                 raise
             time.sleep(0.1)
-    print("Docker application starts after successful migration", flush=True)
+    print(
+        "Docker service user starts after root migration using the same lock",
+        flush=True,
+    )
     call(
         ["run", "--rm", "-T", "autentico", "migrate", "--approve-major=15"],
         True,

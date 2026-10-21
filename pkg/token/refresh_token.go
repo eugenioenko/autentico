@@ -63,10 +63,12 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	err = db.GetDB().QueryRow(`SELECT revoked_at, client_id, acr, access_token_hash, COALESCE(user_id, '')
 		FROM tokens WHERE refresh_token_hash = ?`, utils.HashToken(request.RefreshToken)).Scan(
 		&revokedAt, &clientID, &acr, &accessHash, &storedUserID)
+	// RFC 6749 §6 and §5.2: validate the refresh token; missing records are invalid_grant.
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
 		return nil, fmt.Errorf("refresh token record unavailable: %w", err)
 	}
+	// RFC 6749 §6 and §10.4: enforce the token's stored client and resource-owner binding.
 	if storedUserID != authToken.UserID || sess.UserID != authToken.UserID ||
 		clientID != authToken.ClientID || sess.AccessTokenHash != accessHash ||
 		sess.RefreshTokenHash != utils.HashToken(request.RefreshToken) {

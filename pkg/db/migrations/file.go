@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 
 	"github.com/eugenioenko/autentico/pkg/dbguard"
+	"github.com/eugenioenko/autentico/pkg/sqliteutil"
 	_ "modernc.org/sqlite"
 )
 
@@ -32,7 +32,7 @@ type fileOwner struct {
 }
 
 func openFile(path string, readOnly bool) (*sql.DB, error) {
-	u := url.URL{Scheme: "file", Path: path}
+	u := sqliteutil.FileURL(path)
 	q := u.Query()
 	q.Add("_pragma", "busy_timeout(1000)")
 	q.Add("_pragma", "foreign_keys(1)")
@@ -68,11 +68,11 @@ func InspectFile(path string) (int, []int, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	var tables int
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables); err != nil {
+	populated, err := hasSchema(db)
+	if err != nil {
 		return 0, nil, err
 	}
-	if tables == 0 {
+	if !populated {
 		return version, nil, nil
 	}
 	return version, MajorVersions(version), nil
@@ -104,18 +104,34 @@ func ValidateApprovals(approved []int) error {
 	return nil
 }
 
-func requireApprovals(required, approved []int) error {
-	if err := ValidateApprovals(approved); err != nil {
-		return err
-	}
+// MissingMajorApprovals is shared by the interactive CLI and migration runner.
+func MissingMajorApprovals(required, approved []int) []int {
+	var missing []int
 	for _, version := range required {
 		found := false
 		for _, value := range approved {
 			found = found || version == value
 		}
 		if !found {
-			return fmt.Errorf("major schema migration %d requires explicit approval; run autentico migrate interactively or with --approve-major=%d", version, version)
+			missing = append(missing, version)
 		}
+	}
+	return missing
+}
+
+func hasSchema(db *sql.DB) (bool, error) {
+	var tables int
+	err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables)
+	return tables > 0, err
+}
+
+func requireApprovals(required, approved []int) error {
+	if err := ValidateApprovals(approved); err != nil {
+		return err
+	}
+	if missing := MissingMajorApprovals(required, approved); len(missing) > 0 {
+		version := missing[0]
+		return fmt.Errorf("major schema migration %d requires explicit approval; run autentico migrate interactively or with --approve-major=%d", version, version)
 	}
 	return nil
 }
@@ -130,11 +146,11 @@ func CheckAuto(db *sql.DB) error {
 	if version > SchemaVersion {
 		return fmt.Errorf("database schema v%d is newer than this binary (v%d)", version, SchemaVersion)
 	}
-	var tables int
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables); err != nil {
+	populated, err := hasSchema(db)
+	if err != nil {
 		return err
 	}
-	if tables > 0 && pendingMajor(version) {
+	if populated && pendingMajor(version) {
 		return fmt.Errorf("major database migration pending: stop Autentico and run autentico migrate; automatic upgrade is disabled")
 	}
 	return nil
@@ -187,11 +203,11 @@ func RunFile(path string, verbose bool, approvedMajors ...int) error {
 	if err != nil {
 		return err
 	}
-	var tables int
-	if err := db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tables); err != nil {
+	populated, err := hasSchema(db)
+	if err != nil {
 		return err
 	}
-	if version >= SchemaVersion || tables == 0 || !pendingMajor(version) {
+	if version >= SchemaVersion || !populated || !pendingMajor(version) {
 		if err := ValidateApprovals(approvedMajors); err != nil {
 			return err
 		}

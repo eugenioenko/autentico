@@ -9,14 +9,13 @@ import (
 )
 
 // RevokeTokensByUserAndClient sets revoked_at on all non-revoked authorization_code
-// grant tokens for the given user. Called when auth code reuse is detected per RFC 6749 §4.1.2.
-// This intentionally retains the existing user-wide replay response.
-func RevokeTokensByUserAndClient(userID, _ string) error {
+// grant tokens for the given user and client on auth code reuse (RFC 6749 §4.1.2).
+func RevokeTokensByUserAndClient(userID, clientID string) error {
 	_, err := db.GetDB().Exec(`
 		UPDATE tokens
 		SET revoked_at = ?
-		WHERE user_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
-	`, time.Now().UTC(), userID)
+		WHERE user_id = ? AND client_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
+	`, time.Now().UTC(), userID, clientID)
 	return err
 }
 

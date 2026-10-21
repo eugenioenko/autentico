@@ -234,6 +234,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 		// Store token with NULL user_id
 		ccErr = CreateToken(Token{
+			ClientID:              ccToken.ClientID,
+			ACR:                   ccToken.ACR,
 			UserID:                nil,
 			AccessToken:           ccToken.AccessToken,
 			RefreshToken:          "",
@@ -352,6 +354,8 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = CreateToken(Token{
+		ClientID:              authToken.ClientID,
+		ACR:                   authToken.ACR,
 		UserID:                &authToken.UserID,
 		AccessToken:           authToken.AccessToken,
 		RefreshToken:          authToken.RefreshToken,

@@ -6,6 +6,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+func openLock(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0600)
+}
+
+func prepareLock(_ *os.File, _ string) error { return nil }
+
 func lock(file *os.File, exclusive bool) error {
 	flags := uint32(windows.LOCKFILE_FAIL_IMMEDIATELY)
 	if exclusive {

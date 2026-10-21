@@ -36,13 +36,18 @@ func Acquire(path string, exclusive bool) (*Lock, error) {
 	if path == ":memory:" {
 		return &Lock{}, nil
 	}
-	file, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0600)
+	file, err := openLock(path + ".lock")
 	if err != nil {
 		return nil, fmt.Errorf("database lock: %w", err)
 	}
 	if err := lock(file, exclusive); err != nil {
 		_ = file.Close()
 		return nil, fmt.Errorf("database is in use; stop all Autentico instances before migrating: %w", err)
+	}
+	if err := prepareLock(file, path); err != nil {
+		_ = unlock(file)
+		_ = file.Close()
+		return nil, fmt.Errorf("database lock permissions: %w", err)
 	}
 	return &Lock{file: file}, nil
 }

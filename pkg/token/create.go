@@ -2,17 +2,12 @@ package token
 
 import (
 	"github.com/eugenioenko/autentico/pkg/db"
-	"github.com/eugenioenko/autentico/pkg/tokenstore"
 	"github.com/eugenioenko/autentico/pkg/utils"
 
 	"github.com/rs/xid"
 )
 
 func CreateToken(token Token) error {
-	claims, err := tokenstore.ReadIssuedMetadata(token.AccessToken)
-	if err != nil {
-		return err
-	}
 	query := `
 		INSERT INTO tokens (
 			id, user_id, access_token_hash, refresh_token_hash,
@@ -21,7 +16,7 @@ func CreateToken(token Token) error {
 			issued_at, scope, grant_type, revoked_at, client_id, acr
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 	`
-	_, err = db.GetDB().Exec(query,
+	_, err := db.GetDB().Exec(query,
 		xid.New().String(),
 		token.UserID,
 		utils.HashToken(token.AccessToken),
@@ -34,8 +29,8 @@ func CreateToken(token Token) error {
 		token.Scope,
 		token.GrantType,
 		token.RevokedAt,
-		claims.ClientID,
-		claims.ACR,
+		token.ClientID,
+		token.ACR,
 	)
 
 	return err

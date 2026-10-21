@@ -43,14 +43,7 @@ func RunMigrate(c *cli.Context) error {
 	fmt.Printf("  DB file: %s\n", bs.DbFilePath)
 	fmt.Println()
 	confirmation := fmt.Sprintf("%d", migrations.SchemaVersion)
-	allApproved := len(approved) > 0
-	for _, version := range majorVersions {
-		found := false
-		for _, value := range approved {
-			found = found || value == version
-		}
-		allApproved = allApproved && found
-	}
+	allApproved := len(approved) > 0 && len(migrations.MissingMajorApprovals(majorVersions, approved)) == 0
 	if len(majorVersions) > 0 {
 		fmt.Printf("Major schema migrations: %v\n", majorVersions)
 		fmt.Println("WARNING: All access/refresh tokens, OAuth/SSO sessions, and pending login grants will be invalidated. Everyone must sign in again.")

@@ -18,7 +18,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/sqliteutil"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 
 func openDB(t *testing.T, path string) *sql.DB {
 	t.Helper()
-	u := url.URL{Scheme: "file", Path: path}
+	u := sqliteutil.FileURL(path)
 	u.RawQuery = "_pragma=foreign_keys(1)&_pragma=busy_timeout(1000)"
 	db, err := sql.Open("sqlite", u.String())
 	require.NoError(t, err)
@@ -211,6 +211,10 @@ func checkPurged(t *testing.T, path string) {
 		require.NoError(t, db.QueryRow("SELECT count(*) FROM "+table).Scan(&count))
 		require.Zero(t, count, table)
 	}
+	var node, parent, unused int
+	var plan string
+	require.NoError(t, db.QueryRow(`EXPLAIN QUERY PLAN SELECT id FROM sessions WHERE refresh_token_hash = ?`, "lookup").Scan(&node, &parent, &unused, &plan))
+	require.Contains(t, plan, "USING INDEX idx_sessions_refresh_token_hash")
 	var username, password, totp, setting string
 	var verified bool
 	require.NoError(t, db.QueryRow(`SELECT username,password,totp_secret,totp_verified FROM users WHERE id='u'`).Scan(&username, &password, &totp, &verified))
