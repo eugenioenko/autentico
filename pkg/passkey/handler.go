@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -69,6 +70,11 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if status, err := registrationPolicy(q.Get("client_id"), email); err != nil {
+		writeJSONError(w, status, err.Error())
+		return
+	}
+
 	if err := user.ValidatePasskeyUserCreateRequest(user.PasskeyUserCreateRequest{
 		Username: username,
 		Email:    email,
@@ -94,13 +100,17 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusConflict, "username already taken")
 			return
 		}
-		creds, _ := PasskeyCredentialsByUserID(usr.ID)
-		if len(creds) > 0 {
+		// WebAuthn §7.1: only the initiating browser may replace a live ceremony.
+		deleted, err := deletePendingRegistration(usr.ID, registrationOwner(r))
+		if err != nil {
+			slog.Error("passkey: failed to reclaim pending registration", "request_id", reqid.Get(r.Context()), "error", err)
+			writeJSONError(w, http.StatusInternalServerError, "server_error")
+			return
+		}
+		if !deleted {
 			writeJSONError(w, http.StatusConflict, "username already taken")
 			return
 		}
-		// Stale incomplete account — delete it and start fresh.
-		_ = user.HardDeleteUser(usr.ID)
 		created, createErr := user.CreatePasskeyUser(username, email)
 		if createErr != nil {
 			slog.Error("passkey: failed to recreate user for registration", "request_id", reqid.Get(r.Context()), "error", createErr)
@@ -165,13 +175,14 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		ChallengeData: string(sessionJSON),
 		Type:          "registration",
 		LoginState:    string(stateJSON),
-		ExpiresAt:     time.Now().Add(5 * time.Minute),
+		ExpiresAt:     time.Now().Add(registrationLifetime),
 	}
 	if err := CreatePasskeyChallenge(challenge); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
 
+	setRegistrationCookie(w, challengeID)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"type":         "registration",
@@ -422,7 +433,8 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
-	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+	loginState, err := validatedLoginState(challenge.LoginState)
+	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -431,6 +443,16 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("passkey: failed to get user for registration", "request_id", reqid.Get(r.Context()), "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
+
+	if status, err := registrationPolicy(loginState.ClientID, usr.Email); err != nil {
+		writeJSONError(w, status, err.Error())
+		return
+	}
+	// WebAuthn §7.1 / RFC 6265 §4.1.2.6: bind completion to the initiating browser.
+	if registrationOwner(r) != challenge.ID {
+		writeJSONError(w, http.StatusForbidden, "registration belongs to another browser")
 		return
 	}
 
@@ -451,7 +473,10 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	// completed (registered_at is NULL). Fully registered accounts are left intact.
 	deleteIfUnregistered := func() {
 		if usr.RegisteredAt == nil {
-			_ = user.HardDeleteUser(challenge.UserID)
+			_, cleanupErr := deletePendingRegistration(challenge.UserID, registrationOwner(r))
+			if cleanupErr != nil {
+				slog.Error("passkey: failed to remove pending registration", "request_id", reqid.Get(r.Context()), "error", cleanupErr)
+			}
 		}
 	}
 
@@ -496,6 +521,16 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	audit.Log(audit.EventPasskeyAdded, usr, audit.TargetUser, usr.ID, audit.Detail("source", "registration"), utils.GetClientIP(r))
 	if isNewUser {
 		audit.Log(audit.EventUserCreated, usr, audit.TargetUser, usr.ID, audit.Detail("source", "passkey"), utils.GetClientIP(r))
+	}
+
+	setRegistrationCookie(w, "")
+	// Local verification policy: no session or authorization code before email ownership.
+	if config.Get().RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
+		if err := emailverification.SendVerification(usr, loginState.verificationParams()); err != nil {
+			slog.Error("passkey: failed to send verification email", "request_id", reqid.Get(r.Context()), "error", err)
+			writeJSONError(w, http.StatusServiceUnavailable, "failed to send verification email; log in to resend")
+			return
+		}
 	}
 
 	redirectURL, err := completeAuthFlow(w, r, usr, challenge.LoginState)
@@ -690,6 +725,14 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 	}
 
 	cfg := config.Get()
+	// Local verification policy also applies to subsequent passkey logins, including
+	// discoverable login; otherwise a new signup could bypass the verification step.
+	if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
+		if usr.Email == "" {
+			return "", fmt.Errorf("email is required for verification")
+		}
+		return emailverification.PendingURL(usr.Username, loginState.verificationParams())
+	}
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
 	authorizationCode, err := authcode.GenerateSecureCode()
@@ -745,4 +788,11 @@ func validatedLoginState(raw string) (*LoginState, error) {
 		return nil, err
 	}
 	return &state, nil
+}
+
+func (s *LoginState) verificationParams() emailverification.OAuthParams {
+	return emailverification.OAuthParams{
+		ClientID: s.ClientID, RedirectURI: s.RedirectURI, Scope: s.Scope, State: s.State,
+		Nonce: s.Nonce, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod,
+	}
 }

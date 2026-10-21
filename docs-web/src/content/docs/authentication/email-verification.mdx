@@ -5,7 +5,7 @@ description: How email verification works in Autentico, including configuration,
 
 import { Aside } from '@astrojs/starlight/components';
 
-When `require_email_verification` is enabled, users must verify their email address before they can complete the OAuth2 login flow. Unverified users are shown a verification page after login instead of receiving an authorization code.
+When `require_email_verification` is enabled, users must verify their email address before they can complete the OAuth2 login flow. Unverified users are shown a verification page after login instead of receiving an authorization code. Passkey signup and both username-based and discoverable passkey login follow this policy. Signup requires an email address even when the email profile field is hidden or optional.
 
 ## Verification flow
 

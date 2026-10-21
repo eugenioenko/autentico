@@ -363,3 +363,7 @@ Tests run with `-p 1` (sequential) to avoid SQLite conflicts.
 - API errors: `utils.ErrorResponse(w, message, statusCode, errorCode)`
 - OAuth errors: `utils.WriteErrorResponse(w, statusCode, "error_type", "description")`
 - Wrapped type: `model.ApiResponse[T]`; OAuth error type: `model.AuthErrorResponse`
+
+## Passkey signup policy
+
+Public passkey registration checks current self-signup policy (including client overrides) and passkey auth mode at begin and finish. A five-minute HttpOnly cookie binds pending registration to its browser. Required email verification gates registration and both passkey login modes before session/code issuance. The internal `/oauth2/verify-email/pending` page resumes the existing resend flow without exposing the email token. Registration routes share the authentication rate limiter.

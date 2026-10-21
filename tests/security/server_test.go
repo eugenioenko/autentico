@@ -164,6 +164,10 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("GET "+oauth+"/verify-email", plaintextCSRF(http.HandlerFunc(emailverification.HandleVerifyEmail)))
 	mux.Handle("POST "+oauth+"/resend-verification", plaintextCSRF(http.HandlerFunc(emailverification.HandleResendVerification)))
 	mux.HandleFunc("GET "+oauth+"/passkey/register/begin", passkey.HandleRegisterBegin)
+	mux.HandleFunc("POST "+oauth+"/passkey/register/finish", passkey.HandleRegisterFinish)
+	mux.HandleFunc("POST "+oauth+"/passkey/login/finish", passkey.HandleLoginFinish)
+	mux.HandleFunc("POST "+oauth+"/passkey/discoverable/finish", passkey.HandleDiscoverableLoginFinish)
+	mux.Handle("GET "+oauth+"/verify-email/pending", plaintextCSRF(http.HandlerFunc(emailverification.HandlePendingVerification)))
 	mux.HandleFunc("GET "+oauth+"/passkey/login/begin", passkey.HandleLoginBegin)
 	mux.HandleFunc("GET "+oauth+"/passkey/discoverable/begin", passkey.HandleDiscoverableLoginBegin)
 

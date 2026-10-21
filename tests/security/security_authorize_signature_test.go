@@ -158,7 +158,7 @@ func TestSignedAuthorization_RejectsInvalidConsumers(t *testing.T) {
 			p.Set("email", "new@example.com")
 			p.Set("password", "password123")
 			p.Set("confirm_password", "password123")
-			for _, path := range []string{"/oauth2/verify-email", "/oauth2/passkey/register/begin", "/oauth2/passkey/login/begin", "/oauth2/passkey/discoverable/begin"} {
+			for _, path := range []string{"/oauth2/verify-email", "/oauth2/verify-email/pending", "/oauth2/passkey/register/begin", "/oauth2/passkey/login/begin", "/oauth2/passkey/discoverable/begin"} {
 				resp, err := ts.Client.Get(ts.BaseURL + path + "?" + p.Encode())
 				require.NoError(t, err)
 				_ = resp.Body.Close()

@@ -858,3 +858,11 @@ This is analogous to the existing "public endpoints by design" decision for intr
 | Define a bounded time-skew policy | §5.2, §6 | Six-digit SHA-1, 30-second periods, ±1 timestep; every matching timestep must exceed the last successful one; advance the watermark to the newest match |
 
 Regression coverage includes sequential, concurrent and cross-path replay, enrollment and replacement, fresh timesteps, clock skew, and persistence failures. Discovery capabilities are unchanged.
+
+## WebAuthn registration policy
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST | WebAuthn §7.1 | Verify registration responses in the RP's account creation flow | ✅ Real attestation verification; self-signup/client override and auth-mode checks at begin and finish (#465). |
+| Local policy | Email verification | Do not issue a session or authorization code before required email verification | ✅ Passkey signup and both passkey login paths resume verification until the address is verified (#465). |
+| Local policy | RFC 6265 §4.1.2.5–6 | Protect browser registration ownership | ✅ Short-lived host-only HttpOnly cookie; pending-account reclamation checks ownership/expiry and completed credentials in a transaction (#465). |

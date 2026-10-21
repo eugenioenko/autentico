@@ -28,27 +28,13 @@ sequenceDiagram
 
 Challenges are short-lived (5 minutes) and single-use. The challenge data is stored in the `passkey_challenges` table.
 
-## Passkey-only first login (registration flow)
+## Passkey signup
 
-In `passkey_only` mode, users who have no registered passkeys are walked through registration on their first login:
+New accounts are created through **Create account** when `allow_self_signup` is enabled for the client and `auth_mode` is `password_and_passkey` or `passkey_only`. Both the start and completion endpoints check the current policy, including the client's self-signup override. Disabling signup during an unfinished ceremony prevents its completion. Existing users can still add passkeys through Account → Security.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Browser
-    participant IdP as Autentico
+The browser starts a ceremony at `GET /oauth2/passkey/register/begin` and submits the WebAuthn response to `POST /oauth2/passkey/register/finish`. Both endpoints use the authentication rate limiter. An HttpOnly, host-only cookie binds the five-minute registration to the initiating browser. Other browsers cannot replace a live pending account or complete its ceremony. The initiating browser can retry; abandoned usernames become available once the registration window expires.
 
-    Browser->>IdP: GET /oauth2/passkey/login/begin?username=...
-    IdP->>IdP: No credentials found + passkey_only mode
-    IdP->>Browser: { type: "registration", challenge_id, options }
-    Browser->>Browser: navigator.credentials.create(options)
-    User->>Browser: Create passkey with biometric / key
-    Browser->>IdP: POST /oauth2/passkey/register/finish?challenge_id=X
-    IdP->>IdP: Store credential — issue auth code
-    IdP->>Browser: { redirect: "redirect_uri?code=AUTH_CODE" }
-```
-
-After first login, the registered credential is stored in `passkey_credentials` and used for all subsequent logins.
+When `require_email_verification` is enabled, signup requires an email address and configured SMTP delivery. After creating the passkey, the user receives a verification email and sees the verification page. Autentico issues no session or authorization code until the email link is used. Logging in with that passkey, including discoverable login, continues to the verification page until verification succeeds. The page also offers the existing resend action if delivery failed.
 
 ## Relying party configuration
 
