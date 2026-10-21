@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/deletion"
+	"github.com/eugenioenko/autentico/pkg/devicecode"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/group"
@@ -151,6 +152,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc(oauth+"/.well-known/openid-configuration", wellknown.HandleWellKnownConfig)
 	mux.HandleFunc(oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
+	mux.HandleFunc("POST "+oauth+"/device_authorization", devicecode.HandleDeviceAuthorization)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
 	mux.HandleFunc(oauth+"/revoke", revoke.HandleRevoke)

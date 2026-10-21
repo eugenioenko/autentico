@@ -8,14 +8,22 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
-// RevokeTokensByUserAndClient sets revoked_at on all non-revoked authorization_code
-// grant tokens for the given user and client on auth code reuse (RFC 6749 §4.1.2).
+// RevokeTokensByUserAndClient revokes code/refresh tokens for a legacy grant
+// without a browser-session lineage (RFC 6749 §4.1.2).
 func RevokeTokensByUserAndClient(userID, clientID string) error {
-	_, err := db.GetDB().Exec(`
-		UPDATE tokens
-		SET revoked_at = ?
-		WHERE user_id = ? AND client_id = ? AND grant_type = 'authorization_code' AND revoked_at IS NULL
-	`, time.Now().UTC(), userID, clientID)
+	return revokeAuthorizationGrant(userID, clientID, "")
+}
+
+// revokeAuthorizationGrant follows the existing IdP-session linkage across
+// refresh rotation. Legacy codes without that linkage use a conservative
+// user/client fallback, preserving independent password grants and other clients.
+func revokeAuthorizationGrant(userID, clientID, idpSessionID string) error {
+	_, err := db.GetDB().Exec(`UPDATE tokens SET revoked_at = ?
+		WHERE user_id = ? AND client_id = ? AND revoked_at IS NULL AND (
+			(? <> '' AND access_token_hash IN (
+				SELECT access_token_hash FROM sessions WHERE idp_session_id = ?))
+			OR (? = '' AND grant_type IN ('authorization_code', 'refresh_token'))
+		)`, time.Now().UTC(), userID, clientID, idpSessionID, idpSessionID, idpSessionID)
 	return err
 }
 
@@ -51,5 +59,11 @@ func RevokeByTokenValue(tokenValue string) error {
 		SET revoked_at = ?
 		WHERE access_token_hash = ? OR refresh_token_hash = ?
 	`, time.Now().UTC(), hash, hash)
+	return err
+}
+
+// revokeRefreshFamily retains the existing account-wide refresh replay policy.
+func revokeRefreshFamily(userID string) error {
+	_, err := db.GetDB().Exec(`UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL`, time.Now().UTC(), userID)
 	return err
 }

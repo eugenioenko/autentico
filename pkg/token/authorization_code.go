@@ -28,17 +28,8 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, err
 	}
 
-	// RFC 6749 §10.6: if the code has already been used, SHOULD revoke all tokens
-	// previously issued for this authorization to limit damage from code interception.
-	if code.Used {
-		slog.Warn("token: authorization code reuse detected — revoking issued tokens", "client_id", request.ClientID, "user_id", code.UserID)
-		_ = RevokeTokensByUserAndClient(code.UserID, code.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code has already been used")
-		return nil, nil, fmt.Errorf("authorization code has already been used")
-	}
-
 	// RFC 6749 §4.1.3: redirect_uri MUST match the value used in the authorization request
-	if code.RedirectURI != request.RedirectURI || time.Now().After(code.ExpiresAt) {
+	if code.RedirectURI != request.RedirectURI {
 		slog.Warn("token: authorization code invalid or expired", "client_id", request.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has expired")
 		return nil, nil, fmt.Errorf("authorization code is invalid or has expired")
@@ -75,12 +66,22 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		}
 	}
 
-	err = authcode.MarkAuthCodeAsUsed(request.Code)
-	if err != nil {
-		slog.Error("token: failed to mark authorization code as used", "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to process authorization code")
-		return nil, nil, err
+	// RFC 6749 §10.6 / §4.1.2: if the code has already been used, SHOULD revoke all tokens
+	// previously issued for this authorization to limit damage from code interception.
+	if code.Used {
+		slog.Warn("token: authorization code reuse detected — revoking issued tokens", "client_id", request.ClientID, "user_id", code.UserID)
+		_ = revokeAuthorizationGrant(code.UserID, code.ClientID, code.IdpSessionID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code has already been used")
+		return nil, nil, fmt.Errorf("authorization code has already been used")
 	}
+
+	// RFC 6749 §4.1.2: expired codes cannot start a new exchange. Used codes
+	// above still trigger replay revocation after the caller proves their binding.
+	if time.Now().After(code.ExpiresAt) {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Authorization code is invalid or has expired")
+		return nil, nil, fmt.Errorf("authorization code has expired")
+	}
+	// Consumption is committed with token and session insertion in storeGrantTokens.
 
 	usr, err := user.UserByID(code.UserID)
 	if err != nil {

@@ -295,20 +295,6 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		if priorIdp != nil {
 			idpSessionID = *priorIdp
-			// Treat token refresh as user activity so the idle sweeper
-			// measures inactivity from last use, not from original login.
-			_ = idpsession.UpdateLastActivity(idpSessionID)
-		}
-		// RFC 6819 §5.2.2.3 / OAuth 2.1 §6.1: rotate refresh token — revoke old, issue new.
-		// The old token is invalidated so it cannot be reused. If a revoked token is
-		// later presented, UserByRefreshToken detects the replay and revokes all user tokens.
-		if _, err := db.GetDB().Exec(
-			`UPDATE tokens SET revoked_at = ? WHERE refresh_token_hash = ? AND revoked_at IS NULL`,
-			time.Now().UTC(), utils.HashToken(request.RefreshToken),
-		); err != nil {
-			slog.Error("token: failed to revoke old refresh token during rotation", "error", err)
-			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to rotate refresh token")
-			return
 		}
 		// RFC 6749 §5.1: scope must be included in the response when it may differ
 		// from what the client originally requested. Look up the scope and issued_at
@@ -358,7 +344,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = CreateToken(Token{
+	tokenRow := Token{
 		ClientID:              authToken.ClientID,
 		ACR:                   authToken.ACR,
 		UserID:                &authToken.UserID,
@@ -370,12 +356,6 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		IssuedAt:              time.Now().UTC(),
 		Scope:                 codeScope,
 		GrantType:             request.GrantType,
-	})
-
-	if err != nil {
-		slog.Error("token: failed to store token", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to store token")
-		return
 	}
 
 	sessionRow := session.Session{
@@ -390,14 +370,6 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	if idpSessionID != "" {
 		sessionRow.IdpSessionID = &idpSessionID
 	}
-	err = session.CreateSession(sessionRow)
-
-	if err != nil {
-		slog.Error("token: failed to create session", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create session")
-		return
-	}
-
 	response := TokenResponse{
 		AccessToken:  authToken.AccessToken,
 		RefreshToken: authToken.RefreshToken,
@@ -416,6 +388,34 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.IDToken = idToken
+	}
+
+	// RFC 6749 §4.1.2 / §6 and RFC 8628 §3.5: claim single-use credentials
+	// and persist their token/session pair in one transaction, after all validation.
+	if err := storeGrantTokens(request, tokenRow, sessionRow); err != nil {
+		if errors.Is(err, errGrantConsumed) {
+			var revokeErr error
+			switch request.GrantType {
+			case "authorization_code":
+				revokeErr = revokeAuthorizationGrant(usr.ID, request.ClientID, idpSessionID)
+			case "refresh_token":
+				revokeErr = revokeRefreshFamily(usr.ID)
+			}
+			if revokeErr != nil {
+				slog.Error("token: failed to revoke replayed grant", "request_id", reqid.Get(r.Context()), "error", revokeErr)
+			}
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Grant has already been used or revoked")
+		} else if errors.Is(err, errGrantExpired) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Grant has expired")
+		} else {
+			slog.Error("token: failed to persist grant issuance", "request_id", reqid.Get(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to issue tokens")
+		}
+		return
+	}
+	if request.GrantType == "refresh_token" && idpSessionID != "" {
+		// Successful refresh is user activity; failed issuance does not extend a session.
+		_ = idpsession.UpdateLastActivity(idpSessionID)
 	}
 
 	// cookie-only mode: send refresh token as HttpOnly cookie and strip from JSON response

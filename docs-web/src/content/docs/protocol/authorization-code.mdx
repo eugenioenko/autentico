@@ -90,7 +90,7 @@ https://yourapp.com/callback
   &state=RANDOM_STATE_VALUE
 ```
 
-Verify that `state` matches what you sent. The authorization code is short-lived (default 10 minutes) and single-use.
+Verify that `state` matches what you sent. The authorization code is short-lived (default 10 minutes) and single-use. Concurrent exchanges have one winner: marking the code used and saving its token/session pair happen in one transaction. A storage failure rolls back the exchange so it can be retried. Replaying a used code with valid client, redirect and PKCE proof rejects the request and revokes tokens linked to that browser session for the client, including refreshed tokens. Legacy codes without browser-session linkage use a broader user/client fallback for code and refresh grants.
 
 ## Step 4: Token exchange
 

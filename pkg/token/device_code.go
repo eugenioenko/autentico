@@ -71,8 +71,7 @@ func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request Token
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "User not found")
 			return nil, "", errGrantHandled
 		}
-		// RFC 8628 §3.5: device code is single-use; mark consumed to prevent replay
-		_ = devicecode.ConsumeDeviceCode(dc.Code)
+		// RFC 8628 §3.5: storeGrantTokens consumes the code with token/session issuance.
 		return usr, dc.Scope, nil
 	default:
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid device code status")
