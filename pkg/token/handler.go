@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -155,9 +156,19 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 				utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_required", "TOTP code is required")
 				return
 			}
-			if !mfa.ValidateTotpCode(usr.TotpSecret, request.TotpCode) {
-				slog.Warn("token: invalid MFA code (ROPC)", "request_id", reqid.Get(r.Context()), "user_id", usr.ID)
-				utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_mfa_code", "Invalid TOTP code")
+			if err := mfa.VerifyPasswordGrantTotp(usr.ID, request.TotpCode); err != nil {
+				switch {
+				case errors.Is(err, mfa.ErrTotpLocked):
+					audit.Log(audit.EventMfaFailed, nil, audit.TargetUser, usr.ID,
+						audit.Detail("method", "totp", "grant_type", "password", "reason", "account_attempts_exhausted"), utils.GetClientIP(r))
+					utils.WriteErrorResponse(w, http.StatusForbidden, "mfa_locked", err.Error())
+				case errors.Is(err, mfa.ErrInvalidTotp):
+					slog.Warn("token: invalid MFA code (ROPC)", "request_id", reqid.Get(r.Context()), "user_id", usr.ID)
+					utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_mfa_code", "Invalid TOTP code")
+				default:
+					slog.Error("token: failed to verify MFA (ROPC)", "request_id", reqid.Get(r.Context()), "error", err)
+					utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to verify TOTP code")
+				}
 				return
 			}
 		}
