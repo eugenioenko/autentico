@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_URL, OAUTH_URL, obtainTokenViaROPC, postForm, getResponse, postJSON, obtainTokenViaAuthCode, obtainAuthCodeSession, ADMIN_USERNAME, ADMIN_PASSWORD } from '../helpers';
+import { BASE_URL, OAUTH_URL, obtainTokenViaROPC, postForm, getResponse, postJSON, getAdminToken, obtainTokenViaAuthCode, obtainAuthCodeSession, ADMIN_USERNAME, ADMIN_PASSWORD } from '../helpers';
 
 describe('Logout — happy path', () => {
   it('POST with id_token_hint and IdP session cookie cascade-revokes the current device', async () => {
@@ -74,5 +74,35 @@ describe('Logout — error cases', () => {
       `${OAUTH_URL}/logout?client_id=${client.client_id}&post_logout_redirect_uri=${encodeURIComponent('http://evil.com/steal')}`
     );
     expect(resp.status).toBe(200); // No redirect, shows logout page
+  });
+});
+
+
+describe('Logout — opaque state and existing callback query', () => {
+  it('round-trips special characters without injecting callback parameters for GET and POST', async () => {
+    const admin = await getAdminToken();
+    const callback = 'http://localhost:3000/signed-out?existing=a%26b&repeat=1&repeat=2';
+    const registered = await postJSON(`${OAUTH_URL}/register`, {
+      client_id: 'logout-opaque-state', client_name: 'Opaque logout state',
+      redirect_uris: ['http://localhost:3000/callback'], post_logout_redirect_uris: [callback],
+    }, admin);
+    expect(registered.status).toBe(201);
+    for (const method of ['GET', 'POST']) {
+      for (const state of ['a&injected=1', 'space + %25 #fragment /?=é', '']) {
+        const form = { client_id: 'logout-opaque-state', post_logout_redirect_uri: callback, state };
+        const response = method === 'GET'
+          ? await getResponse(`${OAUTH_URL}/logout?${new URLSearchParams(form)}`)
+          : await postForm(`${OAUTH_URL}/logout`, form);
+        expect(response.status).toBe(302);
+        const target = new URL(response.headers.get('location')!);
+        expect(target.origin + target.pathname).toBe('http://localhost:3000/signed-out');
+        expect(target.hash).toBe('');
+        expect(target.searchParams.getAll('existing')).toEqual(['a&b']);
+        expect(target.searchParams.getAll('repeat')).toEqual(['1', '2']);
+        expect(target.searchParams.getAll('state')).toEqual(state ? [state] : []);
+        expect([...target.searchParams.keys()].sort()).toEqual(state
+          ? ['existing', 'repeat', 'repeat', 'state'] : ['existing', 'repeat', 'repeat']);
+      }
+    }
   });
 });

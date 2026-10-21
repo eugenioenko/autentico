@@ -13,8 +13,8 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
-	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
@@ -87,8 +87,9 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate redirect_uri format first
-	if !utils.IsValidRedirectURI(request.RedirectURI) {
+	// RFC 6749 §3.1.2: parse the absolute callback and preserve its query.
+	redirectURL, err := url.Parse(request.RedirectURI)
+	if err != nil || redirectURL.Scheme == "" || redirectURL.Host == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
 		return
 	}
@@ -272,12 +273,13 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "password"), utils.GetClientIP(r))
 
 	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
-	params := url.Values{}
+	params := redirectURL.Query()
 	params.Set("code", code.Code)
 	if request.State != "" {
 		params.Set("state", request.State)
 	}
-	http.Redirect(w, r, request.RedirectURI+"?"+params.Encode(), http.StatusFound)
+	redirectURL.RawQuery = params.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 // redirectToLogin redirects back to the authorize endpoint with an error message,
@@ -300,4 +302,3 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
-

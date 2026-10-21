@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -247,6 +246,22 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		redirectToLoginWithError(w, r, challenge, "Verification session has expired or could not be completed. Please log in again.")
 		return
 	}
+	// Restore login state and complete the OAuth flow
+	var loginState LoginState
+	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
+		slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again.")
+		return
+	}
+
+	// RFC 6749 §3.1.2 / §4.1.2: retain the registered callback query and
+	// form-encode code/state, returning the exact opaque state value.
+	redirectURL, err := url.Parse(loginState.RedirectURI)
+	if err != nil {
+		http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
+		return
+	}
+
 	audit.Log(audit.EventMfaSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", challenge.Method), utils.GetClientIP(r))
 
 	// Save trusted device if requested
@@ -267,14 +282,6 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 				trusteddevice.SetCookie(w, deviceID, cfg.TrustDeviceExpiration)
 			}
 		}
-	}
-
-	// Restore login state and complete the OAuth flow
-	var loginState LoginState
-	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
-		slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again.")
-		return
 	}
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
@@ -322,8 +329,11 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", loginState.RedirectURI, ac.Code, loginState.State)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	query := redirectURL.Query()
+	query.Set("code", ac.Code)
+	query.Set("state", loginState.State)
+	redirectURL.RawQuery = query.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config) bool {

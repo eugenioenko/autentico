@@ -102,17 +102,25 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §3.1.2: retain the registered callback's query on both outcomes.
+	redirectURL, err := url.Parse(params.RedirectURI)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		return
+	}
+
 	action := r.FormValue("action")
 
 	// RFC 6749 §4.1.2.1: access_denied — the resource owner denied the request
 	if action == "deny" {
-		q := url.Values{}
+		q := redirectURL.Query()
 		q.Set("error", "access_denied")
 		q.Set("error_description", "The resource owner denied the request")
 		if params.State != "" {
 			q.Set("state", params.State)
 		}
-		http.Redirect(w, r, params.RedirectURI+"?"+q.Encode(), http.StatusFound)
+		redirectURL.RawQuery = q.Encode()
+		http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 		return
 	}
 
@@ -152,12 +160,13 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectParams := url.Values{}
+	redirectParams := redirectURL.Query()
 	redirectParams.Set("code", ac.Code)
 	if params.State != "" {
 		redirectParams.Set("state", params.State)
 	}
-	http.Redirect(w, r, params.RedirectURI+"?"+redirectParams.Encode(), http.StatusFound)
+	redirectURL.RawQuery = redirectParams.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
 }
 
 func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentParams, clientName, userID string) {
