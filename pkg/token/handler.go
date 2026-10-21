@@ -358,6 +358,12 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		GrantType:             request.GrantType,
 	}
 
+	// RFC 6749 §6 / RFC 9700 §4.14.2: retain the session and replay linkage
+	// until both credentials expire, including when access outlives refresh.
+	sessionExpiresAt := authToken.AccessExpiresAt
+	if authToken.RefreshExpiresAt.After(sessionExpiresAt) {
+		sessionExpiresAt = authToken.RefreshExpiresAt
+	}
 	sessionRow := session.Session{
 		ID:           authToken.SessionID,
 		UserID:       authToken.UserID,
@@ -365,7 +371,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: authToken.RefreshToken,
 		UserAgent:    r.UserAgent(),
 		IPAddress:    utils.GetClientIP(r),
-		ExpiresAt:    authToken.AccessExpiresAt.UTC(),
+		ExpiresAt:    sessionExpiresAt.UTC(),
 	}
 	if idpSessionID != "" {
 		sessionRow.IdpSessionID = &idpSessionID

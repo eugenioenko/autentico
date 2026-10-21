@@ -939,3 +939,5 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 |-------|-----------|-------------|--------|
 | MUST | RFC 6749 §3.1.2.3 / RFC 9700 §2.1 | Compare registered redirect URIs exactly | Exact registrations retain byte-for-byte matching. The explicitly registered single-segment wildcard remains a local conformance-test compatibility extension, rather than RFC 9700 exact-match mode. Prefer exact registrations in production (#476). |
 | Local extension policy | RFC 3986 §2.3 / §5.2.4 | Keep the variable path component inside its registered boundary | ✅ One nonempty unreserved segment; reject traversal, escaping, separators and query/fragment injection. Literal scheme/host/path/query bytes remain fixed. Registration and runtime enforce the same pattern shape (#476). |
+
+Refresh rotation retains revoked token records and their original OAuth sessions until both access and refresh lifetimes plus cleanup retention have elapsed, preserving replay detection after access expiry (RFC 6749 §6; RFC 9700 §4.14.2). Existing session metadata is extended during cleanup without reactivating revoked state.

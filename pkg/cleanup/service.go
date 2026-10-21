@@ -27,8 +27,6 @@ var transientTables = []struct {
 	{"mfa_challenges", `DELETE FROM mfa_challenges WHERE expires_at < ?`},
 	{"passkey_challenges", `DELETE FROM passkey_challenges WHERE expires_at < ?`},
 	{"trusted_devices", `DELETE FROM trusted_devices WHERE expires_at < ?`},
-	{"tokens", `DELETE FROM tokens WHERE refresh_token_expires_at < ?`},
-	{"sessions", `DELETE FROM sessions WHERE expires_at < ?`},
 	{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
 	{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
 	{"magic_link_tokens", `DELETE FROM magic_link_tokens WHERE expires_at < ?`},
@@ -36,6 +34,9 @@ var transientTables = []struct {
 }
 
 func deleteExpiredTransientRows(threshold time.Time) {
+	if err := cleanTokenSessions(threshold); err != nil {
+		slog.Error("cleanup: failed to clean tokens and sessions", "error", err)
+	}
 	for _, q := range transientTables {
 		res, err := db.GetDB().Exec(q.sql, threshold)
 		if err != nil {

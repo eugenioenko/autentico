@@ -374,6 +374,8 @@ Default: `24h`
 
 Minimum age of an expired record before it is eligible for deletion. Protects very recently expired records from being purged before any in-flight operations complete.
 
+OAuth token pairs and their sessions are retained until **both access and refresh tokens have expired**, plus this retention window. Rotated or revoked token rows remain available through that period so refresh-token replay still triggers revocation. Cleanup extends older session expiry metadata to the later token expiry without changing deactivation or revocation flags; no schema migration is needed.
+
 ---
 
 ## Audit log

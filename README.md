@@ -151,7 +151,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 
 - **Built-in Admin UI** — a React/Ant Design dashboard embedded into the binary at build time; zero separate deployments
 - **Runtime settings** — most configuration lives in the database and can be updated via the Admin UI without restarting the server
-- **Background cleanup** — a configurable background goroutine purges expired tokens, sessions, auth codes, MFA challenges, and passkey challenges; the retention window is tunable
+- **Background cleanup** — a configurable background goroutine purges expired tokens, sessions, auth codes, MFA challenges, and passkey challenges; the retention window is tunable, and OAuth token/session rows survive through both token lifetimes for refresh and replay detection
 - **Graceful shutdown** — SIGTERM handling drains in-flight requests before exit
 - **Guided onboarding** — first-run setup flow that bootstraps the admin account; the server surfaces the onboarding URL at startup until complete
 - **Docker-ready** — multi-stage Dockerfile produces a minimal Alpine image with nginx for TLS termination
