@@ -2,7 +2,9 @@ package user
 
 import (
 	"testing"
+	"time"
 
+	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,6 +69,18 @@ func TestUnlockUser(t *testing.T) {
 	testutils.WithTestDB(t)
 	u, _ := CreateUser("u1", "p1", "e1@test.com")
 
-	err := UnlockUser(u.ID)
-	assert.NoError(t, err)
+	until := time.Now().Add(time.Hour)
+	_, err := db.GetDB().Exec(`UPDATE users SET failed_login_attempts = 5, locked_until = ?,
+		totp_failed_attempts = 5, totp_locked_until = ? WHERE id = ?`, until, until, u.ID)
+	require.NoError(t, err)
+	require.NoError(t, UnlockUser(u.ID))
+	var passwordFailures, totpFailures int
+	var passwordUntil, totpUntil *time.Time
+	require.NoError(t, db.GetDB().QueryRow(`SELECT failed_login_attempts, locked_until,
+		totp_failed_attempts, totp_locked_until FROM users WHERE id = ?`, u.ID).
+		Scan(&passwordFailures, &passwordUntil, &totpFailures, &totpUntil))
+	assert.Zero(t, passwordFailures)
+	assert.Zero(t, totpFailures)
+	assert.Nil(t, passwordUntil)
+	assert.Nil(t, totpUntil)
 }

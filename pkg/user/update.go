@@ -206,7 +206,8 @@ func SetRegisteredAt(id string) error {
 }
 
 func UnlockUser(id string) error {
-	query := `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
+	query := `UPDATE users SET failed_login_attempts = 0, locked_until = NULL,
+		totp_failed_attempts = 0, totp_locked_until = NULL WHERE id = ?`
 	result, err := db.GetDB().Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to unlock user: %v", err)

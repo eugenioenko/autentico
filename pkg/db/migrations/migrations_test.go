@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -300,7 +301,7 @@ func TestRun_MagicLinkAttemptsUpgrade(t *testing.T) {
 		INSERT INTO magic_link_tokens (id, user_id, token_hash, code_hash, expires_at)
 		VALUES ('upgrade-link', 'upgrade-user', 'existing-hash', 'existing-code', '2099-01-01 00:00:00')`)
 	require.NoError(t, err)
-	migrations, SchemaVersion = allMigrations, 13
+	migrations, SchemaVersion = allMigrations[:13], 13
 	require.NoError(t, Run(db, false))
 	var hash, code string
 	var attempts int
@@ -311,4 +312,27 @@ func TestRun_MagicLinkAttemptsUpgrade(t *testing.T) {
 	version, err := getUserVersion(db)
 	require.NoError(t, err)
 	assert.Equal(t, 13, version)
+}
+
+// TestRun_TotpAttemptLimitsUpgrade preserves enrolled users when upgrading schema 13.
+func TestRun_TotpAttemptLimitsUpgrade(t *testing.T) {
+	db := newTestDB(t)
+	allMigrations := migrations
+	useTestMigrations(t, allMigrations[:13])
+	require.NoError(t, Run(db, false))
+	_, err := db.Exec(`INSERT INTO users (id, username, totp_secret, totp_verified)
+		VALUES ('totp-upgrade', 'totp-upgrade', 'existing-seed', TRUE)`)
+	require.NoError(t, err)
+	migrations, SchemaVersion = allMigrations[:14], 14
+	require.NoError(t, Run(db, false))
+	var secret string
+	var verified bool
+	var attempts int
+	var lockedUntil *time.Time
+	require.NoError(t, db.QueryRow(`SELECT totp_secret, totp_verified, totp_failed_attempts, totp_locked_until
+		FROM users WHERE id = 'totp-upgrade'`).Scan(&secret, &verified, &attempts, &lockedUntil))
+	assert.Equal(t, "existing-seed", secret)
+	assert.True(t, verified)
+	assert.Zero(t, attempts)
+	assert.Nil(t, lockedUntil)
 }

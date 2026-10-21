@@ -70,6 +70,9 @@ MFA is fully enforced in the ROPC flow. When the global `require_mfa` setting is
 
 - **`mfa_required`** (HTTP 403) — returned when TOTP is enrolled but `totp_code` was not provided, or when `require_mfa` is enabled but the user has not yet enrolled in TOTP (the user must enroll via the browser login flow first)
 - **`invalid_mfa_code`** (HTTP 403) — returned when the provided `totp_code` is incorrect
+- **`mfa_locked`** (HTTP 403) — returned after five failed TOTP attempts on an account, and while its MFA cooldown is active
+
+TOTP failures have a separate account-level counter. Correct passwords and changes of source IP do not reset it. The cooldown uses `account_lockout_duration`, falling back to 15 minutes when that setting is zero or negative. After the cooldown, verification starts a new budget; successful TOTP verification or an administrator unlocking the account clears the counter. Disabling password lockout does not disable this TOTP limit.
 
 Only TOTP codes are supported in the ROPC flow. Email OTP is not available because there is no interactive session to complete the challenge. See [Multi-Factor Authentication](/authentication/mfa/) for details on MFA setup and enrollment.
 
