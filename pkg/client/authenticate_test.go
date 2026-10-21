@@ -113,9 +113,9 @@ func TestIsValidRedirectURIWildcard(t *testing.T) {
 	client, err := ClientByClientID(created.ClientID)
 	assert.NoError(t, err)
 
-	// /* wildcard: suffix is empty so HasSuffix("") is always true — matches any path under prefix
-	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/abc123/callback"))
-	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/autentico/callback"))
+	// A root wildcard matches one plain path component.
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/abc123/callback"))
+	assert.False(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/test/a/autentico/callback"))
 	assert.True(t, IsValidRedirectURI(client, "https://localhost.emobix.co.uk:8443/anything"))
 
 	// Exact match still works alongside wildcard
@@ -143,9 +143,9 @@ func TestIsValidRedirectURIWildcard_SuffixCheck(t *testing.T) {
 	client, err := ClientByClientID(created.ClientID)
 	assert.NoError(t, err)
 
-	// Must match: prefix and suffix both present
+	// A single component matches; nested paths are rejected.
 	assert.True(t, IsValidRedirectURI(client, "https://example.com/test/abc123/callback"))
-	assert.True(t, IsValidRedirectURI(client, "https://example.com/test/a/plan/callback"))
+	assert.False(t, IsValidRedirectURI(client, "https://example.com/test/a/plan/callback"))
 
 	// Must reject: extra path after the suffix (oidcc-ensure-registered-redirect-uri scenario)
 	assert.False(t, IsValidRedirectURI(client, "https://example.com/test/abc123/callback/extra"))

@@ -86,15 +86,14 @@ func IsValidRedirectURI(client *Client, redirectURI string) bool {
 
 	allowedURIs := client.GetRedirectURIs()
 	for _, uri := range allowedURIs {
-		if uri == redirectURI {
-			return true
-		}
-		if idx := strings.Index(uri, "*"); idx != -1 {
-			prefix := uri[:idx]
-			suffix := uri[idx+1:]
-			if strings.HasPrefix(redirectURI, prefix) && strings.HasSuffix(redirectURI, suffix) {
+		// RFC 9700 §2.1: compare exact registrations byte-for-byte. The explicit
+		// conformance extension permits only one plain path segment.
+		if strings.Contains(uri, "*") {
+			if matchesRedirectWildcard(uri, redirectURI) {
 				return true
 			}
+		} else if uri == redirectURI {
+			return true
 		}
 	}
 	return false

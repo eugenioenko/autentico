@@ -192,16 +192,16 @@ func (c *Client) GetResponseTypes() []string {
 // ToInfoResponse converts a Client to a ClientInfoResponse
 func (c *Client) ToInfoResponse() *ClientInfoResponse {
 	resp := &ClientInfoResponse{
-		ClientID:                c.ClientID,
-		ClientName:              c.ClientName,
-		ClientType:              c.ClientType,
-		RedirectURIs:            c.GetRedirectURIs(),
-		PostLogoutRedirectURIs:  c.GetPostLogoutRedirectURIs(),
-		GrantTypes:              c.GetGrantTypes(),
-		ResponseTypes:           c.GetResponseTypes(),
-		Scopes:                  c.Scopes,
-		TokenEndpointAuthMethod: c.TokenEndpointAuthMethod,
-		IsActive:                c.IsActive,
+		ClientID:                    c.ClientID,
+		ClientName:                  c.ClientName,
+		ClientType:                  c.ClientType,
+		RedirectURIs:                c.GetRedirectURIs(),
+		PostLogoutRedirectURIs:      c.GetPostLogoutRedirectURIs(),
+		GrantTypes:                  c.GetGrantTypes(),
+		ResponseTypes:               c.GetResponseTypes(),
+		Scopes:                      c.Scopes,
+		TokenEndpointAuthMethod:     c.TokenEndpointAuthMethod,
+		IsActive:                    c.IsActive,
 		AccessTokenExpiration:       c.AccessTokenExpiration,
 		RefreshTokenExpiration:      c.RefreshTokenExpiration,
 		AuthorizationCodeExpiration: c.AuthorizationCodeExpiration,
@@ -301,6 +301,13 @@ func ValidateRedirectURIs(uris []string) error {
 	for _, uri := range uris {
 		if err := validation.Validate(uri, validation.Required, is.URL); err != nil {
 			return err
+		}
+		// RFC 9700 §2.1: wildcard matching is only the documented, explicit
+		// single-segment conformance extension; reject broader patterns at registration.
+		if strings.Contains(uri, "*") {
+			if _, _, valid := redirectWildcardParts(uri); !valid {
+				return errors.New("redirect wildcard must occupy one complete path segment without traversal or fragments")
+			}
 		}
 	}
 	return nil

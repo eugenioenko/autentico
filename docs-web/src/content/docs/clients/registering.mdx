@@ -92,7 +92,11 @@ See [Client Types](/clients/client-types/) for details.
 ### `redirect_uris`
 **Required.**
 
-Array of allowed callback URLs. The `redirect_uri` in each authorization request must exactly match one of these values. No wildcards. Maximum 10 URIs per client.
+Array of allowed callback URLs, with a maximum of 10 URIs per client. Exact registrations require byte-for-byte matching, including their query strings. Prefer concrete callback URLs in production, as required by RFC 9700 exact-match guidance.
+
+For conformance tests with a generated run ID, an explicit compatibility extension permits one `*` as a whole path segment, for example `https://rp.example/test/*/callback`. It matches one nonempty plain identifier using only letters, digits, `-`, `.`, `_` and `~`, excluding the complete segments `.` and `..`. `run-123` matches; nested paths, percent-encoded values, backslashes, queries and fragments cannot replace the wildcard.
+
+The scheme, host, port, remaining path and any registered query string must match literally. Host/query wildcards, partial-segment wildcards and multiple wildcards are rejected. A root pattern such as `https://rp.example/*` matches one component, such as `/run-123`, rather than an arbitrary nested path. Existing broader patterns no longer match and should be replaced with explicit callback URLs or this bounded form.
 
 ### `grant_types`
 Default: `["authorization_code", "refresh_token"]`

@@ -795,7 +795,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **TLS** — always deploy behind a reverse proxy with TLS. Tokens must never travel over plaintext. Set all `*_SECURE` bootstrap flags to `true`.
 - **Secrets** — the `.env` secrets (`AUTENTICO_PRIVATE_KEY`, `*_SECRET`, `*_KEY`) must be generated fresh per deployment and stored with appropriate access controls (environment injection, secrets manager).
 - **CSRF** — `gorilla/csrf` protects all browser-facing form endpoints. The CSRF secret must be stable across restarts (so set `AUTENTICO_CSRF_SECRET_KEY` explicitly in production rather than regenerating it).
-- **Redirect URI validation** — redirect URIs are strictly matched against registered client URIs. Wildcards are not supported.
+- **Redirect URI validation** — exact registered URIs use byte-for-byte matching. A compatibility wildcard can match one plain path segment for test callbacks; host, surrounding path and query remain fixed.
 - **Client secrets** — stored as bcrypt hashes. The plaintext is only available at registration time.
 - **Verification resend privacy** — accepted resend requests use one generic response and delay policy; SMTP delivery runs in the background with bounded concurrency and operation timeouts.
 - **Opaque redirect state** — authorization and logout callbacks URL-encode state and preserve existing callback query parameters.
