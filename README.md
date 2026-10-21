@@ -797,6 +797,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **CSRF** — `gorilla/csrf` protects all browser-facing form endpoints. The CSRF secret must be stable across restarts (so set `AUTENTICO_CSRF_SECRET_KEY` explicitly in production rather than regenerating it).
 - **Redirect URI validation** — redirect URIs are strictly matched against registered client URIs. Wildcards are not supported.
 - **Client secrets** — stored as bcrypt hashes. The plaintext is only available at registration time.
+- **Token introspection** — access and refresh tokens are checked against their own expiry, and `exp` reports the submitted token's lifetime.
 - **Password hashing** — user passwords are bcrypt-hashed.
 - **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit single-account brute-force exposure.
 - **Rate limiting** — built-in two-tier per-IP rate limiter on `/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, and `/oauth2/passkey/login/finish`. A per-second limit (default 5 rps / burst 10) stops rapid bursts; a per-minute limit (default 20 rpm / burst 20) caps sustained enumeration. Set `AUTENTICO_RATE_LIMIT_RPS=0` to disable both.

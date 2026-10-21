@@ -45,10 +45,26 @@ func IntrospectToken(tokenID string) (*token.Token, error) {
 		return nil, errors.New("token has been revoked")
 	}
 
-	// RFC 7662 §4: if the token can expire, the server MUST check expiry
-	if time.Now().After(t.AccessTokenExpiresAt) {
+	// RFC 7662 §4 / §2.2: check this credential at the same whole-second
+	// precision as its signed JWT exp and the introspection response.
+	if tokenExpired(&t, hash, time.Now()) {
 		return nil, errors.New("token has expired")
 	}
 
 	return &t, nil
+}
+
+// tokenExpiration selects the lifetime of the presented credential after its
+// hash has matched the stored token pair (RFC 7662 §2.2 and §4).
+func tokenExpiration(t *token.Token, presentedHash string) time.Time {
+	if presentedHash == t.AccessTokenHash {
+		return t.AccessTokenExpiresAt
+	}
+	return t.RefreshTokenExpiresAt
+}
+
+// tokenExpired uses JWT exp precision and accepts now explicitly so both sides
+// of the expiration-second boundary can be tested without a wall-clock race.
+func tokenExpired(t *token.Token, presentedHash string, now time.Time) bool {
+	return now.Unix() >= tokenExpiration(t, presentedHash).Unix()
 }

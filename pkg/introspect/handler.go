@@ -156,7 +156,8 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
-	// Optional response fields retain their existing API representation.
+	// Optional response fields retain their existing API representation; exp follows
+	// the expiry of the presented access or refresh credential (RFC 7662 §2.2).
 	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")
 	sub := ""
 	if tkn.UserID != nil {
@@ -166,7 +167,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		Active:    true,
 		Scope:     tkn.Scope,
 		TokenType: tkn.AccessTokenType,
-		Exp:       tkn.AccessTokenExpiresAt.Unix(),
+		Exp:       tokenExpiration(tkn, utils.HashToken(req.Token)).Unix(),
 		Iat:       tkn.IssuedAt.Unix(),
 		Sub:       sub,
 		Iss:       config.GetBootstrap().AppAuthIssuer,

@@ -13,6 +13,8 @@ The introspection endpoint lets a resource server verify whether a token is vali
 POST /oauth2/introspect
 ```
 
+Both access and refresh tokens can be introspected. Each token is checked against its own expiration time, and an active response reports that time in `exp`. An unexpired refresh token can remain active after its paired access token expires; an expired refresh token is inactive even while the access token remains valid. Revocation, session and user checks still apply.
+
 ### Authentication
 
 The introspection endpoint requires one of two forms of authentication per RFC 7662 Section 2.1:
