@@ -17,7 +17,7 @@ sequenceDiagram
     participant ExtIdP as External Provider
 
     User->>Browser: Click "Sign in with Google"
-    Browser->>IdP: GET /oauth2/federation/{id}/begin?client_id=X&...
+    Browser->>IdP: GET /oauth2/federation/{id}?client_id=X&...
     IdP->>Browser: 302 -> External provider authorize URL
     Browser->>ExtIdP: Authorization request
     ExtIdP->>Browser: Login + consent at external provider
@@ -29,6 +29,8 @@ sequenceDiagram
 ```
 
 The OAuth2 authorization parameters (client_id, redirect_uri, scope, state, code_challenge) are preserved through the federation flow using an HMAC-signed state parameter.
+
+Federation requires an active registered client, an allowed redirect URI and scopes, and permission to use the authorization code flow. Public clients must supply PKCE; the configured S256 policy also applies. These checks run before contacting the external provider and again before issuing a local authorization code, so removing a redirect URI or disabling a client also blocks an in-progress login. Codes without a client binding cannot be exchanged.
 
 ## User resolution
 
@@ -131,7 +133,7 @@ These endpoints are used during the login flow and are not authenticated.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `{oauth_path}/federation/{id}/begin` | Start federation login (redirects to external provider) |
+| `GET` | `{oauth_path}/federation/{id}` | Start federation login (redirects to external provider) |
 | `GET` | `{oauth_path}/federation/{id}/callback` | Handle callback from external provider |
 | `GET` | `{oauth_path}/federation/{id}/icon` | Serve the provider's SVG icon |
 
@@ -140,7 +142,7 @@ These endpoints are used during the login flow and are not authenticated.
 The begin endpoint accepts the standard OAuth2 authorization parameters as query strings so they can be preserved through the external provider redirect:
 
 ```
-GET /oauth2/federation/google/begin?client_id=my-app&redirect_uri=https://app.example.com/callback&scope=openid+profile+email&state=abc123&code_challenge=...&code_challenge_method=S256
+GET /oauth2/federation/google?client_id=my-app&redirect_uri=https://app.example.com/callback&scope=openid+profile+email&state=abc123&code_challenge=...&code_challenge_method=S256
 ```
 
 ## Provider icon security

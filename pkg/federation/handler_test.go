@@ -115,6 +115,7 @@ func TestRandomPassword(t *testing.T) {
 
 func TestHandleFederationCallback_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	// 1. Mock OIDC Provider
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -156,10 +157,11 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 
 	// 3. Prepare state
 	state := FederationState{
-		ProviderID:  "mock",
-		RedirectURI: "http://localhost/cb",
-		ClientID:    "c1",
-		State:       "xyz",
+		ProviderID:    "mock",
+		RedirectURI:   "http://localhost/cb",
+		ClientID:      "c1",
+		CodeChallenge: "challenge",
+		State:         "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -175,6 +177,7 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 
 func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	// 1. Mock OIDC Provider
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -209,10 +212,11 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 
 	// 4. Prepare state
 	state := FederationState{
-		ProviderID:  "mock",
-		RedirectURI: "http://localhost/cb",
-		ClientID:    "c1",
-		State:       "xyz",
+		ProviderID:    "mock",
+		RedirectURI:   "http://localhost/cb",
+		ClientID:      "c1",
+		CodeChallenge: "challenge",
+		State:         "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -230,6 +234,7 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 
 func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	// 1. Mock OIDC Provider
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -262,10 +267,11 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 
 	// 4. Prepare state
 	state := FederationState{
-		ProviderID:  "mock",
-		RedirectURI: "http://localhost/cb",
-		ClientID:    "c1",
-		State:       "xyz",
+		ProviderID:    "mock",
+		RedirectURI:   "http://localhost/cb",
+		ClientID:      "c1",
+		CodeChallenge: "challenge",
+		State:         "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -281,6 +287,7 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 
 func TestHandleFederationCallback_Errors_Extra(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	// Case 1: Missing code or state
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/p1/callback", nil)
@@ -309,6 +316,9 @@ func TestHandleFederationCallback_Errors_Extra(t *testing.T) {
 
 	// Case 4: Provider not found or disabled
 	state.ProviderID = "p1"
+	state.ClientID = "c1"
+	state.RedirectURI = "http://localhost/cb"
+	state.CodeChallenge = "challenge"
 	signedState, _ = SignState(state)
 	req = httptest.NewRequest(http.MethodGet, "/oauth2/federation/p1/callback?code=c&state="+signedState, nil)
 	req.SetPathValue("id", "p1")
@@ -433,6 +443,7 @@ func TestHandleFederationIcon(t *testing.T) {
 
 func TestHandleFederationBegin_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	// 1. Mock OIDC Issuer
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -458,7 +469,7 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 	})
 
 	// 3. Begin federation
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?redirect_uri=http://localhost/cb", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb", nil)
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 	HandleFederationBegin(rr, req)
@@ -471,6 +482,7 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 
 func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/openid-configuration" {
@@ -492,7 +504,7 @@ func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
 	})
 
 	begin := func(query string) *FederationState {
-		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?redirect_uri=http://localhost/cb"+query, nil)
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb"+query, nil)
 		req.SetPathValue("id", "mock")
 		rr := httptest.NewRecorder()
 		HandleFederationBegin(rr, req)
@@ -511,16 +523,18 @@ func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
 
 func TestCompleteAuthFlow_UsesClientNonce(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 
 	usr, err := user.CreateUser("nonceuser", "Password123!", "nonce@test.com")
 	require.NoError(t, err)
 
 	state := &FederationState{
-		Nonce:       "client-nonce",
-		ProviderID:  "mock",
-		RedirectURI: "http://localhost/cb",
-		ClientID:    "c1",
-		State:       "xyz",
+		Nonce:         "client-nonce",
+		CodeChallenge: "challenge",
+		ProviderID:    "mock",
+		RedirectURI:   "http://localhost/cb",
+		ClientID:      "c1",
+		State:         "xyz",
 	}
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback", nil)
 	rr := httptest.NewRecorder()

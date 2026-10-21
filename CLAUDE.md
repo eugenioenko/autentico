@@ -220,7 +220,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/deletion` | Account deletion requests — user-initiated, admin-reviewed |
 | `pkg/email` | Email sending (SMTP) — OTP codes, password reset, email verification |
 | `pkg/emailverification` | Email verification flow — send verification link, confirm token |
-| `pkg/federation` | Federated/social login providers (external IdP integration) |
+| `pkg/federation` | Federated/social login providers; validate current client, redirect, scopes and PKCE at begin, callback and code issuance through `client.ValidateAuthorization` |
 | `pkg/group` | User groups — CRUD, membership management |
 | `pkg/health` | Health check endpoint (`/health`) |
 | `pkg/idpsession` | IdP-level SSO sessions — cross-request browser sessions, idle timeout enforcement |
