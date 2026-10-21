@@ -30,7 +30,7 @@ Challenges are short-lived (5 minutes) and single-use. The challenge data is sto
 
 ## Passkey signup
 
-New accounts are created through **Create account** when `allow_self_signup` is enabled for the client and `auth_mode` is `password_and_passkey` or `passkey_only`. Both the start and completion endpoints check the current policy, including the client's self-signup override. Disabling signup during an unfinished ceremony prevents its completion. Existing users can still add passkeys through Account → Security.
+New accounts are created through **Create account** when `allow_self_signup` is enabled for the client and `auth_mode` is `password_and_passkey` or `passkey_only`. Both the start and completion endpoints check the current policy, including the client's self-signup override. Disabling signup during an unfinished ceremony prevents its completion. Switching to `password` also blocks named and discoverable passkey login, including ceremonies already in progress; disabling signup alone still permits existing-user login. Existing users can still add passkeys through Account → Security.
 
 The browser starts a ceremony at `GET /oauth2/passkey/register/begin` and submits the WebAuthn response to `POST /oauth2/passkey/register/finish`. Both endpoints use the authentication rate limiter. An HttpOnly, host-only cookie binds the five-minute registration to the initiating browser. Other browsers cannot replace a live pending account or complete its ceremony. The initiating browser can retry; abandoned usernames become available once the registration window expires.
 

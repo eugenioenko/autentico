@@ -126,6 +126,7 @@ func TestHandleLoginBegin_MissingUsername(t *testing.T) {
 
 func TestHandleLoginBegin_UnknownUser(t *testing.T) {
 	withPasskeyTestDB(t)
+	withPasskeyConfig(t)
 
 	req := httptest.NewRequest(http.MethodGet, signedPasskeyURL("/oauth2/passkey/login/begin?username=nobody@example.com"), nil)
 	rr := httptest.NewRecorder()
@@ -148,10 +149,10 @@ func TestHandleLoginBegin_NoCreds_PasswordMode(t *testing.T) {
 	rr := httptest.NewRecorder()
 	HandleLoginBegin(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 	var resp map[string]string
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Contains(t, resp["error"], "invalid username or passkey")
+	assert.Contains(t, resp["error"], "passkey login is disabled")
 }
 
 func TestHandleLoginBegin_NoCreds_PasswordAndPasskeyMode(t *testing.T) {

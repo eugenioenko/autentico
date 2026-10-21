@@ -232,6 +232,10 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requirePasskeyLogin(w) {
+		return
+	}
+
 	usr, err := user.UserByUsername(username)
 	if err != nil {
 		// Prevent timing-based user enumeration
@@ -345,6 +349,10 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
 	if _, err := validatedLoginState(challenge.LoginState); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !requirePasskeyLogin(w) {
 		return
 	}
 
@@ -569,6 +577,10 @@ func HandleDiscoverableLoginBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requirePasskeyLogin(w) {
+		return
+	}
+
 	loginState := LoginState{
 		RedirectURI:         q.Get("redirect_uri"),
 		State:               q.Get("state"),
@@ -662,6 +674,10 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !requirePasskeyLogin(w) {
+		return
+	}
+
 	wauthn, err := NewWebAuthn()
 	if err != nil {
 		slog.Error("passkey: failed to initialize WebAuthn", "request_id", reqid.Get(r.Context()), "error", err)
@@ -725,6 +741,10 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 	}
 
 	cfg := config.Get()
+	// Local authentication policy: disabled passkeys cannot issue sessions or codes.
+	if !passkeyLoginEnabled() {
+		return "", fmt.Errorf("passkey login is disabled")
+	}
 	// Local verification policy also applies to subsequent passkey logins, including
 	// discoverable login; otherwise a new signup could bypass the verification step.
 	if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
@@ -795,4 +815,18 @@ func (s *LoginState) verificationParams() emailverification.OAuthParams {
 		ClientID: s.ClientID, RedirectURI: s.RedirectURI, Scope: s.Scope, State: s.State,
 		Nonce: s.Nonce, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod,
 	}
+}
+
+func passkeyLoginEnabled() bool {
+	mode := config.Get().AuthMode
+	return mode == "password_and_passkey" || mode == "passkey_only"
+}
+
+func requirePasskeyLogin(w http.ResponseWriter) bool {
+	// WebAuthn §7.2: the RP's accepted-credential policy applies before authentication.
+	if !passkeyLoginEnabled() {
+		writeJSONError(w, http.StatusForbidden, "passkey login is disabled")
+		return false
+	}
+	return true
 }

@@ -292,3 +292,51 @@ func TestPasskeySignup_EmailDeliveryFailureDoesNotAuthenticate(t *testing.T) {
 	redirect := finishSignupCeremony(t, ts, "/oauth2/passkey/login/finish", id, authenticator.response(t, ts.BaseURL, challenge, usr.ID, false))
 	require.Contains(t, redirect, "/verify-email/pending?")
 }
+
+func TestPasskeyLogin_RechecksAuthenticationMode(t *testing.T) {
+	for _, mode := range []string{"login", "discoverable"} {
+		t.Run(mode, func(t *testing.T) {
+			ts := startTestServer(t)
+			testutils.WithConfigOverride(t, func() {
+				config.Values.AuthAllowSelfSignup = true
+				config.Values.AuthMode = "passkey_only"
+				config.Bootstrap.AppDomain = "127.0.0.1"
+			})
+			p := browserAuthorization(t, ts)
+			p.Set("username", "mode-change-user")
+			id, challenge := beginSignupCeremony(t, ts, "/oauth2/passkey/register/begin", p)
+			usr, err := user.UserByUsername(p.Get("username"))
+			require.NoError(t, err)
+			authenticator := newSignupAuthenticator(t)
+			finishSignupCeremony(t, ts, "/oauth2/passkey/register/finish", id, authenticator.response(t, ts.BaseURL, challenge, usr.ID, true))
+			// Closing signup must leave existing-user login available.
+			config.Values.AuthAllowSelfSignup = false
+			id, challenge = beginSignupCeremony(t, ts, "/oauth2/passkey/"+mode+"/begin", p)
+			body := authenticator.response(t, ts.BaseURL, challenge, usr.ID, false)
+			config.Values.AuthMode = "password"
+			resp, err := ts.Client.Post(ts.BaseURL+"/oauth2/passkey/"+mode+"/finish?challenge_id="+id, "application/json", bytes.NewReader(body))
+			require.NoError(t, err)
+			_ = resp.Body.Close()
+			require.Equal(t, 403, resp.StatusCode)
+			var used bool
+			require.NoError(t, db.GetDB().QueryRow("SELECT used FROM passkey_challenges WHERE id=?", id).Scan(&used))
+			require.False(t, used)
+			var lastUsed *time.Time
+			require.NoError(t, db.GetDB().QueryRow("SELECT last_used_at FROM passkey_credentials WHERE user_id=?", usr.ID).Scan(&lastUsed))
+			require.Nil(t, lastUsed, "rejection must precede credential mutation")
+			for _, table := range []string{"auth_codes", "idp_sessions"} {
+				var n int
+				require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*) FROM "+table).Scan(&n))
+				require.Equal(t, 1, n, "only the initial signup may issue authorization state")
+			}
+			resp, err = ts.Client.Get(ts.BaseURL + "/oauth2/passkey/" + mode + "/begin?" + p.Encode())
+			require.NoError(t, err)
+			_ = resp.Body.Close()
+			require.Equal(t, 403, resp.StatusCode)
+			// Restoring passkeys permits the still-unused assertion, with signup closed.
+			config.Values.AuthMode = "password_and_passkey"
+			redirect := finishSignupCeremony(t, ts, "/oauth2/passkey/"+mode+"/finish", id, body)
+			require.Contains(t, redirect, "code=")
+		})
+	}
+}

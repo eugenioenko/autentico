@@ -73,8 +73,16 @@ func deletePendingRegistration(userID, owner string) (bool, error) {
 		return false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	deleted, err := deletePendingRegistrationTx(tx, userID, owner)
+	if err != nil || !deleted {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
+func deletePendingRegistrationTx(tx *sql.Tx, userID, owner string) (bool, error) {
 	var createdAt time.Time
-	err = tx.QueryRow(`SELECT created_at FROM users WHERE id = ?
+	err := tx.QueryRow(`SELECT created_at FROM users WHERE id = ?
 		AND registered_at IS NULL AND (password IS NULL OR password = '') AND deactivated_at IS NULL
 		AND NOT EXISTS (SELECT 1 FROM passkey_credentials WHERE user_id = users.id)`, userID).Scan(&createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -113,5 +121,5 @@ func deletePendingRegistration(userID, owner string) (bool, error) {
 	if _, err := tx.Exec(`DELETE FROM users WHERE id = ?`, userID); err != nil {
 		return false, err
 	}
-	return true, tx.Commit()
+	return true, nil
 }

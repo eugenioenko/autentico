@@ -200,3 +200,62 @@ func TestPasskeyUnverifiedLoginCannotIssueSession(t *testing.T) {
 		require.Zero(t, n, table)
 	}
 }
+
+// Hold the writer connection so the competing operation is observably queued.
+// This exercises both commit orders without relying on scheduler timing.
+func TestPendingRegistrationConcurrentCredentialSave(t *testing.T) {
+	for _, saveFirst := range []bool{true, false} {
+		name := "reclamation commits first"
+		if saveFirst {
+			name = "credential save commits first"
+		}
+		t.Run(name, func(t *testing.T) {
+			withPasskeyTestDB(t)
+			withPasskeyConfig(t)
+			_, cookie, userID := beginOwnedRegistration(t, "concurrent-user", nil)
+			credential := PasskeyCredential{ID: "concurrent-credential", UserID: userID, Name: "saved", Credential: "{}"}
+			tx, err := db.GetDB().Begin()
+			require.NoError(t, err)
+			defer func() { _ = tx.Rollback() }()
+			waits := db.GetWriteDB().Stats().WaitCount
+			if saveFirst {
+				_, err = tx.Exec(`INSERT INTO passkey_credentials (id,user_id,name,credential) VALUES (?,?,?,?)`, credential.ID, userID, credential.Name, credential.Credential)
+				require.NoError(t, err)
+				type result struct {
+					deleted bool
+					err     error
+				}
+				resultCh := make(chan result, 1)
+				go func() {
+					deleted, err := deletePendingRegistration(userID, cookie.Value)
+					resultCh <- result{deleted, err}
+				}()
+				require.Eventually(t, func() bool { return db.GetWriteDB().Stats().WaitCount > waits }, time.Second, time.Millisecond)
+				require.NoError(t, tx.Commit())
+				outcome := <-resultCh
+				require.NoError(t, outcome.err)
+				require.False(t, outcome.deleted, "even the matching owner cannot delete a saved credential")
+				usr, err := user.UserByID(userID)
+				require.NoError(t, err)
+				require.Nil(t, usr.RegisteredAt, "credential must protect the window before registered_at is set")
+				_, err = PasskeyByID(credential.ID)
+				require.NoError(t, err)
+			} else {
+				deleted, err := deletePendingRegistrationTx(tx, userID, cookie.Value)
+				require.NoError(t, err)
+				require.True(t, deleted)
+				resultCh := make(chan error, 1)
+				go func() { resultCh <- CreatePasskeyCredential(credential) }()
+				require.Eventually(t, func() bool { return db.GetWriteDB().Stats().WaitCount > waits }, time.Second, time.Millisecond)
+				require.NoError(t, tx.Commit())
+				require.ErrorContains(t, <-resultCh, "FOREIGN KEY", "old finish must not attach its credential to a replacement account")
+				replacement, err := user.CreatePasskeyUser("concurrent-user", "replacement@example.com")
+				require.NoError(t, err)
+				require.NotEqual(t, userID, replacement.ID)
+				credentials, err := PasskeyCredentialsByUserID(replacement.ID)
+				require.NoError(t, err)
+				require.Empty(t, credentials)
+			}
+		})
+	}
+}
