@@ -9,6 +9,10 @@ import {
 } from '../helpers';
 
 const SETTINGS_API = `${BASE_URL}/admin/api/settings`;
+const PKCE_PARAMS = {
+  code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+  code_challenge_method: 'S256',
+};
 
 async function enableMagicLink(token: string) {
   const resp = await putJSON(SETTINGS_API, {
@@ -35,6 +39,7 @@ function magicLinkURL(extra?: Record<string, string>) {
     redirect_uri: ADMIN_REDIRECT_URI,
     state: 'ml-test-state',
     scope: 'openid profile email',
+    ...PKCE_PARAMS,
     ...extra,
   });
   return `${OAUTH_URL}/magic-link?${params}`;
@@ -46,9 +51,8 @@ function authorizeURL() {
     client_id: ADMIN_CLIENT_ID,
     redirect_uri: ADMIN_REDIRECT_URI,
     scope: 'openid profile email',
+    ...PKCE_PARAMS,
     state: 'ml-test-state',
-    code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
-    code_challenge_method: 'S256',
   });
   return `${OAUTH_URL}/authorize?${params}`;
 }
@@ -96,6 +100,17 @@ describe('Magic Link — enabled', () => {
     expect(body).toContain('name="email"');
   });
 
+  it.each<Record<string, string>>([
+    { redirect_uri: 'https://attacker.example/steal' },
+    { client_id: 'unknown-client' },
+    { code_challenge: '' },
+  ])('does not sign invalid authorization parameters: %j', async (invalid) => {
+    const resp = await fetch(magicLinkURL(invalid), { redirect: 'manual' });
+    expect(resp.status).toBe(400);
+    expect(resp.headers.get('location')).toBeNull();
+    expect(await resp.text()).not.toContain('name="authorize_sig"');
+  });
+
   it('login page shows magic link button when enabled', async () => {
     const resp = await fetch(authorizeURL(), { redirect: 'manual' });
     expect(resp.status).toBe(200);
@@ -133,6 +148,7 @@ describe('Magic Link — enabled', () => {
         redirect_uri: ADMIN_REDIRECT_URI,
         state: 'ml-test-state',
         scope: 'openid profile email',
+        ...PKCE_PARAMS,
       }),
       redirect: 'manual',
     });
@@ -167,6 +183,7 @@ describe('Magic Link — enabled', () => {
         redirect_uri: ADMIN_REDIRECT_URI,
         state: 'ml-test-state',
         scope: 'openid profile email',
+        ...PKCE_PARAMS,
       }),
       redirect: 'manual',
     });
@@ -191,6 +208,7 @@ describe('Magic Link — enabled', () => {
       redirect_uri: ADMIN_REDIRECT_URI,
       state: 'ml-test-state',
       scope: 'openid profile email',
+      ...PKCE_PARAMS,
     });
     const resp = await fetch(`${OAUTH_URL}/magic-link/verify?${params}`, { redirect: 'manual' });
     expect(resp.status).toBe(200);
@@ -221,6 +239,7 @@ describe('Magic Link — enabled', () => {
         redirect_uri: ADMIN_REDIRECT_URI,
         state: 'ml-test-state',
         scope: 'openid profile email',
+        ...PKCE_PARAMS,
       }),
       redirect: 'manual',
     });
