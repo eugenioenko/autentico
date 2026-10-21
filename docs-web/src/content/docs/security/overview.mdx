@@ -28,7 +28,7 @@ import { Aside } from '@astrojs/starlight/components';
 ## Client registration
 
 - **Principle of least privilege**: Only grant clients the grant types they actually use.
-- **Exact redirect URIs**: Never use wildcards. Each redirect URI should be the precise callback URL.
+- **Exact redirect URIs**: Prefer concrete registered callbacks in production. The conformance-test compatibility extension supports one plain path segment; it cannot vary the host, surrounding path or query. See [redirect URI registration](/clients/registering/#redirect_uris).
 - **Rotate client secrets**: Rotate `client_secret` for confidential clients periodically or after any suspected exposure.
 - **Disable unused clients**: Deactivate clients that are no longer in use.
 

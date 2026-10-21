@@ -932,3 +932,10 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | Level | Reference | Requirement | Status |
 |-------|-----------|-------------|--------|
 | MUST | RFC 5321 §4.5.3.2 | Provide timeout mechanisms for SMTP commands | ✅ Connection setup and each SMTP operation have separate 30-second limits; stalled connections close and resend capacity is released (#478). |
+
+## Redirect wildcard compatibility boundary
+
+| Level | Reference | Requirement | Status |
+|-------|-----------|-------------|--------|
+| MUST | RFC 6749 §3.1.2.3 / RFC 9700 §2.1 | Compare registered redirect URIs exactly | Exact registrations retain byte-for-byte matching. The explicitly registered single-segment wildcard remains a local conformance-test compatibility extension, rather than RFC 9700 exact-match mode. Prefer exact registrations in production (#476). |
+| Local extension policy | RFC 3986 §2.3 / §5.2.4 | Keep the variable path component inside its registered boundary | ✅ One nonempty unreserved segment; reject traversal, escaping, separators and query/fragment injection. Literal scheme/host/path/query bytes remain fixed. Registration and runtime enforce the same pattern shape (#476). |

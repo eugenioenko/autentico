@@ -154,15 +154,15 @@ TOKEN="<admin bearer token>"
 
 curl -s -X POST http://localhost:9999/admin/api/clients \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"client_id":"openid1","client_name":"Conformance Client 1","client_secret":"openid1secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
+  -d '{"client_id":"openid1","client_name":"Conformance Client 1","client_secret":"openid1secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/a/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
 
 curl -s -X POST http://localhost:9999/admin/api/clients \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"client_id":"openid2","client_name":"Conformance Client 2 (secret_post)","client_secret":"openid2secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_post"}'
+  -d '{"client_id":"openid2","client_name":"Conformance Client 2 (secret_post)","client_secret":"openid2secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/a/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_post"}'
 
 curl -s -X POST http://localhost:9999/admin/api/clients \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"client_id":"openid3","client_name":"Conformance Client 3","client_secret":"openid3secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
+  -d '{"client_id":"openid3","client_name":"Conformance Client 3","client_secret":"openid3secret","redirect_uris":["https://localhost.emobix.co.uk:8443/test/a/*/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"scopes":"openid profile email offline_access address phone","client_type":"confidential","token_endpoint_auth_method":"client_secret_basic"}'
 ```
 
 | Role | client_id | client_secret | auth method |
@@ -171,7 +171,7 @@ curl -s -X POST http://localhost:9999/admin/api/clients \
 | client_secret_post | `openid2` | `openid2secret` | `client_secret_post` |
 | client2 | `openid3` | `openid3secret` | `client_secret_basic` |
 
-Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/*/callback` (wildcard — the suite uses a dynamic run ID in the path, which changes per test run).
+Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/a/*/callback` (the wildcard spans only the chosen alias in `/test/a/<ALIAS>/callback`). Register the exact alias URL when it is fixed. See the [OpenID Foundation test setup guide](https://openid.net/certification/connect_op_testing/).
 
 ### Test Plans Run
 
@@ -405,3 +405,7 @@ Password login, SSO, consent approval/denial, authorization errors, browser MFA 
 `emailverification.HandleResendVerification` keeps authorization signature/client/redirect/scope/PKCE validation before account lookup. Accepted requests use one randomized-delay policy and one deferred generic sent-page response for unknown, inactive, verified, email-less or eligible accounts, including token-storage errors. Eight delivery slots per process bound detached work; nonblocking admission happens before replacing a token, and missing SMTP configuration also preserves the existing link. Admitted tokens are stored before asynchronous email dispatch. Missing SMTP configuration, capacity exhaustion and delivery failures are logged privately; the background sender captures only recipient, URL and request ID. The private handler takes a sender function for deterministic blocked-delivery tests.
 
 SMTP transport uses `net/smtp.Client` with a 30-second connect timeout and a fresh 30-second deadline for each greeting/command/data operation. STARTTLS uses normal certificate/host verification; configured authentication requires advertised AUTH. All exits close the connection, including greeting and TLS failures.
+
+## Redirect wildcard compatibility
+
+Exact redirect registrations compare byte-for-byte. The explicit conformance-callback extension permits one `*` as an entire path segment, matching a nonempty plain unreserved identifier (`A-Z a-z 0-9 - . _ ~`) other than `.` or `..`. `redirectWildcardParts` validates pattern shape and rejects traversal/fragments; `matchesRedirectWildcard` retains literal prefix/suffix bytes and never decodes the candidate. Variable separators, percent escaping, queries, fragments, backslashes and controls cannot match. Invalid patterns fail at registration/update and at runtime for older stored rows. Conformance `/test/a/*/callback` still works; root `/*` no longer matches multiple path segments.
