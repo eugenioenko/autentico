@@ -752,7 +752,7 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		}
 		return emailverification.PendingURL(usr.Username, loginState.verificationParams())
 	}
-	// WebAuthn §5.10.6: preferred user verification is not guaranteed.
+	// WebAuthn Level 3 §5.8.6: preferred user verification is not guaranteed.
 	// Even a UV assertion is a primary credential under local MFA policy.
 	return mfa.FinishLogin(w, r, usr.ID, mfa.LoginState{
 		RedirectURI:         loginState.RedirectURI,
