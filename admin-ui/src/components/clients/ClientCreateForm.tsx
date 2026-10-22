@@ -70,6 +70,7 @@ export default function ClientCreateForm({
 }: ClientCreateFormProps) {
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  const clientType = Form.useWatch("client_type", form) ?? "public";
   const createClient = useCreateClient();
   const [secretModal, setSecretModal] = useState<ClientResponse | null>(null);
 
@@ -128,7 +129,7 @@ export default function ClientCreateForm({
             client_type: "public",
             grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],
-            token_endpoint_auth_method: "client_secret_basic",
+            token_endpoint_auth_method: "none",
             scopes: ["openid", "profile", "email", "offline_access"],
             redirect_uris: [""],
             post_logout_redirect_uris: [],
@@ -156,7 +157,13 @@ export default function ClientCreateForm({
             label="Client Type"
             tooltip={{ title: tip("client_type"), icon: <ExclamationCircleOutlined /> }}
           >
-            <Select options={CLIENT_TYPE_OPTIONS} />
+            <Select
+              options={CLIENT_TYPE_OPTIONS}
+              onChange={(value) => {
+                form.setFieldValue("token_endpoint_auth_method", value === "public" ? "none" : "client_secret_basic");
+                if (value === "public") form.setFieldValue("client_secret", undefined);
+              }}
+            />
           </Form.Item>
 
           <Form.Item noStyle dependencies={["client_type"]}>
@@ -312,7 +319,7 @@ export default function ClientCreateForm({
             label="Token Endpoint Auth Method"
             tooltip={{ title: tip("token_endpoint_auth_method"), icon: <ExclamationCircleOutlined /> }}
           >
-            <Select options={AUTH_METHOD_OPTIONS} />
+            <Select options={AUTH_METHOD_OPTIONS.filter(option => (option.value === "none") === (clientType === "public"))} />
           </Form.Item>
 
           <Divider />

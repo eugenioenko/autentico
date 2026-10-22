@@ -23,12 +23,17 @@ func CreateClientWithID(clientID string, req ClientCreateRequest) (*ClientRespon
 }
 
 func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	// RFC 7591 §2 / §3.2.2: resolve and validate metadata before generating a secret.
+	clientType, authMethod, err := resolveClientAuthentication(req.ClientType, req.TokenEndpointAuthMethod)
+	if err != nil {
+		return nil, err
+	}
 	issuedAt := time.Now().Unix()
 
 	// RFC 7591 §3.2.1: client_secret OPTIONAL — issued for confidential clients.
 	clientSecret := ""
 	hashedSecret := ""
-	if req.ClientType != "public" {
+	if clientType != "public" {
 		if req.ClientSecret != "" {
 			// Use the caller-provided secret
 			clientSecret = req.ClientSecret
@@ -47,7 +52,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 	}
 
 	redirectURIs, _ := json.Marshal(req.RedirectURIs)
-	
+
 	postLogoutURIsSlice := req.PostLogoutRedirectURIs
 	if postLogoutURIsSlice == nil {
 		postLogoutURIsSlice = []string{}
@@ -68,23 +73,11 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 	}
 	responseTypes, _ := json.Marshal(finalResponseTypes)
 
-	clientType := "confidential"
-	if req.ClientType != "" {
-		clientType = req.ClientType
-	}
 	// RFC 7591 §2: scope — if omitted, server MAY register with a default set of scopes.
 	scopes := "openid profile email"
 	if req.Scopes != "" {
 		scopes = req.Scopes
 	}
-	// RFC 7591 §2: default token_endpoint_auth_method is "client_secret_basic".
-	authMethod := "client_secret_basic"
-	if req.TokenEndpointAuthMethod != "" {
-		authMethod = req.TokenEndpointAuthMethod
-	} else if clientType == "public" {
-		authMethod = "none"
-	}
-
 	var audiences *string
 	if req.AllowedAudiences != nil {
 		b, _ := json.Marshal(req.AllowedAudiences)
@@ -104,7 +97,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 			consent_required, description, logo_uri, client_uri, show_in_account
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.GetDB().Exec(query,
+	_, err = db.GetDB().Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
 		string(postLogoutURIs), string(grantTypes), string(responseTypes), scopes,
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,

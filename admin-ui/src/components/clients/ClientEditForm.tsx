@@ -308,7 +308,7 @@ export default function ClientEditForm({
           label="Token Endpoint Auth Method"
           tooltip={{ title: tip("token_endpoint_auth_method"), icon: <ExclamationCircleOutlined /> }}
         >
-          <Select options={AUTH_METHOD_OPTIONS} />
+          <Select options={AUTH_METHOD_OPTIONS.filter(option => (option.value === "none") === (client?.client_type === "public"))} />
         </Form.Item>
 
         <Divider />

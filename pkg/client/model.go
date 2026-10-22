@@ -58,9 +58,9 @@ type ClientCreateRequest struct {
 	PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris,omitempty"`
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	ResponseTypes           []string `json:"response_types,omitempty"`
-	ClientType              string   `json:"client_type,omitempty"`
+	ClientType              string   `json:"client_type,omitempty"` // Optional extension: inferred public for auth method none, otherwise confidential.
 	Scopes                  string   `json:"scopes,omitempty"`
-	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"` // Public clients use none; confidential clients use client_secret_basic or client_secret_post.
 	// Per-client overrides
 	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
 	RefreshTokenExpiration      *string  `json:"refresh_token_expiration,omitempty"`
@@ -85,7 +85,7 @@ type ClientUpdateRequest struct {
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	ResponseTypes           []string `json:"response_types,omitempty"`
 	Scopes                  string   `json:"scopes,omitempty"`
-	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"` // Public clients use none; confidential clients use client_secret_basic or client_secret_post.
 	IsActive                *bool    `json:"is_active,omitempty"`
 	// Per-client overrides
 	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
@@ -200,7 +200,7 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		GrantTypes:                  c.GetGrantTypes(),
 		ResponseTypes:               c.GetResponseTypes(),
 		Scopes:                      c.Scopes,
-		TokenEndpointAuthMethod:     c.TokenEndpointAuthMethod,
+		TokenEndpointAuthMethod:     c.effectiveTokenEndpointAuthMethod(),
 		IsActive:                    c.IsActive,
 		AccessTokenExpiration:       c.AccessTokenExpiration,
 		RefreshTokenExpiration:      c.RefreshTokenExpiration,
@@ -247,18 +247,21 @@ func (c *Client) ToOverrides() config.ClientOverrides {
 
 // ValidateClientCreateRequest validates a client registration request
 func ValidateClientCreateRequest(input ClientCreateRequest) error {
-	return validation.ValidateStruct(&input,
+	if err := validation.ValidateStruct(&input,
 		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Required, validation.Length(1, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
 		// RFC 7591 §2 / RFC 6749 §3.1.1: register only implemented response types.
 		validation.Field(&input.ResponseTypes, validation.Each(validation.Required, validation.In("code"))),
-		validation.Field(&input.ClientType, validation.In("", "confidential", "public")),
-		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
 		validation.Field(&input.Description, validation.Length(0, 1000), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.LogoURI, validation.By(validateWebURI)),
 		validation.Field(&input.ClientURI, validation.By(validateWebURI)),
-	)
+	); err != nil {
+		return err
+	}
+	// RFC 7591 §2 / §3.2.2: reject contradictory registration metadata.
+	_, _, err := resolveClientAuthentication(input.ClientType, input.TokenEndpointAuthMethod)
+	return err
 }
 
 // validateWebURI accepts an empty value, an https URL, or an http URL on a
