@@ -25,7 +25,7 @@ func atomicEmailChallenge(t *testing.T) {
 	testutils.InsertTestClient(t, "atomic-client", []string{"http://localhost/cb"})
 	require.NoError(t, CreateMfaChallenge(MfaChallenge{ID: "atomic-challenge", UserID: "atomic-mfa", Method: "email",
 		Code: utils.HashSHA256("123456"), ExpiresAt: time.Now().Add(time.Minute),
-		LoginState: `{"client_id":"atomic-client","redirect_uri":"http://localhost/cb","scope":"openid"}`}))
+		LoginState: `{"client_id":"atomic-client","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`}))
 }
 
 func postAtomicMfa() *httptest.ResponseRecorder {

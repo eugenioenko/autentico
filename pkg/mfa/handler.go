@@ -12,6 +12,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/consent"
@@ -524,9 +525,15 @@ func challengeClient(challenge *MfaChallenge) (LoginState, *client.Client, error
 	if err := json.Unmarshal([]byte(challenge.LoginState), &state); err != nil {
 		return state, nil, err
 	}
-	registeredClient, err := client.ClientByClientID(state.ClientID)
-	if err != nil || !registeredClient.IsActive {
-		return state, nil, errors.New("unknown or inactive verification client")
+	// RFC 6749 §3.1.2 / §3.3 / §4.1.1 and RFC 9700 §2.1.1:
+	// a pending challenge must still satisfy the current registration and PKCE policy.
+	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
+		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope,
+		State: state.State, Nonce: state.Nonce, CodeChallenge: state.CodeChallenge,
+		CodeChallengeMethod: state.CodeChallengeMethod,
+	})
+	if err != nil {
+		return state, nil, err
 	}
 	return state, registeredClient, nil
 }

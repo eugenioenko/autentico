@@ -25,7 +25,7 @@ func TestHandleMfaPost_EmailWrongCode(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "correct_hashed",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -53,7 +53,7 @@ func TestHandleMfaPost_EmailLockoutAfterFiveFailures(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "correct_hashed",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	require.NoError(t, CreateMfaChallenge(c))
@@ -90,7 +90,7 @@ func TestHandleMfaGet_EmailOtpCooldown(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "some_hashed_code",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	require.NoError(t, CreateMfaChallenge(c))
@@ -119,7 +119,7 @@ func TestHandleMfaPost_EmailEmptyUserEmail(t *testing.T) {
 		UserID:     "u1",
 		Method:     "email",
 		Code:       "hashed",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)

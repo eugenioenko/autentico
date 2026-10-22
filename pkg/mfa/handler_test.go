@@ -22,7 +22,7 @@ func TestHandleMfaAccountBudgetSurvivesNewChallenges(t *testing.T) {
 	testutils.InsertTestClient(t, "budget-client", []string{"http://localhost/cb"})
 	for _, id := range []string{"one", "two", "three", "four", "five", "locked"} {
 		require.NoError(t, CreateMfaChallenge(MfaChallenge{ID: id, UserID: userID, Method: "totp",
-			ExpiresAt: time.Now().Add(time.Minute), LoginState: `{"client_id":"budget-client","redirect_uri":"http://localhost/cb","scope":"openid"}`}))
+			ExpiresAt: time.Now().Add(time.Minute), LoginState: `{"client_id":"budget-client","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`}))
 		code := invalid
 		if id == "locked" {
 			code = valid
@@ -56,7 +56,7 @@ func TestHandleMfaRejectsTotpReuseOnNewChallenge(t *testing.T) {
 	for i, challengeID := range []string{"replay-first", "replay-second"} {
 		require.NoError(t, CreateMfaChallenge(MfaChallenge{
 			ID: challengeID, UserID: id, Method: "totp", ExpiresAt: time.Now().Add(time.Minute),
-			LoginState: `{"client_id":"replay-client","redirect_uri":"http://localhost/cb","scope":"openid"}`,
+			LoginState: `{"client_id":"replay-client","redirect_uri":"http://localhost/cb","scope":"openid","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		}))
 		form := url.Values{"challenge_id": {challengeID}, "code": {code}}
 		req := httptest.NewRequest(http.MethodPost, "/oauth2/mfa", strings.NewReader(form.Encode()))
@@ -101,7 +101,7 @@ func TestHandleMfa_GetEnroll(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -130,7 +130,7 @@ func TestHandleMfa_Post_Success(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"","code_challenge":"","code_challenge_method":""}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","scope":"openid","nonce":"","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -161,7 +161,7 @@ func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -199,7 +199,7 @@ func TestHandleMfa_Post_WrongCode(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -226,7 +226,7 @@ func TestHandleMfa_ExpiredChallenge(t *testing.T) {
 		ID:         "expired",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(-time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -248,7 +248,7 @@ func TestHandleMfa_UsedChallenge(t *testing.T) {
 		ID:         "used",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 		Used:       true,
 	}
@@ -283,7 +283,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -307,7 +307,7 @@ func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "hashed_code",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -345,7 +345,7 @@ func TestHandleMfa_Post_TrustDevice(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -386,7 +386,7 @@ func TestHandleMfa_Post_UnknownMethod(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "unknown",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -420,7 +420,7 @@ func TestHandleMfa_GetEmail(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "email",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -447,7 +447,7 @@ func TestHandleMfa_Get_UnknownMethod(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "unknown",
-		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -488,7 +488,7 @@ func TestHandleMfa_SwitchToEmail(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -523,7 +523,7 @@ func TestHandleMfa_SwitchToTotp_Enrolled(t *testing.T) {
 		ID:         "chall-email",
 		UserID:     u.ID,
 		Method:     "email",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -555,7 +555,7 @@ func TestHandleMfa_SwitchToTotp_NotEnrolled(t *testing.T) {
 		ID:         "chall-email",
 		UserID:     u.ID,
 		Method:     "email",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -588,7 +588,7 @@ func TestHandleMfa_SwitchIgnoredWhenNotBoth(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -618,7 +618,7 @@ func TestHandleMfa_SwitchIgnoredWhenNoSmtp(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -643,7 +643,7 @@ func TestHandleMfa_EnrollBlockedWhenMfaMethodNotTotp(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -673,7 +673,7 @@ func TestHandleMfa_VerifyPageShowsSwitchLink(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -701,7 +701,7 @@ func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -731,7 +731,7 @@ func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {
 		ID:         "chall-totp",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"c1","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -759,7 +759,7 @@ func TestHandleMfa_Post_TotpLockedAfter5Attempts(t *testing.T) {
 		ID:         "chall-lock",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"autentico-account","scope":"openid profile email"}`,
+		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1","client_id":"autentico-account","scope":"openid profile email","code_challenge":"challenge","code_challenge_method":"S256"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)

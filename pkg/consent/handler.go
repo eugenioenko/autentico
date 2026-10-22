@@ -139,7 +139,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := config.Get()
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 	ac := authcode.AuthCode{
 		Code:                code,
 		UserID:              userID,

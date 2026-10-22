@@ -347,7 +347,7 @@ func HandleLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
-	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+	if _, _, err := validatedLoginState(challenge.LoginState); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -441,7 +441,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
-	loginState, err := validatedLoginState(challenge.LoginState)
+	loginState, _, err := validatedLoginState(challenge.LoginState)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
@@ -669,7 +669,7 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// RFC 6749 §10.6: reject stale authorization before mutating credentials or account state.
-	if _, err := validatedLoginState(challenge.LoginState); err != nil {
+	if _, _, err := validatedLoginState(challenge.LoginState); err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -735,12 +735,12 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 
 // completeAuthFlow creates an IdP session and auth code, returning the redirect URL.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, loginStateJSON string) (string, error) {
-	loginState, err := validatedLoginState(loginStateJSON)
+	loginState, registeredClient, err := validatedLoginState(loginStateJSON)
 	if err != nil {
 		return "", err
 	}
 
-	cfg := config.Get()
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 	// Local authentication policy: disabled passkeys cannot issue sessions or codes.
 	if !passkeyLoginEnabled() {
 		return "", fmt.Errorf("passkey login is disabled")
@@ -795,19 +795,20 @@ func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-func validatedLoginState(raw string) (*LoginState, error) {
+func validatedLoginState(raw string) (*LoginState, *client.Client, error) {
 	var state LoginState
 	if err := json.Unmarshal([]byte(raw), &state); err != nil {
-		return nil, fmt.Errorf("failed to restore login state")
+		return nil, nil, fmt.Errorf("failed to restore login state")
 	}
 	// RFC 6749 §10.6 / RFC 9700 §2.1.1: stored ceremony state must still be authorized.
-	if _, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
+	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
 		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope, Nonce: state.Nonce,
 		State: state.State, CodeChallenge: state.CodeChallenge, CodeChallengeMethod: state.CodeChallengeMethod,
-	}); err != nil {
-		return nil, err
+	})
+	if err != nil {
+		return nil, nil, err
 	}
-	return &state, nil
+	return &state, registeredClient, nil
 }
 
 func (s *LoginState) verificationParams() emailverification.OAuthParams {

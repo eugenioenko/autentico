@@ -77,7 +77,7 @@ Override the idle timeout when this client attempts to reuse an IdP session, inc
 
 ### `trust_device_enabled`
 
-Enable or disable trusted devices for users authenticating through this client. Applies to password and magic-link MFA bypass, the MFA checkbox, and trusted-device creation. An explicit `false` prevents bypass even if the browser has a valid device cookie from another client. The MFA page and submission use the client in the stored challenge, not a posted `client_id`. Overrides the global [`trust_device_enabled`](/configuration/runtime-settings/#trust_device_enabled).
+Enable or disable trusted devices for users authenticating through this client. Applies to password and magic-link MFA bypass, the MFA checkbox, and trusted-device creation. An explicit `false` prevents direct cookie-based bypass during fresh password or magic-link login, even if the browser has a valid device cookie from another client. Shared SSO can still reuse an existing authenticated IdP session, including one established through trusted-device bypass at another client; this setting alone is not a fresh-MFA requirement. Use `prompt=login` to request fresh authentication. The MFA page and submission use the client in the stored challenge, not a posted `client_id`. Overrides the global [`trust_device_enabled`](/configuration/runtime-settings/#trust_device_enabled).
 
 ### `trust_device_expiration`
 

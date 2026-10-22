@@ -112,6 +112,9 @@ test('client disables global trusted-device bypass and forged opt-in', async ({ 
 
 test('SSO uses strict client timeout and explicit zero override', async ({ page }) => {
   await updateSettings(admin, { sso_session_idle_timeout: '30m' }); await page.context().addCookies([sso]);
+  // Shared authenticated SSO is reused even when this client's direct device bypass is disabled.
+  await page.goto(authorize('trust-denied', 'none')); await page.waitForURL(`${callback}?**`);
+  expect(new URL(page.url()).searchParams.get('code')).toBeTruthy();
   await new Promise(resolve => setTimeout(resolve, 1200));
   await page.goto(authorize('sso-strict', 'none')); await page.waitForURL(`${callback}?**`);
   expect(new URL(page.url()).searchParams.get('error')).toBe('login_required');
