@@ -94,13 +94,14 @@ func TestHandleMfa_NotFound(t *testing.T) {
 
 func TestHandleMfa_GetEnroll(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -151,6 +152,7 @@ func TestHandleMfa_Post_Success(t *testing.T) {
 
 func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
 	require.NoError(t, user.StoreTotpSecretPending(u.ID, secret))
@@ -159,7 +161,7 @@ func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -188,6 +190,7 @@ func TestHandleMfa_Post_EnrollSuccess(t *testing.T) {
 
 func TestHandleMfa_Post_WrongCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 	secret, _, _ := GenerateTotpSecret("mfauser", "Auth")
 	_ = user.SaveTotpSecret(u.ID, secret)
@@ -196,7 +199,7 @@ func TestHandleMfa_Post_WrongCode(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -216,13 +219,14 @@ func TestHandleMfa_Post_WrongCode(t *testing.T) {
 
 func TestHandleMfa_ExpiredChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "expired",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(-time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -237,13 +241,14 @@ func TestHandleMfa_ExpiredChallenge(t *testing.T) {
 
 func TestHandleMfa_UsedChallenge(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "used",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 		Used:       true,
 	}
@@ -268,6 +273,7 @@ func TestHandleMfa_Post_MissingFields(t *testing.T) {
 
 func TestHandleMfa_GetVerify(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 	_ = user.UpdateUser(u.ID, user.UserUpdateRequest{
 		TotpVerified: boolPtr(true),
@@ -277,7 +283,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -293,6 +299,7 @@ func TestHandleMfa_GetVerify(t *testing.T) {
 
 func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
@@ -300,7 +307,7 @@ func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "hashed_code",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -323,6 +330,7 @@ func TestHandleMfa_Post_EmailSuccess(t *testing.T) {
 
 func TestHandleMfa_Post_TrustDevice(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.TrustDeviceEnabled = true
 		config.Values.TrustDeviceExpiration = 24 * time.Hour
@@ -337,7 +345,7 @@ func TestHandleMfa_Post_TrustDevice(t *testing.T) {
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "totp",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -371,13 +379,14 @@ func TestHandleMfa_Post_TrustDevice(t *testing.T) {
 
 func TestHandleMfa_Post_UnknownMethod(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "unknown",
-		LoginState: `{}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -404,13 +413,14 @@ func TestHandleMfa_MethodNotAllowed(t *testing.T) {
 
 func TestHandleMfa_GetEmail(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "email",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -430,13 +440,14 @@ func TestHandleMfa_GetEmail(t *testing.T) {
 
 func TestHandleMfa_Get_UnknownMethod(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "unknown",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -463,6 +474,7 @@ func TestHandleMfa_Post_ChallengeNotFound(t *testing.T) {
 
 func TestHandleMfa_SwitchToEmail(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = "localhost"
@@ -497,6 +509,7 @@ func TestHandleMfa_SwitchToEmail(t *testing.T) {
 
 func TestHandleMfa_SwitchToTotp_Enrolled(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = "localhost"
@@ -530,6 +543,7 @@ func TestHandleMfa_SwitchToTotp_Enrolled(t *testing.T) {
 
 func TestHandleMfa_SwitchToTotp_NotEnrolled(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = "localhost"
@@ -560,6 +574,7 @@ func TestHandleMfa_SwitchToTotp_NotEnrolled(t *testing.T) {
 
 func TestHandleMfa_SwitchIgnoredWhenNotBoth(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "totp"
 		config.Values.SmtpHost = "localhost"
@@ -589,6 +604,7 @@ func TestHandleMfa_SwitchIgnoredWhenNotBoth(t *testing.T) {
 
 func TestHandleMfa_SwitchIgnoredWhenNoSmtp(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = ""
@@ -616,6 +632,7 @@ func TestHandleMfa_SwitchIgnoredWhenNoSmtp(t *testing.T) {
 
 func TestHandleMfa_EnrollBlockedWhenMfaMethodNotTotp(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 	})
@@ -642,6 +659,7 @@ func TestHandleMfa_EnrollBlockedWhenMfaMethodNotTotp(t *testing.T) {
 
 func TestHandleMfa_VerifyPageShowsSwitchLink(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = "localhost"
@@ -670,6 +688,7 @@ func TestHandleMfa_VerifyPageShowsSwitchLink(t *testing.T) {
 
 func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "totp"
 	})
@@ -698,6 +717,7 @@ func TestHandleMfa_VerifyPageHidesSwitchLink(t *testing.T) {
 
 func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	testutils.WithConfigOverride(t, func() {
 		config.Values.MfaMethod = "both"
 		config.Values.SmtpHost = "localhost"
@@ -730,6 +750,7 @@ func TestHandleMfa_SwitchToSameMethodIgnored(t *testing.T) {
 
 func TestHandleMfa_Post_TotpLockedAfter5Attempts(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "autentico-account", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfalock", "pass", "mfalock@example.com")
 	secret, _, _ := GenerateTotpSecret("mfalock", "Auth")
 	_ = user.SaveTotpSecret(u.ID, secret)

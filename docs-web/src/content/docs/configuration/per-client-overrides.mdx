@@ -69,19 +69,19 @@ String array of additional `aud` values added to access tokens for this client. 
 
 ### `allow_self_signup`
 
-Override the global [`allow_self_signup`](/configuration/runtime-settings/#allow_self_signup) setting for this client's login page.
+Override the global [`allow_self_signup`](/configuration/runtime-settings/#allow_self_signup) setting for this client's login page **and signup submission**. An explicit `false` blocks registration even when globally enabled; `true` permits it even when globally disabled. Both password and passkey signup check the current registration.
 
 ### `sso_session_idle_timeout`
 
-Override the IdP session idle timeout for sessions originating from this client. Overrides the global [`sso_session_idle_timeout`](/configuration/runtime-settings/#sso_session_idle_timeout).
+Override the idle timeout when this client attempts to reuse an IdP session, including `prompt=none`. `"0"` disables this browser idle check. The background cleanup sweep still uses the global [`sso_session_idle_timeout`](/configuration/runtime-settings/#sso_session_idle_timeout), so it can deactivate a session before a more permissive client timeout. This does not change the global maximum age.
 
 ### `trust_device_enabled`
 
-Enable or disable trusted devices for users authenticating through this client. Overrides the global [`trust_device_enabled`](/configuration/runtime-settings/#trust_device_enabled).
+Enable or disable trusted devices for users authenticating through this client. Applies to password and magic-link MFA bypass, the MFA checkbox, and trusted-device creation. An explicit `false` prevents bypass even if the browser has a valid device cookie from another client. The MFA page and submission use the client in the stored challenge, not a posted `client_id`. Overrides the global [`trust_device_enabled`](/configuration/runtime-settings/#trust_device_enabled).
 
 ### `trust_device_expiration`
 
-Override trusted device token lifetime for this client. Overrides the global [`trust_device_expiration`](/configuration/runtime-settings/#trust_device_expiration).
+Override the lifetime of new trusted-device records and cookies issued through this client. The current setting is read again on MFA submission. Existing device records retain their original expiry. Overrides the global [`trust_device_expiration`](/configuration/runtime-settings/#trust_device_expiration).
 
 ### `consent_required`
 

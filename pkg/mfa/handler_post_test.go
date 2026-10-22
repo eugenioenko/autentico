@@ -17,14 +17,15 @@ import (
 
 func TestHandleMfaPost_EmailWrongCode(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "correct_hashed",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)
@@ -44,6 +45,7 @@ func TestHandleMfaPost_EmailWrongCode(t *testing.T) {
 
 func TestHandleMfaPost_EmailLockoutAfterFiveFailures(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
@@ -80,6 +82,7 @@ func TestHandleMfaPost_EmailLockoutAfterFiveFailures(t *testing.T) {
 
 func TestHandleMfaGet_EmailOtpCooldown(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	u, _ := user.CreateUser("mfauser", "pass", "mfa@example.com")
 
 	c := MfaChallenge{
@@ -87,7 +90,7 @@ func TestHandleMfaGet_EmailOtpCooldown(t *testing.T) {
 		UserID:     u.ID,
 		Method:     "email",
 		Code:       "some_hashed_code",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	require.NoError(t, CreateMfaChallenge(c))
@@ -107,15 +110,16 @@ func TestHandleMfaGet_EmailOtpCooldown(t *testing.T) {
 
 func TestHandleMfaPost_EmailEmptyUserEmail(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestClient(t, "c1", []string{"http://localhost/cb"})
 	// Create user with EMPTY email (using raw SQL because CreateUser validates it)
 	_, _ = db.GetDB().Exec("INSERT INTO users (id, username, email, password) VALUES ('u1', 'noemail', '', 'pass')")
-	
+
 	c := MfaChallenge{
 		ID:         "chall1",
 		UserID:     "u1",
 		Method:     "email",
 		Code:       "hashed",
-		LoginState: `{"redirect_uri":"http://localhost/cb","state":"s1"}`,
+		LoginState: `{"client_id":"c1","redirect_uri":"http://localhost/cb","state":"s1"}`,
 		ExpiresAt:  time.Now().Add(time.Hour),
 	}
 	_ = CreateMfaChallenge(c)

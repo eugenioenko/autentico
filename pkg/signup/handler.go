@@ -36,7 +36,7 @@ import (
 // Param state formData string false "OAuth2 state"
 // Success 302 "Redirect back to client with code"
 func HandleSignup(w http.ResponseWriter, r *http.Request) {
-	if !config.Get().AuthAllowSelfSignup || r.Method != http.MethodPost {
+	if r.Method != http.MethodPost {
 		view.RenderError(w, r, http.StatusMethodNotAllowed, "This page can only be accessed through the signup flow.")
 		return
 	}
@@ -45,13 +45,6 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
-	// In passkey_only mode the form is never POSTed — JS handles everything via
-	// /passkey/register/begin and /passkey/register/finish. Re-render the form.
-	if config.Get().AuthMode == "passkey_only" {
-		RenderSignup(w, r, SignupParams{}, "")
-		return
-	}
-
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
 		return
@@ -89,8 +82,24 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 6749 §4.1.1 / §10.6: validate the current client and callback before creating an account.
-	if _, err := client.ValidateAuthorization(authzsig.FromValues(r.Form)); err != nil {
+	registeredClient, err := client.ValidateAuthorization(authzsig.FromValues(r.Form))
+	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	// RFC 6749 §2: apply the current registration's local signup policy before
+	// account creation. Explicit client true/false overrides the global default.
+	cfg := config.GetForClient(registeredClient.ToOverrides())
+	if !cfg.AuthAllowSelfSignup {
+		view.RenderError(w, r, http.StatusMethodNotAllowed, "Self-registration is not enabled for this client.")
+		return
+	}
+
+	// In passkey_only mode the form is never POSTed — JS handles everything via
+	// /passkey/register/begin and /passkey/register/finish. Re-render the form.
+	if cfg.AuthMode == "passkey_only" {
+		RenderSignup(w, r, params, "")
 		return
 	}
 
@@ -125,7 +134,6 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required profile fields
-	cfg := config.Get()
 	profileFields := map[string]string{
 		"given_name":          r.FormValue("given_name"),
 		"family_name":         r.FormValue("family_name"),
@@ -234,7 +242,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
+		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
 		IdpSessionID:        idpSessionID,
 	}

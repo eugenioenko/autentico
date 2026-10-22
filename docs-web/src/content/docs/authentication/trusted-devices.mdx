@@ -47,7 +47,7 @@ curl -X PUT https://auth.example.com/admin/api/settings \
   -d '{"trust_device_enabled": "true", "trust_device_expiration": "720h"}'
 ```
 
-Once enabled, a "Trust this device" checkbox appears on the MFA page.
+The effective per-client setting controls both the "Trust this device" checkbox and whether an existing cookie may bypass MFA during password or magic-link login. A client can disable trusted devices even when enabled globally, or enable them when globally disabled. See [per-client overrides](/configuration/per-client-overrides/). New device records and cookies use that client's trust duration.
 
 ## Managing trusted devices
 

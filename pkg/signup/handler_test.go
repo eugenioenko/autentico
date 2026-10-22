@@ -232,7 +232,10 @@ func TestHandleSignup_Post_PasskeyOnly(t *testing.T) {
 		config.Values.AuthMode = "passkey_only"
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", nil)
+	form := url.Values{"redirect_uri": {"http://localhost/callback"}}
+	signSignupParams(form)
+	req := httptest.NewRequest(http.MethodPost, "/oauth2/signup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
 	HandleSignup(rr, req)
@@ -300,7 +303,7 @@ func TestHandleSignupPost_Disabled(t *testing.T) {
 		config.Values.AuthAllowSelfSignup = false
 	})
 
-	form := url.Values{}
+	form := url.Values{"redirect_uri": {"http://localhost/callback"}}
 	form.Set("username", "newuser")
 	form.Set("password", "password123")
 	form.Set("confirm_password", "password123")
