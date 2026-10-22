@@ -3,13 +3,16 @@ package federation
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -150,8 +153,122 @@ func TestSafeHTTPClientDNSRebinding(t *testing.T) {
 	require.Zero(t, reached.Load(), "a stale public DNS precheck cannot authorize a private connection")
 }
 
-// rebindResolver serves minimal A/AAAA DNS replies with a switchable zero-TTL A record.
+// rebindResolver switches an A record from public to private between lookups.
 func rebindResolver(t *testing.T, private *atomic.Bool) *net.Resolver {
+	return federationDNSResolver(t, func(qtype uint16) []net.IP {
+		if qtype != 1 {
+			return nil
+		}
+		if private.Load() {
+			return []net.IP{net.ParseIP("127.0.0.1")}
+		}
+		return []net.IP{net.ParseIP("8.8.8.8")}
+	})
+}
+
+// TestSafeHTTPClientCandidateFallback guards every candidate without external connections.
+func TestSafeHTTPClientCandidateFallback(t *testing.T) {
+	for _, dualStack := range []bool{false, true} {
+		name := "IPv4 candidates"
+		if dualStack {
+			name = "public IPv6 failure before private IPv4 fallback"
+		}
+		t.Run(name, func(t *testing.T) {
+			if dualStack {
+				listener, err := net.Listen("tcp6", "[::1]:0")
+				if err != nil {
+					t.Skip("IPv6 sockets unavailable")
+				}
+				_ = listener.Close()
+			}
+			var reached atomic.Int32
+			trap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached.Add(1); w.WriteHeader(200) }))
+			defer trap.Close()
+			u, err := url.Parse(trap.URL)
+			require.NoError(t, err)
+			resolver := federationDNSResolver(t, func(qtype uint16) []net.IP {
+				if dualStack {
+					if qtype == 28 {
+						return []net.IP{net.ParseIP("2606:4700:4700::1111")}
+					}
+					if qtype == 1 {
+						return []net.IP{net.ParseIP("127.0.0.1")}
+					}
+				} else if qtype == 1 {
+					return []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("127.0.0.1")}
+				}
+				return nil
+			})
+			client := safeHTTPClient()
+			defer client.CloseIdleConnections()
+			dialer := federationDialer()
+			dialer.Resolver = resolver
+			dialer.FallbackDelay = time.Millisecond
+			control := dialer.Control
+			require.NotNil(t, control)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			var mu sync.Mutex
+			var attempts []string
+			publicFailed := make(chan struct{})
+			var once sync.Once
+			dialer.Control = func(network, address string, raw syscall.RawConn) error {
+				host, _, err := net.SplitHostPort(address)
+				if err != nil {
+					return err
+				}
+				private := isPrivateIP(net.ParseIP(host))
+				// RFC 6724 may sort the private IPv4 address first on an IPv4-only
+				// host. Hold that attempt until the real dual-stack dialer's public
+				// candidate fails, keeping the validation sequence deterministic.
+				if dualStack && private {
+					select {
+					case <-publicFailed:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				label := "public"
+				if private {
+					label = "private"
+				}
+				mu.Lock()
+				attempts = append(attempts, label)
+				mu.Unlock()
+				if err := control(network, address, raw); err != nil {
+					return err
+				}
+				if private {
+					// A broken guard must reach the trap so this test fails.
+					return nil
+				}
+				// Fail the allowed public candidate before connect; tests never send
+				// traffic to the public network, then exercise the next real candidate.
+				once.Do(func() { close(publicFailed) })
+				return errors.New("synthetic public connection failure")
+			}
+			client.Transport.(*http.Transport).DialContext = dialer.DialContext
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://fallback.test:"+u.Port(), nil)
+			require.NoError(t, err)
+			resp, err := client.Do(req)
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
+			require.Error(t, err)
+			mu.Lock()
+			got := append([]string(nil), attempts...)
+			mu.Unlock()
+			require.ElementsMatch(t, []string{"public", "private"}, got)
+			if dualStack {
+				require.Equal(t, []string{"public", "private"}, got)
+			}
+			require.Zero(t, reached.Load(), "a failed public candidate must not authorize a private fallback")
+		})
+	}
+}
+
+// federationDNSResolver serves minimal zero-TTL A/AAAA replies, including multiple candidates.
+func federationDNSResolver(t *testing.T, answers func(uint16) []net.IP) *net.Resolver {
 	t.Helper()
 	server, err := net.ListenPacket("udp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -174,20 +291,21 @@ func rebindResolver(t *testing.T, private *atomic.Bool) *net.Resolver {
 			if i+5 > n {
 				continue
 			}
-			questionEnd := i + 5
-			response := append([]byte(nil), buf[:questionEnd]...)
+			qtype := binary.BigEndian.Uint16(buf[i+1 : i+3])
+			records := answers(qtype)
+			response := append([]byte(nil), buf[:i+5]...)
 			binary.BigEndian.PutUint16(response[2:4], 0x8180)
 			for k := 6; k < 12; k++ {
 				response[k] = 0
 			}
-			if binary.BigEndian.Uint16(buf[i+1:i+3]) == 1 {
-				binary.BigEndian.PutUint16(response[6:8], 1)
-				response = append(response, 0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 0, 0, 4)
-				ip := []byte{8, 8, 8, 8}
-				if private.Load() {
-					ip = []byte{127, 0, 0, 1}
+			binary.BigEndian.PutUint16(response[6:8], uint16(len(records)))
+			for _, ip := range records {
+				data := ip.To16()
+				if qtype == 1 {
+					data = ip.To4()
 				}
-				response = append(response, ip...)
+				response = append(response, 0xc0, 0x0c, byte(qtype>>8), byte(qtype), 0, 1, 0, 0, 0, 0, 0, byte(len(data)))
+				response = append(response, data...)
 			}
 			_, _ = server.WriteTo(response, peer)
 		}
