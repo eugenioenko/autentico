@@ -60,6 +60,8 @@ func (r *RefreshTokenClaims) GetExpirationTime() (*jwt.NumericDate, error) {
 	return jwt.NewNumericDate(time.Unix(r.ExpiresAt, 0)), nil
 }
 
+// ValidateTokenRequest validates only the required, server-supported grant type.
+// Grant-specific fields are validated after dispatch by the handler.
 func ValidateTokenRequest(input TokenRequest) error {
 	return validation.ValidateStruct(&input,
 		validation.Field(&input.GrantType, validation.Required, validation.In("authorization_code", "refresh_token", "password", "client_credentials", "urn:ietf:params:oauth:grant-type:device_code")),

@@ -71,6 +71,13 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	err = ValidateTokenRequest(request)
 	if err != nil {
+		// RFC 6749 §5.2: this validator checks only grant_type. A missing
+		// value is invalid_request; a nonempty unsupported value has its own
+		// error, before client-specific grant permissions are considered.
+		if request.GrantType != "" {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "unsupported_grant_type", "Grant type is not supported")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 		return
 	}
