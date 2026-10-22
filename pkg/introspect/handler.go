@@ -2,6 +2,7 @@ package introspect
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -45,6 +46,11 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	// Usage [RFC6750]."
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
+		// RFC 6749 §5.2 / RFC 7662 §2.3: reject ambiguous credentials.
+		if errors.Is(err, client.ErrInvalidClientAuthenticationRequest) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
 		slog.Warn("introspect: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
 		w.Header().Set("WWW-Authenticate", `Basic realm="introspection"`)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")

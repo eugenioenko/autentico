@@ -1,8 +1,10 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -38,44 +40,69 @@ func AuthenticateClient(clientID, clientSecret string) (*Client, error) {
 	return client, nil
 }
 
-// AuthenticateClientFromRequest extracts client credentials from the HTTP request
-// and authenticates the client. Supports both Basic Auth and form parameters.
-// Returns nil, nil if no client credentials are provided (backward compatibility)
+// ErrInvalidClientAuthenticationRequest distinguishes malformed authentication
+// requests from credentials that fail authentication (RFC 6749 §5.2).
+var ErrInvalidClientAuthenticationRequest = errors.New("invalid client authentication request")
+
+// AuthenticateClientFromRequest accepts one credential mechanism, using body-only
+// form credentials or exactly-once form-decoded OAuth Basic credentials. With no
+// client credentials it leaves bearer authorization to the endpoint's policy.
 func AuthenticateClientFromRequest(r *http.Request) (*Client, error) {
-	// Try Basic Auth first (client_secret_basic)
-	if user, pass, ok := r.BasicAuth(); ok {
-		return AuthenticateClient(user, pass)
+	// RFC 6749 §2.3.1 / §5.2: parse the body without accepting URI credentials,
+	// duplicate credential parameters, or repeated Authorization headers.
+	if err := r.ParseForm(); err != nil {
+		return nil, fmt.Errorf("%w: malformed form body", ErrInvalidClientAuthenticationRequest)
 	}
-
-	// Fall back to form params (client_secret_post)
-	clientID := r.FormValue("client_id")
-	clientSecret := r.FormValue("client_secret")
-
-	if clientID != "" {
-		// If client_id is provided, it must exist in the registry
-		client, err := ClientByClientID(clientID)
-		if err != nil {
-			return nil, fmt.Errorf("unknown client_id")
-		}
-
-		// If client exists and is public, no secret needed
-		if client.ClientType == "public" {
-			if !client.IsActive {
-				return nil, fmt.Errorf("client is inactive")
+	query := r.URL.Query()
+	for _, key := range []string{"client_id", "client_secret"} {
+		// RFC 6749 §3.2 / RFC 8628 §3.1: empty parameters are omitted.
+		// Inspect every value so a later non-empty URI credential is rejected.
+		for _, value := range query[key] {
+			if value != "" {
+				return nil, fmt.Errorf("%w: client credentials must be sent in the request body", ErrInvalidClientAuthenticationRequest)
 			}
-			return client, nil
 		}
-
-		// Confidential client - verify secret
-		if clientSecret == "" {
-			return nil, fmt.Errorf("client secret required")
+		if len(r.PostForm[key]) > 1 {
+			return nil, fmt.Errorf("%w: client credential parameters must not repeat", ErrInvalidClientAuthenticationRequest)
 		}
-
-		return AuthenticateClient(clientID, clientSecret)
 	}
-
-	// No client credentials provided - backward compatibility
-	return nil, nil
+	if len(r.Header.Values("Authorization")) > 1 {
+		return nil, fmt.Errorf("%w: use one authentication method", ErrInvalidClientAuthenticationRequest)
+	}
+	clientID, clientSecret := r.PostForm.Get("client_id"), r.PostForm.Get("client_secret")
+	authorization := strings.Fields(r.Header.Get("Authorization"))
+	if len(authorization) > 0 && strings.EqualFold(authorization[0], "Basic") {
+		// RFC 6749 §2.3.1: Base64 decoding alone does not reverse the required
+		// form encoding. Decode once; malformed Basic never falls back.
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			return nil, fmt.Errorf("invalid Basic client credentials")
+		}
+		username, usernameErr := url.QueryUnescape(username)
+		password, passwordErr := url.QueryUnescape(password)
+		if usernameErr != nil || passwordErr != nil {
+			return nil, fmt.Errorf("invalid Basic client credential encoding")
+		}
+		// RFC 6749 §2.3 / §5.2: a matching body client_id is identification;
+		// a second secret or contradictory identity is not another fallback.
+		if clientSecret != "" || (clientID != "" && clientID != username) {
+			return nil, fmt.Errorf("%w: use one client credential set", ErrInvalidClientAuthenticationRequest)
+		}
+		return AuthenticateClient(username, password)
+	}
+	// RFC 6749 §5.2: bearer callers cannot also supply client credentials.
+	if len(authorization) > 0 && (clientID != "" || clientSecret != "") {
+		return nil, fmt.Errorf("%w: use one authentication method", ErrInvalidClientAuthenticationRequest)
+	}
+	if clientID == "" {
+		if clientSecret != "" {
+			return nil, fmt.Errorf("%w: client_id is required", ErrInvalidClientAuthenticationRequest)
+		}
+		return nil, nil
+	}
+	// RFC 6749 §2.3.1: confidential clients prove the secret; public clients
+	// identify themselves without a shared password.
+	return AuthenticateClient(clientID, clientSecret)
 }
 
 // IsValidRedirectURI checks if the given redirect URI is allowed for the client

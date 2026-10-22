@@ -115,6 +115,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps; federation validates registered clients, redirect URIs, scopes, and PKCE before issuing codes
 - **Authorization request validation** — signed continuation parameters are checked against the current client, callback URI, scopes, and PKCE before signup, email verification, magic-link login, and passkey authentication.
 - **Code-only authorization responses** — authorization and client registration support only `response_type=code`; implicit and hybrid response types are rejected.
+- **OAuth client authentication** — confidential device clients authenticate at issuance and polling. Protocol endpoints accept one Basic or body credential set, decode OAuth Basic correctly, reject URI/ambiguous credentials, and return matching authentication challenges.
 - **Atomic grant redemption** — authorization codes, device codes and refresh tokens have one winning exchange. Credential consumption and token/session storage commit together; failed storage leaves the credential available for retry.
 - **Refresh client authentication** — every refresh identifies the issuing client; confidential clients authenticate with their secret. Inactive clients, disallowed refresh grants, mismatched clients and unbound historical tokens are rejected.
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))

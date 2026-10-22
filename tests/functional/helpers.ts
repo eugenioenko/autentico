@@ -34,14 +34,20 @@ export async function postForm(url: string, data: Record<string, string>, bearer
   });
 }
 
+/** RFC 6749 §2.3.1: form-encode each credential before constructing Basic. */
+export function basicClientAuthorization(clientId: string, clientSecret: string): string {
+  const encode = (value: string) => new URLSearchParams({ value }).toString().slice(6);
+  return `Basic ${btoa(`${encode(clientId)}:${encode(clientSecret)}`)}`;
+}
+
 export async function postFormBasic(url: string, data: Record<string, string>, clientId: string, clientSecret: string): Promise<Response> {
   const body = new URLSearchParams(data);
-  const credentials = btoa(`${clientId}:${clientSecret}`);
+  const authorization = basicClientAuthorization(clientId, clientSecret);
   return fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${credentials}`,
+      'Authorization': authorization,
     },
     body,
     redirect: 'manual',

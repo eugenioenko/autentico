@@ -44,7 +44,7 @@ curl -X POST https://auth.example.com/admin/api/clients \
 The `client_name` is shown to the user on the approval screen, so use a name they will recognize.
 
 <Aside type="note">
-Confidential clients can also use this grant. They must authenticate at the token endpoint as usual (`client_secret_basic` or `client_secret_post`).
+Confidential clients can also use this grant. They must authenticate at both the device authorization and token endpoints (`client_secret_basic` or `client_secret_post`).
 </Aside>
 
 ## Step 1: Request a device code
@@ -58,8 +58,20 @@ curl -X POST https://auth.example.com/oauth2/device_authorization \
 
 | Parameter | Required | Description |
 |---|---|---|
-| `client_id` | Yes | The registered client ID |
+| `client_id` | Unless using HTTP Basic | The registered client ID; public clients always send it |
+| `client_secret` | For confidential form authentication | Send with `client_id`, or use HTTP Basic instead |
 | `scope` | No | Space-separated scopes. Must be allowed for the client. Defaults to the client's configured scopes |
+
+Confidential clients can authenticate with HTTP Basic without repeating `client_id` in the body:
+
+```bash
+curl -X POST https://auth.example.com/oauth2/device_authorization \
+  -u "DEVICE_CLIENT_ID:CLIENT_SECRET" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "scope=openid profile"
+```
+
+Form-encode each Basic credential before Base64-encoding when it contains reserved characters; see [credential encoding](/clients/client-types/#credential-encoding-and-transport). Alternatively, send `client_id` and `client_secret` only as form fields. Missing or incorrect confidential credentials return `invalid_client` without creating a device code. Failed HTTP Basic attempts return HTTP 401 with `WWW-Authenticate: Basic`; form failures return HTTP 400. Inactive clients and disallowed grants/scopes remain rejected. Public devices continue to send only `client_id` and should not embed a shared secret.
 
 **Response:**
 
@@ -87,8 +99,8 @@ curl -X POST https://auth.example.com/oauth2/device_authorization \
 
 | Error | Cause |
 |---|---|
-| `invalid_request` | Missing `client_id` |
-| `invalid_client` | Unknown `client_id` |
+| `invalid_request` | Missing identification without Basic, incomplete/duplicate credentials, URI credentials or conflicting authentication methods |
+| `invalid_client` | Unknown/inactive client or missing/wrong credentials; Basic failures include a 401 challenge |
 | `unauthorized_client` | The client doesn't have the device code grant type |
 | `invalid_scope` | A requested scope isn't allowed for the client |
 

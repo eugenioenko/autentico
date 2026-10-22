@@ -40,7 +40,7 @@ curl -X POST https://auth.example.com/oauth2/token \
   -d "refresh_token=YOUR_REFRESH_TOKEN"
 ```
 
-Missing client identification or invalid credentials return `invalid_client`. A token issued to another client, or an older token with no client binding, returns `invalid_grant`. Requests rejected by these checks do not rotate the token. Users holding an unbound token must sign in again; it cannot be reassigned to a client.
+Missing client identification or invalid credentials return `invalid_client`. Incomplete, repeated or conflicting credential sets return `invalid_request`; credentials must be in one Basic header or the POST body. A token issued to another client, or an older token with no client binding, returns `invalid_grant`. Requests rejected by these checks do not rotate the token. Users holding an unbound token must sign in again; it cannot be reassigned to a client.
 
 **Response:**
 

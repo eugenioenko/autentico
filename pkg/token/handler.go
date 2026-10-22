@@ -35,6 +35,7 @@ import (
 // @Param scope formData string false "Requested scope"
 // @Success 200 {object} TokenResponse
 // @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.AuthErrorResponse "Client authentication failed; matching WWW-Authenticate challenge"
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/token [post]
 func HandleToken(w http.ResponseWriter, r *http.Request) {
@@ -51,22 +52,14 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract client credentials from Basic Auth or form params
-	var clientID, clientSecret string
-	if user, pass, ok := r.BasicAuth(); ok {
-		clientID = user
-		clientSecret = pass
-	} else {
-		clientID = r.FormValue("client_id")
-		clientSecret = r.FormValue("client_secret")
-	}
-
+	// RFC 6749 §2.3.1: the shared authenticator resolves Basic credentials;
+	// form credentials come only from the body, never from the URL.
 	request := TokenRequest{
 		GrantType:    r.FormValue("grant_type"),
 		Code:         r.FormValue("code"),
 		RedirectURI:  r.FormValue("redirect_uri"),
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     r.PostForm.Get("client_id"),
+		ClientSecret: r.PostForm.Get("client_secret"),
 		CodeVerifier: r.FormValue("code_verifier"),
 		Username:     r.FormValue("username"),
 		Password:     r.FormValue("password"),
@@ -86,10 +79,21 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	var authenticatedClient *client.Client
 	authenticatedClient, err = client.AuthenticateClientFromRequest(r)
 	if err != nil {
+		// RFC 6749 §5.2: malformed authentication differs from bad credentials.
+		if errors.Is(err, client.ErrInvalidClientAuthenticationRequest) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
 		slog.Warn("token: invalid client credentials", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r), "error", err)
-		// RFC 6749 §5.2: invalid_client MUST use HTTP 401; all other errors use HTTP 400
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", err.Error())
+		// RFC 6749 §5.2: challenge failed client authentication with HTTP 401.
+		utils.WriteBasicUnauthorized(w, "token", err.Error())
 		return
+	}
+
+	// RFC 6749 §2.3.1 / §4.1.3: all grant bindings and issued claims use the
+	// authenticated registration, not the still-encoded Basic username.
+	if authenticatedClient != nil {
+		request.ClientID = authenticatedClient.ClientID
 	}
 
 	// If a client was resolved, validate that it allows the requested grant type
@@ -130,7 +134,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		// RFC 6749 §4.3.2 / §5.2: the client must be identified (and authenticated if
 		// confidential); an unidentified client is invalid_client.
 		if authenticatedClient == nil {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for password grant")
+			utils.WriteBasicUnauthorized(w, "token", "client_id is required for password grant")
 			return
 		}
 
@@ -199,7 +203,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	case "client_credentials":
 		// RFC 6749 §4.4.2: the client MUST authenticate with the authorization server
 		if authenticatedClient == nil {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication is required for client_credentials grant")
+			utils.WriteBasicUnauthorized(w, "token", "Client authentication is required for client_credentials grant")
 			return
 		}
 		// RFC 6749 §4.4.2: only confidential clients may use client_credentials
@@ -284,7 +288,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	case "refresh_token":
 		// RFC 6749 §6 / §10.4: identify and authenticate the registered issuing client.
 		if authenticatedClient == nil {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for refresh_token grant")
+			utils.WriteBasicUnauthorized(w, "token", "client_id is required for refresh_token grant")
 			return
 		}
 		grant, refreshErr := readRefreshGrant(w, request)
