@@ -732,7 +732,7 @@ func HandleDiscoverableLoginFinish(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"redirect": redirectURL})
 }
 
-// completeAuthFlow creates an IdP session and auth code, returning the redirect URL.
+// completeAuthFlow enforces passkey and email policy, then returns the next MFA, consent or callback URL.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, loginStateJSON string) (string, error) {
 	loginState, registeredClient, err := validatedLoginState(loginStateJSON)
 	if err != nil {

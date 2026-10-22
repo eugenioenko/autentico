@@ -31,6 +31,7 @@ var accountDeviceListConfig = api.ListConfig{
 	TableAlias:  "s",
 }
 
+// IdpSessionByID reads an active browser session, including its completed MFA method.
 func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	var session IdpSession
 	query := `

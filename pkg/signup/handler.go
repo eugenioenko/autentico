@@ -43,6 +43,7 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	handleSignupPost(w, r)
 }
 
+// handleSignupPost registers an account under current client policy, then requires verification, MFA and consent as configured.
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")

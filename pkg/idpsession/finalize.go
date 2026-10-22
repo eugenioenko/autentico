@@ -7,6 +7,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// FinalizeLogin creates a session without MFA evidence, for onboarding. Browser authentication uses the policy-gated login finalizer.
 func FinalizeLogin(w http.ResponseWriter, r *http.Request, userID string) string {
 	return FinalizeLoginWithMfa(w, r, userID, "")
 }

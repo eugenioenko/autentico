@@ -6,6 +6,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// CreateIdpSession persists browser metadata and evidence supplied by completed authentication.
 func CreateIdpSession(session IdpSession) error {
 	now := time.Now().UTC()
 	query := `

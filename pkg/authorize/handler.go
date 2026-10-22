@@ -319,7 +319,9 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	// session was created, or infer completion from the user's enrollment.
 	usr, err := user.UserByID(session.UserID)
 	if err != nil || !idpsession.SatisfiesMfa(session.MfaMethod, usr, cfg) {
-		return autoLoginResult{hasSession: true, userID: session.UserID}
+		// OIDC Core §3.1.2.1: this session cannot authenticate the request;
+		// prompt=none needs login_required even when consent is also missing.
+		return autoLoginResult{}
 	}
 
 	withinIdleTimeout := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout

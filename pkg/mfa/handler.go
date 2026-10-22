@@ -137,6 +137,7 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 	renderVerifyPage(w, r, challenge, cfg, "", "")
 }
 
+// handleMfaPost verifies and consumes a challenge before completing login or creating a trusted device.
 func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		redirectToLoginWithError(w, r, nil, "Invalid request. Please log in again.")

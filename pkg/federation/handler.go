@@ -324,7 +324,7 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 	return localUser, nil
 }
 
-// completeAuthFlow issues an auth code and redirects back to the client.
+// completeAuthFlow continues local MFA and consent after upstream authentication.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
 	// OIDC Core §3.1.2.3–4: upstream authentication is a primary credential;
 	// it does not assert completion of this server's configured local MFA.

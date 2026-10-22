@@ -44,6 +44,7 @@ func HandleConsent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleConsentGet requires session MFA evidence before rendering consent.
 func handleConsentGet(w http.ResponseWriter, r *http.Request) {
 	params := parseConsentParams(r)
 
@@ -65,6 +66,7 @@ func handleConsentGet(w http.ResponseWriter, r *http.Request) {
 	renderConsentPage(w, r, params, registeredClient.ClientName, userID)
 }
 
+// handleConsentPost revalidates the signed request and current MFA policy before persisting consent or issuing a code.
 func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
