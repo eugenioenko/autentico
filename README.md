@@ -145,7 +145,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 
 ### User & Client Management
 
-- **Dynamic client registration** — register and manage OAuth2 clients (confidential and public) via REST API or Admin UI
+- **Dynamic client registration** — register and manage OAuth2 clients (confidential and public) via REST API or Admin UI. Authentication method `none` infers a public client when type is omitted; contradictory authentication metadata is rejected. Existing confidential clients keep their secrets.
 - **Per-client configuration overrides** — token TTLs, allowed audiences, self-signup, session idle timeout, and trusted device settings can be tuned per client without touching global defaults
 - **Self-signup** — optionally allow end users to register accounts on the login page, globally or per client
 - **User CRUD** — full user lifecycle management with role support (`user`, `admin`)

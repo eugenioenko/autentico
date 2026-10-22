@@ -7,9 +7,24 @@ import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
 ## Via Admin UI
 
-Go to **Admin UI → Clients → New Client**. Fill in the required fields and click **Create**. The UI generates `client_id` and `client_secret` (for confidential clients) automatically. Save the secret immediately — it is only shown once.
+Go to **Admin UI → Clients → Create Client**. Fill in the required fields and click **Create**. The UI generates `client_id` and `client_secret` (for confidential clients) automatically. Save the secret immediately — it is only shown once.
 
 Only `response_types: ["code"]` is supported. Registration and update reject implicit (`token`), ID-token-only (`id_token`) and hybrid response types. The Admin UI offers only Code. Existing registrations cannot enable an unsupported flow: authorization returns `unsupported_response_type` instead of issuing a code for another response type. When editing a legacy registration, remove unsupported response types and explicitly select Code before saving; the form explains the required repair and does not enable Code automatically. Authorization also requires the client’s `authorization_code` grant, including during SSO.
+
+The create form defaults to a public client with authentication method **None**. Changing the client type selects a compatible authentication method; the create and edit forms offer only methods that match that type.
+
+## Authentication metadata and existing clients
+
+`client_type` is an optional Autentico extension. A request with `token_endpoint_auth_method: "none"` and no `client_type` registers a public client without issuing a secret. If both fields are omitted, registration defaults to a confidential client with `client_secret_basic`.
+
+| Client type | Authentication method |
+|---|---|
+| Public | `none` (also the default when the method is omitted) |
+| Confidential | `client_secret_basic` (default) or `client_secret_post` |
+
+Registration and update reject contradictory combinations with HTTP 400 `invalid_client_metadata`. Updating authentication metadata does not change the registered client type.
+
+Older versions could store contradictory metadata. After upgrading, read/list responses report the effective method: a confidential client labelled `none` reports `client_secret_basic`, while a public client reports `none`. Existing confidential clients **keep their secrets and continue to require them**. No database migration or secret rotation is required. Saving an existing client repairs the stored method while preserving its type, secret and active/disabled status. To replace a confidential registration with a public one, explicitly register a new public client and update your application's client ID.
 
 ## Via API
 
@@ -84,7 +99,7 @@ Human-readable name for the client, shown in the Admin UI and logs.
 Custom client ID. Auto-generated (UUID) if omitted. Must be unique across all clients.
 
 ### `client_type`
-Default: `confidential`
+Default: `public` when the requested authentication method is `none`; otherwise `confidential`.
 
 - `confidential` — server-side apps that can keep a secret. A `client_secret` is generated and must be presented at the token endpoint.
 - `public` — browser apps (SPAs) or mobile apps that cannot safely store a secret. No secret is issued; use PKCE instead.
@@ -117,7 +132,7 @@ OAuth2 flows the client is permitted to use:
 ### `response_types`
 Default: `["code"]`
 
-What the authorization endpoint returns. For the standard Authorization Code flow use `["code"]`. `token` and `id_token` are for implicit/hybrid flows (not recommended for new clients).
+What the authorization endpoint returns. Only `["code"]` is supported; implicit and hybrid response types are rejected.
 
 ### `scopes`
 Default: `openid profile email`
@@ -125,7 +140,7 @@ Default: `openid profile email`
 Space-separated string of scopes the client is allowed to request. Standard OIDC scopes: `openid`, `profile`, `email`, `address`, `phone`, `offline_access`. Custom scopes can also be defined.
 
 ### `token_endpoint_auth_method`
-Default: `client_secret_basic`
+Default: `none` for public clients; `client_secret_basic` for confidential clients.
 
 How the client authenticates at the token endpoint:
 

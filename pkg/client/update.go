@@ -48,9 +48,16 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		newScopes = req.Scopes
 	}
 
-	newAuthMethod := c.TokenEndpointAuthMethod
+	// RFC 7591 §3.2.1: preserve effective secret requirements for legacy rows.
+	newAuthMethod := c.effectiveTokenEndpointAuthMethod()
 	if req.TokenEndpointAuthMethod != "" {
 		newAuthMethod = req.TokenEndpointAuthMethod
+	}
+
+	// RFC 7591 §2 / §3.2.2: updates cannot contradict the immutable client type.
+	_, newAuthMethod, err = resolveClientAuthentication(c.ClientType, newAuthMethod)
+	if err != nil {
+		return err
 	}
 
 	newIsActive := c.IsActive

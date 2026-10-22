@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -57,6 +58,12 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		response, err = CreateClient(request)
 	}
 	if err != nil {
+		// RFC 7591 §3.2.2: reject contradictory authentication metadata.
+		if errors.Is(err, ErrInvalidClientMetadata) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
+			return
+		}
+
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
 			utils.WriteErrorResponse(w, http.StatusConflict, "conflict", "A client with that ID already exists")
 			return
@@ -141,6 +148,12 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 
 	err := UpdateClient(clientID, request)
 	if err != nil {
+		// RFC 7591 §3.2.2: reject contradictory authentication metadata.
+		if errors.Is(err, ErrInvalidClientMetadata) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
+			return
+		}
+
 		if strings.Contains(err.Error(), "not found") {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
 			return

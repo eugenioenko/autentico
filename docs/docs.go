@@ -4691,6 +4691,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "client_type": {
+                    "description": "Optional extension: inferred public for auth method none, otherwise confidential.",
                     "type": "string"
                 },
                 "client_uri": {
@@ -4742,6 +4743,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token_endpoint_auth_method": {
+                    "description": "Public clients use none; confidential clients use client_secret_basic or client_secret_post.",
                     "type": "string"
                 },
                 "trust_device_enabled": {
@@ -4985,6 +4987,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token_endpoint_auth_method": {
+                    "description": "Public clients use none; confidential clients use client_secret_basic or client_secret_post.",
                     "type": "string"
                 },
                 "trust_device_enabled": {

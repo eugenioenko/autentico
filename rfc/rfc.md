@@ -561,7 +561,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 |---|---|---|
 | §2 | Client metadata fields, defaults, unknown field handling | `pkg/client/model.go`, `pkg/client/create.go` |
 | §2 | redirect_uris MUST be registered for redirect-based flows | `pkg/client/handler.go` `HandleRegister` |
-| §2 | Default grant_types, response_types, token_endpoint_auth_method | `pkg/client/create.go` `createClientInternal` |
+| §2 | Default grant_types, response_types, token_endpoint_auth_method | `pkg/client/create.go`; authentication type/method resolved together before secret generation (#523) |
 | §3 | Registration endpoint MUST accept application/json POST | `pkg/client/handler.go` `HandleRegister` |
 | §3.2.1 | Response MUST include client_id, all registered metadata | `pkg/client/create.go`, `pkg/client/model.go` `ClientResponse` |
 | §3.2.1 | client_secret_expires_at REQUIRED when secret issued | `pkg/client/model.go` `ClientResponse` (hardcoded 0) |
@@ -576,6 +576,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 | MUST | §2 | Clients using redirect-based flows MUST register redirect_uris | ✅ Pre-existing — redirect_uris required in validation |
 | MUST | §3 | Accept HTTP POST with application/json | ✅ Pre-existing |
 | MUST | §3.2.1 | Return client_id in registration response | ✅ Pre-existing |
+| MUST | §3.2.1 | Returned authentication metadata matches effective registration | ✅ `none` infers public; contradictory create/update metadata rejected; legacy secret requirements preserved (#523) |
 | MUST | §3.2.1 | Return all registered metadata in response | ✅ Verified + annotated (2026-04-03) |
 | MUST | §3.2.1 | client_secret_expires_at REQUIRED when secret issued | ✅ Pre-existing (hardcoded 0 — no expiration) |
 | MUST | §3.2.2 | Return `invalid_client_metadata` for metadata validation errors | ✅ Fixed (2026-04-03) — was `invalid_request` |

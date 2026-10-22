@@ -11,7 +11,7 @@ export const tip = makeTip({
   grant_types: "OAuth2 flows this client is permitted to use.",
   response_types: "What the authorization endpoint returns. Use [code] for the standard Authorization Code flow.",
   scopes: "Scopes the client is allowed to request. Standard: openid, profile, email, address, phone, offline_access.",
-  token_endpoint_auth_method: "How the client authenticates at the token endpoint. Use none for public clients with PKCE.",
+  token_endpoint_auth_method: "Public clients use None with PKCE. Confidential clients use Client Secret Basic or Client Secret Post.",
 }, "https://getautentico.dev/clients/registering");
 
 // Tips for account dashboard listing fields — links to registering.mdx
