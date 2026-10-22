@@ -953,3 +953,11 @@ Account deletion (#480) follows OWASP Authentication Cheat Sheet §Require Re-au
 Federation network policy (#475) follows OWASP SSRF Prevention Cheat Sheet §IP address / §Domain name: validate the actual resolved connection target before dialing for discovery, token and JWKS requests, including redirects and DNS changes. This deployment restriction is an Autentico security policy, not an OAuth requirement; private provider endpoints are blocked by default.
 
 Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login Throttling / §Account Lockout: email requests share a per-account cooldown, and replacements preserve the failed-code count and original deadline across clients. Five incorrect codes exhaust both link and code until the window expires. Issuance is writer-serialized and atomic; cleanup must preserve used budget rows until their parsed expiry instant. These are application security policies, not OAuth requirements.
+
+## Shared browser authentication and local MFA
+
+| Level | Reference | Requirement | Status |
+|---|---|---|---|
+| MUST | OIDC Core §3.1.2.3 | Authenticate the end user before issuing an authorization response | ✅ All browser primary methods share current-client validation and local MFA enforcement, including signup, email verification, named/discoverable passkeys and federation. No SSO session or code precedes required MFA (#468). |
+| MUST | OIDC Core §3.1.2.4 | Obtain required end-user authorization before issuing a code | ✅ Every primary login and verified MFA continuation applies per-client consent before code issuance (#468). |
+| Local policy | OIDC Core §3.1.2.3 / WebAuthn §5.10.6 | Do not infer local MFA completion from enrollment, upstream login or preferred passkey UV | ✅ Passkeys and federation are primary credentials. Browser sessions record completed MFA evidence; SSO and direct consent require that evidence to satisfy current local policy. Email links preserve the existing duplicate-email-OTP exception without bypassing TOTP (#468). |

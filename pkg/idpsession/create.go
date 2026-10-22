@@ -10,8 +10,8 @@ func CreateIdpSession(session IdpSession) error {
 	now := time.Now().UTC()
 	query := `
 		INSERT INTO idp_sessions (
-			id, user_id, user_agent, ip_address, last_activity_at, created_at
-		) VALUES (?, ?, ?, ?, ?, ?);
+			id, user_id, user_agent, ip_address, last_activity_at, created_at, mfa_method
+		) VALUES (?, ?, ?, ?, ?, ?, ?);
 	`
 	_, err := db.GetDB().Exec(query,
 		session.ID,
@@ -20,6 +20,7 @@ func CreateIdpSession(session IdpSession) error {
 		session.IPAddress,
 		now,
 		now,
+		session.MfaMethod,
 	)
 
 	return err

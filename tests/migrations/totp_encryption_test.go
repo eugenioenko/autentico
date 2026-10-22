@@ -82,7 +82,7 @@ func TestTotpMigrationPreservesEnrollmentAndCodesAcrossRestart(t *testing.T) {
 			output, err := command(t, path, "", "migrate", "--approve-major=17")
 			require.NoError(t, err, output)
 			require.Contains(t, output, "enrollments will be encrypted in place and preserved")
-			require.Equal(t, 17, schema(t, path))
+			require.Equal(t, target, schema(t, path))
 			require.Len(t, backups(t, path), 1)
 			database = openDB(t, path)
 			for _, id := range []string{"active", "pending", "deactivated"} {
@@ -213,7 +213,7 @@ func TestTotpEncryptionFailureRestoresPlaintextAndCanRetry(t *testing.T) {
 				require.NoError(t, database.Close())
 				output, err = command(t, path, "", "migrate", "--approve-major=17")
 				require.NoError(t, err, output)
-				require.Equal(t, 17, schema(t, path))
+				require.Equal(t, target, schema(t, path))
 			})
 		}
 	}
@@ -253,7 +253,7 @@ func TestTotpEncryptionInterruptedUpgradeRecoversEnrollments(t *testing.T) {
 	require.NoError(t, database.Close())
 	text, err = command(t, path, "", "migrate", "--approve-major=17")
 	require.NoError(t, err, text)
-	require.Equal(t, 17, schema(t, path))
+	require.Equal(t, target, schema(t, path))
 }
 
 func TestTotpRecoveryDiscardsHotDeleteJournalAfterCommittedMigration(t *testing.T) {
@@ -310,7 +310,7 @@ func TestTotpRecoveryDiscardsHotDeleteJournalAfterCommittedMigration(t *testing.
 	require.NoError(t, database.Close())
 	text, err = command(t, path, "", "migrate", "--approve-major=17")
 	require.NoError(t, err, text)
-	require.Equal(t, 17, schema(t, path))
+	require.Equal(t, target, schema(t, path))
 	database = openDB(t, path)
 	require.NoError(t, database.QueryRow(`SELECT count(*) FROM users WHERE totp_secret LIKE 'totp:v1:%' AND totp_verified=TRUE`).Scan(&count))
 	require.Equal(t, 2000, count)

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { TOTP, Secret } from 'otpauth';
 import { execSync, execFileSync, spawn, type ChildProcess } from 'child_process';
 import { existsSync, mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
@@ -140,12 +141,15 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> {
 async function performFederatedLogin(
   usernameOnB: string,
   passwordOnB: string,
-  nonce?: string
+  nonce?: string,
+  stopAfterCallback = false
 ): Promise<{
   access_token: string;
   id_token: string;
   refresh_token: string;
   callbackStatus: number;
+  nextURL?: string;
+  cookies?: string[];
 }> {
   // Step 1: GET Instance A /oauth2/authorize — renders login page with federation button
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
@@ -256,6 +260,11 @@ async function performFederatedLogin(
 
   const finalRedirect = callbackResp.headers.get('Location');
   if (!finalRedirect) throw new Error('No Location header from federation callback');
+
+  if (stopAfterCallback) {
+    return { access_token: '', id_token: '', refresh_token: '', callbackStatus: 302,
+      nextURL: new URL(finalRedirect, BASE_URL).toString(), cookies: callbackResp.headers.getSetCookie() };
+  }
 
   const code = new URL(finalRedirect).searchParams.get('code');
   if (!code) throw new Error('No code in federation callback redirect');
@@ -493,6 +502,81 @@ describe('Federation flow — two Autentico instances', () => {
     const result = await performFederatedLogin('feduser', 'Password123!', 'client-nonce-418');
     expect(result.callbackStatus).toBe(302);
     expect(decodeJwtPayload(result.id_token).nonce).toBe('client-nonce-418');
+  });
+
+  it('requires local TOTP and consent after upstream login, then allows authenticated SSO', async () => {
+    const token = await getAdminToken();
+    expect((await putJSON(`${BASE_URL}/admin/api/settings`, { require_mfa: 'true', mfa_method: 'totp', trust_device_enabled: 'false' }, token)).ok).toBe(true);
+    expect((await putJSON(`${BASE_URL}/admin/api/clients/${ADMIN_CLIENT_ID}`, { consent_required: true }, token)).ok).toBe(true);
+    try {
+      const result = await performFederatedLogin('linkuser', 'Password123!', undefined, true);
+      expect(new URL(result.nextURL!).pathname).toBe('/oauth2/mfa');
+      expect(result.cookies!.some(cookie => cookie.startsWith('autentico_idp_session='))).toBe(false);
+      expect(result.access_token).toBe('');
+      const mfaPage = await fetch(result.nextURL!, { redirect: 'manual' });
+      expect(mfaPage.status).toBe(200);
+      const html = await mfaPage.text();
+      function field(page: string, name: string): string {
+        const value = page.match(new RegExp(`name="${name.replaceAll('.', '\\.') }"[^>]*value="([^"]*)"`))?.[1];
+        expect(value, `missing ${name}`).toBeDefined();
+        return value!.replaceAll('&amp;', '&').replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+      }
+      const secret = field(html, 'totp_secret');
+      const csrfCookie = mfaPage.headers.getSetCookie().find(cookie => cookie.startsWith('_gorilla_csrf='))!.split(';')[0];
+      const verified = await fetch(`${OAUTH_URL}/mfa`, {
+        method: 'POST', redirect: 'manual',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: csrfCookie, Origin: BASE_URL },
+        body: new URLSearchParams({ challenge_id: field(html, 'challenge_id'), totp_secret: secret,
+          code: new TOTP({ secret: Secret.fromBase32(secret) }).generate(), 'gorilla.csrf.Token': field(html, 'gorilla.csrf.Token') }),
+      });
+      expect(verified.status).toBe(302);
+      const idpCookie = verified.headers.getSetCookie().find(cookie => cookie.startsWith('autentico_idp_session='))!.split(';')[0];
+      const consentURL = new URL(verified.headers.get('Location')!, BASE_URL);
+      expect(consentURL.pathname).toBe('/oauth2/consent');
+      expect(consentURL.searchParams.get('code')).toBeNull();
+      const cookies = `${csrfCookie}; ${idpCookie}`;
+      const consentPage = await fetch(consentURL, { headers: { Cookie: cookies }, redirect: 'manual' });
+      expect(consentPage.status).toBe(200);
+      const consentHtml = await consentPage.text();
+      const form = new URLSearchParams({ action: 'allow' });
+      for (const name of ['client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method', 'prompt', 'consent_sig', 'gorilla.csrf.Token']) {
+        form.set(name, field(consentHtml, name));
+      }
+      const approved = await fetch(`${OAUTH_URL}/consent`, { method: 'POST', redirect: 'manual',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookies, Origin: BASE_URL }, body: form });
+      expect(approved.status).toBe(302);
+      const callback = new URL(approved.headers.get('Location')!);
+      expect(callback.searchParams.get('state')).toBe('fed-test-state');
+      const issued = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code',
+        code: callback.searchParams.get('code')!, client_id: ADMIN_CLIENT_ID,
+        redirect_uri: ADMIN_REDIRECT_URI, code_verifier: TEST_CODE_VERIFIER });
+      expect(issued.status).toBe(200);
+      expect(decodeJwtPayload((await issued.json()).id_token).sub).toBe(locallinkUserId);
+      const silent = new URL(`${OAUTH_URL}/authorize`);
+      silent.search = new URLSearchParams({ response_type: 'code', client_id: ADMIN_CLIENT_ID,
+        redirect_uri: ADMIN_REDIRECT_URI, scope: 'openid profile email', prompt: 'none',
+        code_challenge: TEST_CODE_CHALLENGE, code_challenge_method: 'S256' }).toString();
+      const sso = await fetch(silent, { headers: { Cookie: idpCookie }, redirect: 'manual' });
+      expect(sso.status).toBe(302);
+      expect(new URL(sso.headers.get('Location')!).searchParams.get('code')).toBeTruthy();
+    } finally {
+      expect((await putJSON(`${BASE_URL}/admin/api/settings`, { require_mfa: 'false' }, token)).ok).toBe(true);
+      expect((await putJSON(`${BASE_URL}/admin/api/clients/${ADMIN_CLIENT_ID}`, { consent_required: false }, token)).ok).toBe(true);
+    }
+  });
+
+  it('requires consent after federation even when local MFA is disabled', async () => {
+    const token = await getAdminToken();
+    expect((await putJSON(`${BASE_URL}/admin/api/clients/${ADMIN_CLIENT_ID}`, { consent_required: true }, token)).ok).toBe(true);
+    try {
+      const result = await performFederatedLogin('feduser', 'Password123!', undefined, true);
+      expect(new URL(result.nextURL!).pathname).toBe('/oauth2/consent');
+      expect(new URL(result.nextURL!).searchParams.get('code')).toBeNull();
+      expect(result.cookies!.some(cookie => cookie.startsWith('autentico_idp_session='))).toBe(true);
+      expect(result.access_token).toBe('');
+    } finally {
+      expect((await putJSON(`${BASE_URL}/admin/api/clients/${ADMIN_CLIENT_ID}`, { consent_required: false }, token)).ok).toBe(true);
+    }
   });
 
   it('hides disabled federation provider from login page', async () => {

@@ -35,7 +35,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const target = 17
+const target = 18
 
 var totpKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{42}, 32))
 
@@ -723,7 +723,7 @@ func futureCLI(t *testing.T, major bool) string {
 	data, err := os.ReadFile(sourcePath)
 	require.NoError(t, err)
 	source := strings.Replace(string(data), fmt.Sprintf("var SchemaVersion = %d", target), fmt.Sprintf("var SchemaVersion = %d", target+1), 1)
-	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d, Major: true, Func: encryptTotp},", target, target)
+	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d},", target, target)
 	require.Contains(t, source, anchor)
 	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: %d, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", target+1, major), 1)
 	dir := t.TempDir()

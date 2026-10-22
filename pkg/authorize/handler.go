@@ -16,6 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/signup"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 
@@ -313,6 +314,12 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	session, err := idpsession.IdpSessionByID(sessionID)
 	if err != nil {
 		return autoLoginResult{}
+	}
+	// OIDC Core §3.1.2.3: SSO must not bypass local MFA enabled after the
+	// session was created, or infer completion from the user's enrollment.
+	usr, err := user.UserByID(session.UserID)
+	if err != nil || !idpsession.SatisfiesMfa(session.MfaMethod, usr, cfg) {
+		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
 	withinIdleTimeout := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout

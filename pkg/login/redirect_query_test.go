@@ -25,7 +25,7 @@ func TestPasswordLoginRedirectPreservesExistingQueryAndOpaqueState(t *testing.T)
 	form := url.Values{"username": {"query-login"}, "password": {"Password123!"}, "client_id": {"query-client"},
 		"redirect_uri": {callback}, "scope": {"openid"}, "state": {state},
 		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"}}
-	testutils.SetAuthorizeSig(form)
+	signLoginForm(form)
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()

@@ -5,7 +5,11 @@ description: How TOTP and Email OTP multi-factor authentication works in Autenti
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-When `require_mfa` is `true`, all users must complete an MFA step after password authentication before an authorization code is issued.
+When `require_mfa` is `true`, every browser login applies the configured local MFA policy before establishing an SSO session or issuing an authorization code. This includes password login, signup, email verification, magic links, named and discoverable passkeys, and federation. A user who voluntarily enrolled in TOTP must also complete TOTP when global MFA is disabled. Client consent follows successful authentication.
+
+Passkeys and federated logins count as primary authentication; they do not replace local TOTP or email OTP. This applies even when a passkey reports successful user verification, because the local MFA policy is independent of that authenticator. Magic links and email-verification links already prove email ownership, so they do not repeat an email OTP step. They still require TOTP when that is the selected policy or a voluntary enrollment. Trusted-device bypass follows the requesting client's policy.
+
+SSO and direct consent check the method recorded by the completed login against current MFA requirements. If MFA was enabled later, the session has no recorded proof, or the method no longer satisfies the policy, fresh authentication is required. With `prompt=none`, authorization returns `login_required` rather than bypassing MFA.
 
 ## MFA flow
 
@@ -27,7 +31,7 @@ sequenceDiagram
     IdP->>Browser: 302 → redirect_uri?code=AUTH_CODE
 ```
 
-The MFA challenge is a short-lived, single-use token (5 minutes). If it expires, the user is redirected back to the login page.
+The MFA challenge is a short-lived, single-use token (10 minutes). If it expires, the user is redirected back to the login page.
 
 A verified challenge is consumed before issuing a session, authorization code or trusted-device cookie. Concurrent submissions can succeed only once. Used, expired, exhausted or changed challenges are rejected; a database failure while consuming the challenge cannot complete login.
 

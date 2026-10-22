@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -753,40 +752,17 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		}
 		return emailverification.PendingURL(usr.Username, loginState.verificationParams())
 	}
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	authorizationCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate authorization code")
-	}
-
-	ac := authcode.AuthCode{
-		Code:                authorizationCode,
-		UserID:              usr.ID,
-		ClientID:            loginState.ClientID,
+	// WebAuthn §5.10.6: preferred user verification is not guaranteed.
+	// Even a UV assertion is a primary credential under local MFA policy.
+	return mfa.FinishLogin(w, r, usr.ID, mfa.LoginState{
 		RedirectURI:         loginState.RedirectURI,
+		State:               loginState.State,
+		ClientID:            loginState.ClientID,
 		Scope:               loginState.Scope,
 		Nonce:               loginState.Nonce,
 		CodeChallenge:       loginState.CodeChallenge,
 		CodeChallengeMethod: loginState.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-	if err := authcode.CreateAuthCode(ac); err != nil {
-		return "", fmt.Errorf("failed to create authorization code")
-	}
-
-	// RFC 6749 §4.1.2: preserve callback queries and URL-encode code/state.
-	redirectURL, err := url.Parse(loginState.RedirectURI)
-	if err != nil {
-		return "", err
-	}
-	query := redirectURL.Query()
-	query.Set("code", ac.Code)
-	query.Set("state", loginState.State)
-	redirectURL.RawQuery = query.Encode()
-	return redirectURL.String(), nil
+	}, mfa.PrimaryPasskey)
 }
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {

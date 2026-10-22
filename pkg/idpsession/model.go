@@ -9,5 +9,6 @@ type IdpSession struct {
 	IPAddress      string
 	LastActivityAt time.Time
 	CreatedAt      time.Time
+	MfaMethod      string
 	DeactivatedAt  *time.Time
 }

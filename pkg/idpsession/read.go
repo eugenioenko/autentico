@@ -34,7 +34,7 @@ var accountDeviceListConfig = api.ListConfig{
 func IdpSessionByID(sessionID string) (*IdpSession, error) {
 	var session IdpSession
 	query := `
-		SELECT id, user_id, user_agent, ip_address, last_activity_at, created_at
+		SELECT id, user_id, user_agent, ip_address, last_activity_at, created_at, mfa_method
 		FROM idp_sessions
 		WHERE id = ? AND deactivated_at IS NULL
 	`
@@ -46,6 +46,7 @@ func IdpSessionByID(sessionID string) (*IdpSession, error) {
 		&session.IPAddress,
 		&session.LastActivityAt,
 		&session.CreatedAt,
+		&session.MfaMethod,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

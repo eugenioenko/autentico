@@ -16,6 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
@@ -58,6 +59,9 @@ func handleConsentGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !validateMfa(w, session, registeredClient) {
+		return
+	}
 	renderConsentPage(w, r, params, registeredClient.ClientName, userID)
 }
 
@@ -100,6 +104,10 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	if !validateMfa(w, session, registeredClient) {
 		return
 	}
 
@@ -205,6 +213,11 @@ func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentPar
 
 // RedirectToConsent builds a redirect URL to the consent screen with all OAuth params preserved.
 func RedirectToConsent(w http.ResponseWriter, r *http.Request, params ConsentParams) {
+	http.Redirect(w, r, URL(params), http.StatusFound)
+}
+
+// URL preserves the authorization parameters for HTML and JSON login flows.
+func URL(params ConsentParams) string {
 	q := url.Values{}
 	q.Set("client_id", params.ClientID)
 	q.Set("redirect_uri", params.RedirectURI)
@@ -214,8 +227,7 @@ func RedirectToConsent(w http.ResponseWriter, r *http.Request, params ConsentPar
 	q.Set("code_challenge", params.CodeChallenge)
 	q.Set("code_challenge_method", params.CodeChallengeMethod)
 	q.Set("prompt", params.Prompt)
-	consentURL := config.GetBootstrap().AppOAuthPath + "/consent?" + q.Encode()
-	http.Redirect(w, r, consentURL, http.StatusFound)
+	return config.GetBootstrap().AppOAuthPath + "/consent?" + q.Encode()
 }
 
 func parseConsentParams(r *http.Request) ConsentParams {
@@ -243,6 +255,18 @@ func validateSession(w http.ResponseWriter, r *http.Request) (*idpsession.IdpSes
 		return nil, ""
 	}
 	return session, session.UserID
+}
+
+// validateMfa prevents direct consent from bypassing the local authentication policy.
+func validateMfa(w http.ResponseWriter, session *idpsession.IdpSession, registered *client.Client) bool {
+	cfg := config.GetForClient(registered.ToOverrides())
+	usr, err := user.UserByID(session.UserID)
+	// OIDC Core §3.1.2.3–4: consent cannot upgrade single-factor or legacy SSO.
+	if err != nil || !idpsession.SatisfiesMfa(session.MfaMethod, usr, &cfg) {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "login_required", "Fresh authentication with MFA is required")
+		return false
+	}
+	return true
 }
 
 func signConsent(params ConsentParams, userID string) string {

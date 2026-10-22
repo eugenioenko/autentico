@@ -58,7 +58,7 @@ func TestTotpRebuildWriteFailureRestoresCommittedEncryptionAndCanRetry(t *testin
 	require.NoError(t, database.Close())
 	text, err := command(t, path, "", "migrate", "--approve-major=17")
 	require.NoError(t, err, text)
-	require.Equal(t, 17, schema(t, path))
+	require.Equal(t, target, schema(t, path))
 }
 
 func TestPartialBackupWriteFailsBeforeMigration(t *testing.T) {

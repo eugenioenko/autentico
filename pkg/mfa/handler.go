@@ -15,9 +15,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/email"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -260,11 +258,16 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RFC 6749 §3.1.2 / §4.1.2: retain the registered callback query and
-	// form-encode code/state, returning the exact opaque state value.
-	redirectURL, err := url.Parse(loginState.RedirectURI)
+	// Re-read the user after enrollment and the current registration/policy before
+	// issuing any authenticated state. Only consumed challenges reach this call.
+	primary := loginState.PrimaryMethod
+	if primary == "" {
+		primary = "legacy" // older challenges did not record their primary method
+	}
+	nextURL, err := finishLogin(w, r, usr.ID, loginState, primary, challenge.Method)
 	if err != nil {
-		http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
+		slog.Error("mfa: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
+		redirectToLoginWithError(w, r, challenge, "Authentication requirements changed or login failed. Please log in again.")
 		return
 	}
 
@@ -290,55 +293,8 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
-	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
-		consent.RedirectToConsent(w, r, consent.ConsentParams{
-			RedirectURI:         loginState.RedirectURI,
-			State:               loginState.State,
-			ClientID:            loginState.ClientID,
-			Scope:               loginState.Scope,
-			Nonce:               loginState.Nonce,
-			CodeChallenge:       loginState.CodeChallenge,
-			CodeChallengeMethod: loginState.CodeChallengeMethod,
-			Prompt:              loginState.Prompt,
-		})
-		return
-	}
-
-	authorizationCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("mfa: failed to generate authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
-	}
-
-	ac := authcode.AuthCode{
-		Code:                authorizationCode,
-		UserID:              usr.ID,
-		ClientID:            loginState.ClientID,
-		RedirectURI:         loginState.RedirectURI,
-		Scope:               loginState.Scope,
-		Nonce:               loginState.Nonce,
-		CodeChallenge:       loginState.CodeChallenge,
-		CodeChallengeMethod: loginState.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-
-	if err := authcode.CreateAuthCode(ac); err != nil {
-		slog.Error("mfa: failed to create authorization code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Something went wrong. Please log in again.")
-		return
-	}
-
-	query := redirectURL.Query()
-	query.Set("code", ac.Code)
-	query.Set("state", loginState.State)
-	redirectURL.RawQuery = query.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated consent or callback URL.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 }
 
 func handleMethodSwitch(w http.ResponseWriter, r *http.Request, challenge *MfaChallenge, cfg *config.Config) bool {
