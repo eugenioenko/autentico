@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/client"
@@ -16,14 +17,16 @@ const DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
 
 // HandleDeviceAuthorization handles the device authorization request.
 // @Summary Device Authorization
-// @Description Issues a device code and user code for device authorization flow (RFC 8628)
+// @Description Issues device/user codes. Public clients identify themselves; confidential clients authenticate with HTTP Basic or form credentials (RFC 8628).
 // @Tags oauth2
 // @Accept application/x-www-form-urlencoded
 // @Produce json
-// @Param client_id formData string true "Client ID"
+// @Param client_id formData string false "Client ID (required unless using HTTP Basic authentication)"
+// @Param client_secret formData string false "Confidential client secret for form authentication"
 // @Param scope formData string false "Requested scope"
 // @Success 200 {object} DeviceAuthorizationResponse
 // @Failure 400 {object} model.AuthErrorResponse
+// @Failure 401 {object} model.AuthErrorResponse "Invalid HTTP Basic client authentication"
 // @Router /oauth2/device_authorization [post]
 func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 	// RFC 8628 §3.1: the client makes an HTTP POST request to the device authorization endpoint
@@ -38,22 +41,39 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RFC 8628 §3.1: client_id is REQUIRED in the device authorization request
-	clientID := r.FormValue("client_id")
 	scope := r.FormValue("scope")
 
-	if clientID == "" {
+	// RFC 8628 §3.1 / RFC 6749 §5.2: a malformed Basic attempt must
+	// fail authentication, not fall back to another set of credentials.
+	_, _, basicAuth := r.BasicAuth()
+	authorization := strings.Fields(r.Header.Get("Authorization"))
+	if len(authorization) > 0 && strings.EqualFold(authorization[0], "Basic") && !basicAuth {
+		w.Header().Set("WWW-Authenticate", `Basic realm="device_authorization"`)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		return
+	}
+
+	// RFC 8628 §3.1: confidential clients authenticate as at the token
+	// endpoint; public clients identify themselves with client_id.
+	registeredClient, err := client.AuthenticateClientFromRequest(r)
+	if err != nil {
+		status := http.StatusBadRequest
+		// RFC 6749 §5.2: header-based authentication failures require a
+		// 401 response and a challenge matching the attempted scheme.
+		if basicAuth {
+			w.Header().Set("WWW-Authenticate", `Basic realm="device_authorization"`)
+			status = http.StatusUnauthorized
+		}
+		slog.Warn("device_authorization: client authentication failed", "request_id", reqid.Get(r.Context()))
+		utils.WriteErrorResponse(w, status, "invalid_client", "Client authentication failed")
+		return
+	}
+	// RFC 8628 §3.1: client_id is required when not authenticating.
+	if registeredClient == nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "client_id is required")
 		return
 	}
-
-	// RFC 8628 §3.1: validate client exists and supports device_code grant
-	registeredClient, err := client.ClientByClientID(clientID)
-	if err != nil {
-		slog.Warn("device_authorization: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", clientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
-		return
-	}
+	clientID := registeredClient.ClientID
 
 	// RFC 8628 §3.2 / RFC 6749 §5.2: unauthorized_client when the client may not use this grant
 	if !client.IsGrantTypeAllowed(registeredClient, DeviceCodeGrantType) {
@@ -120,4 +140,3 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	utils.WriteApiResponse(w, resp, http.StatusOK)
 }
-

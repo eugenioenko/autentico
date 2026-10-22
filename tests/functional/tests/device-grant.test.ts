@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { OAUTH_URL, getAdminToken, postJSON, postForm } from '../helpers';
+import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, postForm, postFormBasic, putJSON } from '../helpers';
 
 const CLIENT_ID = 'device-functional-client';
 
@@ -136,5 +136,71 @@ describe('Device Authorization Grant (RFC 8628)', () => {
     expect(body.device_authorization_endpoint).toBeTruthy();
     expect(body.device_authorization_endpoint).toContain('/device_authorization');
     expect(body.grant_types_supported).toContain('urn:ietf:params:oauth:grant-type:device_code');
+  });
+});
+
+
+describe('device authorization client authentication', () => {
+  const secret = 'device-client-secret';
+  const grant = 'urn:ietf:params:oauth:grant-type:device_code';
+  beforeAll(async () => {
+    const admin = await getAdminToken();
+    for (const id of ['device-basic', 'device-post', 'device-inactive', 'device-no-grant', 'device-inactive-public']) {
+      const publicClient = id === 'device-inactive-public';
+      const response = await postJSON(`${OAUTH_URL}/register`, { client_id: id, client_name: id,
+        client_type: publicClient ? 'public' : 'confidential', client_secret: publicClient ? undefined : secret,
+        token_endpoint_auth_method: publicClient ? 'none' : id === 'device-post' ? 'client_secret_post' : 'client_secret_basic',
+        redirect_uris: ['http://localhost/unused'], scopes: 'openid profile',
+        grant_types: id === 'device-no-grant' ? ['authorization_code'] : [grant], response_types: ['code'] }, admin);
+      expect(response.status).toBe(201);
+      if (id.includes('inactive')) expect((await putJSON(`${BASE_URL}/admin/api/clients/${id}`, { is_active: false }, admin)).status).toBe(200);
+    }
+  });
+
+  it('accepts Basic authentication without a body client_id and binds token polling to that client', async () => {
+    const response = await postFormBasic(`${OAUTH_URL}/device_authorization`, { scope: 'openid' }, 'device-basic', secret);
+    expect(response.status).toBe(200);
+    const issued = await response.json(); expect(issued.device_code).toBeTruthy();
+    const poll = await postFormBasic(`${OAUTH_URL}/token`, { grant_type: grant, device_code: issued.device_code }, 'device-basic', secret);
+    expect(poll.status).toBe(400); expect((await poll.json()).error).toBe('authorization_pending');
+  });
+
+  it('accepts form credentials through device authorization and token polling', async () => {
+    const credentials = { client_id: 'device-post', client_secret: secret };
+    const response = await postForm(`${OAUTH_URL}/device_authorization`, { ...credentials, scope: 'openid' });
+    expect(response.status).toBe(200);
+    const issued = await response.json(); expect(issued.device_code).toBeTruthy();
+    const poll = await postForm(`${OAUTH_URL}/token`, { ...credentials, grant_type: grant, device_code: issued.device_code });
+    expect(poll.status).toBe(400); expect((await poll.json()).error).toBe('authorization_pending');
+  });
+
+  it('rejects missing/wrong form secrets without issuing a code', async () => {
+    for (const client_secret of ['', 'wrong']) {
+      const response = await postForm(`${OAUTH_URL}/device_authorization`, { client_id: 'device-post', client_secret, scope: 'openid' });
+      expect(response.status).toBe(400);
+      const body = await response.json(); expect(body.error).toBe('invalid_client'); expect(body.device_code).toBeUndefined();
+    }
+  });
+
+  it('challenges incorrect or malformed Basic credentials without falling back to form credentials', async () => {
+    const wrong = await postFormBasic(`${OAUTH_URL}/device_authorization`, { scope: 'openid' }, 'device-basic', 'wrong');
+    const malformed = await fetch(`${OAUTH_URL}/device_authorization`, { method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic invalid-base64' },
+      body: new URLSearchParams({ client_id: 'device-post', client_secret: secret, scope: 'openid' }) });
+    for (const response of [wrong, malformed]) {
+      expect(response.status).toBe(401); expect(response.headers.get('WWW-Authenticate')).toBe('Basic realm="device_authorization"');
+      const body = await response.json(); expect(body.error).toBe('invalid_client'); expect(body.device_code).toBeUndefined();
+    }
+  });
+
+  it('retains inactive-client, grant and scope restrictions after authentication', async () => {
+    const inactive = await postFormBasic(`${OAUTH_URL}/device_authorization`, {}, 'device-inactive', secret);
+    expect(inactive.status).toBe(401); expect((await inactive.json()).error).toBe('invalid_client');
+    const inactivePublic = await postForm(`${OAUTH_URL}/device_authorization`, { client_id: 'device-inactive-public' });
+    expect(inactivePublic.status).toBe(400); expect((await inactivePublic.json()).error).toBe('invalid_client');
+    const disallowed = await postFormBasic(`${OAUTH_URL}/device_authorization`, {}, 'device-no-grant', secret);
+    expect(disallowed.status).toBe(400); expect((await disallowed.json()).error).toBe('unauthorized_client');
+    const scope = await postFormBasic(`${OAUTH_URL}/device_authorization`, { scope: 'openid forbidden' }, 'device-basic', secret);
+    expect(scope.status).toBe(400); expect((await scope.json()).error).toBe('invalid_scope');
   });
 });

@@ -787,7 +787,7 @@ This is analogous to the existing "public endpoints by design" decision for intr
 
 | Keyword | Section | Requirement | Status |
 |---------|---------|-------------|--------|
-| MUST | §3.1 | `client_id` required in device authorization request | ✅ Implemented |
+| MUST | §3.1 | Confidential clients authenticate as at the token endpoint; public clients send client_id | ✅ Shared Basic/form authentication, inactive-client rejection and matching Basic failure challenge (#514). |
 | MUST | §3.1 | Validate client exists and supports `device_code` grant | ✅ Implemented |
 | MUST | §3.2 | Response includes `device_code`, `user_code`, `verification_uri`, `expires_in` | ✅ Implemented |
 | MUST | §3.2 | Response MUST NOT be cached (`Cache-Control: no-store`, `Pragma: no-cache`) | ✅ Implemented |

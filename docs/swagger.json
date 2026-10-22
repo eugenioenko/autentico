@@ -3704,7 +3704,7 @@
         },
         "/oauth2/device_authorization": {
             "post": {
-                "description": "Issues a device code and user code for device authorization flow (RFC 8628)",
+                "description": "Issues device/user codes. Public clients identify themselves; confidential clients authenticate with HTTP Basic or form credentials (RFC 8628).",
                 "consumes": [
                     "application/x-www-form-urlencoded"
                 ],
@@ -3718,10 +3718,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Client ID",
+                        "description": "Client ID (required unless using HTTP Basic authentication)",
                         "name": "client_id",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Confidential client secret for form authentication",
+                        "name": "client_secret",
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -3739,6 +3744,12 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid HTTP Basic client authentication",
                         "schema": {
                             "$ref": "#/definitions/model.AuthErrorResponse"
                         }
