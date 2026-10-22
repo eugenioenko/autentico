@@ -16,12 +16,14 @@ type MfaChallenge struct {
 }
 
 type LoginState struct {
-	RedirectURI         string `json:"redirect_uri"`
-	State               string `json:"state"`
-	ClientID            string `json:"client_id"`
-	Scope               string `json:"scope"`
-	Nonce               string `json:"nonce"`
-	CodeChallenge       string `json:"code_challenge"`
-	CodeChallengeMethod string `json:"code_challenge_method"`
-	Prompt              string `json:"prompt"`
+	PrimaryMethod       PrimaryMethod `json:"primary_method,omitempty"`
+	ProviderID          string        `json:"provider_id,omitempty"`
+	RedirectURI         string        `json:"redirect_uri"`
+	State               string        `json:"state"`
+	ClientID            string        `json:"client_id"`
+	Scope               string        `json:"scope"`
+	Nonce               string        `json:"nonce"`
+	CodeChallenge       string        `json:"code_challenge"`
+	CodeChallengeMethod string        `json:"code_challenge_method"`
+	Prompt              string        `json:"prompt"`
 }

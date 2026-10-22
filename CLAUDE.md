@@ -186,7 +186,7 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/a/*/call
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), TOTP encryption key, CSRF secret, and token signing secrets; on an existing `.env`, adds only a missing TOTP key and preserves other settings and secrets
 - `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
-- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `17`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `18`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
 - `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -293,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 16):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 18):
 
 | Table | Purpose |
 |-------|---------|
@@ -437,3 +437,9 @@ Immediate self-service deletion requires `current_password` verified by `user.Co
 ## Magic-link account budget
 
 `issueMagicLinkToken` obtains the SQLite writer before reading the latest challenge, including used/exhausted rows. A per-account 60-second request cooldown applies across clients. Replacements carry the failure count and cannot extend the original unexpired deadline; five incorrect codes suppress new emails until that window expires. Successful redemption does not clear failures within the window. A new expired window starts with zero failures after the cooldown. Previous-link invalidation and insertion commit together; generation or storage failure preserves the prior credential. Shared `magicLinkWrite` retains explicit rollback/discard after failed COMMIT for issuance and consumption. Email expiration text uses the actual stored deadline. Cleanup compares parsed expiry instants, preserving live used budget records across UTC offsets. No schema or configuration is added. The SMTP/HTTP regression waits through the real cooldown and covers resends across clients, exhaustion of both credentials and recovery after expiry.
+
+## Shared browser authentication completion
+
+`mfa.FinishLogin` revalidates the current client and active user, applies local MFA/trusted-device policy, creates a browser session only after authentication, then enforces consent before issuing a code. Password, signup, email verification, magic links, named/discoverable passkeys and federation all use it; the MFA handler enters the same finalizer only after consuming a verified challenge. Passkeys (even with UV) and federation remain primary credentials. Email proof avoids a duplicate email OTP but never bypasses required/voluntary TOTP. A session insertion failure cannot issue a code.
+
+Routine schema 18 adds `idp_sessions.mfa_method`, default empty for preserved historical sessions. SSO and direct consent require evidence satisfying current MFA policy; enrollment alone proves nothing about a session. Verified TOTP/email methods and completed trusted-device logins are recorded. Fully authenticated trusted-device SSO retains the existing cross-client semantics. No TOTP, session or token is discarded by schema 18; major approval remains `15,17` for pre-v3 upgrades.

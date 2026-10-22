@@ -8,19 +8,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
-	"github.com/eugenioenko/autentico/pkg/utils"
 	"golang.org/x/oauth2"
 )
 
@@ -253,7 +250,6 @@ func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
-	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "federation", "provider", providerID), utils.GetClientIP(r))
 
 	if err := completeAuthFlow(w, r, usr, state); err != nil {
 		slog.Error("federation: failed to complete auth flow", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
@@ -328,50 +324,25 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 	return localUser, nil
 }
 
-// completeAuthFlow issues an auth code and redirects back to the client.
+// completeAuthFlow continues local MFA and consent after upstream authentication.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
-	// RFC 6749 §4.1.1 / §10.6: re-check immediately before creating a session or code.
-	registeredClient, err := client.ValidateAuthorization(state.authorizeParams())
-	if err != nil {
-		return fmt.Errorf("invalid authorization request: %w", err)
-	}
-	redirectURL, err := url.Parse(state.RedirectURI)
-	if err != nil {
-		return err
-	}
-	cfg := config.GetForClient(registeredClient.ToOverrides())
-
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	authCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		return fmt.Errorf("failed to generate auth code: %w", err)
-	}
-
-	ac := authcode.AuthCode{
-		Code:                authCode,
-		UserID:              usr.ID,
-		ClientID:            state.ClientID,
+	// OIDC Core §3.1.2.3–4: upstream authentication is a primary credential;
+	// it does not assert completion of this server's configured local MFA.
+	nextURL, err := mfa.FinishLogin(w, r, usr.ID, mfa.LoginState{
+		ProviderID:          state.ProviderID,
 		RedirectURI:         state.RedirectURI,
+		State:               state.State,
+		ClientID:            state.ClientID,
 		Scope:               state.Scope,
 		Nonce:               state.Nonce,
 		CodeChallenge:       state.CodeChallenge,
 		CodeChallengeMethod: state.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
+	}, mfa.PrimaryFederation)
+	if err != nil {
+		return err
 	}
-
-	if err := authcode.CreateAuthCode(ac); err != nil {
-		return fmt.Errorf("failed to create auth code: %w", err)
-	}
-
-	// RFC 6749 §4.1.2: preserve existing query parameters and echo state unchanged.
-	query := redirectURL.Query()
-	query.Set("code", ac.Code)
-	query.Set("state", state.State)
-	redirectURL.RawQuery = query.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated next authentication step.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 	return nil
 }
 

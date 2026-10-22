@@ -33,7 +33,7 @@ func TestLoginClientTrustedDeviceOverride(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, trusteddevice.CreateTrustedDevice(trusteddevice.TrustedDevice{ID: "trusted", UserID: usr.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 			form := url.Values{"client_id": {"override"}, "redirect_uri": {"http://localhost/cb"}, "username": {"override-user"}, "password": {"Password123!"}}
-			testutils.SetAuthorizeSig(form)
+			signLoginForm(form)
 			req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: "trusted"})

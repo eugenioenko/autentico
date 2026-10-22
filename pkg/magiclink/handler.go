@@ -2,7 +2,6 @@ package magiclink
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"math"
@@ -11,23 +10,17 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/email"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
-	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
 )
-
-const mfaChallengeExpiration = 10 * time.Minute
 
 type oauthParams struct {
 	RedirectURI         string
@@ -336,146 +329,30 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 // client validation, MFA, consent, IdP session, and auth code issuance.
 func completeLogin(w http.ResponseWriter, r *http.Request, params oauthParams, authorizeSigValue, userID string) {
 	// RFC 6749 §10.6: re-check the current registration before issuance.
-	registeredClient, err := validateSignedAuthorization(params, authorizeSigValue)
+	_, err := validateSignedAuthorization(params, authorizeSigValue)
 	if err != nil {
 		slog.Warn("magiclink: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID, "ip", utils.GetClientIP(r), "error", err)
 		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	cfg := config.GetForClient(registeredClient.ToOverrides())
-
-	usr, err := user.UserByID(userID)
-	if err != nil || usr == nil || usr.DeactivatedAt != nil {
-		renderMagicLink(w, r, "expired", params, authorizeSigValue, "Account not found or deactivated.", nil)
-		return
-	}
-
-	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
-	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
-		method := cfg.MfaMethod
-		if !cfg.RequireMfa && usr.TotpVerified {
-			method = "totp"
-		} else if method == "both" {
-			if usr.TotpVerified {
-				method = "totp"
-			} else {
-				method = "email"
-			}
-		}
-		if method == "email" && cfg.SmtpHost == "" {
-			if usr.TotpVerified {
-				method = "totp"
-			} else {
-				slog.Error("magiclink: email MFA required but SMTP is not configured", "request_id", reqid.Get(r.Context()))
-				view.RenderError(w, r, http.StatusServiceUnavailable, "Email verification is not available.")
-				return
-			}
-		}
-		// Magic link already proves email ownership — skip email OTP
-		if method == "email" {
-			slog.Info("magiclink: skipping email MFA — magic link already verified email ownership", "request_id", reqid.Get(r.Context()), "user_id", userID)
-		} else {
-			loginState := mfa.LoginState{
-				RedirectURI:         params.RedirectURI,
-				State:               params.State,
-				ClientID:            params.ClientID,
-				Scope:               params.Scope,
-				Nonce:               params.Nonce,
-				CodeChallenge:       params.CodeChallenge,
-				CodeChallengeMethod: params.CodeChallengeMethod,
-			}
-			stateJSON, err := json.Marshal(loginState)
-			if err != nil {
-				slog.Error("magiclink: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
-				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-				return
-			}
-
-			challengeID, err := authcode.GenerateSecureCode()
-			if err != nil {
-				slog.Error("magiclink: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
-				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-				return
-			}
-
-			challenge := mfa.MfaChallenge{
-				ID:         challengeID,
-				UserID:     usr.ID,
-				Method:     method,
-				LoginState: string(stateJSON),
-				ExpiresAt:  time.Now().Add(mfaChallengeExpiration),
-			}
-
-			if err := mfa.CreateMfaChallenge(challenge); err != nil {
-				slog.Error("magiclink: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
-				view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-				return
-			}
-
-			mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
-			http.Redirect(w, r, mfaURL, http.StatusFound)
-			return
-		}
-	}
-
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, params.ClientID, params.Scope, "") {
-		consent.RedirectToConsent(w, r, consent.ConsentParams{
-			RedirectURI:         params.RedirectURI,
-			State:               params.State,
-			ClientID:            params.ClientID,
-			Scope:               params.Scope,
-			Nonce:               params.Nonce,
-			CodeChallenge:       params.CodeChallenge,
-			CodeChallengeMethod: params.CodeChallengeMethod,
-		})
-		return
-	}
-
-	authCodeValue, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("magiclink: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-		return
-	}
-
-	codeRecord := authcode.AuthCode{
-		Code:                authCodeValue,
-		UserID:              usr.ID,
-		ClientID:            params.ClientID,
+	// OIDC Core §3.1.2.3–4: email proof does not bypass local TOTP or consent.
+	nextURL, err := mfa.FinishLogin(w, r, userID, mfa.LoginState{
 		RedirectURI:         params.RedirectURI,
+		State:               params.State,
+		ClientID:            params.ClientID,
 		Scope:               params.Scope,
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-
-	if err := authcode.CreateAuthCode(codeRecord); err != nil {
-		slog.Error("magiclink: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		view.RenderError(w, r, http.StatusInternalServerError, "Something went wrong.")
-		return
-	}
-
-	audit.Log(audit.EventMagicLinkLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "magic_link"), utils.GetClientIP(r))
-
-	// RFC 6749 §4.1.2: preserve registered callback query parameters.
-	redirectURL, err := url.Parse(params.RedirectURI)
+	}, mfa.PrimaryMagicLink)
 	if err != nil {
-		view.RenderError(w, r, http.StatusBadRequest, "Invalid redirect_uri")
+		slog.Error("magiclink: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
+		view.RenderError(w, r, http.StatusServiceUnavailable, "Login could not be completed. Please sign in again.")
 		return
 	}
-	redirectParams := redirectURL.Query()
-	redirectParams.Set("code", codeRecord.Code)
-	if params.State != "" {
-		redirectParams.Set("state", params.State)
-	}
-	redirectURL.RawQuery = redirectParams.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated next authentication step.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 }
 
 func buildMagicLinkURL(rawToken string, p oauthParams, authorizeSig string) string {

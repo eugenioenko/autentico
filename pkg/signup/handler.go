@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -44,6 +43,7 @@ func HandleSignup(w http.ResponseWriter, r *http.Request) {
 	handleSignupPost(w, r)
 }
 
+// handleSignupPost registers an account under current client policy, then requires verification, MFA and consent as configured.
 func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
@@ -224,46 +224,23 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	authCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("signup: failed to generate auth code", "error", err)
-		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
-		return
-	}
-
-	code := authcode.AuthCode{
-		Code:                authCode,
-		UserID:              usr.ID,
-		ClientID:            params.ClientID,
+	// OIDC Core §3.1.2.3–4: account creation alone does not establish MFA.
+	nextURL, err := mfa.FinishLogin(w, r, usr.ID, mfa.LoginState{
 		RedirectURI:         params.RedirectURI,
+		State:               params.State,
+		ClientID:            params.ClientID,
 		Scope:               params.Scope,
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-
-	if err = authcode.CreateAuthCode(code); err != nil {
-		slog.Error("signup: failed to create auth code", "error", err)
+	}, mfa.PrimarySignup)
+	if err != nil {
+		slog.Error("signup: failed to complete authentication", "error", err)
 		redirectSignupError(w, r, params, "Something went wrong. Please try again.")
 		return
 	}
-
-	// RFC 6749 §4.1.2: echo state without allowing query-parameter injection.
-	redirectURL, err := url.Parse(params.RedirectURI)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
-		return
-	}
-	query := redirectURL.Query()
-	query.Set("code", code.Code)
-	query.Set("state", params.State)
-	redirectURL.RawQuery = query.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated next authentication step.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 }
 
 type SignupParams struct {

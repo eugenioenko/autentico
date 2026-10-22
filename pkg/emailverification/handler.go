@@ -9,12 +9,11 @@ import (
 	"net/url"
 	"time"
 
-	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
+	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -135,7 +134,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	// RFC 6749 §4.1.1 / §10.6: a valid signature is not a registration check.
 	// Reject before consuming the verification token or creating a session.
-	registeredClient, err := client.ValidateAuthorization(authzsig.FromValues(r.URL.Query()))
+	_, err := client.ValidateAuthorization(authzsig.FromValues(r.URL.Query()))
 	if err != nil {
 		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
@@ -169,47 +168,23 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idpSessionID := idpsession.FinalizeLogin(w, r, userID)
-
-	// Issue auth code and redirect — user is now logged in
-	authCodeStr, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("verify-email: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
-		return
-	}
-
-	code := authcode.AuthCode{
-		Code:                authCodeStr,
-		UserID:              userID,
-		ClientID:            params.ClientID,
+	// OIDC Core §3.1.2.3–4: email ownership cannot bypass local TOTP or consent.
+	nextURL, err := mfa.FinishLogin(w, r, userID, mfa.LoginState{
 		RedirectURI:         params.RedirectURI,
+		State:               params.State,
+		ClientID:            params.ClientID,
 		Scope:               params.Scope,
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(config.GetForClient(registeredClient.ToOverrides()).AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-
-	if err = authcode.CreateAuthCode(code); err != nil {
-		slog.Error("verify-email: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
+	}, mfa.PrimaryVerification)
+	if err != nil {
+		slog.Error("verify-email: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
 		RenderVerifyEmail(w, r, "expired", "", params, "Verification succeeded but login failed. Please log in manually.")
 		return
 	}
-
-	// RFC 6749 §4.1.2: append code and state to the registered callback query.
-	redirectURL, err := url.Parse(params.RedirectURI)
-	if err != nil {
-		http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
-		return
-	}
-	query := redirectURL.Query()
-	query.Set("code", code.Code)
-	query.Set("state", params.State)
-	redirectURL.RawQuery = query.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated next authentication step.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 }
 
 // Eight detached resend deliveries may be outstanding per process. Admission

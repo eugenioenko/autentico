@@ -1,31 +1,23 @@
 package login
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/consent"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
-	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
-	"github.com/eugenioenko/autentico/pkg/trusteddevice"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 )
-
-const mfaChallengeExpiration = 10 * time.Minute
 
 // HandleLoginUser handles user login requests.
 // CSRF-protected form — not included in public API docs.
@@ -154,132 +146,24 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// MFA check: required globally, or user has voluntarily enrolled in TOTP
-	skipMfa := cfg.TrustDeviceEnabled && trusteddevice.IsDeviceTrusted(usr.ID, r)
-	if (cfg.RequireMfa || usr.TotpVerified) && !skipMfa {
-		method := cfg.MfaMethod
-		if !cfg.RequireMfa && usr.TotpVerified {
-			// User enrolled voluntarily — always use their TOTP regardless of global method
-			method = "totp"
-		} else if method == "both" {
-			// If method is "both", prefer TOTP if user is enrolled, otherwise email
-			if usr.TotpVerified {
-				method = "totp"
-			} else {
-				method = "email"
-			}
-		}
-		// Block email OTP if SMTP is not configured
-		if method == "email" && cfg.SmtpHost == "" {
-			if usr.TotpVerified {
-				method = "totp"
-			} else {
-				slog.Error("login: email MFA required but SMTP is not configured", "request_id", reqid.Get(r.Context()))
-				redirectToLogin(w, r, request, "Email verification is not available. Please contact support.")
-				return
-			}
-		}
-		// For TOTP method with unenrolled user, force enrollment
-		// For email method, always proceed (no per-user setup needed)
-
-		loginState := mfa.LoginState{
-			RedirectURI:         request.RedirectURI,
-			State:               request.State,
-			ClientID:            request.ClientID,
-			Scope:               request.Scope,
-			Nonce:               request.Nonce,
-			CodeChallenge:       request.CodeChallenge,
-			CodeChallengeMethod: request.CodeChallengeMethod,
-			Prompt:              request.Prompt,
-		}
-		stateJSON, err := json.Marshal(loginState)
-		if err != nil {
-			slog.Error("login: failed to serialize login state", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
-			return
-		}
-
-		challengeID, err := authcode.GenerateSecureCode()
-		if err != nil {
-			slog.Error("login: failed to generate challenge ID", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
-			return
-		}
-
-		challenge := mfa.MfaChallenge{
-			ID:         challengeID,
-			UserID:     usr.ID,
-			Method:     method,
-			LoginState: string(stateJSON),
-			ExpiresAt:  time.Now().Add(mfaChallengeExpiration),
-		}
-
-		if err := mfa.CreateMfaChallenge(challenge); err != nil {
-			slog.Error("login: failed to create MFA challenge", "request_id", reqid.Get(r.Context()), "error", err)
-			redirectToLogin(w, r, request, "Something went wrong. Please try again.")
-			return
-		}
-
-		mfaURL := config.GetBootstrap().AppOAuthPath + "/mfa?challenge_id=" + challengeID
-		http.Redirect(w, r, mfaURL, http.StatusFound)
-		return
-	}
-
-	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
-
-	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
-	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, request.ClientID, request.Scope, request.Prompt) {
-		consent.RedirectToConsent(w, r, consent.ConsentParams{
-			RedirectURI:         request.RedirectURI,
-			State:               request.State,
-			ClientID:            request.ClientID,
-			Scope:               request.Scope,
-			Nonce:               request.Nonce,
-			CodeChallenge:       request.CodeChallenge,
-			CodeChallengeMethod: request.CodeChallengeMethod,
-			Prompt:              request.Prompt,
-		})
-		return
-	}
-
-	authCode, err := authcode.GenerateSecureCode()
-	if err != nil {
-		slog.Error("login: failed to generate auth code", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
-		return
-	}
-
-	code := authcode.AuthCode{
-		Code:                authCode,
-		UserID:              usr.ID,
-		ClientID:            request.ClientID,
+	// OIDC Core §3.1.2.3–4: every primary method shares MFA and consent.
+	nextURL, err := mfa.FinishLogin(w, r, usr.ID, mfa.LoginState{
 		RedirectURI:         request.RedirectURI,
+		State:               request.State,
+		ClientID:            request.ClientID,
 		Scope:               request.Scope,
 		Nonce:               request.Nonce,
 		CodeChallenge:       request.CodeChallenge,
 		CodeChallengeMethod: request.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
-		Used:                false,
-		IdpSessionID:        idpSessionID,
-	}
-
-	err = authcode.CreateAuthCode(code)
+		Prompt:              request.Prompt,
+	}, mfa.PrimaryPassword)
 	if err != nil {
-		slog.Error("login: failed to create auth code", "request_id", reqid.Get(r.Context()), "error", err)
+		slog.Error("login: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
 		redirectToLogin(w, r, request, "Something went wrong. Please try again.")
 		return
 	}
-
-	audit.Log(audit.EventLoginSuccess, usr, audit.TargetUser, usr.ID, audit.Detail("method", "password"), utils.GetClientIP(r))
-
-	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
-	params := redirectURL.Query()
-	params.Set("code", code.Code)
-	if request.State != "" {
-		params.Set("state", request.State)
-	}
-	redirectURL.RawQuery = params.Encode()
-	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	// RFC 6749 §4.1.2: follow the validated next authentication step.
+	http.Redirect(w, r, nextURL, http.StatusFound)
 }
 
 // redirectToLogin redirects back to the authorize endpoint with an error message,
