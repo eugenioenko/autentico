@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync, execFileSync, spawn, type ChildProcess } from 'child_process';
-import { mkdtempSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { startServer, stopServer } from '../server-manager';
@@ -285,9 +285,14 @@ describe('Federation flow — two Autentico instances', () => {
     // with an explicit local transport, keeping the production binary unchanged.
     await stopServer();
     resetState();
-    fixtureBinaryDir = mkdtempSync(join(tmpdir(), 'autentico-fed-fixture-'));
-    const fixtureBinary = join(fixtureBinaryDir, 'server');
-    execFileSync('go', ['test', '-c', '-o', fixtureBinary, './pkg/cli'], { cwd: ROOT, stdio: 'pipe', env: { ...process.env, CGO_ENABLED: '0' } });
+    let fixtureBinary = process.env.AUTENTICO_TEST_FEDERATION_BINARY;
+    if (fixtureBinary) {
+      if (!existsSync(fixtureBinary)) throw new Error(`Missing prebuilt federation test fixture: ${fixtureBinary}`);
+    } else {
+      fixtureBinaryDir = mkdtempSync(join(tmpdir(), 'autentico-fed-fixture-'));
+      fixtureBinary = join(fixtureBinaryDir, 'server');
+      execFileSync('go', ['test', '-c', '-o', fixtureBinary, './pkg/cli'], { cwd: ROOT, stdio: 'pipe', env: { ...process.env, CGO_ENABLED: '0' } });
+    }
     await startServer({ binary: fixtureBinary, args: ['-test.run=^TestFederationFixtureServer$', '-test.timeout=5m'], env: { AUTENTICO_TEST_FEDERATION_FIXTURE: '1' } });
 
     // 1. Start Instance B
