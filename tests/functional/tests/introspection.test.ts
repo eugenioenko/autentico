@@ -191,3 +191,50 @@ describe('Token Introspection — independent access and refresh lifetimes', () 
     });
   }
 });
+
+
+describe('Token introspection caller authorization', () => {
+  it('rejects public client identifiers through form and Basic authentication', async () => {
+    const tokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const { azp: clientId } = JSON.parse(Buffer.from(tokens.access_token.split('.')[1], 'base64url').toString());
+    for (const response of [
+      await postForm(INTROSPECT, { token: tokens.access_token, client_id: clientId }),
+      await postForm(INTROSPECT, { token: tokens.access_token, client_id: clientId, client_secret: 'untrusted-secret' }),
+      await postFormBasic(INTROSPECT, { token: tokens.access_token }, clientId, 'untrusted-secret'),
+    ]) {
+      expect(response.status).toBe(401);
+      expect(response.headers.get('www-authenticate')).toBe('Basic realm="introspection"');
+      expect(await response.json()).toMatchObject({ error: 'invalid_client' });
+    }
+    // Public clients still authenticate valid refresh grants with client_id.
+    const refreshed = await postForm(`${OAUTH_URL}/token`, {
+      grant_type: 'refresh_token', client_id: clientId, refresh_token: tokens.refresh_token,
+    });
+    expect(refreshed.status).toBe(200);
+  });
+
+  it('rejects an admin user token for another app and accepts a real admin API token', async () => {
+    const appTokens = await obtainTokenViaROPC('admin', 'Password123!');
+    const admin = await getAdminToken();
+    const rejected = await postForm(INTROSPECT, { token: admin }, appTokens.access_token);
+    expect(rejected.status).toBe(403);
+    expect(rejected.headers.get('www-authenticate')).toContain('insufficient_scope');
+    expect(await rejected.json()).toMatchObject({ error: 'insufficient_scope' });
+    const accepted = await postJSON(INTROSPECT, { token: appTokens.access_token }, admin);
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toMatchObject({ active: true });
+  });
+
+  it('continues accepting confidential-client form credentials for its own tokens', async () => {
+    const issued = await postFormBasic(`${OAUTH_URL}/token`, {
+      grant_type: 'password', username: 'admin', password: 'Password123!', scope: 'openid',
+    }, CLIENT_ID, CLIENT_SECRET);
+    expect(issued.status).toBe(200);
+    const tokens = await issued.json();
+    const response = await postForm(INTROSPECT, {
+      token: tokens.access_token, client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ active: true });
+  });
+});
