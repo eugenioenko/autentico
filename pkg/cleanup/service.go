@@ -33,6 +33,9 @@ var transientTables = []struct {
 }
 
 func deleteExpiredTransientRows(threshold time.Time) {
+	if err := cleanFederationFlows(threshold); err != nil {
+		slog.Error("cleanup: failed to clean federation flows", "error", err)
+	}
 	if err := cleanMagicLinkTokens(threshold); err != nil {
 		slog.Error("cleanup: failed to clean magic link tokens", "error", err)
 	}

@@ -80,6 +80,8 @@ Magic-link requests now share a one-minute per-account email cooldown across cli
 
 Schema **18** is a routine additive migration that records the completed local MFA method on browser SSO sessions. It runs automatically on startup when no major migration is pending, and needs no new key or major approval. Existing sessions and TOTP enrollments are preserved. Older sessions have no MFA evidence: when local policy requires MFA, users must authenticate again before SSO or consent can issue a code. Password, signup, email-verification, magic-link, passkey and federation logins now share the same MFA and consent checks. See [MFA policy](/authentication/mfa/).
 
+Schema **19** adds an indexed table for pending federation logins. This routine migration runs automatically from schema 18 when auto-migration is enabled; it preserves existing tokens, sessions, TOTP ciphertext and enrollment/replay/lockout state. No new key or major approval is required. Keep the existing configuration and secrets for restart continuity. In-flight federation links from the previous version must restart sign-in: callbacks now require the initiating browser cookie, an unexpired pending flow and single-use consumption. See [federation login protection](/integrate/federation/#browser-binding-and-replay-protection).
+
 Consent and authentication-time hardening needs no further schema migration or key. Consent pages open during an upgrade must restart authorization. Older refresh tokens recover authentication time from a linked browser session or original unrotated password grant. Already-rotated tokens without a browser link require a new login because the original time cannot be reconstructed. Other sessions are preserved. See [refresh token compatibility](/protocol/refresh-tokens/#authentication-time).
 
 OAuth client authentication now accepts credentials through one Basic or POST-body method. Confidential device clients authenticate at both device authorization and token polling. Update integrations that send credentials in URLs, combine methods, or pass raw reserved characters in Basic credentials; form-encode each component before Base64-encoding. This needs no new database migration or key. See [client authentication](/clients/client-types/#credential-encoding-and-transport).
@@ -129,7 +131,7 @@ docker compose run --rm autentico init
 docker compose run --rm autentico migrate
 ```
 
-If schema 15 is pending, the command warns that everyone will be signed out. It also explains that schema 17 preserves and encrypts TOTP enrollments. Type the **target schema number shown by the command** to approve the upgrade (currently **`18`**). After it succeeds:
+If schema 15 is pending, the command warns that everyone will be signed out. It also explains that schema 17 preserves and encrypts TOTP enrollments. Type the **target schema number shown by the command** to approve the upgrade (currently **`19`**). After it succeeds:
 
 ```bash
 docker compose up -d autentico

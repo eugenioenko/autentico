@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,10 +46,12 @@ func TestFederationSSRFBlocksDiscovery(t *testing.T) {
 			id := fmt.Sprintf("ssrf-%d", i)
 			registerSSRFProvider(t, ts, admin, id, issuer)
 			params := federationParams()
-			signed, err := federation.SignState(federation.FederationState{ProviderID: id, ClientID: params.Get("client_id"), RedirectURI: params.Get("redirect_uri"), Scope: params.Get("scope"), CodeChallenge: params.Get("code_challenge"), CodeChallengeMethod: params.Get("code_challenge_method")})
-			require.NoError(t, err)
+			signed, browser := storedFederationState(t, id, params)
 			for _, path := range []string{"/oauth2/federation/" + id + "?" + params.Encode(), "/oauth2/federation/" + id + "/callback?" + url.Values{"state": {signed}, "code": {"upstream-code"}}.Encode()} {
-				resp, err := ts.Client.Get(ts.BaseURL + path)
+				req, err := http.NewRequest(http.MethodGet, ts.BaseURL+path, nil)
+				require.NoError(t, err)
+				req.AddCookie(browser)
+				resp, err := ts.Client.Do(req)
 				require.NoError(t, err)
 				_ = resp.Body.Close()
 				require.Equal(t, http.StatusBadGateway, resp.StatusCode)

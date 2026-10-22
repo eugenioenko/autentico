@@ -3,7 +3,7 @@ title: Database Schema
 description: The SQLite database schema used by Autentico.
 ---
 
-Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 17). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
+Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 19). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
 
 ## Tables
 
@@ -240,6 +240,19 @@ External identity provider configurations for federated/social login.
 | `sort_order` | INTEGER | Display order on the login page |
 | `created_at` | DATETIME | |
 
+### `federation_login_flows`
+
+Pending federation login correlation (routine migration 019). One matching record is atomically deleted before upstream exchange or local account changes.
+
+| Column | Type | Notes |
+|---|---|---|
+| `flow_id` | TEXT PK NOT NULL | Random flow ID / independent upstream nonce |
+| `browser_hash` | TEXT NOT NULL | SHA-256 of the separate browser cookie |
+| `state_hash` | TEXT NOT NULL | SHA-256 of signed state, binding all RP parameters |
+| `expires_at` | INTEGER NOT NULL | Unix deadline, indexed for expiry cleanup |
+
+No raw browser credential or signed state is stored. Other pending flows remain independent, and consumed state cannot be replayed across restarts.
+
 ### `federated_identities`
 
 Links between local user accounts and external identity provider accounts.
@@ -365,6 +378,13 @@ Composite primary key on `(user_id, claim_name)` -- one row per pair.
 | 10 | `010_nullable_passkey_challenge_user_id.go` | Rebuilds `passkey_challenges` to make `user_id` nullable (for discoverable login) |
 | 11 | `011_user_claims.go` | Creates `user_claims` table for custom per-user claims |
 | 12 | `012_client_app_metadata.go` | Adds `description`, `logo_uri`, `client_uri` and `show_in_account` columns to `clients` |
+| 13 | `013_magic_link_failed_attempts.go` | Adds the magic-link failure budget |
+| 14 | `014_totp_attempt_limits.go` | Adds persistent TOTP failure/lockout fields |
+| 15 | `015_hash_tokens.go` | Major upgrade: discards old bearer/login grants, renames hash columns and records client/ACR metadata |
+| 16 | `016_totp_replay.go` | Adds persistent per-enrollment TOTP replay watermark |
+| 17 | `017_encrypt_totp.go` | Major upgrade: encrypts and preserves all TOTP enrollments with the persistent key |
+| 18 | `018_browser_mfa.go` | Records completed local MFA evidence on browser sessions |
+| 19 | `019_federation_login_flows.go` | Adds indexed browser-bound single-use federation flows without changing credentials |
 
 ## Indexes
 
@@ -389,3 +409,4 @@ The following indexes are created across migrations:
 - `idx_auth_codes_idp_session_id` on `auth_codes(idp_session_id)`
 - `idx_user_consents_user_client` on `user_consents(user_id, client_id)`
 - `idx_user_claims_user_id` on `user_claims(user_id)`
+- `idx_federation_login_flows_expiry` on `federation_login_flows(expires_at)`

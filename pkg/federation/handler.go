@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -108,13 +109,6 @@ func (h *LoginHandler) HandleBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signedState, err := SignState(state)
-	if err != nil {
-		slog.Error("federation: failed to sign state", "request_id", reqid.Get(r.Context()), "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
-		return
-	}
-
 	// Use a restricted HTTP client to prevent SSRF on every outbound connection.
 	safeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, h.httpClient)
 	oidcProvider, err := oidc.NewProvider(safeCtx, provider.Issuer)
@@ -132,7 +126,18 @@ func (h *LoginHandler) HandleBegin(w http.ResponseWriter, r *http.Request) {
 		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
-	authURL := oauth2Cfg.AuthCodeURL(signedState, oauth2.AccessTypeOnline)
+	// RFC 6749 §10.12 / RFC 9700 §4.7.1: persist the browser-bound,
+	// expiring one-use state only after successful provider discovery.
+	signedState, cookie, err := beginLoginFlow(r, &state)
+	if err != nil {
+		slog.Error("federation: failed to create login flow", "request_id", reqid.Get(r.Context()), "error", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+	// OIDC Core §3.1.2.1 / §3.1.3.7: the upstream nonce is independent
+	// of the RP's nonce and binds its ID token to this exact flow.
+	authURL := oauth2Cfg.AuthCodeURL(signedState, oauth2.AccessTypeOnline, oauth2.SetAuthURLParam("nonce", state.FlowID))
+	http.SetCookie(w, cookie)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
@@ -187,6 +192,18 @@ func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §10.12 / RFC 9700 §4.7.1: commit single-use browser
+	// correlation before contacting the upstream or changing local accounts.
+	if err := consumeLoginFlow(r, state, rawState); err != nil {
+		if errors.Is(err, errInvalidLoginFlow) {
+			http.Error(w, "invalid or expired federation login", http.StatusBadRequest)
+		} else {
+			slog.Error("federation: failed to consume login flow", "request_id", reqid.Get(r.Context()), "error", err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
 	// Use a restricted HTTP client to prevent SSRF on every outbound connection.
 	ctx := context.WithValue(r.Context(), oauth2.HTTPClient, h.httpClient)
 	oidcProvider, err := oidc.NewProvider(ctx, provider.Issuer)
@@ -222,6 +239,14 @@ func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		slog.Warn("federation: id_token verification failed", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
+
+	// OIDC Core §3.1.3.7: an ID token must echo the nonce sent upstream.
+	// Reject before account resolution; the RP nonce remains state.Nonce.
+	if idToken.Nonce != state.FlowID {
+		slog.Warn("federation: upstream nonce mismatch", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
