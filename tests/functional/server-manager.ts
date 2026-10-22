@@ -63,7 +63,7 @@ export async function startServer(fixture?: { binary: string; args: string[]; en
 export async function stopServer(): Promise<void> {
   const child = serverProcess;
   serverProcess = null;
-  if (child && child.exitCode === null) {
+  if (child && child.exitCode === null && child.signalCode === null) {
     await new Promise<void>(resolve => {
       const force = setTimeout(() => child.kill('SIGKILL'), 5000);
       child.once('exit', () => { clearTimeout(force); resolve(); });
