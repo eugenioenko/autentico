@@ -32,7 +32,7 @@ sequenceDiagram
 
 ## Step 1: Generate PKCE parameters
 
-PKCE is required for public clients and recommended for all clients.
+PKCE is required for public clients and recommended for all clients. Unsupported `code_challenge_method` values, or a method without a challenge, are rejected at `/authorize` with `invalid_request` before login or SSO code issuance. Use `S256`; `plain` is accepted only when S256 enforcement is disabled.
 
 ```javascript
 function generateCodeVerifier() {

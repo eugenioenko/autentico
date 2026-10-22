@@ -204,7 +204,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §4.1 | Validate verifier length (43–128) and charset | ✅ Fixed (PR #108) |
 | MUST | §4.3 | Require verifier on exchange if challenge was present | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4.6 | Verify code_verifier against code_challenge; return `invalid_grant` on mismatch | ✅ Verified + annotated (2026-03-30) |
-| MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Verified + annotated (2026-03-30) |
+| MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Shared PKCE validation rejects unsupported/unbound methods at authorize before login or SSO, including confidential clients (#517). |
 | SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | ✅ Verified + annotated (2026-03-30) — defaults to S256 (MTI) |
 | SHOULD NOT | §7.2 | `plain` method SHOULD NOT be used | ✅ Rejected by default (`AuthPKCEEnforceSHA256=true`); configurable for backwards-compat |
 | MUST | — | Enforce PKCE for public clients (RFC 9700 §2.1.1 / OAuth 2.1) | ✅ Fixed — authorize endpoint rejects public clients without `code_challenge` |
