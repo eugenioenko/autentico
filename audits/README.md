@@ -62,5 +62,6 @@ Then:
 | 2026-05-09 | claude-sonnet-4-6 / claude-opus-4-6 | compliance-review | 13-phase item-by-item spec review (2026-03-28 → 05-09), all specs annotated + tested (see `rfc/rfc.md`) |
 | 2026-06-10 | claude-fable-5 | security-review | 4 open hardening items, 2 false positives disproved |
 | 2026-10-20 | claude-opus-5-5 | security-review | 21 findings (4 HIGH, 8 MEDIUM, 9 LOW), issues #462-#482 |
+| 2026-10-21 | claude-opus-5-5 | compliance-review | 14 OIDC/OAuth spec findings (1 HIGH, 4 MEDIUM, 9 LOW), issues #511-#523 + #471 |
 
 Keep this index updated when adding a file.

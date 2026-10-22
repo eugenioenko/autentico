@@ -87,6 +87,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate client_id is registered and redirect_uri is allowed for this client
+	// RFC 6749 §4.1.2.1: an invalid client identifier or redirection URI MUST NOT
+	// cause a redirect to the client; respond directly instead (checks below).
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("login: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
@@ -105,6 +107,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Reject any scope that the client is not allowed to use
+	// RFC 6749 §3.3: the AS MAY fully or partially ignore the requested scope based on its policy
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("login: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")

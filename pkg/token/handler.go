@@ -39,11 +39,13 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/token [post]
 func HandleToken(w http.ResponseWriter, r *http.Request) {
+	// RFC 6749 §3.2: the client MUST use the HTTP POST method at the token endpoint
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Only POST method is allowed")
 		return
 	}
 
+	// RFC 6749 §4.1.3 / Appendix B: token request parameters use application/x-www-form-urlencoded
 	err := r.ParseForm()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request payload needs to be application/x-www-form-urlencoded")
@@ -92,6 +94,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If a client was resolved, validate that it allows the requested grant type
+	// RFC 6749 §5.2: unauthorized_client: the client is not authorized to use this grant type
 	if authenticatedClient != nil && !client.IsGrantTypeAllowed(authenticatedClient, request.GrantType) {
 		slog.Warn("token: grant type not allowed for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "grant_type", request.GrantType)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Grant type not allowed for this client")
@@ -118,12 +121,15 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		codeAuthTime = code.CreatedAt
 		idpSessionID = code.IdpSessionID
 	case "password":
+		// RFC 6749 §4.3.2: username and password are REQUIRED; missing parameters are invalid_request
 		err = ValidateTokenRequestPassword(request)
 		if err != nil {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 			return
 		}
 
+		// RFC 6749 §4.3.2 / §5.2: the client must be identified (and authenticated if
+		// confidential); an unidentified client is invalid_client.
 		if authenticatedClient == nil {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for password grant")
 			return
@@ -182,6 +188,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		if requestedScope == "" {
 			requestedScope = "openid profile email"
 		}
+		// RFC 6749 §3.3 / §5.2: invalid_scope: scope exceeds what the client may request
 		if !client.ValidateScopes(authenticatedClient, requestedScope) {
 			slog.Warn("token: invalid scope for client (ROPC)", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", requestedScope)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
@@ -208,10 +215,12 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		// Strip "openid" — no user identity to assert in client_credentials
 		ccScope = removeScope(ccScope, "openid")
+		// RFC 6749 §3.3 / §5.2: invalid_scope: no usable scope remains for this grant
 		if ccScope == "" {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "No valid scopes requested")
 			return
 		}
+		// RFC 6749 §4.4.2 / §5.2: invalid_scope: scope exceeds what the client may request
 		if !client.ValidateScopes(authenticatedClient, ccScope) {
 			slog.Warn("token: invalid scope for client (client_credentials)", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", ccScope)
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_scope", "One or more requested scopes are not allowed for this client")
@@ -410,8 +419,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			if revokeErr != nil {
 				slog.Error("token: failed to revoke replayed grant", "request_id", reqid.Get(r.Context()), "error", revokeErr)
 			}
+			// RFC 6749 §4.1.2 / §5.2: a reused grant MUST be denied with invalid_grant;
+			// tokens previously issued from it SHOULD be revoked (done above).
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Grant has already been used or revoked")
 		} else if errors.Is(err, errGrantExpired) {
+			// RFC 6749 §5.2: invalid_grant: the grant has expired
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Grant has expired")
 		} else {
 			slog.Error("token: failed to persist grant issuance", "request_id", reqid.Get(r.Context()), "error", err)

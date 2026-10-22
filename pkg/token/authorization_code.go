@@ -15,12 +15,14 @@ import (
 )
 
 func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user.User, *authcode.AuthCode, error) {
+	// RFC 6749 §4.1.3: code and redirect_uri are REQUIRED; missing parameters are invalid_request
 	err := ValidateTokenRequestAuthorizationCode(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("%v", err))
 		return nil, nil, err
 	}
 
+	// RFC 6749 §4.1.3 / §5.2: an unknown authorization code is invalid_grant
 	code, err := authcode.AuthCodeByCodeIncludingUsed(request.Code)
 	if err != nil {
 		slog.Warn("token: authorization code not found", "error", err)

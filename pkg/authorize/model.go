@@ -24,7 +24,9 @@ type AuthorizeRequest struct {
 
 func ValidateAuthorizeRequest(input AuthorizeRequest) error {
 	return validation.ValidateStruct(&input,
+		// RFC 6749 §3.1.1 / OIDC Core §3.1.2.1: response_type is REQUIRED
 		validation.Field(&input.ResponseType, validation.Required),
+		// OIDC Core §3.1.2.1: redirect_uri is REQUIRED (OPTIONAL in RFC 6749 §4.1.1)
 		validation.Field(&input.RedirectURI, validation.Required, is.URL),
 		// RFC 6749 §3.3: validate scope token syntax
 		validation.Field(&input.Scope, validation.By(validateScopeSyntax)),
