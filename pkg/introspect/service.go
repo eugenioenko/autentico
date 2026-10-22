@@ -7,6 +7,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/utils"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // IntrospectToken looks up a token by access_token or refresh_token value and
@@ -67,4 +68,24 @@ func tokenExpiration(t *token.Token, presentedHash string) time.Time {
 // of the expiration-second boundary can be tested without a wall-clock race.
 func tokenExpired(t *token.Token, presentedHash string, now time.Time) bool {
 	return now.Unix() >= tokenExpiration(t, presentedHash).Unix()
+}
+
+// tokenAudienceAndID reads optional RFC 7662 §2.2 / RFC 7519 §4.1.3, §4.1.7
+// metadata only after the presented credential's exact hash matches a live stored
+// token. That match authenticates these bytes without reapplying current audience
+// policy to an already-issued token. This helper must never establish activity.
+func tokenAudienceAndID(presented string) ([]string, string) {
+	claims := jwt.MapClaims{}
+	// RFC 7662 §2.2: opaque credentials have no embedded JWT metadata to report.
+	if _, _, err := jwt.NewParser().ParseUnverified(presented, claims); err != nil {
+		return nil, ""
+	}
+	// RFC 7519 §4.1.3: accept either a single string or an array; omit invalid aud.
+	audience, err := claims.GetAudience()
+	if err != nil {
+		audience = nil
+	}
+	// RFC 7519 §4.1.7: jti is an optional string, never a database row identifier.
+	id, _ := claims["jti"].(string)
+	return audience, id
 }

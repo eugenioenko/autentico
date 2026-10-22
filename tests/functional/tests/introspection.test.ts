@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { OAUTH_URL, getAdminToken, obtainTokenViaROPC, postForm, postFormBasic, postJSON } from '../helpers';
+import { BASE_URL, OAUTH_URL, getAdminToken, obtainTokenViaROPC, postForm, postFormBasic, postJSON, putJSON } from '../helpers';
 
 const INTROSPECT = `${OAUTH_URL}/introspect`;
 const CLIENT_ID = 'introspect-test-client';
@@ -254,4 +254,54 @@ describe('Token introspection caller authorization', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ active: true });
   });
+});
+
+
+describe('Token introspection preserves issued JWT metadata', () => {
+  for (const grant of ['password', 'client_credentials'] as const) {
+    it(`returns the submitted ${grant} token claims after client audiences change`, async () => {
+      const admin = await getAdminToken();
+      const clientId = `metadata-${grant}`;
+      const secret = 'metadata-secret!';
+      const registered = await postJSON(`${OAUTH_URL}/register`, {
+        client_id: clientId, client_name: clientId, client_secret: secret,
+        redirect_uris: ['http://localhost:3000/callback'],
+        client_type: 'confidential', token_endpoint_auth_method: 'client_secret_basic',
+        grant_types: [grant, 'refresh_token'], response_types: ['code'],
+        scopes: 'openid offline_access', allowed_audiences: ['original-resource'],
+      }, admin);
+      expect(registered.status, await registered.text()).toBe(201);
+      const issued = await postFormBasic(`${OAUTH_URL}/token`, {
+        grant_type: grant, scope: 'openid offline_access',
+        ...(grant === 'password' ? { username: 'admin', password: 'Password123!' } : {}),
+      }, clientId, secret);
+      expect(issued.status).toBe(200);
+      const tokens = await issued.json();
+      const updated = await putJSON(`${BASE_URL}/admin/api/clients/${clientId}`, {
+        allowed_audiences: ['replacement-resource'],
+      }, admin);
+      expect(updated.status, await updated.text()).toBe(200);
+      for (const credential of [tokens.access_token, ...(tokens.refresh_token ? [tokens.refresh_token] : [])]) {
+        const claims = JSON.parse(Buffer.from(credential.split('.')[1], 'base64url').toString());
+        const response = await postFormBasic(INTROSPECT, { token: credential }, clientId, secret);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.active).toBe(true);
+        if (claims.aud !== undefined) {
+          expect(body.aud).toEqual(Array.isArray(claims.aud) ? claims.aud : [claims.aud]);
+          expect(body.aud).toContain('original-resource');
+          expect(body.aud).toContain(clientId);
+          expect(body.aud).not.toContain('replacement-resource');
+        } else expect(body).not.toHaveProperty('aud');
+        if (claims.jti !== undefined) expect(body.jti).toBe(claims.jti);
+        else expect(body).not.toHaveProperty('jti');
+      }
+      // Altering claims must never bypass the exact stored-token hash check.
+      const parts = tokens.access_token.split('.');
+      parts[1] = Buffer.from(JSON.stringify({ aud: ['attacker-resource'], jti: 'forged' })).toString('base64url');
+      const forged = await postFormBasic(INTROSPECT, { token: parts.join('.') }, clientId, secret);
+      expect(forged.status).toBe(200);
+      expect(await forged.json()).toEqual({ active: false });
+    });
+  }
 });

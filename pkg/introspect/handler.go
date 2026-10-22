@@ -184,9 +184,9 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 7662 §2.2: active token response — "active" is REQUIRED, all other fields OPTIONAL.
-	// Optional response fields retain their existing API representation; exp follows
-	// the expiry of the presented access or refresh credential (RFC 7662 §2.2).
-	aud := strings.Join(config.Get().AuthAccessTokenAudience, " ")
+	// aud and jti describe the exact credential that passed database and liveness
+	// checks above; exp follows that access or refresh credential as well.
+	aud, jti := tokenAudienceAndID(req.Token)
 	sub := ""
 	if tkn.UserID != nil {
 		sub = *tkn.UserID
@@ -200,7 +200,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		Sub:       sub,
 		Iss:       config.GetBootstrap().AppAuthIssuer,
 		Aud:       aud,
-		Jti:       tkn.ID,
+		Jti:       jti,
 	}
 
 	utils.WriteApiResponse(w, introspect, http.StatusOK)
