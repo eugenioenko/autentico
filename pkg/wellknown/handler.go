@@ -99,6 +99,7 @@ func HandleJWKS(w http.ResponseWriter, r *http.Request) {
 		N:   kMap["n"],
 		E:   kMap["e"],
 	}
+	// OIDC Discovery §3 (jwks_uri) / RFC 7517 §5: JWK Set with the signing key; kid matches the JWT header
 	jwks := model.JWKSResponse{
 		Keys: []model.JWK{jwk},
 	}

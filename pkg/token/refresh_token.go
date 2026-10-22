@@ -20,6 +20,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
+	// RFC 6749 §6 / §5.2: an invalid refresh token is invalid_grant
 	authToken, err := DecodeRefreshToken(request.RefreshToken, config.GetBootstrap().AuthRefreshTokenSecret)
 	if err != nil {
 		slog.Warn("token: invalid refresh token", "error", err)
@@ -27,12 +28,14 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, err
 	}
 
+	// RFC 6749 §5.2: invalid_grant: the refresh token has expired
 	if time.Now().After(time.Unix(authToken.ExpiresAt, 0)) {
 		slog.Warn("token: refresh token expired")
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Refresh token has expired")
 		return nil, fmt.Errorf("refresh token expired")
 	}
 
+	// RFC 6749 §5.2 / RFC 7009 §2.2: a refresh token whose session was revoked is invalid_grant
 	sess, err := session.SessionByIDIncludingDeactivated(authToken.SessionID)
 	if err != nil {
 		slog.Warn("token: session not found for refresh token", "error", err, "session_id", authToken.SessionID)
@@ -81,6 +84,7 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		if err := revokeRefreshFamily(authToken.UserID); err != nil {
 			slog.Error("token: failed to revoke all user tokens after replay detection", "error", err, "user_id", authToken.UserID)
 		}
+		// RFC 6749 §5.2: invalid_grant: the refresh token was revoked
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Token has been revoked")
 		return nil, fmt.Errorf("token has been revoked")
 	}

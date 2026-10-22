@@ -63,6 +63,7 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// RFC 7009 §2.1: parameters use application/x-www-form-urlencoded in the POST body
 	err = r.ParseForm()
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")

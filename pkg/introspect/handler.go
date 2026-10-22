@@ -70,6 +70,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
 			return
 		}
+		// RFC 6750 §3.1: an invalid bearer credential is invalid_token with HTTP 401
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
 			slog.Warn("introspect: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
@@ -83,6 +84,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token not issued for admin API")
 			return
 		}
+		// RFC 6750 §3.1: insufficient_scope with HTTP 403 when the token lacks the required privileges
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
 			slog.Warn("introspect: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
@@ -94,6 +96,7 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 
 	var req IntrospectRequest
 
+	// RFC 7662 §2.1: the token parameter is carried in the POST body
 	if r.Body == nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request body is empty")
 		return

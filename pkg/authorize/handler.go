@@ -66,12 +66,16 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate redirect_uri format first — if invalid we cannot redirect back safely
+	// RFC 6749 §3.1.2.4 / §4.1.2.1: on a missing or invalid redirection URI the AS
+	// SHOULD inform the resource owner and MUST NOT redirect the user-agent.
 	if !utils.IsValidRedirectURI(request.RedirectURI) {
 		view.RenderError(w, r, http.StatusBadRequest, "Invalid redirect_uri")
 		return
 	}
 
 	// Validate client_id — if unknown we cannot redirect back safely
+	// RFC 6749 §4.1.2.1: if the client identifier is missing or invalid, the AS
+	// SHOULD inform the resource owner and MUST NOT redirect the user-agent.
 	registeredClient, err := client.ClientByClientID(request.ClientID)
 	if err != nil {
 		slog.Warn("authorize: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
@@ -79,6 +83,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.2.1: an inactive client is an invalid client identifier; do not redirect.
 	if !registeredClient.IsActive {
 		slog.Warn("authorize: inactive client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		view.RenderError(w, r, http.StatusBadRequest, "Client is inactive")
@@ -101,6 +106,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.2.1: invalid_request: missing required parameter or invalid parameter value
 	if err := ValidateAuthorizeRequest(request); err != nil {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", err.Error())
 		return
@@ -118,12 +124,14 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §3.1.1 / §4.1.2.1: unsupported_response_type for a response type the client may not use
 	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
 		slog.Warn("authorize: invalid response_type for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
 		redirectWithError(w, r, request.RedirectURI, request.State, "unsupported_response_type", "response_type not allowed for this client")
 		return
 	}
 
+	// RFC 6749 §3.3 / §4.1.2.1: invalid_scope: requested scope exceeds what the client may request
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("authorize: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_scope", "one or more requested scopes are not allowed for this client")
@@ -186,6 +194,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// If the authorize request arrived as POST, redirect to GET so that the CSRF
 	// middleware runs and sets the CSRF cookie before rendering the login form.
+	// OIDC Core §3.1.2.1: the AS MUST support both GET and POST; POST parameters
+	// are carried over unchanged to the equivalent GET request.
 	if r.Method == http.MethodPost {
 		q := url.Values{}
 		q.Set("response_type", request.ResponseType)
@@ -302,6 +312,7 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 		}
 	}
 
+	// OIDC Core §3.1.2.1: prompt=login: the AS SHOULD prompt the End-User for reauthentication.
 	if !cfg.AuthSsoEnabled || hasLogin {
 		return autoLoginResult{}
 	}
@@ -334,6 +345,8 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 		return autoLoginResult{hasSession: true, userID: session.UserID}
 	}
 
+	// OIDC Core §3.1.2.1: max_age: if the elapsed time since the last active
+	// authentication exceeds max_age, the OP MUST actively re-authenticate the End-User.
 	maxAgeSecs := parseMaxAge(request.MaxAge)
 	if maxAgeSecs >= 0 && time.Since(session.CreatedAt) > time.Duration(maxAgeSecs)*time.Second {
 		return autoLoginResult{hasSession: true, userID: session.UserID}

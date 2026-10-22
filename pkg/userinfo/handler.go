@@ -66,12 +66,15 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	if accessToken == "" {
 		accessToken = bodyToken
 	}
+	// RFC 6750 §3.1: a request without authentication SHOULD NOT include an error code
 	if accessToken == "" {
 		utils.WriteBearerUnauthorized(w, realm, "", "")
 		return
 	}
 
 	// Validate the access token cryptographically
+	// OIDC Core §5.3.3 / RFC 6750 §3.1: an expired, revoked or malformed token is
+	// invalid_token with HTTP 401 and a WWW-Authenticate challenge (same for the checks below).
 	_, err := jwtutil.ValidateAccessToken(accessToken)
 	if err != nil {
 		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token is invalid or expired")
@@ -90,6 +93,8 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// OIDC Core §5.3: UserInfo returns Claims about the authenticated End-User;
+	// a token without a resource owner (client_credentials) is not usable here.
 	if tok.UserID == nil {
 		utils.WriteBearerUnauthorized(w, realm, "invalid_token", "Token has no associated user")
 		return
@@ -175,5 +180,6 @@ func HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// OIDC Core §5.3.2: successful response is HTTP 200 with a JSON object (application/json)
 	utils.WriteApiResponse(w, response, http.StatusOK)
 }

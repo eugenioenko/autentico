@@ -19,6 +19,7 @@ func handleDeviceCodeGrant(w http.ResponseWriter, r *http.Request, request Token
 		return nil, "", errGrantHandled
 	}
 
+	// RFC 8628 §3.5 / RFC 6749 §5.2: an unknown device_code is invalid_grant
 	dc, err := devicecode.DeviceCodeByCode(request.DeviceCode)
 	if err != nil {
 		slog.Warn("token: device_code not found", "request_id", reqid.Get(r.Context()))

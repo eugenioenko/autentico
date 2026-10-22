@@ -26,11 +26,13 @@ const DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
 // @Failure 400 {object} model.AuthErrorResponse
 // @Router /oauth2/device_authorization [post]
 func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
+	// RFC 8628 §3.1: the client makes an HTTP POST request to the device authorization endpoint
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "invalid_request", "Only POST method is allowed")
 		return
 	}
 
+	// RFC 8628 §3.1: parameters use application/x-www-form-urlencoded
 	if err := r.ParseForm(); err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid form data")
 		return
@@ -53,6 +55,7 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 8628 §3.2 / RFC 6749 §5.2: unauthorized_client when the client may not use this grant
 	if !client.IsGrantTypeAllowed(registeredClient, DeviceCodeGrantType) {
 		slog.Warn("device_authorization: grant type not allowed", "request_id", reqid.Get(r.Context()), "client_id", clientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "unauthorized_client", "Client is not authorized for device_code grant")

@@ -171,6 +171,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §4.1.2: authorization response MUST include code; state MUST be echoed unchanged if present
 	redirectParams := redirectURL.Query()
 	redirectParams.Set("code", ac.Code)
 	if params.State != "" {
