@@ -38,10 +38,12 @@ describe.sequential('Self-service deletion authentication', () => {
 
   it('fails closed on malformed JSON', async () => {
     const user = await account('delete-malformed');
+    for (const body of ['{"current_password":', '{"current_password":"Password123!"} trailing', '{"current_password":"Password123!"} {}']) {
     const response = await fetch(`${ACCOUNT}/deletion-request`, { method: 'POST',
-      headers: { Authorization: `Bearer ${user.token}`, 'Content-Type': 'application/json' }, body: '{"current_password":' });
+      headers: { Authorization: `Bearer ${user.token}`, 'Content-Type': 'application/json' }, body });
     expect(response.status).toBe(400);
     expect((await getResponse(`${ACCOUNT}/profile`, user.token)).status).toBe(200);
+    }
   });
 
   it('deletes with the correct password, invalidates the credential and retains an audit record', async () => {

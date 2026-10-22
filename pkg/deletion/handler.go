@@ -35,19 +35,28 @@ import (
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/deletion-request [post]
 func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
-	usr := middleware.UserFromContext(r.Context())
-	if usr == nil {
+	info := middleware.AuthInfoFromContext(r.Context())
+	if info == nil || info.User == nil {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
+	usr := info.User
 	var input CreateDeletionRequestInput
 	if r.Body != nil {
 		// OWASP Authentication §Require Re-authentication for Sensitive Features:
 		// malformed input must never authorize a destructive operation.
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil && !errors.Is(err, io.EOF) {
+		decoder := json.NewDecoder(r.Body)
+		decodeErr := decoder.Decode(&input)
+		if decodeErr != nil && !errors.Is(decodeErr, io.EOF) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
 			return
+		}
+		if decodeErr == nil {
+			if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+				utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Request body must contain one JSON value")
+				return
+			}
 		}
 	}
 
@@ -58,7 +67,8 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Current password is required for immediate deletion")
 			return
 		}
-		if err := user.VerifyPassword(usr.ID, input.CurrentPassword); err != nil {
+		proof, err := user.ConfirmPassword(usr.ID, input.CurrentPassword)
+		if err != nil {
 			if errors.Is(err, user.ErrAccountLocked) {
 				utils.WriteErrorResponse(w, http.StatusTooManyRequests, "account_locked", "Account is temporarily locked")
 				return
@@ -66,7 +76,15 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
 			return
 		}
-		if err := HardDeleteUser(usr.ID); err != nil {
+		if info.Session == nil {
+			utils.WriteBearerUnauthorized(w, config.GetBootstrap().AppAuthIssuer, "invalid_token", "Active session required")
+			return
+		}
+		if err := user.HardDeleteConfirmedUser(proof, info.Token, info.Session.ID); err != nil {
+			if errors.Is(err, user.ErrDeletionAuthorizationChanged) {
+				utils.WriteBearerUnauthorized(w, config.GetBootstrap().AppAuthIssuer, "invalid_token", err.Error())
+				return
+			}
 			// OWASP Authorization §Exit Safely: all deletion modes preserve an active admin.
 			if errors.Is(err, user.ErrLastActiveAdmin) {
 				utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())

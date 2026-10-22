@@ -2,6 +2,7 @@ package user
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -70,7 +71,42 @@ func revokeUserAccessTx(tx *sql.Tx, userID, excludeToken string) error {
 // Tables with ON DELETE CASCADE (passkey_challenges, passkey_credentials, user_groups)
 // are handled automatically. All others are deleted explicitly before removing the user row.
 func HardDeleteUser(id string) error {
+	return hardDeleteUser(id, nil)
+}
+
+// ErrDeletionAuthorizationChanged rejects stale confirmation, credentials or sessions.
+var ErrDeletionAuthorizationChanged = errors.New("authentication state changed; sign in again")
+
+// HardDeleteConfirmedUser checks confirmation and caller liveness in the deletion transaction.
+func HardDeleteConfirmedUser(proof PasswordConfirmation, accessToken, sessionID string) error {
+	if proof.userID == "" || proof.passwordHash == "" || accessToken == "" || sessionID == "" {
+		return ErrDeletionAuthorizationChanged
+	}
+	return hardDeleteUser(proof.userID, func(tx *sql.Tx) error {
+		// OWASP Authentication §Require Re-authentication for Sensitive Features:
+		// a reset, deactivation, logout or token rotation invalidates an in-flight action.
+		var expires time.Time
+		err := tx.QueryRow(`SELECT t.access_token_expires_at FROM users u
+			JOIN tokens t ON t.user_id=u.id
+			JOIN sessions s ON s.user_id=u.id AND s.access_token_hash=t.access_token_hash
+			WHERE u.id=? AND u.password=? AND u.deactivated_at IS NULL
+			AND t.access_token_hash=? AND t.revoked_at IS NULL
+			AND s.id=? AND s.deactivated_at IS NULL`, proof.userID, proof.passwordHash, utils.HashToken(accessToken), sessionID).Scan(&expires)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && expires.Unix() <= time.Now().Unix()) {
+			return ErrDeletionAuthorizationChanged
+		}
+		return err
+	})
+}
+
+// hardDeleteUser checks any confirmation before changing account-associated rows.
+func hardDeleteUser(id string, confirm func(*sql.Tx) error) error {
 	return mutateUser(id, true, func(tx *sql.Tx) error {
+		if confirm != nil {
+			if err := confirm(tx); err != nil {
+				return err
+			}
+		}
 		tables := []string{
 			"deletion_requests",
 			"tokens",

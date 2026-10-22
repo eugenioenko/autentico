@@ -268,7 +268,7 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST /account/api/device/deny", rateLimited(accountAPI(account.HandleDeviceDeny)))
 	mux.HandleFunc("GET /account/api/settings", account.HandleGetSettings)
 	mux.Handle("GET /account/api/deletion-request", accountAPI(deletion.HandleGetDeletionRequest))
-	mux.Handle("POST /account/api/deletion-request", accountAPI(deletion.HandleRequestDeletion))
+	mux.Handle("POST /account/api/deletion-request", rateLimited(accountAPI(deletion.HandleRequestDeletion)))
 	mux.Handle("DELETE /account/api/deletion-request", accountAPI(deletion.HandleCancelDeletionRequest))
 
 	// -------------------------------------------------------------------------

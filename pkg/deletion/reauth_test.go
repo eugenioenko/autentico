@@ -19,6 +19,8 @@ func TestImmediateDeletionRequiresPassword(t *testing.T) {
 	}{
 		{"missing", `{}`, 400}, {"wrong", `{"current_password":"wrong"}`, 403},
 		{"malformed", `{"current_password":`, 400},
+		{"trailing garbage", `{"current_password":"Password123!"} garbage`, 400},
+		{"second value", `{"current_password":"Password123!"} {}`, 400},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			testutils.WithTestDB(t)
