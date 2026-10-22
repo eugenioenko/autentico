@@ -1,0 +1,29 @@
+---
+title: Magic Links
+description: Email sign-in links and codes, expiration windows, resend cooldowns and shared attempt limits.
+---
+
+Enable `magic_link_enabled` and configure [SMTP](/configuration/runtime-settings/) to offer **Sign in with email link** on the login page. Users receive a sign-in link and a six-digit code. Either credential can complete the email step; redeeming one consumes the other. Configured MFA and client consent still apply.
+
+## Attempt limits and resends
+
+An account can receive one sign-in email per minute, shared across applications. A replacement email invalidates the previous link and code, but keeps their original expiration deadline and failed-attempt count. The expiration shown in the email reflects the time actually remaining.
+
+Five incorrect codes exhaust both credentials. Further email requests are suppressed until the original window expires. Successful sign-in does not clear earlier failures within that window. After expiry and the request cooldown, a new request starts a fresh budget.
+
+For example, if four incorrect codes were entered during a 15-minute window, requesting another email leaves one attempt and the same deadline. Requesting through another client or after restarting the server does not reset the limit.
+
+Requests for unknown accounts, requests during cooldown and requests after exhaustion show the same generic confirmation. This avoids disclosing account status. The per-IP authentication rate limiter also applies.
+
+## Settings
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `magic_link_enabled` | `false` | Offer email link and code sign-in |
+| `magic_link_expiration` | `15m` | Lifetime of a newly started sign-in window |
+
+The request cooldown is one minute. With an expiration shorter than one minute, users still wait for the cooldown before another email can be sent.
+
+## Delivery and storage failures
+
+The server generates replacement credentials before changing the current challenge. Invalidation and insertion commit together, so generation or database failures preserve the previous link. SMTP delivery is asynchronous; if delivery fails after storage succeeds, retry after the cooldown. Cleanup retains used or exhausted challenge records until their window expires so the budget survives resends and server restarts.

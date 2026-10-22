@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -153,8 +154,6 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invalidatePreviousTokens(usr.ID)
-
 	rawToken, tokenHash, err := generateToken()
 	if err != nil {
 		slog.Error("magiclink: failed to generate token", "request_id", reqID, "error", err)
@@ -170,9 +169,11 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	}
 	codeHash := utils.HashSHA256(code)
 
-	expiresAt := time.Now().Add(cfg.MagicLinkExpiration)
-	if err := createMagicLinkToken(usr.ID, tokenHash, codeHash, expiresAt); err != nil {
-		slog.Error("magiclink: failed to store token", "request_id", reqID, "error", err)
+	expiresAt, err := issueMagicLinkToken(usr.ID, tokenHash, codeHash, time.Now().Add(cfg.MagicLinkExpiration))
+	if err != nil {
+		if !errors.Is(err, errIssuanceSuppressed) {
+			slog.Error("magiclink: failed to store token", "request_id", reqID, "error", err)
+		}
 		renderMagicLink(w, r, "sent", params, authorizeSigValue, "", sentExtra)
 		return
 	}
@@ -180,7 +181,7 @@ func HandleMagicLink(w http.ResponseWriter, r *http.Request) {
 	audit.Log(audit.EventMagicLinkRequested, nil, audit.TargetUser, usr.ID, nil, utils.GetClientIP(r))
 
 	magicLinkURL := buildMagicLinkURL(rawToken, params, authorizeSigValue)
-	expirationMinutes := max(int(cfg.MagicLinkExpiration.Minutes()), 1)
+	expirationMinutes := max(int(math.Ceil(time.Until(expiresAt).Minutes())), 1)
 	go func() {
 		if err := email.SendMagicLinkEmail(usr.Email, magicLinkURL, code, expirationMinutes); err != nil {
 			slog.Error("magiclink: failed to send email", "request_id", reqID, "error", err)

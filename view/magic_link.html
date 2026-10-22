@@ -9,6 +9,7 @@
 
   {{else if eq .Mode "sent"}}
     <p class="auth-text">If an account with that email exists, we've sent a sign-in link and code.</p>
+    <p class="auth-text">Wait one minute before requesting another email. Resending does not extend the sign-in window. Too many incorrect codes may prevent another email until that window expires.</p>
     {{if .Error}}
     <div class="auth-error" role="alert">{{.Error}}</div>
     {{end}}
