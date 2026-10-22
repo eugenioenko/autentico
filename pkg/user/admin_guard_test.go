@@ -3,9 +3,11 @@ package user
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -103,6 +105,17 @@ func TestAdminMutationCommitFailureRollsBack(t *testing.T) {
 			insertAdmin(t, "other")
 			_, err := db.GetDB().Exec(`INSERT INTO sessions(id,user_id) VALUES('session','target')`)
 			require.NoError(t, err)
+			for _, query := range []string{
+				`INSERT INTO idp_sessions(id,user_id) VALUES('idp','target')`,
+				`UPDATE sessions SET idp_session_id='idp' WHERE id='session'`,
+				`INSERT INTO tokens(id,user_id,access_token_hash,refresh_token_hash,access_token_type,access_token_expires_at,refresh_token_expires_at,scope,grant_type) VALUES('token','target','access','refresh','Bearer',datetime('now','+1 hour'),datetime('now','+2 hours'),'openid','password')`,
+				`INSERT INTO passkey_credentials(id,user_id,credential) VALUES('passkey','target','{}')`,
+			} {
+				_, err = db.GetDB().Exec(query)
+				require.NoError(t, err)
+			}
+			testutils.InsertTestGroup(t, "group", "Group")
+			testutils.InsertTestGroupMembership(t, "target", "group")
 			_, err = db.GetDB().Exec(`CREATE TABLE reject_commit(user_id TEXT REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED)`)
 			require.NoError(t, err)
 			event := "UPDATE OF role"
@@ -124,6 +137,16 @@ func TestAdminMutationCommitFailureRollsBack(t *testing.T) {
 			var sessions int
 			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id='target' AND deactivated_at IS NULL`).Scan(&sessions))
 			require.Equal(t, 1, sessions)
+			for _, table := range []string{"idp_sessions", "tokens", "passkey_credentials", "user_groups"} {
+				var count int
+				require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*) FROM "+table+" WHERE user_id='target'").Scan(&count))
+				require.Equal(t, 1, count, table)
+			}
+			var activeTokens, activeIdp int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM tokens WHERE revoked_at IS NULL`).Scan(&activeTokens))
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM idp_sessions WHERE deactivated_at IS NULL`).Scan(&activeIdp))
+			require.Equal(t, 1, activeTokens)
+			require.Equal(t, 1, activeIdp)
 			_, err = db.GetDB().Exec(`DROP TRIGGER reject_mutation`)
 			require.NoError(t, err)
 			require.NoError(t, action.run("target"), "connection remains usable after failed COMMIT")
@@ -156,5 +179,43 @@ func TestLastAdminDeletionPreservesThenRemovesAssociatedData(t *testing.T) {
 		var count int
 		require.NoError(t, db.GetDB().QueryRow("SELECT COUNT(*) FROM "+table+" WHERE user_id='target'").Scan(&count))
 		require.Zero(t, count, table)
+	}
+}
+
+// The writer's wait counter gives a deterministic interleaving: an old updater
+// has read the pre-demotion role before waiting; the fixed updater has not read it.
+func TestAccountUpdatePreservesConcurrentDemotion(t *testing.T) {
+	for _, request := range []UserUpdateRequest{{Password: "replacement-password"}, {Nickname: "new nickname"}} {
+		name := "profile"
+		if request.Password != "" {
+			name = "password"
+		}
+		t.Run(name, func(t *testing.T) {
+			testutils.WithTotpKey(t)
+			_, err := db.InitDB(filepath.Join(t.TempDir(), "updates.db"))
+			require.NoError(t, err)
+			t.Cleanup(db.CloseDB)
+			insertAdmin(t, "target")
+			insertAdmin(t, "other")
+			tx, err := db.GetDB().Begin()
+			require.NoError(t, err)
+			defer func() { _ = tx.Rollback() }()
+			_, err = tx.Exec(`UPDATE users SET role='user' WHERE id='target'`)
+			require.NoError(t, err)
+			waited := db.GetWriteDB().Stats().WaitCount
+			done := make(chan error, 1)
+			go func() { done <- UpdateUser("target", request) }()
+			require.Eventually(t, func() bool { return db.GetWriteDB().Stats().WaitCount > waited }, 5*time.Second, time.Millisecond)
+			require.NoError(t, tx.Commit())
+			require.NoError(t, <-done)
+			usr, err := UserByID("target")
+			require.NoError(t, err)
+			require.Equal(t, "user", usr.Role, "an unrelated update must not restore the removed admin role")
+			if request.Password != "" {
+				require.NoError(t, bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(request.Password)))
+			} else {
+				require.Equal(t, request.Nickname, usr.Nickname)
+			}
+		})
 	}
 }

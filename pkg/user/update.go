@@ -2,6 +2,7 @@ package user
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,124 +11,132 @@ import (
 )
 
 func UpdateUser(id string, req UserUpdateRequest) error {
-	// Get existing user to preserve values
-	usr, err := UserByID(id)
-	if err != nil {
-		return err
-	}
-
-	newUsername := usr.Username
-	if req.Username != "" {
-		newUsername = req.Username
-	}
-
-	newEmail := usr.Email
-	if req.Email != "" {
-		newEmail = req.Email
-	}
-
-	newRole := usr.Role
-	if req.Role != "" {
-		newRole = req.Role
-	}
-
-	newPassword := usr.Password
+	// Hash before taking the writer; omitted fields are read only after it is held.
+	var passwordHash string
 	if req.Password != "" {
 		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return fmt.Errorf("failed to hash password: %w", err)
 		}
-		newPassword = string(hashed)
+		passwordHash = string(hashed)
 	}
+	return mutateUser(id, req.Role != "" && req.Role != "admin", func(tx *sql.Tx) error {
+		usr, err := scanUser(tx.QueryRow(`SELECT `+userSelectColumns+` FROM users WHERE id = ? AND deactivated_at IS NULL`, id))
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("user not found")
+		}
+		if err != nil {
+			return err
+		}
 
-	newIsEmailVerified := usr.IsEmailVerified
-	if req.IsEmailVerified != nil {
-		newIsEmailVerified = *req.IsEmailVerified
-	}
+		newUsername := usr.Username
+		if req.Username != "" {
+			newUsername = req.Username
+		}
 
-	newTotpVerified := usr.TotpVerified
-	if req.TotpVerified != nil {
-		newTotpVerified = *req.TotpVerified
-	}
+		newEmail := usr.Email
+		if req.Email != "" {
+			newEmail = req.Email
+		}
 
-	newGivenName := usr.GivenName
-	if req.GivenName != "" {
-		newGivenName = req.GivenName
-	}
-	newFamilyName := usr.FamilyName
-	if req.FamilyName != "" {
-		newFamilyName = req.FamilyName
-	}
-	newMiddleName := usr.MiddleName
-	if req.MiddleName != "" {
-		newMiddleName = req.MiddleName
-	}
-	newNickname := usr.Nickname
-	if req.Nickname != "" {
-		newNickname = req.Nickname
-	}
-	newWebsite := usr.Website
-	if req.Website != "" {
-		newWebsite = req.Website
-	}
-	newGender := usr.Gender
-	if req.Gender != "" {
-		newGender = req.Gender
-	}
-	newBirthdate := usr.Birthdate
-	if req.Birthdate != "" {
-		newBirthdate = req.Birthdate
-	}
-	newProfileURL := usr.ProfileURL
-	if req.ProfileURL != "" {
-		newProfileURL = req.ProfileURL
-	}
-	newPhoneNumber := usr.PhoneNumber
-	if req.PhoneNumber != "" {
-		newPhoneNumber = req.PhoneNumber
-	}
-	newPhoneNumberVerified := usr.PhoneNumberVerified
-	if req.PhoneNumberVerified != nil {
-		newPhoneNumberVerified = *req.PhoneNumberVerified
-	}
-	newPicture := usr.Picture
-	if req.Picture != "" {
-		newPicture = req.Picture
-	}
-	newLocale := usr.Locale
-	if req.Locale != "" {
-		newLocale = req.Locale
-	}
-	newZoneinfo := usr.Zoneinfo
-	if req.Zoneinfo != "" {
-		newZoneinfo = req.Zoneinfo
-	}
-	newAddressStreet := usr.AddressStreet
-	if req.AddressStreet != "" {
-		newAddressStreet = req.AddressStreet
-	}
-	newAddressLocality := usr.AddressLocality
-	if req.AddressLocality != "" {
-		newAddressLocality = req.AddressLocality
-	}
-	newAddressRegion := usr.AddressRegion
-	if req.AddressRegion != "" {
-		newAddressRegion = req.AddressRegion
-	}
-	newAddressPostalCode := usr.AddressPostalCode
-	if req.AddressPostalCode != "" {
-		newAddressPostalCode = req.AddressPostalCode
-	}
-	newAddressCountry := usr.AddressCountry
-	if req.AddressCountry != "" {
-		newAddressCountry = req.AddressCountry
-	}
+		newRole := usr.Role
+		if req.Role != "" {
+			newRole = req.Role
+		}
 
-	var emailParam interface{}
-	if newEmail != "" {
-		emailParam = newEmail
-	}
-	query := `
+		newPassword := usr.Password
+		if passwordHash != "" {
+			newPassword = passwordHash
+		}
+
+		newIsEmailVerified := usr.IsEmailVerified
+		if req.IsEmailVerified != nil {
+			newIsEmailVerified = *req.IsEmailVerified
+		}
+
+		newTotpVerified := usr.TotpVerified
+		if req.TotpVerified != nil {
+			newTotpVerified = *req.TotpVerified
+		}
+
+		newGivenName := usr.GivenName
+		if req.GivenName != "" {
+			newGivenName = req.GivenName
+		}
+		newFamilyName := usr.FamilyName
+		if req.FamilyName != "" {
+			newFamilyName = req.FamilyName
+		}
+		newMiddleName := usr.MiddleName
+		if req.MiddleName != "" {
+			newMiddleName = req.MiddleName
+		}
+		newNickname := usr.Nickname
+		if req.Nickname != "" {
+			newNickname = req.Nickname
+		}
+		newWebsite := usr.Website
+		if req.Website != "" {
+			newWebsite = req.Website
+		}
+		newGender := usr.Gender
+		if req.Gender != "" {
+			newGender = req.Gender
+		}
+		newBirthdate := usr.Birthdate
+		if req.Birthdate != "" {
+			newBirthdate = req.Birthdate
+		}
+		newProfileURL := usr.ProfileURL
+		if req.ProfileURL != "" {
+			newProfileURL = req.ProfileURL
+		}
+		newPhoneNumber := usr.PhoneNumber
+		if req.PhoneNumber != "" {
+			newPhoneNumber = req.PhoneNumber
+		}
+		newPhoneNumberVerified := usr.PhoneNumberVerified
+		if req.PhoneNumberVerified != nil {
+			newPhoneNumberVerified = *req.PhoneNumberVerified
+		}
+		newPicture := usr.Picture
+		if req.Picture != "" {
+			newPicture = req.Picture
+		}
+		newLocale := usr.Locale
+		if req.Locale != "" {
+			newLocale = req.Locale
+		}
+		newZoneinfo := usr.Zoneinfo
+		if req.Zoneinfo != "" {
+			newZoneinfo = req.Zoneinfo
+		}
+		newAddressStreet := usr.AddressStreet
+		if req.AddressStreet != "" {
+			newAddressStreet = req.AddressStreet
+		}
+		newAddressLocality := usr.AddressLocality
+		if req.AddressLocality != "" {
+			newAddressLocality = req.AddressLocality
+		}
+		newAddressRegion := usr.AddressRegion
+		if req.AddressRegion != "" {
+			newAddressRegion = req.AddressRegion
+		}
+		newAddressPostalCode := usr.AddressPostalCode
+		if req.AddressPostalCode != "" {
+			newAddressPostalCode = req.AddressPostalCode
+		}
+		newAddressCountry := usr.AddressCountry
+		if req.AddressCountry != "" {
+			newAddressCountry = req.AddressCountry
+		}
+
+		var emailParam interface{}
+		if newEmail != "" {
+			emailParam = newEmail
+		}
+		query := `
 		UPDATE users SET
 			username = ?,
 			email = ?,
@@ -155,7 +164,6 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			address_country = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
-	return mutateUser(id, newRole != "admin", func(tx *sql.Tx) error {
 		_, err = tx.Exec(query,
 			newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
 			newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,

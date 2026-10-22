@@ -28,11 +28,12 @@ func mutateUser(id string, removesAdmin bool, change func(*sql.Tx) error) error 
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// A write before any read prevents deferred-transaction snapshot races,
+	// including updates that preserve omitted fields from current account state.
+	if _, err := tx.Exec(`UPDATE users SET id = id WHERE id = ?`, id); err != nil {
+		return err
+	}
 	if removesAdmin {
-		// A write before any read prevents deferred-transaction snapshot races.
-		if _, err := tx.Exec(`UPDATE users SET id = id WHERE id = ?`, id); err != nil {
-			return err
-		}
 		var last bool
 		if err := tx.QueryRow(`SELECT EXISTS (
 			SELECT 1 FROM users WHERE id = ? AND role = 'admin' AND deactivated_at IS NULL
