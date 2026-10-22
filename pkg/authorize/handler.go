@@ -124,7 +124,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// RFC 6749 §3.1.1 / §4.1.2.1: unsupported_response_type for a response type the client may not use
-	if !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
+	// RFC 6749 §3.1.1 / §4.1.2.1: registration cannot enable an unimplemented flow.
+	if request.ResponseType != "code" || !client.IsResponseTypeAllowed(registeredClient, request.ResponseType) {
 		slog.Warn("authorize: invalid response_type for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "response_type", request.ResponseType)
 		redirectWithError(w, r, request.RedirectURI, request.State, "unsupported_response_type", "response_type not allowed for this client")
 		return
