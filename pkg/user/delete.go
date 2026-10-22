@@ -1,6 +1,7 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,12 +27,13 @@ func RevokeOtherUserAccess(userID, keepAccessToken string) error {
 // All UPDATEs run inside a single transaction so the three tables never
 // disagree about which sessions are alive.
 func revokeUserAccess(userID, excludeToken string) error {
-	tx, err := db.GetDB().Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer func() { _ = tx.Rollback() }()
+	return mutateUser(userID, false, func(tx *sql.Tx) error {
+		return revokeUserAccessTx(tx, userID, excludeToken)
+	})
+}
 
+// revokeUserAccessTx invalidates user credentials and linked sessions within the caller’s transaction.
+func revokeUserAccessTx(tx *sql.Tx, userID, excludeToken string) error {
 	now := time.Now()
 
 	if excludeToken != "" {
@@ -61,9 +63,6 @@ func revokeUserAccess(userID, excludeToken string) error {
 		return fmt.Errorf("failed to deactivate idp sessions: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
 	return nil
 }
 
@@ -71,45 +70,52 @@ func revokeUserAccess(userID, excludeToken string) error {
 // Tables with ON DELETE CASCADE (passkey_challenges, passkey_credentials, user_groups)
 // are handled automatically. All others are deleted explicitly before removing the user row.
 func HardDeleteUser(id string) error {
-	d := db.GetDB()
-	tables := []string{
-		"deletion_requests",
-		"tokens",
-		"sessions",
-		"auth_codes",
-		"idp_sessions",
-		"mfa_challenges",
-		"trusted_devices",
-		"federated_identities",
-	}
-	for _, table := range tables {
-		if _, err := d.Exec(fmt.Sprintf(`DELETE FROM %s WHERE user_id = ?`, table), id); err != nil {
-			return fmt.Errorf("failed to delete from %s: %w", table, err)
+	return mutateUser(id, true, func(tx *sql.Tx) error {
+		tables := []string{
+			"deletion_requests",
+			"tokens",
+			"sessions",
+			"auth_codes",
+			"idp_sessions",
+			"mfa_challenges",
+			"trusted_devices",
+			"federated_identities",
+			"password_reset_tokens",
+			"magic_link_tokens",
+			"device_codes",
+			"user_consents",
 		}
-	}
-	if _, err := d.Exec(`DELETE FROM users WHERE id = ?`, id); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-	return nil
+		for _, table := range tables {
+			if _, err := tx.Exec(fmt.Sprintf(`DELETE FROM %s WHERE user_id = ?`, table), id); err != nil {
+				return fmt.Errorf("failed to delete from %s: %w", table, err)
+			}
+		}
+		if _, err := tx.Exec(`DELETE FROM users WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("failed to delete user: %w", err)
+		}
+		return nil
+	})
 }
 
 // DeactivateUser sets deactivated_at and immediately revokes all tokens
 // and deactivates all sessions/idp_sessions for the user.
 func DeactivateUser(id string) error {
-	// Set deactivated_at on the user
-	result, err := db.GetDB().Exec(`UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ? AND deactivated_at IS NULL`, id)
-	if err != nil {
-		return fmt.Errorf("failed to deactivate user: %v", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to check affected rows: %v", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("user not found or already deactivated")
-	}
+	return mutateUser(id, true, func(tx *sql.Tx) error {
+		// Set deactivated_at on the user
+		result, err := tx.Exec(`UPDATE users SET deactivated_at = CURRENT_TIMESTAMP WHERE id = ? AND deactivated_at IS NULL`, id)
+		if err != nil {
+			return fmt.Errorf("failed to deactivate user: %v", err)
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to check affected rows: %v", err)
+		}
+		if rows == 0 {
+			return fmt.Errorf("user not found or already deactivated")
+		}
 
-	return RevokeAllUserAccess(id)
+		return revokeUserAccessTx(tx, id, "")
+	})
 }
 
 // ReactivateUser clears deactivated_at, allowing the user to log in again.

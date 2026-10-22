@@ -152,8 +152,9 @@ func TestRegistrationFinishRechecksPolicy(t *testing.T) {
 	}
 }
 
+// TestPendingRegistrationDeletionGuards preserves owned, completed and administrator accounts.
 func TestPendingRegistrationDeletionGuards(t *testing.T) {
-	for _, protect := range []string{"password", "registered", "credential", "live challenge", "recent account", "expired"} {
+	for _, protect := range []string{"password", "registered", "credential", "live challenge", "recent account", "admin", "expired"} {
 		t.Run(protect, func(t *testing.T) {
 			withPasskeyTestDB(t)
 			withPasskeyConfig(t)
@@ -161,6 +162,8 @@ func TestPendingRegistrationDeletionGuards(t *testing.T) {
 			_, err := db.GetDB().Exec("UPDATE users SET created_at=datetime('now','-10 minutes') WHERE id='pending'")
 			require.NoError(t, err)
 			switch protect {
+			case "admin":
+				_, err = db.GetDB().Exec("UPDATE users SET role='admin' WHERE id='pending'")
 			case "password":
 				_, err = db.GetDB().Exec("UPDATE users SET password='hashed' WHERE id='pending'")
 			case "registered":

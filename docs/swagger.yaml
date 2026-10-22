@@ -2120,6 +2120,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.ApiError'
+        "409":
+          description: last_active_admin
+          schema:
+            $ref: '#/definitions/model.ApiError'
         "500":
           description: Internal Server Error
           schema:
@@ -2995,6 +2999,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/model.ApiError'
+        "409":
+          description: last_active_admin
+          schema:
+            $ref: '#/definitions/model.ApiError'
         "500":
           description: Internal Server Error
           schema:
@@ -3055,6 +3063,10 @@ paths:
             $ref: '#/definitions/user.UserResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "409":
+          description: last_active_admin
           schema:
             $ref: '#/definitions/model.ApiError'
         "500":
@@ -3181,6 +3193,10 @@ paths:
             $ref: '#/definitions/model.ApiError'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "409":
+          description: last_active_admin
           schema:
             $ref: '#/definitions/model.ApiError'
         "500":

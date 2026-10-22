@@ -410,3 +410,38 @@ func TestHandleListDeletionRequests_DbError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.NotContains(t, rr.Body.String(), "SQL")
 }
+
+// TestDeletionModesProtectLastActiveAdmin rejects immediate and approved deletion without side effects.
+func TestDeletionModesProtectLastActiveAdmin(t *testing.T) {
+	for _, mode := range []string{"self-service", "approval"} {
+		t.Run(mode, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			_, usr, info := setupTestUserAndSession(t)
+			_, err := db.GetDB().Exec(`UPDATE users SET role='admin' WHERE id=?`, usr.ID)
+			require.NoError(t, err)
+			testutils.WithConfigOverride(t, func() { config.Values.AllowSelfServiceDeletion = mode == "self-service" })
+			var rr *httptest.ResponseRecorder
+			if mode == "self-service" {
+				rr = mockAuthRequest(t, `{}`, http.MethodPost, "/account/api/deletion-request", HandleRequestDeletion, info)
+			} else {
+				pending, err := CreateDeletionRequest(usr.ID, nil)
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodPost, "/approve", nil)
+				req.SetPathValue("id", pending.ID)
+				rr = httptest.NewRecorder()
+				HandleApproveDeletionRequest(rr, req)
+				existing, err := DeletionRequestByID(pending.ID)
+				require.NoError(t, err)
+				require.NotNil(t, existing)
+			}
+			require.Equal(t, http.StatusConflict, rr.Code)
+			require.Contains(t, rr.Body.String(), "last_active_admin")
+			current, err := user.UserByID(usr.ID)
+			require.NoError(t, err)
+			require.Equal(t, "admin", current.Role)
+			var sessions int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id=? AND deactivated_at IS NULL`, usr.ID).Scan(&sessions))
+			require.Equal(t, 1, sessions)
+		})
+	}
+}

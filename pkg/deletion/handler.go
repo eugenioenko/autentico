@@ -2,6 +2,7 @@ package deletion
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/middleware"
 	"github.com/eugenioenko/autentico/pkg/model"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -40,6 +42,11 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 
 	if config.Get().AllowSelfServiceDeletion {
 		if err := HardDeleteUser(usr.ID); err != nil {
+			// OWASP Authorization §Exit Safely: all deletion modes preserve an active admin.
+			if errors.Is(err, user.ErrLastActiveAdmin) {
+				utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())
+				return
+			}
 			slog.Error("deletion: failed to delete user (self-service)", "error", err, "user_id", usr.ID)
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete account")
 			return
@@ -190,6 +197,7 @@ func HandleListDeletionRequests(w http.ResponseWriter, r *http.Request) {
 // @Security AdminAuth
 // @Success 204
 // @Failure 404 {object} model.ApiError
+// @Failure 409 {object} model.ApiError "last_active_admin"
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/deletion-requests/{id}/approve [post]
 func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
@@ -211,6 +219,11 @@ func HandleApproveDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := HardDeleteUser(req.UserID); err != nil {
+		// OWASP Authorization §Exit Safely: all deletion modes preserve an active admin.
+		if errors.Is(err, user.ErrLastActiveAdmin) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())
+			return
+		}
 		slog.Error("deletion: failed to delete user (admin approve)", "error", err, "user_id", req.UserID)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
 		return

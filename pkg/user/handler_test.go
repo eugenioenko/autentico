@@ -231,8 +231,12 @@ func TestHandleUpdateUser_ValidationError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
+// TestHandleUpdateUser_Success allows demotion when another active administrator remains.
 func TestHandleUpdateUser_Success(t *testing.T) {
 	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "other-admin")
+	_, err := db.GetDB().Exec(`UPDATE users SET role='admin' WHERE id='other-admin'`)
+	assert.NoError(t, err)
 
 	_, userID := setupAuthenticatedUser(t)
 	body, _ := json.Marshal(UserUpdateRequest{
@@ -409,6 +413,7 @@ func TestHandleRevokeUserSessions_Success(t *testing.T) {
 
 // --- HandleUserAdmin integration tests ---
 
+// TestHandleUserAdmin exercises listing, retrieval, promotion and deletion with an admin retained.
 func TestHandleUserAdmin(t *testing.T) {
 	testutils.WithTestDB(t)
 
@@ -453,6 +458,9 @@ func TestHandleUserAdmin(t *testing.T) {
 	u1, _ = UserByID(u1.ID)
 	assert.Equal(t, "new@example.com", u1.Email)
 
+	// Another active admin remains when deleting the promoted user.
+	_, err = db.GetDB().Exec(`UPDATE users SET role='admin' WHERE username='user2'`)
+	assert.NoError(t, err)
 	// Delete user
 	req = httptest.NewRequest(http.MethodDelete, "/admin/api/users/"+u1.ID, nil)
 	req.SetPathValue("id", u1.ID)
