@@ -32,6 +32,7 @@ func inactive(w http.ResponseWriter) {
 // @Success 200 {object} IntrospectResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError "insufficient_scope; WWW-Authenticate: Bearer error=insufficient_scope"
 // @Failure 429 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/introspect [post]

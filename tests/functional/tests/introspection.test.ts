@@ -211,6 +211,23 @@ describe('Token introspection caller authorization', () => {
       grant_type: 'refresh_token', client_id: clientId, refresh_token: tokens.refresh_token,
     });
     expect(refreshed.status).toBe(200);
+    const replacement = await refreshed.json();
+    const admin = await getAdminToken();
+    // Another public client gets a no-op 200 and cannot revoke this grant.
+    const otherClient = await postForm(`${OAUTH_URL}/revoke`, {
+      token: replacement.access_token, client_id: 'autentico-account',
+    });
+    expect(otherClient.status).toBe(200);
+    const stillActive = await postForm(INTROSPECT, { token: replacement.access_token }, admin);
+    expect(stillActive.status).toBe(200);
+    expect(await stillActive.json()).toMatchObject({ active: true });
+    const revoked = await postForm(`${OAUTH_URL}/revoke`, {
+      token: replacement.access_token, client_id: clientId,
+    });
+    expect(revoked.status).toBe(200);
+    const inactive = await postForm(INTROSPECT, { token: replacement.access_token }, admin);
+    expect(inactive.status).toBe(200);
+    expect(await inactive.json()).toEqual({ active: false });
   });
 
   it('rejects an admin user token for another app and accepts a real admin API token', async () => {

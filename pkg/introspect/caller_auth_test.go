@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/utils"
+
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -67,6 +69,53 @@ func TestIntrospectionAdminBearerRequiresAdminAudience(t *testing.T) {
 				require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
 				require.True(t, response.Active)
 			}
+		})
+	}
+}
+
+// RFC 7662 §2.1 / §4: authorization uses the caller's current stored state,
+// independently of the active target token whose metadata would be disclosed.
+func TestIntrospectionRejectsInvalidatedAdminCaller(t *testing.T) {
+	for _, change := range []struct {
+		name, query string
+		status      int
+		code        string
+	}{
+		{"revoked credential", `UPDATE tokens SET revoked_at=CURRENT_TIMESTAMP WHERE access_token_hash=?`, http.StatusUnauthorized, "invalid_token"},
+		{"demoted admin", `UPDATE users SET role='user' WHERE id=?`, http.StatusForbidden, "insufficient_scope"},
+		{"deactivated admin", `UPDATE users SET deactivated_at=CURRENT_TIMESTAMP WHERE id=?`, http.StatusForbidden, "insufficient_scope"},
+	} {
+		t.Run(change.name, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestUser(t, "caller")
+			testutils.InsertTestUser(t, "target")
+			_, err := db.GetDB().Exec(`UPDATE users SET role='admin' WHERE id='caller'`)
+			require.NoError(t, err)
+			caller := generateBearerJWT(t, "caller")
+			target := generateBearerJWT(t, "target")
+			argument := "caller"
+			if change.name == "revoked credential" {
+				argument = utils.HashToken(caller)
+			}
+			_, err = db.GetDB().Exec(change.query, argument)
+			require.NoError(t, err)
+			// Neither the caller's session nor the independent target was revoked.
+			var activeSessions int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM sessions WHERE deactivated_at IS NULL`).Scan(&activeSessions))
+			require.Equal(t, 2, activeSessions)
+			_, err = IntrospectToken(target)
+			require.NoError(t, err)
+			form := url.Values{"token": {target}}
+			req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Authorization", "Bearer "+caller)
+			rr := httptest.NewRecorder()
+			HandleIntrospect(rr, req)
+			require.Equal(t, change.status, rr.Code)
+			require.Contains(t, rr.Header().Get("WWW-Authenticate"), "Bearer")
+			require.Contains(t, rr.Header().Get("WWW-Authenticate"), `error="`+change.code+`"`)
+			require.Contains(t, rr.Body.String(), change.code)
+			require.NotContains(t, rr.Body.String(), `"active"`)
 		})
 	}
 }
