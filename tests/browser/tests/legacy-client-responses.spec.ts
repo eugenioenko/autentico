@@ -56,8 +56,11 @@ for (const client of legacyClients) {
       await drawer.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(drawer.getByText('Select Code explicitly to replace the legacy response types.')).toBeVisible();
       expect(updates).toBe(0);
-      await field.locator('.ant-select-selector').click();
-      await page.locator('.ant-select-dropdown:visible').getByText('Code', { exact: true }).click();
+      const select = field.getByRole('combobox');
+      await select.focus();
+      await select.press('ArrowDown');
+      await select.press('Enter');
+      await expect(field.locator('.ant-select-selection-item')).toHaveText('Code');
     }
     const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith(`/admin/api/clients/${client.id}`));
     await drawer.getByRole('button', { name: 'Save', exact: true }).click();
