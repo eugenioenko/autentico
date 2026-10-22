@@ -111,6 +111,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 7636 §4.3 / §4.4: bind the default before policy checks, form
+	// signatures and code issuance; mandatory S256 support does not set it.
+	if request.CodeChallenge != "" && request.CodeChallengeMethod == "" {
+		request.CodeChallengeMethod = "plain"
+	}
+
 	// RFC 9700 §2.1.1: public clients MUST use PKCE — reject if code_challenge is missing
 	// RFC 7636 §7.2: "plain" SHOULD NOT be used; §4.2: S256 is MTI on the server
 	// RFC 7636 §4.4.1 / RFC 9700 §2.1.1: reject invalid PKCE before

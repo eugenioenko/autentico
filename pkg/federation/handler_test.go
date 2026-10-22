@@ -157,11 +157,12 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 
 	// 3. Prepare state
 	state := FederationState{
-		ProviderID:    "mock",
-		RedirectURI:   "http://localhost/cb",
-		ClientID:      "c1",
-		CodeChallenge: "challenge",
-		State:         "xyz",
+		ProviderID:          "mock",
+		RedirectURI:         "http://localhost/cb",
+		ClientID:            "c1",
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: "S256",
+		State:               "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -212,11 +213,12 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 
 	// 4. Prepare state
 	state := FederationState{
-		ProviderID:    "mock",
-		RedirectURI:   "http://localhost/cb",
-		ClientID:      "c1",
-		CodeChallenge: "challenge",
-		State:         "xyz",
+		ProviderID:          "mock",
+		RedirectURI:         "http://localhost/cb",
+		ClientID:            "c1",
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: "S256",
+		State:               "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -267,11 +269,12 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 
 	// 4. Prepare state
 	state := FederationState{
-		ProviderID:    "mock",
-		RedirectURI:   "http://localhost/cb",
-		ClientID:      "c1",
-		CodeChallenge: "challenge",
-		State:         "xyz",
+		ProviderID:          "mock",
+		RedirectURI:         "http://localhost/cb",
+		ClientID:            "c1",
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: "S256",
+		State:               "xyz",
 	}
 	signedState, _ := SignState(state)
 
@@ -319,6 +322,7 @@ func TestHandleFederationCallback_Errors_Extra(t *testing.T) {
 	state.ClientID = "c1"
 	state.RedirectURI = "http://localhost/cb"
 	state.CodeChallenge = "challenge"
+	state.CodeChallengeMethod = "S256"
 	signedState, _ = SignState(state)
 	req = httptest.NewRequest(http.MethodGet, "/oauth2/federation/p1/callback?code=c&state="+signedState, nil)
 	req.SetPathValue("id", "p1")
@@ -469,7 +473,7 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 	})
 
 	// 3. Begin federation
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb", nil)
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&code_challenge_method=S256&redirect_uri=http://localhost/cb", nil)
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 	NewLoginHandler(ts.Client()).HandleBegin(rr, req)
@@ -504,7 +508,7 @@ func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
 	})
 
 	begin := func(query string) *FederationState {
-		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb"+query, nil)
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&code_challenge_method=S256&redirect_uri=http://localhost/cb"+query, nil)
 		req.SetPathValue("id", "mock")
 		rr := httptest.NewRecorder()
 		NewLoginHandler(ts.Client()).HandleBegin(rr, req)
@@ -529,12 +533,13 @@ func TestCompleteAuthFlow_UsesClientNonce(t *testing.T) {
 	require.NoError(t, err)
 
 	state := &FederationState{
-		Nonce:         "client-nonce",
-		CodeChallenge: "challenge",
-		ProviderID:    "mock",
-		RedirectURI:   "http://localhost/cb",
-		ClientID:      "c1",
-		State:         "xyz",
+		Nonce:               "client-nonce",
+		CodeChallenge:       "challenge",
+		CodeChallengeMethod: "S256",
+		ProviderID:          "mock",
+		RedirectURI:         "http://localhost/cb",
+		ClientID:            "c1",
+		State:               "xyz",
 	}
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback", nil)
 	rr := httptest.NewRecorder()

@@ -23,6 +23,12 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 	// RFC 8414 §2: issuer is REQUIRED — must match the iss claim in issued tokens.
 	// OIDC Discovery §3: issuer MUST exactly match the iss claim in issued tokens.
 	issuer := bs.AppAuthIssuer
+	// RFC 8414 §2 / RFC 7636 §6.2: advertise the transformations enabled
+	// by the current runtime policy; S256 remains mandatory to implement.
+	methods := []string{"S256"}
+	if !config.Get().AuthPKCEEnforceSHA256 {
+		methods = append(methods, "plain")
+	}
 	response := model.WellKnownConfigResponse{
 		// RFC 8414 §2: REQUIRED fields
 		Issuer:                issuer,
@@ -44,12 +50,12 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		},
 		// RFC 8414 §2: RECOMMENDED / OPTIONAL fields
 		UserInfoEndpoint:     fmt.Sprintf("%s/userinfo", issuer),
-		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer),   // RFC 8414 §2 / RFC 7591
-		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),     // RP-Initiated Logout 1.0 §2.1
-		ScopesSupported: []string{                                  // RFC 8414 §2: RECOMMENDED
+		RegistrationEndpoint: fmt.Sprintf("%s/register", issuer), // RFC 8414 §2 / RFC 7591
+		EndSessionEndpoint:   fmt.Sprintf("%s/logout", issuer),   // RP-Initiated Logout 1.0 §2.1
+		ScopesSupported: []string{ // RFC 8414 §2: RECOMMENDED
 			"openid", "profile", "email", "address", "phone", "offline_access", "groups", "custom_claims",
 		},
-		TokenEndpointAuthMethodsSupported: []string{                // RFC 8414 §2: OPTIONAL
+		TokenEndpointAuthMethodsSupported: []string{ // RFC 8414 §2: OPTIONAL
 			"client_secret_basic", "client_secret_post",
 		},
 		ClaimsSupported: []string{
@@ -68,13 +74,13 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		AcrValuesSupported:        []string{"1"},
 		RequestParameterSupported: false, // OIDC Core §6: request objects not supported
 		// RFC 8414 §2: OPTIONAL endpoint metadata
-		IntrospectionEndpoint:                    fmt.Sprintf("%s/introspect", issuer), // RFC 7662
-		RevocationEndpoint:                       fmt.Sprintf("%s/revoke", issuer),     // RFC 7009
+		IntrospectionEndpoint:                     fmt.Sprintf("%s/introspect", issuer), // RFC 7662
+		RevocationEndpoint:                        fmt.Sprintf("%s/revoke", issuer),     // RFC 7009
 		IntrospectionEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
 		RevocationEndpointAuthMethodsSupported:    []string{"client_secret_basic", "client_secret_post"},
-		CodeChallengeMethodsSupported:             []string{"S256"}, // RFC 7636 §6.2
-		PromptValuesSupported:         []string{"none", "login", "create"},
-		DeviceAuthorizationEndpoint:   fmt.Sprintf("%s/device_authorization", issuer),
+		CodeChallengeMethodsSupported:             methods, // RFC 7636 §6.2
+		PromptValuesSupported:                     []string{"none", "login", "create"},
+		DeviceAuthorizationEndpoint:               fmt.Sprintf("%s/device_authorization", issuer),
 	}
 
 	utils.WriteApiResponse(w, response, http.StatusOK)

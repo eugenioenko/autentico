@@ -84,6 +84,8 @@ Consent and authentication-time hardening needs no further schema migration or k
 
 OAuth client authentication now accepts credentials through one Basic or POST-body method. Confidential device clients authenticate at both device authorization and token polling. Update integrations that send credentials in URLs, combine methods, or pass raw reserved characters in Basic credentials; form-encode each component before Base64-encoding. This needs no new database migration or key. See [client authentication](/clients/client-types/#credential-encoding-and-transport).
 
+PKCE clients must explicitly send `code_challenge_method=S256` when using a hashed challenge. An omitted method now correctly means `plain` and is rejected by the default S256 enforcement policy. Integrations that relied on the previous implicit S256 behavior must update that parameter. Open login forms that omitted it should restart authorization. Already-issued unlabelled codes retain their original S256 binding until expiry; new codes always store an explicit method. This correction needs no database migration or new key.
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.

@@ -30,6 +30,8 @@ sequenceDiagram
     IdP->>App: { access_token, id_token, refresh_token }
 ```
 
+Omitting `code_challenge_method` means `plain` ([RFC 7636 §4.3](https://www.rfc-editor.org/rfc/rfc7636.html#section-4.3)). With the default S256 enforcement, that request returns `invalid_request` at `/authorize`. When enforcement is disabled for a legacy integration, an omitted method uses the verifier itself as the challenge, and the token exchange compares them directly.
+
 ## Step 1: Generate PKCE parameters
 
 PKCE is required for public clients and recommended for all clients. Unsupported `code_challenge_method` values, or a method without a challenge, are rejected at `/authorize` with `invalid_request` before login or SSO code issuance. Use `S256`; `plain` is accepted only when S256 enforcement is disabled.
@@ -79,8 +81,8 @@ GET /oauth2/authorize
 | `scope` | Yes | Space-separated scopes. Must include `openid` for OIDC. |
 | `state` | Recommended | Opaque value for CSRF protection. Returned unchanged. |
 | `nonce` | Recommended | Opaque value embedded in the ID token to prevent replay attacks. |
-| `code_challenge` | Required for public clients | Base64url-encoded SHA-256 hash of `code_verifier` |
-| `code_challenge_method` | Required with `code_challenge` | `S256` (recommended) or `plain` |
+| `code_challenge` | Required for public clients | For `S256`, the base64url-encoded SHA-256 hash of `code_verifier`; for `plain`, the verifier itself |
+| `code_challenge_method` | Optional | `S256` (recommended) or `plain`; omission means `plain` and is rejected when S256 enforcement is enabled |
 
 ## Step 3: User authenticates
 

@@ -190,7 +190,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 |---|---|---|
 | §4.1 | `code_verifier`: 43–128 chars, unreserved chars only | `pkg/token/authorization_code.go` `validateCodeVerifier` |
 | §4.2 | `code_challenge`: `BASE64URL(SHA256(ASCII(verifier)))`, no padding | `pkg/token/authorization_code.go` `verifyCodeChallenge` |
-| §4.2 | `code_challenge_method` absent → default to S256 | `pkg/token/authorization_code.go` line 116 |
+| §4.3 | `code_challenge_method` absent → default to plain | `pkg/authorize/handler.go`, `pkg/client/authorize.go`, `pkg/token/authorization_code.go` |
 | §4.3 | If challenge was sent, verifier MUST be sent on exchange | `pkg/token/authorization_code.go` line 56 |
 | §4.4.1 | Unsupported method → `invalid_request` error | `pkg/authorize/handler.go` (only S256 advertised) |
 | §4.6 | Server verifies code_verifier before returning tokens | `pkg/token/authorization_code.go` line 70 |
@@ -205,14 +205,14 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §4.3 | Require verifier on exchange if challenge was present | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4.6 | Verify code_verifier against code_challenge; return `invalid_grant` on mismatch | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Shared PKCE validation rejects unsupported/unbound methods at authorize before login or SSO, including confidential clients (#517). |
-| SHOULD | §4.2 | Default `code_challenge_method` to `S256` when absent | ✅ Verified + annotated (2026-03-30) — defaults to S256 (MTI) |
+| MUST | §4.3 | Default an omitted `code_challenge_method` to `plain` | ✅ Normalize before signing/code issuance; shared validation applies S256 enforcement, all new codes persist the default explicitly; historical unlabelled S256 bindings remain unchanged (#518). |
 | SHOULD NOT | §7.2 | `plain` method SHOULD NOT be used | ✅ Rejected by default (`AuthPKCEEnforceSHA256=true`); configurable for backwards-compat |
 | MUST | — | Enforce PKCE for public clients (RFC 9700 §2.1.1 / OAuth 2.1) | ✅ Fixed — authorize endpoint rejects public clients without `code_challenge` |
 | MAY | §5 | Accept confidential clients without PKCE (backwards compatibility) | ✅ Confidential clients can omit PKCE |
 
 **Security Considerations (§7):**
 - [x] §7.1: Entropy of `code_verifier` — client-side concern; `validateCodeVerifier` enforces 43–128 chars (≥256 bits of entropy when base64url-encoded from 32 octets)
-- [x] §7.2: `plain` rejected by default when `AuthPKCEEnforceSHA256` is true (the default); only `S256` is advertised in discovery; `plain` can be enabled via config for legacy compatibility
+- [x] §7.2: `plain` rejected by default when `AuthPKCEEnforceSHA256` is true (the default); discovery advertises only `S256` while enforced, adding `plain` when enabled for legacy compatibility
 - [x] §7.3: Salting not needed — code_verifier contains sufficient entropy per spec
 - [x] §7.5: TLS enforced at infrastructure level; secure cookie flags gated on bootstrap config
 
@@ -228,7 +228,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 - Unit: `TestValidateCodeVerifier_AllUnreservedChars` — full unreserved charset → accepted ✅ Pre-existing
 - Unit: `TestVerifyCodeChallenge_S256` — S256 valid + invalid (RFC 7636 Appendix B vector) ✅ Pre-existing, annotated
 - Unit: `TestVerifyCodeChallenge_Plain` — plain valid + invalid ✅ Pre-existing, annotated
-- Unit: `TestVerifyCodeChallenge_DefaultsToS256` — empty method defaults to S256 ✅ Pre-existing, annotated
+- Unit: `TestCreateAuthCode_PKCEMethodBinding` and default-method flow tests — new omissions persist plain; `TestVerifyCodeChallenge_LegacyUnlabelledS256` preserves old S256 bindings ✅ Fixed (#518)
 - Unit: `TestVerifyCodeChallenge_UnsupportedMethod` — unknown method rejected ✅ Pre-existing, annotated
 - Unit: `TestHandleWellKnownConfig_RFC8414_Endpoints` — asserts `code_challenge_methods_supported` includes `S256` ✅ Pre-existing
 - Unit: `TestHandleAuthorize_PKCE_PlainRejected` — plain rejected at authorize endpoint (default config) ✅ Pre-existing

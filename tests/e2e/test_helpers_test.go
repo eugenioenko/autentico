@@ -296,7 +296,7 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	form.Set("scope", scope)
 	form.Set("nonce", nonce)
 	form.Set("code_challenge", codeChallenge)
-	form.Set("code_challenge_method", codeChallengeMethod)
+	form.Set("code_challenge_method", getHiddenField(htmlBody, "code_challenge_method"))
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
 	form.Set("prompt", getHiddenField(string(body), "prompt"))

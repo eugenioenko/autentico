@@ -4,13 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/utils"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -1097,12 +1098,13 @@ func TestVerifyCodeChallenge_Plain(t *testing.T) {
 	assert.False(t, verifyCodeChallenge(challenge, "plain", "wrong"))
 }
 
-// RFC 7636 §4.2: S256 is MTI — empty method defaults to S256
-func TestVerifyCodeChallenge_DefaultsToS256(t *testing.T) {
+// RFC 7636 §4.2 / §4.6: preserve pre-fix S256 bindings. New request defaults
+// (§4.3) are explicitly persisted as plain and never reach this legacy case.
+func TestVerifyCodeChallenge_LegacyUnlabelledS256(t *testing.T) {
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-
-	assert.True(t, verifyCodeChallenge(challenge, "", verifier))
+	hashed := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	assert.True(t, verifyCodeChallenge(hashed, "", verifier))
+	assert.False(t, verifyCodeChallenge(hashed, "", hashed), "the public challenge cannot become the verifier after upgrade")
 }
 
 // RFC 7636 §4.4.1: unsupported transformation method MUST be rejected

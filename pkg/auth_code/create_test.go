@@ -80,3 +80,27 @@ func TestCreateAuthCode_DuplicateCode(t *testing.T) {
 	err = CreateAuthCode(authCode)
 	assert.Error(t, err, "Expected error when inserting duplicate auth code")
 }
+
+func TestCreateAuthCode_PKCEMethodBinding(t *testing.T) {
+	for _, tc := range []struct{ name, challenge, method, stored string }{
+		{"omitted means plain", "challenge", "", "plain"},
+		{"explicit S256", "challenge", "S256", "S256"},
+		{"explicit plain", "challenge", "plain", "plain"},
+		{"no PKCE", "", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestUser(t, "binding-user")
+			err := CreateAuthCode(AuthCode{Code: "binding-code", UserID: "binding-user", RedirectURI: "http://localhost/cb", CodeChallenge: tc.challenge, CodeChallengeMethod: tc.method, ExpiresAt: time.Now().Add(time.Minute)})
+			if !assert.NoError(t, err) {
+				return
+			}
+			code, err := AuthCodeByCodeIncludingUsed("binding-code")
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, tc.stored, code.CodeChallengeMethod)
+			assert.Equal(t, tc.challenge, code.CodeChallenge)
+		})
+	}
+}
