@@ -61,7 +61,7 @@ Refresh token lifetime for this client. Overrides the global [`refresh_token_exp
 
 ### `authorization_code_expiration`
 
-Authorization code TTL for this client. Overrides the global [`authorization_code_expiration`](/configuration/runtime-settings/#authorization_code_expiration).
+Authorization code TTL for this client, resolved from the current registration when the code is issued. The override also applies after MFA, consent, email verification, passkey or federation completion, even if it changed while the flow was pending. Overrides the global [`authorization_code_expiration`](/configuration/runtime-settings/#authorization_code_expiration).
 
 ### `allowed_audiences`
 

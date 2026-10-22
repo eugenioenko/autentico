@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, postForm, obtainAuthorizationCode } from '../helpers';
+import { BASE_URL, OAUTH_URL, getAdminToken, postJSON, putJSON, postForm, obtainAuthorizationCode } from '../helpers';
 
 const callback = 'http://localhost:3000/callback?existing=a%26b&repeat=1&repeat=2';
 const state = 'state & injected=1 + %25 # é';
@@ -94,6 +94,57 @@ describe('Authorization callbacks preserve existing query values', () => {
         });
         expect(exchange.status).toBe(200);
       }
+    }
+  });
+});
+
+describe('Consent uses current registration policy', () => {
+  it('rejects signed pages after scopes, code grants or public-client PKCE requirements change', async () => {
+    const admin = await getAdminToken();
+    const bootstrap = await postJSON(`${OAUTH_URL}/register`, {
+      client_id: 'consent-policy-login', client_name: 'Policy login', redirect_uris: [callback],
+      grant_types: ['authorization_code'], response_types: ['code'], scopes: 'openid',
+      client_type: 'public', token_endpoint_auth_method: 'none',
+    }, admin);
+    expect(bootstrap.status).toBe(201);
+    const login = await obtainAuthorizationCode('consent-policy-login', callback, 'admin', 'Password123!', 'openid');
+    for (const mutation of ['scopes', 'grant', 'pkce-policy']) {
+      const clientId = `consent-policy-${mutation}`;
+      const registered = await postJSON(`${OAUTH_URL}/register`, {
+        client_id: clientId, client_name: clientId, redirect_uris: [callback],
+        grant_types: ['authorization_code'], response_types: ['code'], scopes: 'openid profile',
+        client_type: 'public', token_endpoint_auth_method: 'none', consent_required: true,
+      }, admin);
+      expect(registered.status).toBe(201);
+      const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: callback, scope: 'openid' });
+      query.set('code_challenge', mutation === 'pkce-policy' ? verifier : challenge);
+      query.set('code_challenge_method', mutation === 'pkce-policy' ? 'plain' : 'S256');
+      if (mutation === 'pkce-policy') expect((await putJSON(`${BASE_URL}/admin/api/settings`, { pkce_enforce_s256: 'false' }, admin)).status).toBe(204);
+      const authorized = await fetch(`${OAUTH_URL}/authorize?${query}`, { headers: { Cookie: login.idpSessionCookie }, redirect: 'manual' });
+      expect(authorized.status).toBe(302);
+      const consentURL = new URL(authorized.headers.get('location')!, BASE_URL);
+      expect(consentURL.pathname).toBe('/oauth2/consent');
+      const page = await fetch(consentURL, { headers: { Cookie: login.idpSessionCookie }, redirect: 'manual' });
+      expect(page.status).toBe(200);
+      const form = new URLSearchParams();
+      for (const match of (await page.text()).matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g)) form.set(match[1], decodeAttribute(match[2]));
+      expect(form.get('consent_sig')).toBeTruthy();
+      const csrf = page.headers.getSetCookie().find(cookie => cookie.startsWith('_gorilla_csrf='));
+      expect(csrf).toBeTruthy(); form.set('action', 'allow');
+      if (mutation === 'pkce-policy') {
+        expect((await putJSON(`${BASE_URL}/admin/api/settings`, { pkce_enforce_s256: 'true' }, admin)).status).toBe(204);
+      } else {
+        const changes = mutation === 'scopes' ? { scopes: 'profile' } : { grant_types: ['refresh_token'] };
+        const updated = await putJSON(`${BASE_URL}/admin/api/clients/${clientId}`, { ...changes, consent_required: true }, admin);
+        expect(updated.status).toBe(200);
+      }
+      const completed = await fetch(`${OAUTH_URL}/consent`, { method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: BASE_URL,
+          Cookie: `${login.idpSessionCookie}; ${csrf!.split(';')[0]}` }, body: form, redirect: 'manual',
+      });
+      expect(completed.status, mutation).toBe(400);
+      expect(completed.headers.get('location')).toBeNull();
+      expect((await completed.json()).error).toBe('invalid_request');
     }
   });
 });

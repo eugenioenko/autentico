@@ -41,7 +41,7 @@ func TestTotpReplayAcrossPasswordBrowserAndAccountHTTP(t *testing.T) {
 	// A fresh browser challenge must share the same enrollment's replay state.
 	require.NoError(t, mfa.CreateMfaChallenge(mfa.MfaChallenge{
 		ID: "cross-path", UserID: usr.ID, Method: "totp", ExpiresAt: time.Now().Add(time.Minute),
-		LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid"}`,
+		LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid","code_challenge":"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM","code_challenge_method":"S256"}`,
 	}))
 	resp, err = ts.Client.Get(ts.BaseURL + "/oauth2/mfa?challenge_id=cross-path")
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestStaleBrowserEnrollmentCannotReplaceAccountSetupHTTP(t *testing.T) {
 	issued := obtainTokensViaPasswordGrantForClient(t, ts, "autentico-account", usr.Username, "password123")
 	require.NoError(t, mfa.CreateMfaChallenge(mfa.MfaChallenge{
 		ID: "stale-enrollment", UserID: usr.ID, Method: "totp", ExpiresAt: time.Now().Add(time.Minute),
-		LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid"}`,
+		LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid","code_challenge":"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM","code_challenge_method":"S256"}`,
 	}))
 	resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/mfa?challenge_id=stale-enrollment")
 	require.NoError(t, err)

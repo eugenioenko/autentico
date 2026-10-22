@@ -29,7 +29,7 @@ func TestHTTPResetAndMfaRedemptionHaveOneWinner(t *testing.T) {
 				path, query = "/oauth2/mfa", url.Values{"challenge_id": {"http-mfa"}}
 				require.NoError(t, mfa.CreateMfaChallenge(mfa.MfaChallenge{ID: "http-mfa", UserID: usr.ID, Method: "email",
 					Code: utils.HashSHA256("123456"), ExpiresAt: time.Now().Add(time.Minute),
-					LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid"}`}))
+					LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid","code_challenge":"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM","code_challenge_method":"S256"}`}))
 				// Arrange an already-sent email, so loading the CSRF form uses
 				// the resend cooldown instead of rotating our known OTP.
 				_, err := db.GetDB().Exec(`UPDATE mfa_challenges SET otp_sent_at=CURRENT_TIMESTAMP WHERE id='http-mfa'`)
