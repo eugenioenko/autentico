@@ -52,7 +52,8 @@ func TestRefreshClient_AuthenticationAndPolicy(t *testing.T) {
 		status                                 int
 	}{
 		{name: "missing client", errorCode: "invalid_client", status: 401},
-		{name: "secret without identity", secret: "sec-secret", errorCode: "invalid_client", status: 401},
+		// RFC 6749 §5.2: an incomplete body credential set is invalid_request.
+		{name: "secret without identity", secret: "sec-secret", errorCode: "invalid_request", status: 400},
 		{name: "missing secret", clientID: "sec-confidential", errorCode: "invalid_client", status: 401},
 		{name: "wrong secret", clientID: "sec-confidential", secret: "wrong", errorCode: "invalid_client", status: 401},
 		{name: "unknown client", clientID: "unknown-client", errorCode: "invalid_client", status: 401},

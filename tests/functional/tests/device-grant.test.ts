@@ -161,6 +161,8 @@ describe('device authorization client authentication', () => {
     const response = await postFormBasic(`${OAUTH_URL}/device_authorization`, { scope: 'openid' }, 'device-basic', secret);
     expect(response.status).toBe(200);
     const issued = await response.json(); expect(issued.device_code).toBeTruthy();
+    const other = await postFormBasic(`${OAUTH_URL}/token`, { grant_type: grant, device_code: issued.device_code }, 'device-post', secret);
+    expect(other.status).toBe(400); expect((await other.json()).error).toBe('invalid_grant');
     const poll = await postFormBasic(`${OAUTH_URL}/token`, { grant_type: grant, device_code: issued.device_code }, 'device-basic', secret);
     expect(poll.status).toBe(400); expect((await poll.json()).error).toBe('authorization_pending');
   });

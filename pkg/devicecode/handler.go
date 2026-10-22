@@ -1,6 +1,7 @@
 package devicecode
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -43,20 +44,20 @@ func HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 
 	scope := r.FormValue("scope")
 
-	// RFC 8628 §3.1 / RFC 6749 §5.2: a malformed Basic attempt must
-	// fail authentication, not fall back to another set of credentials.
-	_, _, basicAuth := r.BasicAuth()
+	// RFC 6749 §5.2: classify Basic failures by the attempted scheme,
+	// including malformed headers rejected by the shared authenticator.
 	authorization := strings.Fields(r.Header.Get("Authorization"))
-	if len(authorization) > 0 && strings.EqualFold(authorization[0], "Basic") && !basicAuth {
-		w.Header().Set("WWW-Authenticate", `Basic realm="device_authorization"`)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
-		return
-	}
+	basicAuth := len(authorization) > 0 && strings.EqualFold(authorization[0], "Basic")
 
 	// RFC 8628 §3.1: confidential clients authenticate as at the token
 	// endpoint; public clients identify themselves with client_id.
 	registeredClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
+		// RFC 6749 §5.2: malformed or multiple credentials are invalid_request.
+		if errors.Is(err, client.ErrInvalidClientAuthenticationRequest) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
 		status := http.StatusBadRequest
 		// RFC 6749 §5.2: header-based authentication failures require a
 		// 401 response and a challenge matching the attempted scheme.

@@ -4140,6 +4140,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.ApiError"
                         }
                     },
+                    "401": {
+                        "description": "Client authentication failed; matching WWW-Authenticate challenge",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -4218,6 +4224,12 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Client authentication failed; matching WWW-Authenticate challenge",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
                         }
                     },
                     "500": {

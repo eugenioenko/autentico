@@ -71,7 +71,7 @@ curl -X POST https://auth.example.com/oauth2/device_authorization \
   -d "scope=openid profile"
 ```
 
-Alternatively, send `client_id` and `client_secret` as form fields. Missing or incorrect confidential credentials return `invalid_client` without creating a device code. Failed HTTP Basic attempts return HTTP 401 with `WWW-Authenticate: Basic`; form failures return HTTP 400. Inactive clients and disallowed grants/scopes remain rejected. Public devices continue to send only `client_id` and should not embed a shared secret.
+Form-encode each Basic credential before Base64-encoding when it contains reserved characters; see [credential encoding](/clients/client-types/#credential-encoding-and-transport). Alternatively, send `client_id` and `client_secret` only as form fields. Missing or incorrect confidential credentials return `invalid_client` without creating a device code. Failed HTTP Basic attempts return HTTP 401 with `WWW-Authenticate: Basic`; form failures return HTTP 400. Inactive clients and disallowed grants/scopes remain rejected. Public devices continue to send only `client_id` and should not embed a shared secret.
 
 **Response:**
 
@@ -99,8 +99,8 @@ Alternatively, send `client_id` and `client_secret` as form fields. Missing or i
 
 | Error | Cause |
 |---|---|
-| `invalid_request` | Missing `client_id` |
-| `invalid_client` | Unknown `client_id` |
+| `invalid_request` | Missing identification without Basic, incomplete/duplicate credentials, URI credentials or conflicting authentication methods |
+| `invalid_client` | Unknown/inactive client or missing/wrong credentials; Basic failures include a 401 challenge |
 | `unauthorized_client` | The client doesn't have the device code grant type |
 | `invalid_scope` | A requested scope isn't allowed for the client |
 

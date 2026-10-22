@@ -10,7 +10,7 @@ A **confidential** client can securely store a secret — typically a server-sid
 - `client_type`: `confidential`
 - Authenticates at the token endpoint using a `client_secret`
 - Two authentication methods:
-  - `client_secret_basic`: credentials in `Authorization: Basic <base64(client_id:client_secret)>` header
+  - `client_secret_basic`: form-encoded credentials in the `Authorization: Basic` header
   - `client_secret_post`: credentials in the POST body as `client_id` and `client_secret` form fields
 
 **Token exchange example (Basic auth):**
@@ -24,6 +24,14 @@ curl -X POST https://auth.example.com/oauth2/token \
   -d "redirect_uri=https://app.example.com/callback" \
   -d "code_verifier=CODE_VERIFIER"
 ```
+
+## Credential encoding and transport
+
+For OAuth Basic authentication, form-encode `client_id` and `client_secret` separately, join the encoded values with a colon, then Base64-encode the result (RFC 6749 §2.3.1). The server reverses that form encoding exactly once. For example, a literal `+` becomes `%2B`, `%` becomes `%25`, `:` becomes `%3A`, and a space becomes `+`. This matters for custom IDs or secrets; client libraries must prepare OAuth Basic credentials rather than passing raw reserved characters.
+
+Form authentication sends credentials only in the POST body. Credentials in URL parameters are rejected. Use one authentication method per request: do not combine Basic with a form secret or another Authorization header. A redundant body `client_id` is allowed only when it matches the decoded Basic identity.
+
+Invalid body/URI transports, duplicate parameters and conflicting credentials return `400 invalid_request`. Wrong or malformed Basic credentials return `401 invalid_client` with a matching Basic challenge; malformed Basic never falls back to form credentials. These rules apply to token, device authorization, introspection and revocation requests. Admin bearer authentication remains available at introspection and revocation as a separate method.
 
 ## Public clients
 

@@ -3,11 +3,13 @@
 package revoke
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/token"
@@ -24,6 +26,7 @@ import (
 // @Param token formData string true "Token to revoke"
 // @Success 200 {string} string "Token revoked successfully"
 // @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.AuthErrorResponse "Client authentication failed; matching WWW-Authenticate challenge"
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/revoke [post]
 func HandleRevoke(w http.ResponseWriter, r *http.Request) {
@@ -39,20 +42,26 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	// token revocation, consistent with RFC 7662 §2.1 introspection auth.
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
+		// RFC 7009 §2.1 / RFC 6749 §5.2: malformed authentication is not
+		// an invalid password or an invitation to try another mechanism.
+		if errors.Is(err, client.ErrInvalidClientAuthenticationRequest) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
 		slog.Warn("revoke: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		utils.WriteBasicUnauthorized(w, "revocation", "Client authentication failed")
 		return
 	}
 	if authenticatedClient == nil {
 		// RFC 7662 §2.1 / RFC 6750: alternatively accept an admin Bearer token
 		if r.Header.Get("Authorization") == "" {
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
+			utils.WriteBasicUnauthorized(w, "revocation", "Client authentication required")
 			return
 		}
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
 			slog.Warn("revoke: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
+			utils.WriteBearerUnauthorized(w, config.GetBootstrap().AppAuthIssuer, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
 		usr, err := user.UserByID(v.Claims.UserID)

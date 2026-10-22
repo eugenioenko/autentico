@@ -119,3 +119,38 @@ func TestDeviceAuthorizationRejectsInactivePublicClients(t *testing.T) {
 	require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM device_codes`).Scan(&count))
 	require.Zero(t, count)
 }
+
+func TestDeviceAuthorizationRejectsURLAndConflictingCredentialsWithoutStorage(t *testing.T) {
+	for _, kind := range []string{"query", "two mechanisms", "contradictory ID"} {
+		t.Run(kind, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestConfidentialClient(t, "transport-client", "transport-secret")
+			_, err := db.GetDB().Exec(`UPDATE clients SET grant_types=? WHERE client_id='transport-client'`, `["`+DeviceCodeGrantType+`"]`)
+			require.NoError(t, err)
+			form := url.Values{"scope": {"openid"}}
+			target := "/oauth2/device_authorization"
+			if kind == "query" {
+				target += "?" + url.Values{"client_id": {"transport-client"}, "client_secret": {"transport-secret"}}.Encode()
+			} else {
+				form.Set("client_id", "transport-client")
+				if kind == "two mechanisms" {
+					form.Set("client_secret", "transport-secret")
+				} else {
+					form.Set("client_id", "different-client")
+				}
+			}
+			r := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if kind != "query" {
+				r.SetBasicAuth("transport-client", "transport-secret")
+			}
+			rr := httptest.NewRecorder()
+			HandleDeviceAuthorization(rr, r)
+			require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
+			require.Contains(t, rr.Body.String(), "invalid_request")
+			var count int
+			require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM device_codes`).Scan(&count))
+			require.Zero(t, count)
+		})
+	}
+}

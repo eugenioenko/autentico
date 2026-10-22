@@ -970,3 +970,11 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | MUST | OIDC Core §3.1.2.1 / §3.1.2.3–4 | Honor prompt, authentication age and required consent | Signed controls survive browser login; consent rechecks MFA and idle/absolute/request age. Silent requests return login_required or consent_required without UI. |
 | MUST | OIDC Core §2 / §12.2 | Preserve original authentication time when issuing or refreshing tokens | Consent/SSO use session authentication; access, ID and signed refresh tokens preserve auth_time across rotations while iat records issuance. Unrecoverable legacy context requires reauthentication. |
 | MUST | RFC 6749 §3.1.1 / §4.1.2.1; RFC 7591 §2 | Reject unimplemented response types | Authorization rejects every non-code response before SSO/login; registration, update and admin forms accept only code (#513). SSO also checks the authorization_code grant allowlist (#527). |
+
+### OAuth client credential transports and challenges (#514, #516, #529)
+
+| Level | Specification | Requirement | Implementation |
+|---|---|---|---|
+| MUST | RFC 6749 §2.3 / §2.3.1 / §5.2 | Use one authentication mechanism; body credentials cannot come from the URI | Shared authentication rejects URI, duplicate and conflicting credentials and malformed Basic fallback. |
+| MUST | RFC 6749 §2.3.1 | Reverse form encoding of Basic credentials before authentication | Decode each component once; token grant bindings and claims use the resolved client ID. |
+| MUST | RFC 6749 §5.2 / RFC 6750 §3 | Challenge failed header authentication with the matching scheme | Basic client failures and missing-client 401s include Basic challenges; invalid revocation bearer credentials use Bearer. |

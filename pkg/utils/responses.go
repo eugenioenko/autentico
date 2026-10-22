@@ -45,7 +45,8 @@ func WriteApiResponse(w http.ResponseWriter, data any, statusCode int) {
 
 // WriteErrorResponse writes an OAuth2 error response.
 // RFC 6749 §5.2: error responses MUST include "error" and MAY include "error_description".
-// HTTP status MUST be 400 for all error codes except invalid_client, which MUST use 401.
+// Invalid client credentials may use 401; header authentication failures require
+// 401 and a matching challenge. Other OAuth error codes use 400.
 func WriteErrorResponse(w http.ResponseWriter, statusCode int, errorType, errorDescription string) {
 	WriteApiResponse(w, model.AuthErrorResponse{
 		Error:            errorType,
@@ -65,4 +66,11 @@ func WriteBearerUnauthorized(w http.ResponseWriter, realm, errType, errDescripti
 	}
 	w.Header().Set("WWW-Authenticate", challenge)
 	WriteErrorResponse(w, http.StatusUnauthorized, errType, errDescription)
+}
+
+// WriteBasicUnauthorized includes the client-authentication challenge required
+// for header credential failures by RFC 6749 §5.2.
+func WriteBasicUnauthorized(w http.ResponseWriter, realm, description string) {
+	w.Header().Set("WWW-Authenticate", fmt.Sprintf("Basic realm=%q", realm))
+	WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", description)
 }
