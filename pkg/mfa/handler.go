@@ -12,6 +12,7 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/audit"
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/consent"
@@ -70,7 +71,13 @@ func handleMfaGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := config.Get()
+	_, registeredClient, err := challengeClient(challenge)
+	if err != nil {
+		redirectToLoginWithError(w, r, challenge, "Verification client is unavailable. Please log in again.")
+		return
+	}
+	resolvedCfg := config.GetForClient(registeredClient.ToOverrides())
+	cfg := &resolvedCfg
 
 	if handleMethodSwitch(w, r, challenge, cfg) {
 		return
@@ -159,7 +166,13 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := config.Get()
+	loginState, registeredClient, err := challengeClient(challenge)
+	if err != nil {
+		redirectToLoginWithError(w, r, challenge, "Verification client is unavailable. Please log in again.")
+		return
+	}
+	resolvedCfg := config.GetForClient(registeredClient.ToOverrides())
+	cfg := &resolvedCfg
 
 	usr, err := user.UserByID(challenge.UserID)
 	if err != nil {
@@ -246,13 +259,6 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 		redirectToLoginWithError(w, r, challenge, "Verification session has expired or could not be completed. Please log in again.")
 		return
 	}
-	// Restore login state and complete the OAuth flow
-	var loginState LoginState
-	if err := json.Unmarshal([]byte(challenge.LoginState), &loginState); err != nil {
-		slog.Error("mfa: failed to restore login state", "request_id", reqid.Get(r.Context()), "error", err)
-		redirectToLoginWithError(w, r, challenge, "Session expired. Please log in again.")
-		return
-	}
 
 	// RFC 6749 §3.1.2 / §4.1.2: retain the registered callback query and
 	// form-encode code/state, returning the exact opaque state value.
@@ -287,8 +293,7 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 
 	// OIDC Core §3.1.2.4: check if consent is needed before issuing auth code
-	registeredClient, clientErr := client.ClientByClientID(loginState.ClientID)
-	if clientErr == nil && consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
+	if consent.NeedsConsent(registeredClient.ConsentRequired, usr.ID, loginState.ClientID, loginState.Scope, loginState.Prompt) {
 		consent.RedirectToConsent(w, r, consent.ConsentParams{
 			RedirectURI:         loginState.RedirectURI,
 			State:               loginState.State,
@@ -511,4 +516,24 @@ func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge 
 
 	redirectURL := config.GetBootstrap().AppOAuthPath + "/authorize?" + params.Encode()
 	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+// challengeClient resolves policy from server-stored login state. RFC 6749 §2:
+// unknown/inactive registrations must not fall back to global device policy.
+func challengeClient(challenge *MfaChallenge) (LoginState, *client.Client, error) {
+	var state LoginState
+	if err := json.Unmarshal([]byte(challenge.LoginState), &state); err != nil {
+		return state, nil, err
+	}
+	// RFC 6749 §3.1.2 / §3.3 / §4.1.1 and RFC 9700 §2.1.1:
+	// a pending challenge must still satisfy the current registration and PKCE policy.
+	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
+		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope,
+		State: state.State, Nonce: state.Nonce, CodeChallenge: state.CodeChallenge,
+		CodeChallengeMethod: state.CodeChallengeMethod,
+	})
+	if err != nil {
+		return state, nil, err
+	}
+	return state, registeredClient, nil
 }

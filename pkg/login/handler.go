@@ -139,7 +139,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Email verification gate — non-admin users must verify before proceeding
-	cfg := config.Get()
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 	if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
 		emailverification.RenderVerifyEmail(w, r, "blocked", usr.Username, emailverification.OAuthParams{
 			RedirectURI:         request.RedirectURI,
@@ -258,7 +258,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		Nonce:               request.Nonce,
 		CodeChallenge:       request.CodeChallenge,
 		CodeChallengeMethod: request.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
+		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
 		IdpSessionID:        idpSessionID,
 	}

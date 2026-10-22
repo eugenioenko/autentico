@@ -142,10 +142,11 @@ func TestHandleConsent_Post_Deny_RedirectsWithAccessDenied(t *testing.T) {
 	sessionID := createIdpSession(t, "user1")
 
 	params := ConsentParams{
-		ClientID:    "c1",
-		RedirectURI: "http://localhost/callback",
-		Scope:       "openid",
-		State:       "xyz",
+		ClientID:      "c1",
+		RedirectURI:   "http://localhost/callback",
+		Scope:         "openid",
+		State:         "xyz",
+		CodeChallenge: "challenge", CodeChallengeMethod: "S256",
 	}
 	sig := signConsent(params, "user1")
 
@@ -155,6 +156,8 @@ func TestHandleConsent_Post_Deny_RedirectsWithAccessDenied(t *testing.T) {
 	form.Set("redirect_uri", "http://localhost/callback")
 	form.Set("scope", "openid")
 	form.Set("state", "xyz")
+	form.Set("code_challenge", params.CodeChallenge)
+	form.Set("code_challenge_method", params.CodeChallengeMethod)
 	form.Set("consent_sig", sig)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/consent", strings.NewReader(form.Encode()))
@@ -248,7 +251,7 @@ func TestHandleConsent_Post_InvalidClient_ReturnsBadRequest(t *testing.T) {
 	HandleConsent(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_client")
+	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
 func TestHandleConsent_Post_InvalidRedirectURI_ReturnsBadRequest(t *testing.T) {
@@ -281,7 +284,7 @@ func TestHandleConsent_Post_InvalidRedirectURI_ReturnsBadRequest(t *testing.T) {
 	HandleConsent(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "Redirect URI not allowed")
+	assert.Contains(t, rr.Body.String(), "redirect_uri is not allowed")
 }
 
 func TestHandleConsent_MethodNotAllowed(t *testing.T) {

@@ -360,7 +360,9 @@ func GetForClient(overrides ClientOverrides) Config {
 		cfg.AuthAuthorizationCodeExpiration = ParseDuration(*overrides.AuthorizationCodeExpiration, cfg.AuthAuthorizationCodeExpiration)
 	}
 	if overrides.AllowedAudiences != nil {
-		cfg.AuthAccessTokenAudience = append(cfg.AuthAccessTokenAudience, overrides.AllowedAudiences...)
+		// RFC 9068 §2.2: resolving another client must not overwrite a pending
+		// request's audience policy through the shared global slice backing array.
+		cfg.AuthAccessTokenAudience = append(append([]string(nil), cfg.AuthAccessTokenAudience...), overrides.AllowedAudiences...)
 	}
 	if overrides.AllowSelfSignup != nil {
 		cfg.AuthAllowSelfSignup = *overrides.AllowSelfSignup

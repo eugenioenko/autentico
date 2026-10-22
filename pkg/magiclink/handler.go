@@ -247,7 +247,7 @@ func HandleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	completeLogin(w, r, cfg, params, authorizeSigValue, userID)
+	completeLogin(w, r, params, authorizeSigValue, userID)
 }
 
 // HandleMagicLinkVerifyCode handles POST for /oauth2/magic-link/verify.
@@ -328,12 +328,12 @@ func HandleMagicLinkVerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	completeLogin(w, r, cfg, params, authorizeSigValue, usr.ID)
+	completeLogin(w, r, params, authorizeSigValue, usr.ID)
 }
 
 // completeLogin performs the post-verification login flow: signature check,
 // client validation, MFA, consent, IdP session, and auth code issuance.
-func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, params oauthParams, authorizeSigValue, userID string) {
+func completeLogin(w http.ResponseWriter, r *http.Request, params oauthParams, authorizeSigValue, userID string) {
 	// RFC 6749 §10.6: re-check the current registration before issuance.
 	registeredClient, err := validateSignedAuthorization(params, authorizeSigValue)
 	if err != nil {
@@ -341,6 +341,8 @@ func completeLogin(w http.ResponseWriter, r *http.Request, cfg *config.Config, p
 		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 
 	usr, err := user.UserByID(userID)
 	if err != nil || usr == nil || usr.DeactivatedAt != nil {

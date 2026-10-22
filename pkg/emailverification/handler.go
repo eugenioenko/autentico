@@ -135,7 +135,8 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	// RFC 6749 §4.1.1 / §10.6: a valid signature is not a registration check.
 	// Reject before consuming the verification token or creating a session.
-	if _, err := client.ValidateAuthorization(authzsig.FromValues(r.URL.Query())); err != nil {
+	registeredClient, err := client.ValidateAuthorization(authzsig.FromValues(r.URL.Query()))
+	if err != nil {
 		view.RenderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -187,7 +188,7 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
-		ExpiresAt:           time.Now().Add(config.Get().AuthAuthorizationCodeExpiration),
+		ExpiresAt:           time.Now().Add(config.GetForClient(registeredClient.ToOverrides()).AuthAuthorizationCodeExpiration),
 		Used:                false,
 		IdpSessionID:        idpSessionID,
 	}

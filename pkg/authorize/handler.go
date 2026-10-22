@@ -131,8 +131,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// OIDC Core §3.1.2.1: prompt=login requires fresh authentication — skip SSO auto-login
 	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
-	cfg := config.Get()
-	autoLoginResult := tryAutoLogin(r, cfg, request, registeredClient)
+	cfg := config.GetForClient(registeredClient.ToOverrides())
+	autoLoginResult := tryAutoLogin(r, &cfg, request, registeredClient)
 	if autoLoginResult.redirectURL != "" {
 		http.Redirect(w, r, autoLoginResult.redirectURL, http.StatusFound)
 		return
@@ -166,7 +166,7 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
 	if request.Prompt == "create" {
-		if !config.Get().AuthAllowSelfSignup {
+		if !cfg.AuthAllowSelfSignup {
 			renderLogin(w, r, request, "Self-registration is not enabled")
 			return
 		}
@@ -207,7 +207,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 // renderLogin renders the login form, or an error-only page when errorMsg is a fatal
 // configuration problem (e.g. invalid redirect URI) where submitting the form makes no sense.
 func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeRequest, errorMsg string) {
-	cfg := config.Get()
+	cfg := *config.Get()
+	// RFC 6749 §2: registration policy also determines the visible signup entry.
+	if registeredClient, err := client.ClientByClientID(request.ClientID); err == nil && registeredClient.IsActive {
+		cfg = config.GetForClient(registeredClient.ToOverrides())
+	} else {
+		cfg.AuthAllowSelfSignup = false
+	}
 	tmpl, err := view.ParseTemplate("login")
 	if err != nil {
 		slog.Error("authorize: failed to parse login template", "request_id", reqid.Get(r.Context()), "error", err)

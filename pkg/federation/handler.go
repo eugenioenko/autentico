@@ -308,14 +308,15 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 // completeAuthFlow issues an auth code and redirects back to the client.
 func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, state *FederationState) error {
 	// RFC 6749 §4.1.1 / §10.6: re-check immediately before creating a session or code.
-	if _, err := client.ValidateAuthorization(state.authorizeParams()); err != nil {
+	registeredClient, err := client.ValidateAuthorization(state.authorizeParams())
+	if err != nil {
 		return fmt.Errorf("invalid authorization request: %w", err)
 	}
 	redirectURL, err := url.Parse(state.RedirectURI)
 	if err != nil {
 		return err
 	}
-	cfg := config.Get()
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 
 	idpSessionID := idpsession.FinalizeLogin(w, r, usr.ID)
 

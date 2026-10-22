@@ -39,7 +39,7 @@ func TestTotpBudgetSharedAcrossHTTPEntryPoints(t *testing.T) {
 		// Each fresh challenge is a separate login, with the real CSRF form flow.
 		require.NoError(t, mfa.CreateMfaChallenge(mfa.MfaChallenge{ID: challengeID, UserID: usr.ID,
 			Method: "totp", ExpiresAt: time.Now().Add(time.Minute),
-			LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid profile email"}`}))
+			LoginState: `{"client_id":"test-client","redirect_uri":"http://localhost:3000/callback","scope":"openid profile email","code_challenge":"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM","code_challenge_method":"S256"}`}))
 		resp, err := ts.Client.Get(ts.BaseURL + "/oauth2/mfa?challenge_id=" + challengeID)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)

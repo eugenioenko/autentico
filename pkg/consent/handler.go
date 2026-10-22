@@ -11,6 +11,7 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/authzsig"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -90,15 +91,15 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	registeredClient, err := client.ClientByClientID(params.ClientID)
+	// RFC 6749 §3.1.2 / §3.3 / §4.1.1 and RFC 9700 §2.1.1:
+	// a signed consent page cannot override changed registration or PKCE policy.
+	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
+		ClientID: params.ClientID, RedirectURI: params.RedirectURI, Scope: params.Scope,
+		State: params.State, Nonce: params.Nonce, CodeChallenge: params.CodeChallenge,
+		CodeChallengeMethod: params.CodeChallengeMethod,
+	})
 	if err != nil {
-		slog.Warn("consent: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
-		return
-	}
-
-	if !client.IsValidRedirectURI(registeredClient, params.RedirectURI) {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Redirect URI not allowed for this client")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
@@ -139,7 +140,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := config.Get()
+	cfg := config.GetForClient(registeredClient.ToOverrides())
 	ac := authcode.AuthCode{
 		Code:                code,
 		UserID:              userID,

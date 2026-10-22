@@ -15,7 +15,7 @@ func TestMfaRedirectPreservesOpaqueStateAndCallbackQuery(t *testing.T) {
 		for _, state := range []string{"plain", "a&injected=1", "space + %25 #fragment /?=é", ""} {
 			t.Run(callback+"/"+state, func(t *testing.T) {
 				atomicEmailChallenge(t)
-				loginState, err := json.Marshal(LoginState{ClientID: "atomic-client", RedirectURI: callback, Scope: "openid", State: state})
+				loginState, err := json.Marshal(LoginState{ClientID: "atomic-client", RedirectURI: callback, Scope: "openid", State: state, CodeChallenge: "challenge", CodeChallengeMethod: "S256"})
 				require.NoError(t, err)
 				_, err = db.GetDB().Exec("UPDATE mfa_challenges SET login_state=? WHERE id='atomic-challenge'", string(loginState))
 				require.NoError(t, err)
@@ -56,8 +56,8 @@ func TestMfaMalformedCallbackDoesNotIssueAuthenticatedState(t *testing.T) {
 	_, err = db.GetDB().Exec("UPDATE mfa_challenges SET login_state=? WHERE id='atomic-challenge'", string(state))
 	require.NoError(t, err)
 	rr := postAtomicMfa()
-	require.Equal(t, http.StatusBadRequest, rr.Code)
-	require.Empty(t, rr.Header().Get("Location"))
+	require.Equal(t, http.StatusFound, rr.Code)
+	require.Contains(t, rr.Header().Get("Location"), "/oauth2/authorize?")
 	require.Empty(t, rr.Result().Cookies())
 	for _, table := range []string{"auth_codes", "idp_sessions", "trusted_devices"} {
 		var count int

@@ -941,3 +941,5 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 | Local extension policy | RFC 3986 §2.3 / §5.2.4 | Keep the variable path component inside its registered boundary | ✅ One nonempty unreserved segment; reject traversal, escaping, separators and query/fragment injection. Literal scheme/host/path/query bytes remain fixed. Registration and runtime enforce the same pattern shape (#476). |
 
 Refresh rotation retains revoked token records and their original OAuth sessions until both access and refresh lifetimes plus cleanup retention have elapsed, preserving replay detection after access expiry (RFC 6749 §6; RFC 9700 §4.14.2). Existing session metadata is extended during cleanup without reactivating revoked state.
+
+Browser registration policy is resolved from the current OAuth client (RFC 6749 §2). Signup and trusted-device behavior use explicit per-client overrides; SSO auto-login applies that client's idle limit alongside OIDC Core §3.1.2.1 prompt/max_age rules. MFA continuation uses the stored challenge client rather than a request-supplied replacement.

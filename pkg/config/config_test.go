@@ -137,3 +137,17 @@ func TestGetEnvHelpers(t *testing.T) {
 	t.Setenv("TEST_INT_INVALID", "not-an-int")
 	assert.Equal(t, 30, getEnvInt("TEST_INT_INVALID", 30))
 }
+
+func TestGetForClientKeepsAudienceOverridesIndependent(t *testing.T) {
+	saved := Values
+	t.Cleanup(func() { Values = saved })
+	// JSON-loaded global audiences can have spare slice capacity. Resolving a
+	// second client must not overwrite the first client's token audience policy.
+	Values.AuthAccessTokenAudience = make([]string, 1, 4)
+	Values.AuthAccessTokenAudience[0] = "shared-api"
+	first := GetForClient(ClientOverrides{AllowedAudiences: []string{"first-api"}})
+	second := GetForClient(ClientOverrides{AllowedAudiences: []string{"second-api"}})
+	assert.Equal(t, []string{"shared-api", "first-api"}, first.AuthAccessTokenAudience)
+	assert.Equal(t, []string{"shared-api", "second-api"}, second.AuthAccessTokenAudience)
+	assert.Equal(t, []string{"shared-api"}, Values.AuthAccessTokenAudience)
+}

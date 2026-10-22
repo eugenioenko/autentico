@@ -403,9 +403,9 @@ Each registered client can override a subset of global settings. Unset fields fa
 | `refresh_token_expiration`      | Refresh token lifetime for this client                          |
 | `authorization_code_expiration` | Auth code TTL                                                   |
 | `allowed_audiences`             | Additional `aud` values in tokens for this client               |
-| `allow_self_signup`             | Override self-signup for this client's login page               |
+| `allow_self_signup`             | Override self-signup in both the login page and signup submission |
 | `sso_session_idle_timeout`      | Override idle timeout for this client's login page (not enforced by the background cleanup sweep, which uses the global value) |
-| `trust_device_enabled`          | Enable or disable trusted devices for this client               |
+| `trust_device_enabled`          | Override password/magic-link MFA bypass and device creation for this client |
 | `trust_device_expiration`       | Trust duration for this client's users                          |
 
 ---
