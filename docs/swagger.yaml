@@ -626,7 +626,9 @@ definitions:
         type: boolean
       aud:
         description: 'RFC 7662 §2.2: OPTIONAL. Intended audience.'
-        type: string
+        items:
+          type: string
+        type: array
       client_id:
         description: 'RFC 7662 §2.2: OPTIONAL. Client that requested this token.'
         type: string

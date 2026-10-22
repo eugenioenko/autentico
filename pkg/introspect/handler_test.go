@@ -518,7 +518,7 @@ func TestHandleIntrospect_ActiveToken_AllFields(t *testing.T) {
 	assert.NotEmpty(t, resp["scope"], "scope should be populated for active tokens")
 	assert.NotEmpty(t, resp["token_type"], "token_type should be populated")
 	assert.NotEmpty(t, resp["sub"], "sub should be populated")
-	assert.NotEmpty(t, resp["jti"], "jti should be populated")
+	assert.NotContains(t, resp, "jti", "the presented fixture has no jti claim")
 	assert.NotNil(t, resp["exp"], "exp should be populated")
 	assert.NotNil(t, resp["iat"], "iat should be populated")
 	assert.NotEmpty(t, resp["iss"], "iss should be populated for active tokens")

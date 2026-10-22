@@ -5239,7 +5239,10 @@ const docTemplate = `{
                 },
                 "aud": {
                     "description": "RFC 7662 §2.2: OPTIONAL. Intended audience.",
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "client_id": {
                     "description": "RFC 7662 §2.2: OPTIONAL. Client that requested this token.",

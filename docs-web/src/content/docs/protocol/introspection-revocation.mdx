@@ -15,6 +15,8 @@ POST /oauth2/introspect
 
 Both access and refresh tokens can be introspected. Each token is checked against its own expiration time, and an active response reports that time in `exp`. An unexpired refresh token can remain active after its paired access token expires; an expired refresh token is inactive even while the access token remains valid. Revocation, session and user checks still apply.
 
+Active responses report `aud` from the submitted token as an array, including its issuer, client ID and any audiences configured when it was issued. Later configuration changes do not alter that value. `jti` is the submitted token's JWT identifier, never the database row ID. Optional `aud` and `jti` fields are omitted when absent, including on refresh tokens that do not carry them.
+
 ### Authentication
 
 The introspection endpoint requires one of two forms of authentication per RFC 7662 Section 2.1:
@@ -49,7 +51,8 @@ curl -X POST https://auth.example.com/oauth2/introspect \
   "exp": 1700000000,
   "iat": 1699999100,
   "iss": "https://auth.example.com/oauth2",
-  "aud": "my-client-id"
+  "aud": ["https://auth.example.com/oauth2", "my-client-id"],
+  "jti": "token-identifier"
 }
 ```
 

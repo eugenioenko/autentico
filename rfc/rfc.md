@@ -307,7 +307,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §2.1 | `token` REQUIRED | `pkg/introspect/handler.go` line 60 |
 | §2.1 | Client authentication MUST be required | `pkg/introspect/handler.go` — ✅ Fixed (appsec-2026-04-07): `client.AuthenticateClientFromRequest` enforced |
 | §2.2 | `active` REQUIRED in all responses | `pkg/introspect/handler.go` — ✅ always present |
-| §2.2 | Active token: OPTIONAL fields (`scope`, `exp`, `iat`, `sub`, `iss`, `aud`, `jti`, `token_type`) | `pkg/introspect/handler.go` lines 93-104 |
+| §2.2 | Active token: OPTIONAL fields (`scope`, `exp`, `iat`, `sub`, `iss`, `aud`, `jti`, `token_type`) | `pkg/introspect/handler.go`; `aud`/`jti` describe the presented JWT, absent claims omitted (#522) |
 | §2.2 | Inactive token: MUST return `200 {"active":false}` only | `pkg/introspect/handler.go` `inactive()` — ✅ Fixed (PR #108) |
 | §2.2 | SHOULD NOT include extra claims for inactive tokens | `pkg/introspect/handler.go` `inactive()` — only `{"active":false}` |
 | §4 | Security checks: expiry, revocation, session liveness | `pkg/introspect/service.go` + handler session check |
@@ -323,7 +323,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §2.2 | Return `200 {"active":false}` for invalid/expired/revoked tokens | ✅ Fixed (PR #108) |
 | MUST | §2.2 | Include `active` field in all responses | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4 | Perform expiry, revocation, and validity checks | ✅ Verified + annotated (2026-03-30) |
-| SHOULD | §2.2 | Include OPTIONAL fields for active tokens | ✅ Fixed (2026-03-30) — added `iss`, `aud`; `client_id`/`username` omitted (not in token table) |
+| MAY | §2.2 | Include OPTIONAL metadata describing the presented token | ✅ `aud` is the submitted JWT audience array and `jti` its JWT identifier; omitted when absent (#522) |
 | SHOULD NOT | §2.2 | Not return extra claims for inactive tokens | ✅ Verified (2026-03-30) — `inactive()` returns only `{"active":false}` |
 
 **Security Considerations (§4):**
