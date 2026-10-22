@@ -32,6 +32,7 @@ func revokeUserAccess(userID, excludeToken string) error {
 	})
 }
 
+// revokeUserAccessTx invalidates user credentials and linked sessions within the caller’s transaction.
 func revokeUserAccessTx(tx *sql.Tx, userID, excludeToken string) error {
 	now := time.Now()
 

@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { BASE_URL, getAdminToken, postJSON, putJSON, getResponse, deleteRequest, obtainTokenViaAuthCode } from '../helpers';
 
 const API = `${BASE_URL}/admin/api`;
+/** Read the real token subject to identify the authenticated account. */
 function subject(token: string): string {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).sub;
 }
+/** Assert the public API conflict contract for a denied last-admin mutation. */
 async function expectProtected(response: Response) {
   expect(response.status).toBe(409);
   expect(await response.json()).toMatchObject({ error: 'last_active_admin' });

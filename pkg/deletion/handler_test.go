@@ -411,6 +411,7 @@ func TestHandleListDeletionRequests_DbError(t *testing.T) {
 	assert.NotContains(t, rr.Body.String(), "SQL")
 }
 
+// TestDeletionModesProtectLastActiveAdmin rejects immediate and approved deletion without side effects.
 func TestDeletionModesProtectLastActiveAdmin(t *testing.T) {
 	for _, mode := range []string{"self-service", "approval"} {
 		t.Run(mode, func(t *testing.T) {

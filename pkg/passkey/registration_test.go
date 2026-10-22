@@ -152,6 +152,7 @@ func TestRegistrationFinishRechecksPolicy(t *testing.T) {
 	}
 }
 
+// TestPendingRegistrationDeletionGuards preserves owned, completed and administrator accounts.
 func TestPendingRegistrationDeletionGuards(t *testing.T) {
 	for _, protect := range []string{"password", "registered", "credential", "live challenge", "recent account", "admin", "expired"} {
 		t.Run(protect, func(t *testing.T) {

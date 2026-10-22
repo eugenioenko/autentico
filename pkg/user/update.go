@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UpdateUser applies explicit fields to a current account snapshot without restoring stale roles.
 func UpdateUser(id string, req UserUpdateRequest) error {
 	// Hash before taking the writer; omitted fields are read only after it is held.
 	var passwordHash string

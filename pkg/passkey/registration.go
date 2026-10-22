@@ -80,6 +80,7 @@ func deletePendingRegistration(userID, owner string) (bool, error) {
 	return true, tx.Commit()
 }
 
+// deletePendingRegistrationTx removes only abandoned, unregistered non-admin accounts.
 func deletePendingRegistrationTx(tx *sql.Tx, userID, owner string) (bool, error) {
 	var createdAt time.Time
 	// OWASP Authorization §Validate the Permissions on Every Request: an

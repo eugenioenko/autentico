@@ -231,6 +231,7 @@ func TestHandleUpdateUser_ValidationError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
+// TestHandleUpdateUser_Success allows demotion when another active administrator remains.
 func TestHandleUpdateUser_Success(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "other-admin")
@@ -412,6 +413,7 @@ func TestHandleRevokeUserSessions_Success(t *testing.T) {
 
 // --- HandleUserAdmin integration tests ---
 
+// TestHandleUserAdmin exercises listing, retrieval, promotion and deletion with an admin retained.
 func TestHandleUserAdmin(t *testing.T) {
 	testutils.WithTestDB(t)
 

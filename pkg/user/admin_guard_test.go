@@ -23,6 +23,7 @@ var adminRemovalActions = []struct {
 	{"delete", HardDeleteUser},
 }
 
+// insertAdmin creates an active administrator fixture without password hashing.
 func insertAdmin(t *testing.T, id string) {
 	t.Helper()
 	testutils.InsertTestUser(t, id)
@@ -30,6 +31,7 @@ func insertAdmin(t *testing.T, id string) {
 	require.NoError(t, err)
 }
 
+// TestLastActiveAdminProtection requires another active admin before removing administrator access.
 func TestLastActiveAdminProtection(t *testing.T) {
 	for _, action := range adminRemovalActions {
 		t.Run(action.name, func(t *testing.T) {
@@ -53,6 +55,7 @@ func TestLastActiveAdminProtection(t *testing.T) {
 	}
 }
 
+// TestConcurrentAdminRemovals verifies that competing removals leave exactly one active admin.
 func TestConcurrentAdminRemovals(t *testing.T) {
 	for _, first := range adminRemovalActions {
 		for _, second := range adminRemovalActions {
@@ -97,6 +100,7 @@ func TestConcurrentAdminRemovals(t *testing.T) {
 	}
 }
 
+// TestAdminMutationCommitFailureRollsBack preserves accounts and credentials after failed commits.
 func TestAdminMutationCommitFailureRollsBack(t *testing.T) {
 	for _, action := range adminRemovalActions {
 		t.Run(action.name, func(t *testing.T) {
@@ -154,6 +158,7 @@ func TestAdminMutationCommitFailureRollsBack(t *testing.T) {
 	}
 }
 
+// TestLastAdminDeletionPreservesThenRemovesAssociatedData verifies denial and allowed deletion cleanup.
 func TestLastAdminDeletionPreservesThenRemovesAssociatedData(t *testing.T) {
 	testutils.WithTestDB(t)
 	insertAdmin(t, "target")
@@ -182,7 +187,8 @@ func TestLastAdminDeletionPreservesThenRemovesAssociatedData(t *testing.T) {
 	}
 }
 
-// The writer's wait counter gives a deterministic interleaving: an old updater
+// TestAccountUpdatePreservesConcurrentDemotion uses the writer wait counter to
+// establish a deterministic interleaving: an old updater
 // has read the pre-demotion role before waiting; the fixed updater has not read it.
 func TestAccountUpdatePreservesConcurrentDemotion(t *testing.T) {
 	for _, request := range []UserUpdateRequest{{Password: "replacement-password"}, {Nickname: "new nickname"}} {
