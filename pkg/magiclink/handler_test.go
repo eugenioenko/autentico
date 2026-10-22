@@ -17,9 +17,20 @@ import (
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// createMagicLinkToken constructs legacy challenges for verification and upgrade fixtures.
+func createMagicLinkToken(userID, tokenHash, codeHash string, expiresAt time.Time) error {
+	id := xid.New().String()
+	_, err := db.GetDB().Exec(
+		`INSERT INTO magic_link_tokens (id, user_id, token_hash, code_hash, expires_at) VALUES (?, ?, ?, ?, ?)`,
+		id, userID, tokenHash, codeHash, expiresAt,
+	)
+	return err
+}
 
 // newCodeChallenge creates a verified user and a signed request for one live challenge.
 func newCodeChallenge(t *testing.T) (url.Values, string, string) {
@@ -208,7 +219,10 @@ func TestInvalidatePreviousMagicLinkTokens(t *testing.T) {
 	require.NoError(t, createMagicLinkToken("ml-user-3", hash1, "", time.Now().Add(time.Hour)))
 	require.NoError(t, createMagicLinkToken("ml-user-3", hash2, "", time.Now().Add(time.Hour)))
 
-	invalidatePreviousTokens("ml-user-3")
+	_, err := db.GetDB().Exec(`UPDATE magic_link_tokens SET created_at=? WHERE user_id='ml-user-3'`, time.Now().Add(-2*time.Minute))
+	require.NoError(t, err)
+	_, err = issueMagicLinkToken("ml-user-3", "replacement-hash", "replacement-code", time.Now().Add(time.Hour))
+	require.NoError(t, err)
 
 	_, _, usedAt1, _ := getMagicLinkTokenInfo(hash1)
 	_, _, usedAt2, _ := getMagicLinkTokenInfo(hash2)

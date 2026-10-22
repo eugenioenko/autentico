@@ -76,6 +76,8 @@ Immediate account deletion now requires `current_password` for password accounts
 
 Federation now checks every outbound connection after DNS resolution. Private, loopback, link-local and shared-address endpoints are blocked for discovery, token exchange and signing-key retrieval. A private issuer may still be saved, but cannot be used for login; expose a public endpoint before upgrading.
 
+Magic-link requests now share a one-minute per-account email cooldown across clients. Resending keeps the original expiry and failed-code budget. Five incorrect codes block both credentials and further emails until the window expires. See [magic-link limits](/authentication/magic-links/#attempt-limits-and-resends). No additional schema migration is needed for this change.
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.

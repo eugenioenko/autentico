@@ -79,6 +79,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Overview', link: '/authentication/overview/' },
 						{ label: 'Password', link: '/authentication/password/' },
+						{ label: 'Magic Links', link: '/authentication/magic-links/' },
 						{ label: 'Passkeys (WebAuthn)', link: '/authentication/passkeys/' },
 						{ label: 'MFA', link: '/authentication/mfa/' },
 						{ label: 'Consent Screen', link: '/authentication/consent/' },

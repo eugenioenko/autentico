@@ -29,11 +29,13 @@ var transientTables = []struct {
 	{"trusted_devices", `DELETE FROM trusted_devices WHERE expires_at < ?`},
 	{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
 	{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
-	{"magic_link_tokens", `DELETE FROM magic_link_tokens WHERE expires_at < ?`},
 	{"device_codes", `DELETE FROM device_codes WHERE expires_at < ?`},
 }
 
 func deleteExpiredTransientRows(threshold time.Time) {
+	if err := cleanMagicLinkTokens(threshold); err != nil {
+		slog.Error("cleanup: failed to clean magic link tokens", "error", err)
+	}
 	if err := cleanTokenSessions(threshold); err != nil {
 		slog.Error("cleanup: failed to clean tokens and sessions", "error", err)
 	}

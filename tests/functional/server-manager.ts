@@ -10,6 +10,7 @@ const BASE_URL = `http://localhost:${PORT}`;
 
 let serverProcess: ChildProcess | null = null;
 let tempDir: string | null = null;
+let launchServer: (() => Promise<void>) | null = null;
 
 async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
   const start = Date.now();
@@ -24,7 +25,8 @@ async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
 }
 
 export async function startServer(fixture?: { binary: string; args: string[]; env: NodeJS.ProcessEnv }): Promise<void> {
-  tempDir = mkdtempSync(join(tmpdir(), 'autentico-functional-'));
+  const directory = mkdtempSync(join(tmpdir(), 'autentico-functional-'));
+  tempDir = directory;
 
   const env = {
     ...process.env,
@@ -38,29 +40,40 @@ export async function startServer(fixture?: { binary: string; args: string[]; en
     { cwd: tempDir, stdio: 'pipe', env }
   );
 
-  serverProcess = spawn(fixture?.binary ?? BINARY, fixture?.args ?? ['start'], {
-    cwd: tempDir,
-    stdio: 'pipe',
-    detached: false,
-    env: {
-      ...env,
-      ...fixture?.env,
-      AUTENTICO_CSRF_SECURE_COOKIE: 'false',
-      AUTENTICO_IDP_SESSION_SECURE: 'false',
-      AUTENTICO_REFRESH_TOKEN_SECURE: 'false',
-      AUTENTICO_RATE_LIMIT_RPS: '0',
-      AUTENTICO_RATE_LIMIT_RPM: '0',
-    },
-  });
+  launchServer = async () => {
+    serverProcess = spawn(fixture?.binary ?? BINARY, fixture?.args ?? ['start'], {
+      cwd: directory,
+      stdio: 'pipe',
+      detached: false,
+      env: {
+        ...env,
+        ...fixture?.env,
+        AUTENTICO_CSRF_SECURE_COOKIE: 'false',
+        AUTENTICO_IDP_SESSION_SECURE: 'false',
+        AUTENTICO_REFRESH_TOKEN_SECURE: 'false',
+        AUTENTICO_RATE_LIMIT_RPS: '0',
+        AUTENTICO_RATE_LIMIT_RPM: '0',
+      },
+    });
 
-  serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(d));
-  serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(d));
+    serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(d));
+    serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(d));
 
-  await waitForServer(`${BASE_URL}/.well-known/openid-configuration`);
+    await waitForServer(`${BASE_URL}/.well-known/openid-configuration`);
+  };
+  await launchServer();
 }
 
-/** Wait for shutdown before removing its database or reusing the listen port. */
-export async function stopServer(): Promise<void> {
+/** Restart the same executable, database and keys without reinitializing or onboarding. */
+export async function restartServer(): Promise<void> {
+  const launch = launchServer;
+  if (!launch || !tempDir) throw new Error('No running fixture to restart');
+  await stopProcess();
+  await launch();
+}
+
+/** Wait until the child has closed its database and released the listening port. */
+async function stopProcess(): Promise<void> {
   const child = serverProcess;
   serverProcess = null;
   if (child && child.exitCode === null && child.signalCode === null) {
@@ -70,6 +83,12 @@ export async function stopServer(): Promise<void> {
       child.kill('SIGTERM');
     });
   }
+}
+
+/** Wait for shutdown before removing its database or reusing the listen port. */
+export async function stopServer(): Promise<void> {
+  await stopProcess();
+  launchServer = null;
   if (tempDir) {
     rmSync(tempDir, { recursive: true, force: true });
     tempDir = null;
