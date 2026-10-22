@@ -40,4 +40,7 @@ func (d *DeletionRequest) ToResponse() DeletionRequestResponse {
 
 type CreateDeletionRequestInput struct {
 	Reason string `json:"reason,omitempty"`
+	// CurrentPassword is required only for immediate deletion of password accounts.
+	// It is verified and discarded, never stored in the deletion request.
+	CurrentPassword string `json:"current_password,omitempty" format:"password"`
 }

@@ -72,6 +72,8 @@ Review registered redirect wildcards when upgrading: `*` now matches only one pl
 
 Introspection callers must also meet the updated authorization policy: use authenticated confidential-client credentials or an admin access token with the `autentico-admin` audience. Public `client_id` values and admin-user tokens issued only for other apps no longer authorize introspection. See [introspection authentication](/protocol/introspection-revocation/#authentication).
 
+Immediate account deletion now requires `current_password` for password accounts. Passwordless accounts submit an admin-reviewed deletion request, even when `allow_self_service_deletion` is enabled. API clients must handle `204` (deleted) and `201` (pending review); the account UI selects the flow using the profile response’s `has_password` field.
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.

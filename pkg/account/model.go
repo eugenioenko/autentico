@@ -1,6 +1,7 @@
 package account
 
 import (
+	"github.com/eugenioenko/autentico/pkg/user"
 	"time"
 )
 
@@ -101,4 +102,11 @@ type AppResponse struct {
 	Description string `json:"description,omitempty"`
 	LogoURI     string `json:"logo_uri,omitempty"`
 	ClientURI   string `json:"client_uri,omitempty"`
+}
+
+// ProfileResponse adds credential availability for account security actions.
+// The hash itself is never exposed.
+type ProfileResponse struct {
+	user.UserResponse
+	HasPassword bool `json:"has_password"`
 }

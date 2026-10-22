@@ -25,46 +25,66 @@ var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("anti-timing-dummy"), bcry
 // and enforces account lockout on repeated failures. Both AuthenticateUser and
 // VerifyPassword delegate to this so lockout policy is defined in one place.
 func verifyPasswordWithLockout(usr *User, password string) error {
-	maxAttempts := config.Get().AuthAccountLockoutMaxAttempts
-
-	if maxAttempts > 0 && usr.LockedUntil != nil && usr.LockedUntil.After(time.Now()) {
+	cfg := config.Get()
+	if cfg.AuthAccountLockoutMaxAttempts > 0 && usr.LockedUntil != nil && usr.LockedUntil.After(time.Now()) {
 		return ErrAccountLocked
 	}
-
-	err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(password))
-	if err != nil {
-		if maxAttempts > 0 {
-			newAttempts := usr.FailedLoginAttempts + 1
-			if newAttempts >= maxAttempts {
-				lockUntil := time.Now().Add(config.Get().AuthAccountLockoutDuration)
-				if _, dbErr := db.GetDB().Exec(
-					`UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?`,
-					newAttempts, lockUntil, usr.ID,
-				); dbErr != nil {
-					slog.Error("user: failed to lock account after max attempts", "error", dbErr, "user_id", usr.ID)
+	// OWASP Authentication §Account Lockout: compute bcrypt outside the writer,
+	// then check current credentials/lockout and account every failed attempt atomically.
+	matches := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(password)) == nil
+	var authenticationErr error
+	err := mutateUser(usr.ID, false, func(tx *sql.Tx) error {
+		var hash sql.NullString
+		var failed int
+		var locked sql.NullTime
+		err := tx.QueryRow(`SELECT password,failed_login_attempts,locked_until FROM users WHERE id=? AND deactivated_at IS NULL`, usr.ID).Scan(&hash, &failed, &locked)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && hash.String != usr.Password) {
+			authenticationErr = fmt.Errorf("invalid password")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if cfg.AuthAccountLockoutMaxAttempts > 0 && locked.Valid && locked.Time.After(time.Now()) {
+			authenticationErr = ErrAccountLocked
+			return nil
+		}
+		if !matches {
+			authenticationErr = fmt.Errorf("invalid password")
+			if cfg.AuthAccountLockoutMaxAttempts > 0 {
+				var until any
+				if failed+1 >= cfg.AuthAccountLockoutMaxAttempts {
+					until = time.Now().Add(cfg.AuthAccountLockoutDuration)
 				}
-			} else {
-				if _, dbErr := db.GetDB().Exec(
-					`UPDATE users SET failed_login_attempts = ? WHERE id = ?`,
-					newAttempts, usr.ID,
-				); dbErr != nil {
-					slog.Error("user: failed to increment failed login attempts", "error", dbErr, "user_id", usr.ID)
-				}
+				_, err = tx.Exec(`UPDATE users SET failed_login_attempts=failed_login_attempts+1,locked_until=? WHERE id=?`, until, usr.ID)
 			}
+			return err
 		}
-		return fmt.Errorf("invalid password")
-	}
-
-	if maxAttempts > 0 && usr.FailedLoginAttempts > 0 {
-		if _, dbErr := db.GetDB().Exec(
-			`UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`,
-			usr.ID,
-		); dbErr != nil {
-			slog.Error("user: failed to reset failed login attempts after successful login", "error", dbErr, "user_id", usr.ID)
+		if cfg.AuthAccountLockoutMaxAttempts > 0 && (failed > 0 || locked.Valid) {
+			_, err = tx.Exec(`UPDATE users SET failed_login_attempts=0,locked_until=NULL WHERE id=?`, usr.ID)
 		}
+		return err
+	})
+	if err != nil {
+		return err
 	}
+	return authenticationErr
+}
 
-	return nil
+// PasswordConfirmation is an opaque snapshot of successfully verified credentials.
+// Destructive operations must check it again under their mutation's writer lock.
+type PasswordConfirmation struct{ userID, passwordHash string }
+
+// ConfirmPassword verifies current credentials and returns a transaction-checkable snapshot.
+func ConfirmPassword(userID, password string) (PasswordConfirmation, error) {
+	usr, err := UserByID(userID)
+	if err != nil || usr.Password == "" {
+		return PasswordConfirmation{}, fmt.Errorf("invalid password")
+	}
+	if err := verifyPasswordWithLockout(usr, password); err != nil {
+		return PasswordConfirmation{}, err
+	}
+	return PasswordConfirmation{userID: usr.ID, passwordHash: usr.Password}, nil
 }
 
 // AuthenticateUser checks if the provided username and password match a user in the database.
@@ -130,14 +150,6 @@ func AuthenticateUser(username, password string) (*User, error) {
 // VerifyPassword checks the provided password for an already-authenticated user,
 // enforcing the same lockout policy as the login flow.
 func VerifyPassword(userID, password string) error {
-	usr, err := UserByID(userID)
-	if err != nil {
-		return fmt.Errorf("invalid password")
-	}
-
-	if usr.Password == "" {
-		return fmt.Errorf("invalid password")
-	}
-
-	return verifyPasswordWithLockout(usr, password)
+	_, err := ConfirmPassword(userID, password)
+	return err
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func setupTestUserAndSession(t *testing.T) (string, *user.User, *middleware.AuthInfo) {
@@ -112,15 +113,17 @@ func TestHandleRequestDeletion_WithReason(t *testing.T) {
 	assert.Equal(t, "no longer needed", *resp.Data.Reason)
 }
 
+// TestHandleRequestDeletion_SelfServiceMode confirms a real password before immediate deletion.
 func TestHandleRequestDeletion_SelfServiceMode(t *testing.T) {
 	testutils.WithTestDB(t)
 	_, usr, info := setupTestUserAndSession(t)
+	setDeletionPassword(t, usr)
 
 	testutils.WithConfigOverride(t, func() {
 		config.Values.AllowSelfServiceDeletion = true
 	})
 
-	rr := mockAuthRequest(t, `{}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
+	rr := mockAuthRequest(t, `{"current_password":"Password123!"}`, "POST", "/account/api/deletion-request", HandleRequestDeletion, info)
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 
 	deleted, err := user.UserByID(usr.ID)
@@ -417,12 +420,13 @@ func TestDeletionModesProtectLastActiveAdmin(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			testutils.WithTestDB(t)
 			_, usr, info := setupTestUserAndSession(t)
+			setDeletionPassword(t, usr)
 			_, err := db.GetDB().Exec(`UPDATE users SET role='admin' WHERE id=?`, usr.ID)
 			require.NoError(t, err)
 			testutils.WithConfigOverride(t, func() { config.Values.AllowSelfServiceDeletion = mode == "self-service" })
 			var rr *httptest.ResponseRecorder
 			if mode == "self-service" {
-				rr = mockAuthRequest(t, `{}`, http.MethodPost, "/account/api/deletion-request", HandleRequestDeletion, info)
+				rr = mockAuthRequest(t, `{"current_password":"Password123!"}`, http.MethodPost, "/account/api/deletion-request", HandleRequestDeletion, info)
 			} else {
 				pending, err := CreateDeletionRequest(usr.ID, nil)
 				require.NoError(t, err)
@@ -444,4 +448,14 @@ func TestDeletionModesProtectLastActiveAdmin(t *testing.T) {
 			require.Equal(t, 1, sessions)
 		})
 	}
+}
+
+// setDeletionPassword prepares real password verification for destructive actions.
+func setDeletionPassword(t *testing.T, usr *user.User) {
+	t.Helper()
+	hashed, err := bcrypt.GenerateFromPassword([]byte("Password123!"), bcrypt.MinCost)
+	require.NoError(t, err)
+	_, err = db.GetDB().Exec(`UPDATE users SET password=? WHERE id=?`, string(hashed), usr.ID)
+	require.NoError(t, err)
+	usr.Password = string(hashed)
 }

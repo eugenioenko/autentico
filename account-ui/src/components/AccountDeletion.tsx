@@ -4,19 +4,19 @@ import api from '../api';
 import Modal from './Modal';
 import Button from './Button';
 import Alert from './Alert';
-import { useSettings } from '../context/SettingsContext';
 import { useAuth } from 'oidc-js-react';
 import { extractError } from '../lib/utils';
 
 interface AccountDeletionModalProps {
   onClose: () => void;
+  immediateDeletion: boolean;
 }
 
-const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) => {
-  const settings = useSettings();
+const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose, immediateDeletion }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmUsername, setConfirmUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -25,9 +25,12 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.post('/deletion-request', reason.trim() ? { reason: reason.trim() } : {}),
-    onSuccess: () => {
-      if (settings.allow_self_service_deletion) {
+      api.post('/deletion-request', {
+        reason: reason.trim(),
+        ...(immediateDeletion ? { current_password: currentPassword } : {}),
+      }),
+    onSuccess: (response) => {
+      if (response.status === 204) {
         window.location.href = '/oauth2/logout';
         return;
       }
@@ -41,20 +44,21 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
 
   return (
     <Modal
-      title={settings.allow_self_service_deletion ? 'Delete Account' : 'Request Account Deletion'}
+      title={immediateDeletion ? 'Delete Account' : 'Request Account Deletion'}
       onClose={onClose}
     >
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid="account-deletion-form">
         <p className="text-sm text-theme-muted">
-          {settings.allow_self_service_deletion
+          {immediateDeletion
             ? 'Are you sure you want to permanently delete your account? This cannot be undone.'
             : 'A deletion request will be submitted for admin review.'}
         </p>
         <div>
-          <label>
+          <label htmlFor="deletion-confirm-username">
             Type <span className="font-bold">{username}</span> to confirm
           </label>
           <input
+            id="deletion-confirm-username"
             type="text"
             value={confirmUsername}
             onChange={(e) => setConfirmUsername(e.target.value)}
@@ -62,6 +66,13 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
             autoFocus
           />
         </div>
+        {immediateDeletion && (
+          <div>
+            <label htmlFor="deletion-current-password">Current Password</label>
+            <input id="deletion-current-password" type="password" autoComplete="current-password"
+              value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+          </div>
+        )}
         <div>
           <label>
             Reason <span className="text-theme-muted font-normal">(optional)</span>
@@ -82,12 +93,12 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose }) 
           <Button
             variant="danger"
             onClick={() => mutation.mutate()}
-            disabled={!usernameMatches || mutation.isPending}
+            disabled={!usernameMatches || mutation.isPending || (immediateDeletion && !currentPassword)}
             className="flex-1"
           >
             {mutation.isPending
               ? 'Submitting…'
-              : settings.allow_self_service_deletion
+              : immediateDeletion
                 ? 'Delete Account'
                 : 'Submit Request'}
           </Button>

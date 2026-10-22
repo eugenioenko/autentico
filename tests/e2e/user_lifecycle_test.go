@@ -323,6 +323,7 @@ func TestHardDelete_DeactivatedUser(t *testing.T) {
 
 // --- Self-Service Deletion Tests ---
 
+// TestSelfDelete_WhenEnabled confirms the password and invalidates the deleted account’s credential.
 func TestSelfDelete_WhenEnabled(t *testing.T) {
 	ts := startTestServer(t)
 	testutils.WithConfigOverride(t, func() {
@@ -333,7 +334,7 @@ func TestSelfDelete_WhenEnabled(t *testing.T) {
 	accessToken := obtainAccessToken(t, ts, "selfdelete2@test.com", "password123")
 
 	// Self-delete via deletion-request endpoint
-	req, err := http.NewRequest("POST", ts.BaseURL+"/account/api/deletion-request", strings.NewReader(`{}`))
+	req, err := http.NewRequest("POST", ts.BaseURL+"/account/api/deletion-request", strings.NewReader(`{"current_password":"password123"}`))
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")

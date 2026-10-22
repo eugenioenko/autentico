@@ -322,3 +322,20 @@ func TestHandleUpdateProfile_DuplicateUsername(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "username_taken")
 }
 
+// TestProfilePasswordAvailability exposes only whether current-password actions are available.
+func TestProfilePasswordAvailability(t *testing.T) {
+	for _, password := range []string{"", "stored-hash"} {
+		t.Run(password, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			_, usr, info := setupTestUserAndSession(t)
+			_, err := db.GetDB().Exec(`UPDATE users SET password=? WHERE id=?`, password, usr.ID)
+			require.NoError(t, err)
+			rr := mockAuthRequest(t, "", http.MethodGet, "/account/api/profile", HandleGetProfile, info)
+			require.Equal(t, 200, rr.Code)
+			var response model.ApiResponse[ProfileResponse]
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+			require.Equal(t, password != "", response.Data.HasPassword)
+			require.NotContains(t, rr.Body.String(), "stored-hash")
+		})
+	}
+}

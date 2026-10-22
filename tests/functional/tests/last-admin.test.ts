@@ -35,7 +35,7 @@ describe.sequential('Last active administrator', () => {
     await expectProtected(await postJSON(`${API}/deletion-requests/${request.id}/approve`, {}, admin));
     expect((await getResponse(`${BASE_URL}/account/api/deletion-request`, admin)).status).toBe(200);
     expect((await putJSON(`${API}/settings`, { allow_self_service_deletion: 'true' }, admin)).status).toBe(204);
-    await expectProtected(await postJSON(`${BASE_URL}/account/api/deletion-request`, {}, admin));
+    await expectProtected(await postJSON(`${BASE_URL}/account/api/deletion-request`, { current_password: 'Password123!' }, admin));
     const unchanged = await getResponse(`${BASE_URL}/account/api/deletion-request`, admin);
     expect((await unchanged.json()).data.id).toBe(request.id);
     expect((await putJSON(`${API}/settings`, { allow_self_service_deletion: 'false' }, admin)).status).toBe(204);

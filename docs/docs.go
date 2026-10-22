@@ -196,7 +196,7 @@ const docTemplate = `{
                         "UserAuth": []
                     }
                 ],
-                "description": "Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.",
+                "description": "Password accounts require current_password for immediate self-service deletion. Passwordless accounts and admin-review mode create a pending request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -209,7 +209,7 @@ const docTemplate = `{
                 "summary": "Request account deletion",
                 "parameters": [
                     {
-                        "description": "Optional deletion reason",
+                        "description": "Deletion reason and current password for immediate deletion",
                         "name": "body",
                         "in": "body",
                         "schema": {
@@ -218,8 +218,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/deletion.DeletionRequestResponse"
                         }
@@ -227,14 +227,32 @@ const docTemplate = `{
                     "204": {
                         "description": "Account deleted immediately (self-service mode)"
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }
@@ -790,7 +808,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/user.UserResponse"
+                            "$ref": "#/definitions/account.ProfileResponse"
                         }
                     },
                     "401": {
@@ -4331,6 +4349,102 @@ const docTemplate = `{
                 }
             }
         },
+        "account.ProfileResponse": {
+            "type": "object",
+            "properties": {
+                "address_country": {
+                    "type": "string"
+                },
+                "address_locality": {
+                    "type": "string"
+                },
+                "address_postal_code": {
+                    "type": "string"
+                },
+                "address_region": {
+                    "type": "string"
+                },
+                "address_street": {
+                    "type": "string"
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "failed_login_attempts": {
+                    "type": "integer"
+                },
+                "family_name": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string"
+                },
+                "given_name": {
+                    "description": "OIDC standard profile claims",
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "has_password": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "locale": {
+                    "type": "string"
+                },
+                "locked_until": {
+                    "type": "string"
+                },
+                "middle_name": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "phone_number_verified": {
+                    "type": "boolean"
+                },
+                "picture": {
+                    "type": "string"
+                },
+                "profile": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "totp_verified": {
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                },
+                "zoneinfo": {
+                    "type": "string"
+                }
+            }
+        },
         "account.SessionResponse": {
             "type": "object",
             "properties": {
@@ -4852,6 +4966,11 @@ const docTemplate = `{
         "deletion.CreateDeletionRequestInput": {
             "type": "object",
             "properties": {
+                "current_password": {
+                    "description": "CurrentPassword is required only for immediate deletion of password accounts.\nIt is verified and discarded, never stored in the deletion request.",
+                    "type": "string",
+                    "format": "password"
+                },
                 "reason": {
                     "type": "string"
                 }
