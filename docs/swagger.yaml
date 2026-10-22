@@ -868,6 +868,12 @@ definitions:
         description: 'OIDC Discovery §3: omission defaults to true; explicitly advertise
           false.'
         type: boolean
+      response_modes_supported:
+        description: 'OIDC Discovery §3: omission implies query and fragment for dynamic
+          OPs.'
+        items:
+          type: string
+        type: array
       response_types_supported:
         description: 'RFC 8414 §2: REQUIRED. OAuth 2.0 response_type values supported.'
         items:
@@ -3500,6 +3506,12 @@ paths:
         in: query
         name: response_type
         required: true
+        type: string
+      - description: Response mode (query only)
+        enum:
+        - query
+        in: query
+        name: response_mode
         type: string
       - description: Client ID
         in: query

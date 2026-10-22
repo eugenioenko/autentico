@@ -987,3 +987,11 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | OPTIONAL metadata | OIDC Discovery §3 | Omission of request_uri_parameter_supported implies true | Explicit false is always emitted; raw JSON tests distinguish false from omission (#520). |
 | MUST | OIDC Core §6.2 / §3.1.2.6 | Reject an unsupported request_uri with request_uri_not_supported | Authorize rejects before login/SSO after trusted client and callback checks, with no request-object fetch or code issuance (#520). |
 | MUST | RFC 6749 §3.1 | Treat empty parameter values as omitted | Empty and bare request_uri remain valid ordinary authorization requests (#520). |
+
+## Authorization response modes
+
+| Keyword | Section | Requirement | Status |
+|---|---|---|---|
+| OPTIONAL metadata | OIDC Discovery §3 | Declare implemented response modes rather than implying query and fragment | Explicit response_modes_supported lists only query (#521). |
+| Protocol behavior | OAuth Response Modes §2.1 | Code responses default to query encoding | Omitted/empty and explicit query requests retain query-encoded results; POST-to-GET retains explicit query (#521). |
+| MUST | RFC 6749 §4.1.2.1 | Unsupported parameter values return invalid_request | Unsupported response modes fail before login/SSO with no code issuance; registered query and state are retained (#521). |

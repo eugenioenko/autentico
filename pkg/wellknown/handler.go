@@ -40,6 +40,8 @@ func HandleWellKnownConfig(w http.ResponseWriter, r *http.Request) {
 		ResponseTypesSupported: []string{
 			"code",
 		},
+		// OIDC Discovery §3: explicitly override the query/fragment default.
+		ResponseModesSupported: []string{"query"},
 		// OIDC Discovery §3: REQUIRED
 		SubjectTypesSupported: []string{
 			"public",

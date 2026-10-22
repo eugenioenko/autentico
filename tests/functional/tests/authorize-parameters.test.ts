@@ -48,6 +48,41 @@ describe('Authorize PKCE method validation', () => {
 
   for (const method of ['GET', 'POST']) {
     for (const withSession of [false, true]) {
+      it.each(['fragment', 'form_post', 'other', 'QUERY'])(`rejects response_mode=%s over ${method}, SSO=${withSession}`, async (mode) => {
+        const response = await authorize(CLIENTS[0], method, withSession, CHALLENGE, 'S256', { response_mode: mode });
+        expect(response.status).toBe(302);
+        const target = new URL(response.headers.get('Location')!);
+        expect(target.origin + target.pathname).toBe(`${BASE_URL}/parameter-callback`);
+        expect(target.searchParams.get('registered')).toBe('kept');
+        expect(target.searchParams.get('state')).toBe('opaque & state');
+        expect(target.searchParams.get('error')).toBe('invalid_request');
+        expect(target.searchParams.has('code')).toBe(false);
+        expect(target.hash).toBe('');
+      });
+
+      it.each(['query', ''])(`accepts response_mode=%s over ${method}, SSO=${withSession}`, async (mode) => {
+        const response = await authorize(CLIENTS[0], method, withSession, CHALLENGE, 'S256', { response_mode: mode });
+        if (withSession) {
+          expect(response.status).toBe(302);
+          const target = new URL(response.headers.get('Location')!);
+          expect(target.origin + target.pathname).toBe(`${BASE_URL}/parameter-callback`);
+          expect(target.searchParams.get('code')).toBeTruthy();
+          expect(target.searchParams.get('state')).toBe('opaque & state');
+          expect(target.searchParams.has('error')).toBe(false);
+          expect(target.hash).toBe('');
+        } else if (method === 'POST') {
+          expect(response.status).toBe(302);
+          const target = new URL(response.headers.get('Location')!, BASE_URL);
+          expect(target.origin).toBe(BASE_URL);
+          expect(target.pathname).toBe('/oauth2/authorize');
+          expect(target.searchParams.has('error')).toBe(false);
+          if (mode === 'query') expect(target.searchParams.get('response_mode')).toBe('query');
+        } else {
+          expect(response.status).toBe(200);
+          expect(await response.text()).toContain('name="authorize_sig"');
+        }
+      });
+
       it.each(['https://rp.example/request.jwt', 'not-a-uri'])(`rejects request_uri=%s over ${method}, SSO=${withSession}`, async (uri) => {
         const response = await authorize(CLIENTS[0], method, withSession, CHALLENGE, 'S256', { request_uri: uri });
         expect(response.status).toBe(302);

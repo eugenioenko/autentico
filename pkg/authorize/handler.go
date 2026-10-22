@@ -29,6 +29,7 @@ import (
 // @Accept json
 // @Produce html
 // @Param response_type query string true "Response type"
+// @Param response_mode query string false "Response mode (query only)" Enums(query)
 // @Param client_id query string true "Client ID"
 // @Param redirect_uri query string true "Redirect URI"
 // @Param scope query string false "Scope"
@@ -110,6 +111,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// RFC 6749 §3.1: an empty parameter is treated as omitted.
 	if get("request_uri") != "" {
 		redirectWithError(w, r, request.RedirectURI, request.State, "request_uri_not_supported", "request_uri is not supported")
+		return
+	}
+
+	// OAuth Response Modes §2.1 / RFC 6749 §4.1.2.1: only query encoding
+	// is implemented; unsupported nonempty parameter values are invalid_request.
+	if mode := get("response_mode"); mode != "" && mode != "query" {
+		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", "response_mode is not supported; use query")
 		return
 	}
 
@@ -211,6 +219,9 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		q := url.Values{}
 		q.Set("response_type", request.ResponseType)
+		if mode := get("response_mode"); mode != "" {
+			q.Set("response_mode", mode)
+		}
 		q.Set("client_id", request.ClientID)
 		q.Set("redirect_uri", request.RedirectURI)
 		q.Set("scope", request.Scope)
