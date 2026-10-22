@@ -69,6 +69,30 @@ describe('Client Credentials Grant', () => {
     expect(body.token_type).toBe('Bearer');
   });
 
+  it.each([
+    ['missing', {}, 'invalid_request'],
+    ['empty', { grant_type: '' }, 'invalid_request'],
+    ['unknown', { grant_type: 'urn:example:custom' }, 'unsupported_grant_type'],
+    ['case sensitive', { grant_type: 'CLIENT_CREDENTIALS' }, 'unsupported_grant_type'],
+    ['known but disallowed', { grant_type: 'password' }, 'unauthorized_client'],
+  ] as const)('classifies %s grant_type', async (_name, grant, error) => {
+    const resp = await postForm(`${OAUTH_URL}/token`, {
+      ...grant,
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+    });
+    expect(resp.status).toBe(400);
+    const body = await resp.json();
+    expect(body.error).toBe(error);
+    expect(body.access_token).toBeUndefined();
+  });
+
+  it('rejects an unsupported grant without client credentials', async () => {
+    const resp = await postForm(`${OAUTH_URL}/token`, { grant_type: 'urn:example:custom' });
+    expect(resp.status).toBe(400);
+    expect((await resp.json()).error).toBe('unsupported_grant_type');
+  });
+
   it('rejects wrong client secret', async () => {
     const credentials = btoa(`${CLIENT_ID}:wrong-secret`);
     const resp = await fetch(`${OAUTH_URL}/token`, {

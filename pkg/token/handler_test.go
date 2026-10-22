@@ -90,7 +90,7 @@ func TestHandleToken_InvalidGrantType(t *testing.T) {
 	HandleToken(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_request")
+	assert.Contains(t, rr.Body.String(), "unsupported_grant_type")
 }
 
 func TestHandleToken_MissingGrantType(t *testing.T) {

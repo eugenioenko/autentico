@@ -15,6 +15,10 @@ Autentico implements OAuth 2.0 (RFC 6749) and OpenID Connect Core 1.0. This sect
 | `client_credentials` | Machine-to-machine — no user involved |
 | `urn:ietf:params:oauth:grant-type:device_code` | CLIs, TVs, and other input-constrained devices — the user approves on a second device ([RFC 8628](/protocol/device-code/)) |
 
+## Token grant errors
+
+The token endpoint returns HTTP 400 with `unsupported_grant_type` for a nonempty grant type the server does not support. A missing or empty `grant_type` returns `invalid_request`. A supported grant that an authenticated client is not allowed to use returns `unauthorized_client` ([RFC 6749 §5.2](https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2)).
+
 ## Supporting endpoints
 
 | Endpoint | Purpose |
