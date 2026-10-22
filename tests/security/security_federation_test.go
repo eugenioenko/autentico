@@ -143,7 +143,7 @@ func TestFederation_RejectsInvalidAuthorization(t *testing.T) {
 func TestFederation_ValidFlowAndRegistrationChange(t *testing.T) {
 	for _, changed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "valid", true: "redirect removed during login"}[changed], func(t *testing.T) {
-			ts := startTestServer(t)
+			ts := startTestServerWithFederationClient(t, http.DefaultClient)
 			_, requests := federationIssuer(t)
 			redirect := "http://localhost:3000/callback?existing=kept"
 			_, err := db.GetDB().Exec(`UPDATE clients SET redirect_uris=? WHERE client_id='test-client'`, `["`+redirect+`"]`)
@@ -219,7 +219,7 @@ func TestFederation_RejectsRegistrationChangedDuringExchange(t *testing.T) {
 		{name: "redirect removed", sql: `UPDATE clients SET redirect_uris='[]' WHERE client_id='test-client'`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ts := startTestServer(t)
+			ts := startTestServerWithFederationClient(t, http.DefaultClient)
 			federationIssuer(t, func() {
 				if _, err := db.GetDB().Exec(tc.sql); err != nil {
 					t.Errorf("change registration during exchange: %v", err)

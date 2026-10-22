@@ -7,6 +7,6 @@ beforeAll(async () => {
   await startServer();
 }, 30000);
 
-afterAll(() => {
-  stopServer();
+afterAll(async () => {
+  await stopServer();
 });

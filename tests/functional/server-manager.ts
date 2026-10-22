@@ -23,7 +23,7 @@ async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
   throw new Error(`Server did not start within ${timeoutMs}ms`);
 }
 
-export async function startServer(): Promise<void> {
+export async function startServer(fixture?: { binary: string; args: string[]; env: NodeJS.ProcessEnv }): Promise<void> {
   tempDir = mkdtempSync(join(tmpdir(), 'autentico-functional-'));
 
   const env = {
@@ -38,12 +38,13 @@ export async function startServer(): Promise<void> {
     { cwd: tempDir, stdio: 'pipe', env }
   );
 
-  serverProcess = spawn(BINARY, ['start'], {
+  serverProcess = spawn(fixture?.binary ?? BINARY, fixture?.args ?? ['start'], {
     cwd: tempDir,
     stdio: 'pipe',
     detached: false,
     env: {
       ...env,
+      ...fixture?.env,
       AUTENTICO_CSRF_SECURE_COOKIE: 'false',
       AUTENTICO_IDP_SESSION_SECURE: 'false',
       AUTENTICO_REFRESH_TOKEN_SECURE: 'false',
@@ -58,10 +59,16 @@ export async function startServer(): Promise<void> {
   await waitForServer(`${BASE_URL}/.well-known/openid-configuration`);
 }
 
-export function stopServer(): void {
-  if (serverProcess?.pid) {
-    serverProcess.kill('SIGTERM');
-    serverProcess = null;
+/** Wait for shutdown before removing its database or reusing the listen port. */
+export async function stopServer(): Promise<void> {
+  const child = serverProcess;
+  serverProcess = null;
+  if (child && child.exitCode === null && child.signalCode === null) {
+    await new Promise<void>(resolve => {
+      const force = setTimeout(() => child.kill('SIGKILL'), 5000);
+      child.once('exit', () => { clearTimeout(force); resolve(); });
+      child.kill('SIGTERM');
+    });
   }
   if (tempDir) {
     rmSync(tempDir, { recursive: true, force: true });

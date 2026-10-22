@@ -58,7 +58,13 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// RunStart starts the service with the restricted federation HTTP client.
 func RunStart(c *cli.Context) error {
+	return runStart(c, federation.NewLoginHandler(nil))
+}
+
+// runStart allows isolated integration fixtures to supply a local OIDC transport.
+func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	if c.Bool("auto-setup") {
 		if err := autoGenerateConfig(c.String("url"), c.Bool("dev")); err != nil {
 			return err
@@ -167,8 +173,8 @@ func RunStart(c *cli.Context) error {
 	mux.Handle("POST "+oauth+"/magic-link/verify", rateLimited(csrfProtected(magiclink.HandleMagicLinkVerifyCode)))
 	mux.Handle(oauth+"/forgot-password", rateLimited(csrfProtected(passwordreset.HandleForgotPassword)))
 	mux.Handle(oauth+"/reset-password", rateLimited(csrfProtected(passwordreset.HandleResetPassword)))
-	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
-	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}", federationLogin.HandleBegin)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federationLogin.HandleCallback)
 	mux.Handle(oauth+"/signup", csrfProtected(signup.HandleSignup))
 	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
 	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))

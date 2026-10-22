@@ -80,11 +80,19 @@ jobs:
             account-ui/pnpm-lock.yaml
       - name: Build binary (includes admin + account UIs)
         run: make build
+      - name: Build federation test fixture
+        run: CGO_ENABLED=0 go test -c -o autentico-federation-fixture ./pkg/cli
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: autentico-binary
           path: autentico
+          retention-days: 1
+      - name: Upload federation test fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: autentico-federation-fixture
+          path: autentico-federation-fixture
           retention-days: 1
 
   test:
@@ -131,8 +139,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: autentico-binary
-      - name: Make binary executable
-        run: chmod +x autentico
+      - name: Download federation test fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: autentico-federation-fixture
+      - name: Make binaries executable
+        run: chmod +x autentico autentico-federation-fixture
       - name: Run Docker Compose migration tests
         timeout-minutes: 3
         run: |
@@ -151,6 +163,8 @@ jobs:
         run: pnpm install
       - name: Run functional tests
         working-directory: tests/functional
+        env:
+          AUTENTICO_TEST_FEDERATION_BINARY: ${{ github.workspace }}/autentico-federation-fixture
         run: pnpm test
 
   smoke:
