@@ -995,3 +995,13 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | OPTIONAL metadata | OIDC Discovery §3 | Declare implemented response modes rather than implying query and fragment | Explicit response_modes_supported lists only query (#521). |
 | Protocol behavior | OAuth Response Modes §2.1 | Code responses default to query encoding | Omitted/empty and explicit query requests retain query-encoded results; POST-to-GET retains explicit query (#521). |
 | MUST | RFC 6749 §4.1.2.1 | Unsupported parameter values return invalid_request | Unsupported response modes fail before login/SSO with no code issuance; registered query and state are retained (#521). |
+
+## Federation login CSRF and upstream nonce
+
+| Keyword | Section | Requirement | Status |
+|---|---|---|---|
+| MUST | RFC 9700 §2.1 / §4.7.1, RFC 6749 §10.12 | Bind the authentication callback to the initiating user agent and prevent replay | Signed ten-minute flows require a separate host-only HttpOnly cookie and one persistent record; wrong browsers do not consume the owner's flow (#473). |
+| MUST | OIDC Core §3.1.3.7 | Validate the nonce sent upstream in the verified ID token | Independent FlowID nonce is checked before local user/account changes; the original RP nonce remains unchanged (#473). |
+| Local atomicity policy | RFC 9700 §4.7.1 | Consume one callback before trusting its upstream result | Acquire SQLite's writer, recheck expiry, delete exactly one state/browser match and commit before network requests. Failed commits roll back/discard safely; replay fails after restart (#473). |
+
+Routine schema 19 adds the expiry-indexed flow table without changing existing credentials or enrollment. CLI/start black-box tests cover both journal modes, data preservation, partial-DDL rollback and retry; real two-instance HTTP tests reproduce the prior attack and verify browser mismatch, concurrent callbacks, independent flows and restart persistence.

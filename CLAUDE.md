@@ -186,7 +186,7 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/a/*/call
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), TOTP encryption key, CSRF secret, and token signing secrets; on an existing `.env`, adds only a missing TOTP key and preserves other settings and secrets
 - `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
-- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `18`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `19`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
 - `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -293,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables listed below (SchemaVersion 18):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables listed below (SchemaVersion 19):
 
 | Table | Purpose |
 |-------|---------|
@@ -312,6 +312,7 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 22 tables 
 | `magic_link_tokens` | Pending passwordless email login grants (migration 009) |
 | `federation_providers` | External IdP configurations for federated/social login |
 | `federated_identities` | Links between local users and external IdP accounts |
+| `federation_login_flows` | Pending ten-minute flows: random ID, browser/state hashes and integer expiry; consumed atomically before upstream requests (migration 019) |
 | `deletion_requests` | User-initiated account deletion requests (admin-reviewed) |
 | `password_reset_tokens` | Time-limited tokens for password reset flow (migration 002) |
 | `audit_logs` | Security event audit trail (migration 003) |
@@ -463,3 +464,9 @@ PKCE method omission means `plain` per RFC 7636 §4.3: authorize normalizes it b
 Discovery explicitly emits `request_uri_parameter_supported: false` (no omitempty). After validating the client and registered callback, authorize rejects nonempty request_uri with request_uri_not_supported before login or SSO and never fetches it. Empty/bare values are omitted per RFC 6749 §3.1 (#520).
 
 Discovery advertises `response_modes_supported: ["query"]`. Authorize rejects nonempty modes other than query with invalid_request before SSO/login, after trusted callback validation. Empty/bare values use the default query mode; anonymous POST-to-GET redirects retain an explicit query request (#521).
+
+## Federation browser correlation
+
+`beginLoginFlow` persists a signed state's hash and a separate browser-cookie hash with a ten-minute deadline. Secure deployments use an HttpOnly, SameSite=Lax `__Host-autentico_federation` cookie (Path=/, no Domain); local HTTP uses `autentico_federation`, following the existing IdP secure-cookie setting. The binding is reused for independent pending tabs. `consumeLoginFlow` reserves SQLite's writer, rechecks expiry, deletes exactly one matching record and commits before discovery/exchange or local account changes. Failed COMMIT explicitly rolls back or discards the reserved connection; wrong browsers never consume an owner's state. Replay remains rejected across restarts and with a retained cookie.
+
+The independent upstream nonce is FlowID and must match the verified ID token. FederationState.Nonce stays the RP nonce. Schema 19 only adds the indexed pending-flow table; routine startup/migration preserves tokens, sessions, TOTP ciphertext and replay/lockout state, with no new key or major approval. Old in-flight federation callbacks must restart. Cleanup compares Unix expiry seconds using the configured retention threshold (#473).

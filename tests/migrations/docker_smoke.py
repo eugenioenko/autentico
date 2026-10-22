@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
-target_schema = 18
+target_schema = 19
 args = parser.parse_args()
 if os.getuid() == 0:
     parser.error(
@@ -150,6 +150,8 @@ try:
     )
     db = sqlite3.connect(dbpath)
     assert db.execute("PRAGMA user_version").fetchone()[0] == target_schema
+    assert db.execute("SELECT count(*) FROM federation_login_flows").fetchone()[0] == 0
+    assert db.execute("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_federation_login_flows_expiry'").fetchone()[0] == 1
     assert db.execute("SELECT count(*) FROM tokens").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] == 0
     assert db.execute("SELECT username FROM users").fetchone()[0] == "kept-user"

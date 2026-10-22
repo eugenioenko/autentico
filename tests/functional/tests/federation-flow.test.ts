@@ -4,7 +4,7 @@ import { execSync, execFileSync, spawn, type ChildProcess } from 'child_process'
 import { existsSync, mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { startServer, stopServer } from '../server-manager';
+import { startServer, stopServer, restartServer } from '../server-manager';
 import { resetState } from '../helpers';
 import {
   BASE_URL,
@@ -134,23 +134,10 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
 }
 
-/**
- * Performs the full federated login redirect chain between Instance A and Instance B.
- * Returns tokens on success, or the callback HTTP status if it fails.
- */
-async function performFederatedLogin(
-  usernameOnB: string,
-  passwordOnB: string,
-  nonce?: string,
-  stopAfterCallback = false
-): Promise<{
-  access_token: string;
-  id_token: string;
-  refresh_token: string;
-  callbackStatus: number;
-  nextURL?: string;
-  cookies?: string[];
-}> {
+/** Complete upstream authentication but leave the browser callback pending. */
+async function prepareFederatedLogin(
+  usernameOnB: string, passwordOnB: string, nonce?: string, browserCookie?: string
+): Promise<{ callbackURL: string; flowCookie: string }> {
   // Step 1: GET Instance A /oauth2/authorize — renders login page with federation button
   const authorizeURL = new URL(`${OAUTH_URL}/authorize`);
   authorizeURL.searchParams.set('response_type', 'code');
@@ -179,10 +166,11 @@ async function performFederatedLogin(
   if (fedLink.startsWith('/')) fedLink = `${BASE_URL}${fedLink}`;
 
   // Step 3: GET Instance A /oauth2/federation/autentico-b → 302 to Instance B
-  const fedBeginResp = await fetch(fedLink, { redirect: 'manual' });
+  const fedBeginResp = await fetch(fedLink, { redirect: 'manual', headers: browserCookie ? { Cookie: browserCookie } : {} });
   if (fedBeginResp.status !== 302) {
     throw new Error(`Federation begin returned ${fedBeginResp.status}, expected 302`);
   }
+  const flowCookie = fedBeginResp.headers.getSetCookie().find((value) => value.startsWith('autentico_federation='))?.split(';')[0] ?? '';
   const idpAuthorizeURL = fedBeginResp.headers.get('Location');
   if (!idpAuthorizeURL) throw new Error('No Location header from federation begin');
 
@@ -213,6 +201,7 @@ async function performFederatedLogin(
   const idpCodeChallenge = idpURL.searchParams.get('code_challenge') || '';
   const idpCodeChallengeMethod = idpURL.searchParams.get('code_challenge_method') || '';
   const idpResponseType = idpURL.searchParams.get('response_type') || 'code';
+  const idpNonce = idpURL.searchParams.get('nonce') || '';
 
   // Step 5: POST Instance B /oauth2/login — submit credentials
   const loginResp = await fetch(`${OAUTH_URL_B}/login`, {
@@ -231,6 +220,7 @@ async function performFederatedLogin(
       redirect_uri: idpRedirectUri,
       scope: idpScope,
       state: idpState,
+      nonce: idpNonce,
       response_type: idpResponseType,
       code_challenge: idpCodeChallenge,
       code_challenge_method: idpCodeChallengeMethod,
@@ -246,8 +236,29 @@ async function performFederatedLogin(
   const callbackURL = loginResp.headers.get('Location');
   if (!callbackURL) throw new Error('No Location header from Instance B login');
 
+  return { callbackURL, flowCookie };
+}
+
+/**
+ * Performs the full federated login redirect chain between Instance A and Instance B.
+ * Returns tokens on success, or the callback HTTP status if it fails.
+ */
+async function performFederatedLogin(
+  usernameOnB: string,
+  passwordOnB: string,
+  nonce?: string,
+  stopAfterCallback = false
+): Promise<{
+  access_token: string;
+  id_token: string;
+  refresh_token: string;
+  callbackStatus: number;
+  nextURL?: string;
+  cookies?: string[];
+}> {
+  const { callbackURL, flowCookie } = await prepareFederatedLogin(usernameOnB, passwordOnB, nonce);
   // Step 6: GET Instance A /oauth2/federation/autentico-b/callback
-  const callbackResp = await fetch(callbackURL, { redirect: 'manual' });
+  const callbackResp = await fetch(callbackURL, { redirect: 'manual', headers: { Cookie: flowCookie } });
 
   if (callbackResp.status !== 302) {
     return {
@@ -394,6 +405,7 @@ describe('Federation flow — two Autentico instances', () => {
 
     // 4. Create test users on Instance B
     await createUserOnB('feduser', 'Password123!', 'feduser@test.com', true);
+    await createUserOnB('csrfattacker', 'Password123!', 'csrf-attacker@test.com', true);
     await createUserOnB('linkuser', 'Password123!', 'linkuser@test.com', true);
     await createUserOnB('unverifieduser', 'Password123!', 'unverified@test.com', false);
     await createUserOnB('nolinkuser', 'Password123!', 'nolink-collision@test.com', true);
@@ -431,6 +443,80 @@ describe('Federation flow — two Autentico instances', () => {
       instanceBTempDir = null;
     }
   }, 15000);
+
+  it('rejects callbacks without the initiating browser and leaves the owner flow usable', async () => {
+    const pending = await prepareFederatedLogin('csrfattacker', 'Password123!', 'csrf-rp-nonce');
+    const rejected = await fetch(pending.callbackURL, { redirect: 'manual' });
+    expect(rejected.status).toBe(400);
+    expect(rejected.headers.getSetCookie().some((value) => value.startsWith('autentico_idp_session='))).toBe(false);
+    expect(await searchUsersOnA('csrf-attacker@test.com')).toEqual([]);
+    const otherBrowser = await prepareFederatedLogin('feduser', 'Password123!');
+    expect(otherBrowser.flowCookie).not.toBe(pending.flowCookie);
+    const mismatched = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: otherBrowser.flowCookie } });
+    expect(mismatched.status).toBe(400);
+    expect(mismatched.headers.getSetCookie().some((value) => value.startsWith('autentico_idp_session='))).toBe(false);
+    expect(await searchUsersOnA('csrf-attacker@test.com')).toEqual([]);
+
+
+    const accepted = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: pending.flowCookie } });
+    expect(accepted.status).toBe(302);
+    const code = new URL(accepted.headers.get('Location')!).searchParams.get('code');
+    expect(code).toBeTruthy();
+    const tokens = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code', code: code!,
+      redirect_uri: ADMIN_REDIRECT_URI, client_id: ADMIN_CLIENT_ID, code_verifier: TEST_CODE_VERIFIER });
+    expect(tokens.status).toBe(200);
+    const claims = decodeJwtPayload((await tokens.json()).id_token);
+    expect(claims.email).toBe('csrf-attacker@test.com');
+    expect(claims.nonce).toBe('csrf-rp-nonce');
+  });
+
+  it('keeps independent pending flows usable in the same browser', async () => {
+    const first = await prepareFederatedLogin('csrfattacker', 'Password123!', 'first-tab');
+    const second = await prepareFederatedLogin('csrfattacker', 'Password123!', 'second-tab', first.flowCookie);
+    expect(first.flowCookie).toBeTruthy();
+    expect(second.flowCookie).toBe(first.flowCookie);
+    expect(new URL(second.callbackURL).searchParams.get('state')).not.toBe(new URL(first.callbackURL).searchParams.get('state'));
+    for (const pending of [first, second]) {
+      const callback = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: first.flowCookie } });
+      expect(callback.status).toBe(302);
+      expect(callback.headers.getSetCookie().filter((value) => value.startsWith('autentico_federation='))).toEqual([]);
+      expect(new URL(callback.headers.get('Location')!).searchParams.get('code')).toBeTruthy();
+    }
+  });
+
+  it('allows one winner for concurrent callbacks and rejects retained-cookie replay', async () => {
+    const pending = await prepareFederatedLogin('csrfattacker', 'Password123!');
+    const callbacks = await Promise.all([0, 1].map(() => fetch(pending.callbackURL, {
+      redirect: 'manual', headers: { Cookie: pending.flowCookie },
+    })));
+    expect(callbacks.map((response) => response.status).sort()).toEqual([302, 400]);
+    const accepted = callbacks.find((response) => response.status === 302)!;
+    const code = new URL(accepted.headers.get('Location')!).searchParams.get('code');
+    expect(code).toBeTruthy();
+    const tokens = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code', code: code!,
+      redirect_uri: ADMIN_REDIRECT_URI, client_id: ADMIN_CLIENT_ID, code_verifier: TEST_CODE_VERIFIER });
+    expect(tokens.status).toBe(200);
+    const replay = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: pending.flowCookie } });
+    expect(replay.status).toBe(400);
+    expect(replay.headers.getSetCookie().some((value) => value.startsWith('autentico_idp_session='))).toBe(false);
+  });
+
+  it('preserves pending flow and single-use consumption across server restarts', async () => {
+    const pending = await prepareFederatedLogin('csrfattacker', 'Password123!', 'restart-rp-nonce');
+    await restartServer();
+    const callback = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: pending.flowCookie } });
+    expect(callback.status).toBe(302);
+    const code = new URL(callback.headers.get('Location')!).searchParams.get('code');
+    expect(code).toBeTruthy();
+    const tokens = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code', code: code!,
+      redirect_uri: ADMIN_REDIRECT_URI, client_id: ADMIN_CLIENT_ID, code_verifier: TEST_CODE_VERIFIER });
+    expect(tokens.status).toBe(200);
+    expect(decodeJwtPayload((await tokens.json()).id_token).nonce).toBe('restart-rp-nonce');
+    await restartServer();
+    const replay = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: pending.flowCookie } });
+    expect(replay.status).toBe(400);
+    expect(replay.headers.getSetCookie().some((value) => value.startsWith('autentico_idp_session='))).toBe(false);
+  });
 
   it('preserves the verified email claim on first federated signup', async () => {
     const result = await performFederatedLogin('feduser', 'Password123!');

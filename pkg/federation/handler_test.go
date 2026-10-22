@@ -164,11 +164,12 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 		CodeChallengeMethod: "S256",
 		State:               "xyz",
 	}
-	signedState, _ := SignState(state)
+	signedState, flowCookie := prepareTestLoginFlow(t, &state, nil)
 
 	// 4. Callback
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback?code=mock-code&state="+signedState, nil)
 	req.SetPathValue("id", "mock")
+	req.AddCookie(flowCookie)
 	rr := httptest.NewRecorder()
 
 	NewLoginHandler(ts.Client()).HandleCallback(rr, req)
@@ -220,11 +221,12 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 		CodeChallengeMethod: "S256",
 		State:               "xyz",
 	}
-	signedState, _ := SignState(state)
+	signedState, flowCookie := prepareTestLoginFlow(t, &state, nil)
 
 	// 5. Callback
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback?code=mock-code&state="+signedState, nil)
 	req.SetPathValue("id", "mock")
+	req.AddCookie(flowCookie)
 	rr := httptest.NewRecorder()
 
 	NewLoginHandler(ts.Client()).HandleCallback(rr, req)
@@ -276,11 +278,12 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 		CodeChallengeMethod: "S256",
 		State:               "xyz",
 	}
-	signedState, _ := SignState(state)
+	signedState, flowCookie := prepareTestLoginFlow(t, &state, nil)
 
 	// 5. Callback
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock/callback?code=mock-code&state="+signedState, nil)
 	req.SetPathValue("id", "mock")
+	req.AddCookie(flowCookie)
 	rr := httptest.NewRecorder()
 
 	NewLoginHandler(ts.Client()).HandleCallback(rr, req)

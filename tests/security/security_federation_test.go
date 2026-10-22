@@ -1,6 +1,8 @@
 package security
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,18 +12,22 @@ import (
 	"time"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/key"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
 // A real discovery document, signed ID token and JWKS exercise the whole
 // federation callback rather than stopping at a mocked token-verification error.
-func federationIssuer(t *testing.T, onExchange ...func()) (*httptest.Server, *atomic.Int32) {
+func federationIssuer(t *testing.T, onExchange ...func()) (*httptest.Server, *atomic.Int32, func(string)) {
 	t.Helper()
 	requests := new(atomic.Int32)
+	var nonce atomic.Value
+	nonce.Store("")
 	issuer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		w.Header().Set("Content-Type", "application/json")
@@ -41,6 +47,7 @@ func federationIssuer(t *testing.T, onExchange ...func()) (*httptest.Server, *at
 				"iss": base, "aud": "upstream-client", "sub": "victim-subject",
 				"iat": time.Now().Unix(), "exp": time.Now().Add(time.Minute).Unix(),
 				"email": "federation-victim@example.com", "email_verified": true,
+				"nonce": nonce.Load().(string),
 			})
 			token.Header["kid"] = "test-upstream"
 			signed, err := token.SignedString(key.GetPrivateKey())
@@ -61,7 +68,7 @@ func federationIssuer(t *testing.T, onExchange ...func()) (*httptest.Server, *at
 		ID: "test-idp", Name: "Test IdP", Issuer: issuer.URL,
 		ClientID: "upstream-client", ClientSecret: "upstream-secret", Enabled: true,
 	}))
-	return issuer, requests
+	return issuer, requests, func(value string) { nonce.Store(value) }
 }
 
 func federationParams() url.Values {
@@ -72,15 +79,32 @@ func federationParams() url.Values {
 	}
 }
 
-func signedFederationState(t *testing.T, p url.Values) string {
+// storedFederationState arranges a valid pending browser flow, including when
+// testing a subsequent registration/address change. This keeps CSRF rejection
+// from masking the independent client-validation and SSRF checks under test.
+func storedFederationState(t *testing.T, providerID string, p url.Values) (string, *http.Cookie) {
 	t.Helper()
-	signed, err := federation.SignState(federation.FederationState{
-		ProviderID: "test-idp", ClientID: p.Get("client_id"), RedirectURI: p.Get("redirect_uri"),
+	var flowID, browser [32]byte
+	_, err := rand.Read(flowID[:])
+	require.NoError(t, err)
+	_, err = rand.Read(browser[:])
+	require.NoError(t, err)
+	state := federation.FederationState{
+		FlowID: base64.RawURLEncoding.EncodeToString(flowID[:]), ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
+		ProviderID: providerID, ClientID: p.Get("client_id"), RedirectURI: p.Get("redirect_uri"),
 		Scope: p.Get("scope"), State: p.Get("state"), Nonce: p.Get("nonce"),
 		CodeChallenge: p.Get("code_challenge"), CodeChallengeMethod: p.Get("code_challenge_method"),
-	})
+	}
+	signed, err := federation.SignState(state)
 	require.NoError(t, err)
-	return signed
+	value := base64.RawURLEncoding.EncodeToString(browser[:])
+	_, err = db.GetDB().Exec(`INSERT INTO federation_login_flows(flow_id,browser_hash,state_hash,expires_at) VALUES(?,?,?,?)`, state.FlowID, utils.HashSHA256(value), utils.HashSHA256(signed), state.ExpiresAt)
+	require.NoError(t, err)
+	name := "autentico_federation"
+	if config.GetBootstrap().AuthIdpSessionSecureCookie {
+		name = "__Host-" + name
+	}
+	return signed, &http.Cookie{Name: name, Value: value}
 }
 
 func requireNoFederationArtifacts(t *testing.T) {
@@ -110,13 +134,13 @@ func TestFederation_RejectsInvalidAuthorization(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts := startTestServer(t)
-			_, requests := federationIssuer(t)
+			_, requests, _ := federationIssuer(t)
 			p := federationParams()
 			if tc.field != "" {
 				p.Set(tc.field, tc.value)
 			}
 			// Represents state signed before a registration change or by an older binary.
-			signed := signedFederationState(t, p)
+			signed, browser := storedFederationState(t, "test-idp", p)
 			if tc.sql != "" {
 				_, err := db.GetDB().Exec(tc.sql)
 				require.NoError(t, err)
@@ -125,7 +149,10 @@ func TestFederation_RejectsInvalidAuthorization(t *testing.T) {
 				"/oauth2/federation/test-idp?" + p.Encode(),
 				"/oauth2/federation/test-idp/callback?" + url.Values{"state": {signed}, "code": {"upstream-code"}}.Encode(),
 			} {
-				resp, err := ts.Client.Get(ts.BaseURL + path)
+				req, err := http.NewRequest(http.MethodGet, ts.BaseURL+path, nil)
+				require.NoError(t, err)
+				req.AddCookie(browser)
+				resp, err := ts.Client.Do(req)
 				require.NoError(t, err)
 				_ = resp.Body.Close()
 				require.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -144,7 +171,7 @@ func TestFederation_ValidFlowAndRegistrationChange(t *testing.T) {
 	for _, changed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "valid", true: "redirect removed during login"}[changed], func(t *testing.T) {
 			ts := startTestServerWithFederationClient(t, http.DefaultClient)
-			_, requests := federationIssuer(t)
+			_, requests, setNonce := federationIssuer(t)
 			redirect := "http://localhost:3000/callback?existing=kept"
 			_, err := db.GetDB().Exec(`UPDATE clients SET redirect_uris=? WHERE client_id='test-client'`, `["`+redirect+`"]`)
 			require.NoError(t, err)
@@ -158,6 +185,7 @@ func TestFederation_ValidFlowAndRegistrationChange(t *testing.T) {
 			upstream, err := url.Parse(resp.Header.Get("Location"))
 			require.NoError(t, err)
 			signed := upstream.Query().Get("state")
+			setNonce(upstream.Query().Get("nonce"))
 			require.NotEmpty(t, signed)
 			if changed {
 				_, err := db.GetDB().Exec(`UPDATE clients SET redirect_uris='[]' WHERE client_id='test-client'`)
@@ -220,7 +248,7 @@ func TestFederation_RejectsRegistrationChangedDuringExchange(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ts := startTestServerWithFederationClient(t, http.DefaultClient)
-			federationIssuer(t, func() {
+			_, _, setNonce := federationIssuer(t, func() {
 				if _, err := db.GetDB().Exec(tc.sql); err != nil {
 					t.Errorf("change registration during exchange: %v", err)
 				}
@@ -232,6 +260,7 @@ func TestFederation_RejectsRegistrationChangedDuringExchange(t *testing.T) {
 			require.Equal(t, http.StatusFound, resp.StatusCode)
 			upstream, err := url.Parse(resp.Header.Get("Location"))
 			require.NoError(t, err)
+			setNonce(upstream.Query().Get("nonce"))
 			resp, err = ts.Client.Get(ts.BaseURL + "/oauth2/federation/test-idp/callback?" + url.Values{
 				"state": {upstream.Query().Get("state")}, "code": {"upstream-code"},
 			}.Encode())

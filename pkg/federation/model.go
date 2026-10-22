@@ -41,7 +41,10 @@ type FederatedIdentity struct {
 
 // FederationState is HMAC-signed and round-tripped via the OAuth2 state parameter.
 // It carries the original OIDC authorization request params across the provider redirect.
+// FlowID binds the upstream nonce; Nonce remains the original RP nonce.
 type FederationState struct {
+	FlowID              string `json:"flow_id"`
+	ExpiresAt           int64  `json:"exp"`
 	Nonce               string `json:"nonce"`
 	ProviderID          string `json:"provider_id"`
 	RedirectURI         string `json:"redirect_uri"`

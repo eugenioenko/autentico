@@ -25,7 +25,8 @@ func SignState(s FederationState) (string, error) {
 }
 
 // VerifyState parses a signed state string produced by SignState, verifies the
-// HMAC signature, and returns the decoded FederationState.
+// HMAC signature, and returns the decoded FederationState. HandleCallback also
+// consumes its durable browser-bound flow before any upstream exchange.
 func VerifyState(raw string) (*FederationState, error) {
 	parts := strings.SplitN(raw, ".", 2)
 	if len(parts) != 2 {

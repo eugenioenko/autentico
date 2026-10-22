@@ -32,6 +32,16 @@ The OAuth2 authorization parameters (client_id, redirect_uri, scope, state, code
 
 Federation requires an active registered client, an allowed redirect URI and scopes, and permission to use the authorization code flow. Public clients must supply PKCE; the configured S256 policy also applies. These checks run before contacting the external provider and again before issuing a local authorization code, so removing a redirect URI or disabling a client also blocks an in-progress login. Codes without a client binding cannot be exchanged.
 
+## Browser binding and replay protection
+
+Federated login must finish in the browser that started it. Autentico sets a separate HttpOnly browser-binding cookie and signs a random flow ID with a ten-minute deadline into upstream state. The callback must match the cookie and one pending database record; a wrong or missing cookie is rejected without consuming the initiating browser's flow.
+
+A matching callback atomically consumes its record before upstream discovery/exchange or local account changes. Replays fail even with the original cookie, including after a server restart. Upstream/network failures after consumption require a fresh sign-in. Independent pending flows can share the browser binding, so completing one does not clear another tab's cookie.
+
+The cookie is `__Host-autentico_federation` with Secure, Path=/ and no Domain in secure deployments, following `AUTENTICO_IDP_SESSION_SECURE`. Local HTTP development uses `autentico_federation`. Proxies and browsers must preserve this cookie through the top-level provider redirect.
+
+Autentico also sends an independent upstream `nonce` and checks it in the verified ID token before resolving a local user. The original relying party nonce is preserved for its own ID token. Routine schema 19 adds the pending-flow table; existing credentials and TOTP enrollment are preserved. Callbacks already in flight from an older version must restart sign-in.
+
 ## Outbound network protection
 
 Discovery, token exchange and signing-key (JWKS) requests use a restricted HTTP client. Each connection checks its resolved IP before dialing, including redirects and discovery-provided endpoint URLs. Private, loopback, link-local, unspecified, multicast and shared-address (CGNAT) destinations are blocked, including IPv4-mapped IPv6 addresses. Redirect chains are limited to five requests; the client does not use environment proxies.
@@ -185,6 +195,17 @@ Provider icons (SVG) are served via a dedicated endpoint (`{oauth_path}/federati
 | `user_id` | TEXT | Foreign key to `users.id` |
 | `email` | TEXT | Email from the external provider (nullable) |
 | `created_at` | DATETIME | When the link was created |
+
+### `federation_login_flows` table
+
+| Column | Type | Description |
+|---|---|---|
+| `flow_id` | TEXT PK | Random 256-bit identifier, also used as the independent upstream nonce |
+| `browser_hash` | TEXT | SHA-256 of the separate browser binding; no raw cookie is stored |
+| `state_hash` | TEXT | SHA-256 of the complete signed state |
+| `expires_at` | INTEGER | Expiry in Unix seconds, indexed for cleanup |
+
+Successful consumption deletes the record. Hashes and expiry survive restarts; expired rows follow the configured cleanup retention.
 
 ## SSRF protection
 

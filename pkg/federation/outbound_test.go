@@ -67,10 +67,11 @@ func TestCallbackBlocksDiscoveryDerivedPrivateEndpoints(t *testing.T) {
 				resp.Header.Set("Content-Type", "application/json")
 				return resp, nil
 			})
-			state, err := SignState(FederationState{ProviderID: "upstream", ClientID: "client", RedirectURI: "https://client.example/cb", Scope: "openid", CodeChallenge: "challenge", CodeChallengeMethod: "S256"})
-			require.NoError(t, err)
-			req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/upstream/callback?"+url.Values{"state": {state}, "code": {"code"}}.Encode(), nil)
+			state := FederationState{ProviderID: "upstream", ClientID: "client", RedirectURI: "https://client.example/cb", Scope: "openid", CodeChallenge: "challenge", CodeChallengeMethod: "S256"}
+			signedState, flowCookie := prepareTestLoginFlow(t, &state, nil)
+			req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/upstream/callback?"+url.Values{"state": {signedState}, "code": {"code"}}.Encode(), nil)
 			req.SetPathValue("id", "upstream")
+			req.AddCookie(flowCookie)
 			rr := httptest.NewRecorder()
 			NewLoginHandler(client).HandleCallback(rr, req)
 			require.Equal(t, http.StatusUnauthorized, rr.Code)
