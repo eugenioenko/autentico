@@ -131,13 +131,13 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// RFC 6749 §3.3 / §4.1.2.1: invalid_scope: requested scope exceeds what the client may request
 	// RFC 6749 §4.1.2.1: client registration must allow authorization-code issuance.
 	if !client.IsGrantTypeAllowed(registeredClient, "authorization_code") {
 		redirectWithError(w, r, request.RedirectURI, request.State, "unauthorized_client", "Client is not authorized for the authorization_code grant")
 		return
 	}
 
+	// RFC 6749 §3.3 / §4.1.2.1: invalid_scope: requested scope exceeds what the client may request
 	if !client.ValidateScopes(registeredClient, request.Scope) {
 		slog.Warn("authorize: invalid scope for client", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "scope", request.Scope)
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_scope", "one or more requested scopes are not allowed for this client")
