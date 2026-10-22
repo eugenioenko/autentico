@@ -74,9 +74,13 @@ it('persists attempts across resends, clients and restart, throttles mail, and r
   }
   await requestLink(budgetEmail, true);
   await requestLink('unknown@test.com');
-  expect((await putJSON(`${BASE_URL}/admin/api/settings`, { magic_link_expiration: '2s' }, admin)).status).toBe(204);
-  await requestLink(expiredEmail);
+  expect((await putJSON(`${BASE_URL}/admin/api/settings`, { magic_link_expiration: '10s' }, admin)).status).toBe(204);
+  const expiring = await requestLink(expiredEmail);
   const expiredMail = await smtp.waitFor(expiredEmail, 1), expired = credential(expiredMail);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const response = await verifyCode(expiring, expired.code === '000000' ? '000001' : '000000');
+    expect(response.status).toBe(200); expect(await response.text()).toContain('Invalid code');
+  }
   expect((await putJSON(`${BASE_URL}/admin/api/settings`, { magic_link_expiration: '120s' }, admin)).status).toBe(204);
   await restartServer();
   expect((await getResponse(`${BASE_URL}/account/api/profile`, admin)).status).toBe(200);
@@ -100,7 +104,12 @@ it('persists attempts across resends, clients and restart, throttles mail, and r
   const renewedMail = await smtp.waitFor(expiredEmail, 2);
   const expiredLink = await fetch(expired.link, { redirect: 'manual' });
   expect(expiredLink.headers.get('location')).toBeNull();
-  const success = await verifyCode(renewed, credential(renewedMail).code);
+  const renewedCode = credential(renewedMail).code;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const response = await verifyCode(renewed, renewedCode === '000000' ? '000001' : '000000');
+    expect(response.status).toBe(200); expect(await response.text()).toContain('Invalid code');
+  }
+  const success = await verifyCode(renewed, renewedCode);
   expect(success.status).toBe(302);
   const code = new URL(success.headers.get('location')!).searchParams.get('code')!;
   const exchanged = await postForm(`${OAUTH_URL}/token`, { grant_type: 'authorization_code', code, redirect_uri: ACCOUNT_REDIRECT_URI, client_id: ACCOUNT_CLIENT_ID, code_verifier: verifier });
