@@ -46,17 +46,26 @@ func ValidateAuthorization(p authzsig.AuthorizeParams) (*Client, error) {
 	if !ValidateScopes(c, p.Scope) {
 		return nil, fmt.Errorf("scope is not allowed for this client")
 	}
-	// RFC 9700 §2.1.1: public clients must use PKCE.
-	if c.ClientType == "public" && p.CodeChallenge == "" {
-		return nil, fmt.Errorf("code_challenge is required for public clients")
-	}
-	// RFC 7636 §4.3 / §4.4.1: reject unsupported or unbound transformations.
-	if p.CodeChallengeMethod != "" && (p.CodeChallenge == "" || (p.CodeChallengeMethod != "S256" && p.CodeChallengeMethod != "plain")) {
-		return nil, fmt.Errorf("invalid code_challenge_method")
-	}
-	// RFC 7636 §7.2: retain the configured S256 enforcement policy.
-	if p.CodeChallengeMethod == "plain" && config.Get().AuthPKCEEnforceSHA256 {
-		return nil, fmt.Errorf("code_challenge_method plain is not allowed; use S256")
+	if err := ValidatePKCE(c.ClientType, p.CodeChallenge, p.CodeChallengeMethod); err != nil {
+		return nil, err
 	}
 	return c, nil
+}
+
+// ValidatePKCE applies the same challenge and transformation policy before SSO
+// and when completing any signed browser authorization flow.
+func ValidatePKCE(clientType, challenge, method string) error {
+	// RFC 9700 §2.1.1: public clients must use PKCE.
+	if clientType == "public" && challenge == "" {
+		return fmt.Errorf("code_challenge is required for public clients")
+	}
+	// RFC 7636 §4.3 / §4.4.1: reject unsupported or unbound transformations.
+	if method != "" && (challenge == "" || (method != "S256" && method != "plain")) {
+		return fmt.Errorf("invalid code_challenge_method")
+	}
+	// RFC 7636 §7.2: retain the configured S256 enforcement policy.
+	if method == "plain" && config.Get().AuthPKCEEnforceSHA256 {
+		return fmt.Errorf("code_challenge_method plain is not allowed; use S256")
+	}
+	return nil
 }
