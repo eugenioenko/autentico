@@ -1098,13 +1098,13 @@ func TestVerifyCodeChallenge_Plain(t *testing.T) {
 	assert.False(t, verifyCodeChallenge(challenge, "plain", "wrong"))
 }
 
-// RFC 7636 §4.2 requires S256 support; §4.3 still defaults an absent method to plain.
-func TestVerifyCodeChallenge_DefaultsToPlain(t *testing.T) {
+// RFC 7636 §4.2 / §4.6: preserve pre-fix S256 bindings. New request defaults
+// (§4.3) are explicitly persisted as plain and never reach this legacy case.
+func TestVerifyCodeChallenge_LegacyUnlabelledS256(t *testing.T) {
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	hashed := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-	assert.True(t, verifyCodeChallenge(verifier, "", verifier))
-	assert.False(t, verifyCodeChallenge(hashed, "", verifier), "an omitted method cannot silently select S256")
-	assert.False(t, verifyCodeChallenge(verifier, "", "wrong-verifier"))
+	assert.True(t, verifyCodeChallenge(hashed, "", verifier))
+	assert.False(t, verifyCodeChallenge(hashed, "", hashed), "the public challenge cannot become the verifier after upgrade")
 }
 
 // RFC 7636 §4.4.1: unsupported transformation method MUST be rejected

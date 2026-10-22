@@ -205,7 +205,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | MUST | §4.3 | Require verifier on exchange if challenge was present | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4.6 | Verify code_verifier against code_challenge; return `invalid_grant` on mismatch | ✅ Verified + annotated (2026-03-30) |
 | MUST | §4.4.1 | Unsupported transformation → `invalid_request` | ✅ Shared PKCE validation rejects unsupported/unbound methods at authorize before login or SSO, including confidential clients (#517). |
-| MUST | §4.3 | Default an omitted `code_challenge_method` to `plain` | ✅ Normalize before signing/code issuance; shared validation applies S256 enforcement, token exchange uses plain for empty stored methods (#518). |
+| MUST | §4.3 | Default an omitted `code_challenge_method` to `plain` | ✅ Normalize before signing/code issuance; shared validation applies S256 enforcement, all new codes persist the default explicitly; historical unlabelled S256 bindings remain unchanged (#518). |
 | SHOULD NOT | §7.2 | `plain` method SHOULD NOT be used | ✅ Rejected by default (`AuthPKCEEnforceSHA256=true`); configurable for backwards-compat |
 | MUST | — | Enforce PKCE for public clients (RFC 9700 §2.1.1 / OAuth 2.1) | ✅ Fixed — authorize endpoint rejects public clients without `code_challenge` |
 | MAY | §5 | Accept confidential clients without PKCE (backwards compatibility) | ✅ Confidential clients can omit PKCE |
@@ -228,7 +228,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 - Unit: `TestValidateCodeVerifier_AllUnreservedChars` — full unreserved charset → accepted ✅ Pre-existing
 - Unit: `TestVerifyCodeChallenge_S256` — S256 valid + invalid (RFC 7636 Appendix B vector) ✅ Pre-existing, annotated
 - Unit: `TestVerifyCodeChallenge_Plain` — plain valid + invalid ✅ Pre-existing, annotated
-- Unit: `TestVerifyCodeChallenge_DefaultsToPlain` — empty method uses plain and cannot silently select S256 ✅ Fixed (#518)
+- Unit: `TestCreateAuthCode_PKCEMethodBinding` and default-method flow tests — new omissions persist plain; `TestVerifyCodeChallenge_LegacyUnlabelledS256` preserves old S256 bindings ✅ Fixed (#518)
 - Unit: `TestVerifyCodeChallenge_UnsupportedMethod` — unknown method rejected ✅ Pre-existing, annotated
 - Unit: `TestHandleWellKnownConfig_RFC8414_Endpoints` — asserts `code_challenge_methods_supported` includes `S256` ✅ Pre-existing
 - Unit: `TestHandleAuthorize_PKCE_PlainRejected` — plain rejected at authorize endpoint (default config) ✅ Pre-existing

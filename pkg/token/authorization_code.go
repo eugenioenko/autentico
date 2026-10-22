@@ -113,16 +113,17 @@ func validateCodeVerifier(v string) error {
 // RFC 7636 §4.6: the method bound to the authorization code determines the transformation.
 // For S256: BASE64URL(SHA256(ASCII(code_verifier))) must equal code_challenge.
 // For plain: code_verifier must equal code_challenge directly.
-// RFC 7636 §4.2 requires S256 support; §4.3 defaults an absent method to plain.
+// RFC 7636 §4.2 requires S256 support; §4.3 defaults new requests to plain.
+// CreateAuthCode stores that default explicitly. Empty stored methods belong
+// to pre-fix S256 codes and retain their original binding until expiry.
 func verifyCodeChallenge(codeChallenge, method, codeVerifier string) bool {
 	switch method {
-	case "S256":
+	case "S256", "":
 		// RFC 7636 §4.6: BASE64URL-ENCODE(SHA256(ASCII(code_verifier))) == code_challenge
 		hash := sha256.Sum256([]byte(codeVerifier))
 		computed := base64.RawURLEncoding.EncodeToString(hash[:])
 		return computed == codeChallenge
-	case "plain", "":
-		// RFC 7636 §4.3: legacy codes with no stored method also mean plain.
+	case "plain":
 		// RFC 7636 §4.6: code_verifier == code_challenge (direct comparison)
 		return codeVerifier == codeChallenge
 	default:
