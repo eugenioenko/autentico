@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -93,6 +94,7 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 // @Security AdminAuth
 // @Success 200 {object} UserResponse
 // @Failure 400 {object} model.ApiError
+// @Failure 409 {object} model.ApiError "last_active_admin"
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users/{id} [put]
 func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +121,11 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := UpdateUser(id, req)
 	if err != nil {
+		// OWASP Authorization §Exit Safely: denied mutations preserve admin access.
+		if errors.Is(err, ErrLastActiveAdmin) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found")
 			return
@@ -152,6 +159,7 @@ func HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
+// @Failure 409 {object} model.ApiError "last_active_admin"
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users/{id} [delete]
 func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -167,6 +175,11 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := HardDeleteUser(id); err != nil {
+		// OWASP Authorization §Exit Safely: denied mutations preserve admin access.
+		if errors.Is(err, ErrLastActiveAdmin) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())
+			return
+		}
 		slog.Error("user: failed to delete user", "error", err, "user_id", id)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete user")
 		return
@@ -186,6 +199,7 @@ func HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 // @Success 204
 // @Failure 400 {object} model.ApiError
 // @Failure 404 {object} model.ApiError
+// @Failure 409 {object} model.ApiError "last_active_admin"
 // @Failure 500 {object} model.ApiError
 // @Router /admin/api/users/{id}/deactivate [post]
 func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +210,11 @@ func HandleDeactivateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := DeactivateUser(id)
 	if err != nil {
+		// OWASP Authorization §Exit Safely: denied mutations preserve admin access.
+		if errors.Is(err, ErrLastActiveAdmin) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "last_active_admin", err.Error())
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			utils.WriteErrorResponse(w, http.StatusNotFound, "not_found", "User not found or already deactivated")
 			return

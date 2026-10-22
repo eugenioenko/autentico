@@ -1621,6 +1621,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.ApiError"
                         }
                     },
+                    "409": {
+                        "description": "last_active_admin",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3093,6 +3099,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.ApiError"
                         }
                     },
+                    "409": {
+                        "description": "last_active_admin",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -3136,6 +3148,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "last_active_admin",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }
@@ -3334,6 +3352,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "409": {
+                        "description": "last_active_admin",
                         "schema": {
                             "$ref": "#/definitions/model.ApiError"
                         }

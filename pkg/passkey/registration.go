@@ -82,8 +82,10 @@ func deletePendingRegistration(userID, owner string) (bool, error) {
 
 func deletePendingRegistrationTx(tx *sql.Tx, userID, owner string) (bool, error) {
 	var createdAt time.Time
+	// OWASP Authorization §Validate the Permissions on Every Request: an
+	// account promoted to admin is never abandoned registration cleanup.
 	err := tx.QueryRow(`SELECT created_at FROM users WHERE id = ?
-		AND registered_at IS NULL AND (password IS NULL OR password = '') AND deactivated_at IS NULL
+		AND role <> 'admin' AND registered_at IS NULL AND (password IS NULL OR password = '') AND deactivated_at IS NULL
 		AND NOT EXISTS (SELECT 1 FROM passkey_credentials WHERE user_id = users.id)`, userID).Scan(&createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil

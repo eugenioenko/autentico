@@ -51,7 +51,7 @@ curl -X POST https://auth.example.com/account/api/deletion-request \
 |---|---|---|
 | `reason` | No | Optional reason for the deletion request |
 
-Returns `409 Conflict` if a pending request already exists.
+Returns `409 Conflict` if a pending request already exists, or `last_active_admin` if immediate deletion would remove the last active administrator. Create or promote another active administrator first.
 
 ### Get deletion request status
 
@@ -113,7 +113,7 @@ curl -X POST https://auth.example.com/admin/api/deletion-requests/$REQUEST_ID/ap
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-Returns `204` on success. Logs a `deletion_approved` audit event.
+Returns `204` on success. Logs a `deletion_approved` audit event. Returns `409 Conflict` with `last_active_admin` if the target is the last active administrator; the account and pending request are preserved.
 
 ### Cancel (dismiss) deletion request
 

@@ -800,6 +800,7 @@ As an identity provider, Auténtico is a critical trust boundary. The following 
 - **Verification resend privacy** — accepted resend requests use one generic response and delay policy; SMTP delivery runs in the background with bounded concurrency and operation timeouts.
 - **Opaque redirect state** — authorization and logout callbacks URL-encode state and preserve existing callback query parameters.
 - **Token introspection** — confidential clients authenticate to inspect their own tokens; admin bearer callers need the admin API audience and current admin role. Access and refresh tokens are checked against their own expiry, and `exp` reports the submitted token's lifetime.
+- **Administrator access**: The last active admin cannot be demoted, deactivated or deleted, including through self-service or approved deletion. Create or promote another active admin first.
 - **Password hashing** — user passwords are bcrypt-hashed.
 - **Account lockout** — configure `account_lockout_max_attempts` and `account_lockout_duration` to limit single-account brute-force exposure.
 - **Rate limiting** — built-in two-tier per-IP rate limiter on `/oauth2/login`, `/oauth2/mfa`, `/oauth2/token`, and `/oauth2/passkey/login/finish`. A per-second limit (default 5 rps / burst 10) stops rapid bursts; a per-minute limit (default 20 rpm / burst 20) caps sustained enumeration. Set `AUTENTICO_RATE_LIMIT_RPS=0` to disable both.

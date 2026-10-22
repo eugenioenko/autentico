@@ -1,6 +1,7 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -154,17 +155,19 @@ func UpdateUser(id string, req UserUpdateRequest) error {
 			address_country = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`
-	_, err = db.GetDB().Exec(query,
-		newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
-		newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,
-		newPhoneNumber, newPhoneNumberVerified, newPicture, newLocale, newZoneinfo,
-		newAddressStreet, newAddressLocality, newAddressRegion, newAddressPostalCode, newAddressCountry,
-		id,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update user: %v", err)
-	}
-	return nil
+	return mutateUser(id, newRole != "admin", func(tx *sql.Tx) error {
+		_, err = tx.Exec(query,
+			newUsername, emailParam, newRole, newPassword, newIsEmailVerified, newTotpVerified,
+			newGivenName, newFamilyName, newMiddleName, newNickname, newWebsite, newGender, newBirthdate, newProfileURL,
+			newPhoneNumber, newPhoneNumberVerified, newPicture, newLocale, newZoneinfo,
+			newAddressStreet, newAddressLocality, newAddressRegion, newAddressPostalCode, newAddressCountry,
+			id,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update user: %v", err)
+		}
+		return nil
+	})
 }
 
 // DisableMfa clears the TOTP secret and marks MFA as disabled.

@@ -421,3 +421,7 @@ Authorize/login/signup/magic-link handlers resolve `config.GetForClient` from th
 ## Introspection caller authorization
 
 `introspect.HandleIntrospect` requires authenticated confidential-client credentials, or a live admin-user bearer token with the `autentico-admin` audience, using the same audience validator as admin middleware. Public identifiers are rejected before token inspection, including Basic/form requests with arbitrary secrets. Client authentication failures return a Basic challenge; rejected admin-audience/role requests return a Bearer insufficient-scope challenge. Existing client ownership and caller/target liveness checks remain. Shared client authentication for other endpoints is unchanged. Discovery already advertises only client-secret Basic/post authentication for introspection.
+
+## Last active administrator
+
+`user.mutateUser` reserves SQLite's writer before checking whether demotion, deactivation or deletion would remove the final non-deactivated admin. The check and all mutations commit together, including session revocation and hard-delete child cleanup; failed commits explicitly roll back or discard the connection. Admin handlers, immediate self-service deletion and deletion-request approval return `409 last_active_admin` without side effects. Inactive admins do not count as replacements. Pending passkey registration cleanup excludes admin accounts. No schema migration or recovery command is added.

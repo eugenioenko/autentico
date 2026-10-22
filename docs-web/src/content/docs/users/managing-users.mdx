@@ -87,3 +87,9 @@ curl -X DELETE https://auth.example.com/admin/api/users/USER_ID \
 ```
 
 This permanently removes the user and their associated data (sessions, tokens, passkeys, trusted devices).
+
+## Keeping administrator access
+
+Autentico rejects demoting, deactivating or deleting the last active administrator with `409 Conflict` and error `last_active_admin`. Create or promote another active administrator first. Deactivated administrators do not count as replacements. Profile updates that preserve the admin role remain available.
+
+The same protection applies to immediate self-service deletion and approval of deletion requests. Rejected actions leave the account, sessions and pending deletion request intact. Concurrent removals are checked in the same database transaction as each change.
