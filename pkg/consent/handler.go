@@ -2,8 +2,6 @@ package consent
 
 import (
 	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -31,6 +29,8 @@ type ConsentParams struct {
 	CodeChallenge       string
 	CodeChallengeMethod string
 	Prompt              string
+	MaxAge              string
+	FlowToken           string
 }
 
 func HandleConsent(w http.ResponseWriter, r *http.Request) {
@@ -53,14 +53,16 @@ func handleConsentGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	registeredClient, err := client.ClientByClientID(params.ClientID)
+	// RFC 6749 §3.1.2 / §3.3 / §4.1.1 and RFC 7636 §4.4.1:
+	// public GET cannot sign a request outside the current client registration.
+	registeredClient, err := client.ValidateAuthorization(params.authorization())
 	if err != nil {
-		slog.Warn("consent: unknown client_id", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID)
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client", "Unknown client_id")
+		slog.Warn("consent: invalid authorization request", "request_id", reqid.Get(r.Context()), "client_id", params.ClientID)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
-	if !validateMfa(w, session, registeredClient) {
+	if !validateContinuation(w, params, session, registeredClient) {
 		return
 	}
 	renderConsentPage(w, r, params, registeredClient.ClientName, userID)
@@ -73,16 +75,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params := ConsentParams{
-		RedirectURI:         r.FormValue("redirect_uri"),
-		State:               r.FormValue("state"),
-		ClientID:            r.FormValue("client_id"),
-		Scope:               r.FormValue("scope"),
-		Nonce:               r.FormValue("nonce"),
-		CodeChallenge:       r.FormValue("code_challenge"),
-		CodeChallengeMethod: r.FormValue("code_challenge_method"),
-		Prompt:              r.FormValue("prompt"),
-	}
+	params := paramsFromValues(r.PostForm)
 
 	session, userID := validateSession(w, r)
 	if session == nil {
@@ -99,17 +92,13 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 
 	// RFC 6749 §3.1.2 / §3.3 / §4.1.1 and RFC 9700 §2.1.1:
 	// a signed consent page cannot override changed registration or PKCE policy.
-	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
-		ClientID: params.ClientID, RedirectURI: params.RedirectURI, Scope: params.Scope,
-		State: params.State, Nonce: params.Nonce, CodeChallenge: params.CodeChallenge,
-		CodeChallengeMethod: params.CodeChallengeMethod,
-	})
+	registeredClient, err := client.ValidateAuthorization(params.authorization())
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
 
-	if !validateMfa(w, session, registeredClient) {
+	if !validateContinuation(w, params, session, registeredClient) {
 		return
 	}
 
@@ -120,7 +109,12 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action := r.FormValue("action")
+	action := r.PostForm.Get("action")
+	// OIDC Core §3.1.2.4: an explicit authorization decision is required.
+	if action != "allow" && action != "deny" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Choose whether to allow access")
+		return
+	}
 
 	// RFC 6749 §4.1.2.1: access_denied — the resource owner denied the request
 	if action == "deny" {
@@ -163,6 +157,7 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:           time.Now().Add(cfg.AuthAuthorizationCodeExpiration),
 		Used:                false,
 		IdpSessionID:        session.ID,
+		CreatedAt:           session.CreatedAt,
 	}
 
 	if err := authcode.CreateAuthCode(ac); err != nil {
@@ -201,6 +196,8 @@ func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentPar
 		"CodeChallenge":       params.CodeChallenge,
 		"CodeChallengeMethod": params.CodeChallengeMethod,
 		"Prompt":              params.Prompt,
+		"MaxAge":              params.MaxAge,
+		"FlowToken":           params.FlowToken,
 		"ConsentSig":          signConsent(params, userID),
 		csrf.TemplateTag:      csrf.TemplateField(r),
 		"ThemeTitle":          cfg.Theme.Title,
@@ -216,33 +213,41 @@ func renderConsentPage(w http.ResponseWriter, r *http.Request, params ConsentPar
 
 // RedirectToConsent builds a redirect URL to the consent screen with all OAuth params preserved.
 func RedirectToConsent(w http.ResponseWriter, r *http.Request, params ConsentParams) {
-	http.Redirect(w, r, URL(params), http.StatusFound)
+	target, err := flowURL(params, idpsession.ReadCookie(r), flowSSO, time.Now())
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "login_required", "Authentication required")
+		return
+	}
+	// OIDC Core §3.1.2.4: only eligible SSO may request this consent continuation.
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 // URL preserves the authorization parameters for HTML and JSON login flows.
 func URL(params ConsentParams) string {
-	q := url.Values{}
-	q.Set("client_id", params.ClientID)
-	q.Set("redirect_uri", params.RedirectURI)
-	q.Set("scope", params.Scope)
-	q.Set("state", params.State)
-	q.Set("nonce", params.Nonce)
-	q.Set("code_challenge", params.CodeChallenge)
-	q.Set("code_challenge_method", params.CodeChallengeMethod)
-	q.Set("prompt", params.Prompt)
-	return config.GetBootstrap().AppOAuthPath + "/consent?" + q.Encode()
+	return config.GetBootstrap().AppOAuthPath + "/consent?" + params.values().Encode()
 }
 
 func parseConsentParams(r *http.Request) ConsentParams {
+	return paramsFromValues(r.URL.Query())
+}
+
+// paramsFromValues reads the signed authorization and continuation fields.
+func paramsFromValues(values url.Values) ConsentParams {
 	return ConsentParams{
-		RedirectURI:         r.URL.Query().Get("redirect_uri"),
-		State:               r.URL.Query().Get("state"),
-		ClientID:            r.URL.Query().Get("client_id"),
-		Scope:               r.URL.Query().Get("scope"),
-		Nonce:               r.URL.Query().Get("nonce"),
-		CodeChallenge:       r.URL.Query().Get("code_challenge"),
-		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
-		Prompt:              r.URL.Query().Get("prompt"),
+		RedirectURI: values.Get("redirect_uri"), State: values.Get("state"), ClientID: values.Get("client_id"),
+		Scope: values.Get("scope"), Nonce: values.Get("nonce"), CodeChallenge: values.Get("code_challenge"),
+		CodeChallengeMethod: values.Get("code_challenge_method"),
+		Prompt:              values.Get("prompt"),
+		MaxAge:              values.Get("max_age"), FlowToken: values.Get("consent_flow"),
+	}
+}
+
+// authorization preserves the registration-sensitive fields for shared validation.
+func (params ConsentParams) authorization() authzsig.AuthorizeParams {
+	return authzsig.AuthorizeParams{ClientID: params.ClientID, RedirectURI: params.RedirectURI, Scope: params.Scope,
+		State: params.State, Nonce: params.Nonce, CodeChallenge: params.CodeChallenge, CodeChallengeMethod: params.CodeChallengeMethod,
+		Prompt: params.Prompt,
+		MaxAge: params.MaxAge,
 	}
 }
 
@@ -272,21 +277,50 @@ func validateMfa(w http.ResponseWriter, session *idpsession.IdpSession, register
 	return true
 }
 
+// validateContinuation keeps public consent from upgrading an old session or
+// signing an arbitrary new request, and rechecks policy again on approval.
+func validateContinuation(w http.ResponseWriter, params ConsentParams, session *idpsession.IdpSession, registered *client.Client) bool {
+	if !validateMfa(w, session, registered) {
+		return false
+	}
+	cfg := config.GetForClient(registered.ToOverrides())
+	now := time.Now()
+	claims, err := verifyFlow(params, session, now)
+	maxAge, ageErr := client.ParseMaxAge(params.MaxAge)
+	// OIDC Core §3.1.2.1 / §3.1.2.3: consent cannot extend an expired login.
+	if err != nil || ageErr != nil || !idpsession.IsFresh(session, &cfg, now) {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "login_required", "Sign-in expired. Please start again.")
+		return false
+	}
+	var promptLogin, promptConsent, promptNone bool
+	for _, prompt := range strings.Fields(params.Prompt) {
+		promptLogin = promptLogin || prompt == "login"
+		promptConsent = promptConsent || prompt == "consent"
+		promptNone = promptNone || prompt == "none"
+	}
+	// OIDC Core §3.1.2.1: only proof of active login can satisfy prompt=login,
+	// max_age=0, or the fresh-login continuation when SSO is disabled.
+	if claims.Kind == flowSSO && (!cfg.AuthSsoEnabled || promptLogin || maxAge == 0) ||
+		(maxAge > 0 && !idpsession.WithinMaxAge(session, maxAge, now)) {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "login_required", "Fresh authentication is required")
+		return false
+	}
+	// OIDC Core §3.1.2.1 / §3.1.2.4: never interact for prompt=none or
+	// manufacture a consent decision that neither client nor request needs.
+	clientRequiresConsent := registered.ConsentRequired != nil && *registered.ConsentRequired
+	if promptNone || !clientRequiresConsent && !promptConsent {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Consent is not requested for this authorization")
+		return false
+	}
+	return true
+}
+
+// signConsent binds every displayed field and the continuation to its user.
 func signConsent(params ConsentParams, userID string) string {
-	data := strings.Join([]string{
-		userID,
-		params.ClientID,
-		params.RedirectURI,
-		params.Scope,
-		params.Nonce,
-		params.CodeChallenge,
-		params.CodeChallengeMethod,
-		params.State,
-	}, "\n")
-	secret := []byte(config.GetBootstrap().AuthCSRFProtectionSecretKey)
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(data))
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	values := params.values()
+	values.Set("purpose", "consent-form-v2")
+	values.Set("user_id", userID)
+	return signValues(values)
 }
 
 func verifyConsentSignature(params ConsentParams, userID, signature string) bool {

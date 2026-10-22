@@ -30,6 +30,8 @@ type oauthParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
+	MaxAge              string
 }
 
 func paramsFromQuery(r *http.Request) oauthParams {
@@ -42,6 +44,8 @@ func paramsFromQuery(r *http.Request) oauthParams {
 		Nonce:               q.Get("nonce"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 }
 
@@ -54,6 +58,8 @@ func paramsFromForm(r *http.Request) oauthParams {
 		Nonce:               r.FormValue("nonce"),
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
+		Prompt:              r.FormValue("prompt"),
+		MaxAge:              r.FormValue("max_age"),
 	}
 }
 
@@ -78,6 +84,9 @@ func renderMagicLink(w http.ResponseWriter, r *http.Request, mode string, params
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"Prompt":              params.Prompt,
+		"LoginPrompt":         client.LoginPrompt(params.Prompt),
+		"MaxAge":              params.MaxAge,
 	}
 	for k, v := range extra {
 		data[k] = v
@@ -345,6 +354,8 @@ func completeLogin(w http.ResponseWriter, r *http.Request, params oauthParams, a
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
+		Prompt:              params.Prompt,
+		MaxAge:              params.MaxAge,
 	}, mfa.PrimaryMagicLink)
 	if err != nil {
 		slog.Error("magiclink: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
@@ -361,6 +372,8 @@ func buildMagicLinkURL(rawToken string, p oauthParams, authorizeSig string) stri
 	q.Set("token", rawToken)
 	q.Set("redirect_uri", p.RedirectURI)
 	q.Set("state", p.State)
+	q.Set("prompt", p.Prompt)
+	q.Set("max_age", p.MaxAge)
 	q.Set("client_id", p.ClientID)
 	q.Set("scope", p.Scope)
 	q.Set("authorize_sig", authorizeSig)
@@ -376,7 +389,10 @@ func buildMagicLinkURL(rawToken string, p oauthParams, authorizeSig string) stri
 
 func (p oauthParams) authorizeParams() authzsig.AuthorizeParams {
 	return authzsig.AuthorizeParams{ClientID: p.ClientID, RedirectURI: p.RedirectURI, Scope: p.Scope, Nonce: p.Nonce,
-		State: p.State, CodeChallenge: p.CodeChallenge, CodeChallengeMethod: p.CodeChallengeMethod}
+		State: p.State, CodeChallenge: p.CodeChallenge, CodeChallengeMethod: p.CodeChallengeMethod,
+		Prompt: p.Prompt,
+		MaxAge: p.MaxAge,
+	}
 }
 
 func validateSignedAuthorization(p oauthParams, signature string) (*client.Client, error) {

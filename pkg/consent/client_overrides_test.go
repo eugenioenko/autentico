@@ -25,7 +25,8 @@ func TestConsentUsesCurrentClientCodeLifetime(t *testing.T) {
 	_, err := db.GetDB().Exec(`UPDATE clients SET authorization_code_expiration='1m' WHERE client_id='c1'`)
 	require.NoError(t, err)
 	params := ConsentParams{ClientID: "c1", RedirectURI: "http://localhost/callback", Scope: "openid", CodeChallenge: "challenge", CodeChallengeMethod: "S256"}
-	form := url.Values{"client_id": {params.ClientID}, "redirect_uri": {params.RedirectURI}, "scope": {params.Scope}, "code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_sig": {signConsent(params, "user-1")}, "action": {"allow"}}
+	params = withTestConsentFlow(t, sid, params)
+	form := url.Values{"client_id": {params.ClientID}, "redirect_uri": {params.RedirectURI}, "scope": {params.Scope}, "code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_flow": {params.FlowToken}, "consent_sig": {signConsent(params, "user-1")}, "action": {"allow"}}
 	// Current configuration wins even when the consent page was prepared earlier.
 	_, err = db.GetDB().Exec(`UPDATE clients SET authorization_code_expiration='2m' WHERE client_id='c1'`)
 	require.NoError(t, err)
@@ -56,7 +57,8 @@ func TestConsentRevalidatesRegistrationBeforePersisting(t *testing.T) {
 				params.CodeChallenge = ""
 				params.CodeChallengeMethod = ""
 			}
-			form := url.Values{"action": {"allow"}, "client_id": {params.ClientID}, "redirect_uri": {params.RedirectURI}, "scope": {params.Scope}, "code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_sig": {signConsent(params, "user-1")}}
+			params = withTestConsentFlow(t, sid, params)
+			form := url.Values{"action": {"allow"}, "client_id": {params.ClientID}, "redirect_uri": {params.RedirectURI}, "scope": {params.Scope}, "code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_flow": {params.FlowToken}, "consent_sig": {signConsent(params, "user-1")}}
 			changes := map[string]string{"scope": "scopes='profile'", "code grant": "grant_types='[]'", "public PKCE": "client_type='public'", "inactive": "is_active=FALSE"}
 			_, err := db.GetDB().Exec("UPDATE clients SET " + changes[policy] + " WHERE client_id='c1'")
 			require.NoError(t, err)

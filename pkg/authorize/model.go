@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/authzsig"
+	"github.com/eugenioenko/autentico/pkg/client"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 )
@@ -30,7 +31,20 @@ func ValidateAuthorizeRequest(input AuthorizeRequest) error {
 		validation.Field(&input.RedirectURI, validation.Required, is.URL),
 		// RFC 6749 §3.3: validate scope token syntax
 		validation.Field(&input.Scope, validation.By(validateScopeSyntax)),
+		validation.Field(&input.MaxAge, validation.By(validateMaxAge)),
+		validation.Field(&input.Prompt, validation.By(validatePrompt)),
 	)
+}
+
+// validatePrompt rejects a request that combines silent login with interaction.
+func validatePrompt(value interface{}) error {
+	return client.ValidatePrompt(value.(string))
+}
+
+// validateMaxAge rejects malformed age limits instead of disabling freshness.
+func validateMaxAge(value interface{}) error {
+	_, err := client.ParseMaxAge(value.(string))
+	return err
 }
 
 // validateScopeSyntax validates that the scope string conforms to RFC 6749 §3.3.
@@ -78,6 +92,8 @@ func AuthorizeSignature(request AuthorizeRequest) string {
 		CodeChallenge:       request.CodeChallenge,
 		CodeChallengeMethod: request.CodeChallengeMethod,
 		State:               request.State,
+		Prompt:              request.Prompt,
+		MaxAge:              request.MaxAge,
 	})
 }
 

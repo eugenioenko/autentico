@@ -20,6 +20,13 @@ func ValidateAuthorization(p authzsig.AuthorizeParams) (*Client, error) {
 	if err != nil || !c.IsActive {
 		return nil, fmt.Errorf("unknown or inactive client")
 	}
+	// OIDC Core §3.1.2.1: malformed controls must not disable authentication.
+	if _, err := ParseMaxAge(p.MaxAge); err != nil {
+		return nil, err
+	}
+	if err := ValidatePrompt(p.Prompt); err != nil {
+		return nil, err
+	}
 	// RFC 6749 §3.1.2 / §10.6: require an allowed URI without a fragment.
 	u, err := url.Parse(p.RedirectURI)
 	if err != nil || !utils.IsValidRedirectURI(p.RedirectURI) || u.Fragment != "" || !IsValidRedirectURI(c, p.RedirectURI) {

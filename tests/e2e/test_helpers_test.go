@@ -110,12 +110,12 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 
 	// Step 1: GET /oauth2/authorize to get login page with CSRF token
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type":        {"code"},
-		"client_id":            {clientID},
-		"redirect_uri":         {redirectURI},
-		"scope":                {"openid profile email"},
-		"state":                {state},
-		"code_challenge":       {testCodeChallenge},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"scope":                 {"openid profile email"},
+		"state":                 {state},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -145,6 +145,8 @@ func performAuthorizationCodeFlow(t *testing.T, ts *TestServer, clientID, redire
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -179,11 +181,11 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	t.Helper()
 
 	params := url.Values{
-		"response_type":        {"code"},
-		"client_id":            {clientID},
-		"redirect_uri":         {redirectURI},
-		"state":                {state},
-		"code_challenge":       {testCodeChallenge},
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"state":                 {state},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}
 	if scope != "" {
@@ -220,6 +222,8 @@ func performAuthorizationCodeFlowWithScope(t *testing.T, ts *TestServer, clientI
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -295,6 +299,8 @@ func performAuthorizationCodeFlowWithPKCE(t *testing.T, ts *TestServer, clientID
 	form.Set("code_challenge_method", codeChallengeMethod)
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	loginReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/login", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create login request")
@@ -325,12 +331,12 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 
 	// Step 1: GET /oauth2/authorize?prompt=create to obtain a CSRF token
 	signupURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
-		"response_type":        {"code"},
-		"prompt":               {"create"},
-		"redirect_uri":         {redirectURI},
-		"state":                {state},
-		"client_id":            {"test-client"},
-		"code_challenge":       {testCodeChallenge},
+		"response_type":         {"code"},
+		"prompt":                {"create"},
+		"redirect_uri":          {redirectURI},
+		"state":                 {state},
+		"client_id":             {"test-client"},
+		"code_challenge":        {testCodeChallenge},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 
@@ -359,6 +365,8 @@ func performSignupFlow(t *testing.T, ts *TestServer, username, password, redirec
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err, "failed to create signup request")

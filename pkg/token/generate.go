@@ -46,6 +46,16 @@ func buildAudience(issuer string, clientID string, customAudiences []string) []s
 // per-client overrides for expiration and audience are applied.
 // OIDC Core §5.4: scope values control which claims are embedded in the access token.
 func GenerateTokens(user user.User, clientID string, scope string, cfg *config.Config) (*AuthToken, error) {
+	return generateTokens(user, clientID, scope, cfg, time.Now())
+}
+
+// generateTokens uses the authentication proven by the grant, independently of
+// when an access/refresh pair is issued. Storage never has to reparse the JWT.
+func generateTokens(user user.User, clientID, scope string, cfg *config.Config, authTime time.Time) (*AuthToken, error) {
+	// OIDC Core §2 / §12.2: issuance or rotation must not invent a new login.
+	if authTime.IsZero() || authTime.After(time.Now()) {
+		return nil, fmt.Errorf("invalid authentication time")
+	}
 	bs := config.GetBootstrap()
 	sessionID := xid.New().String()
 	acr := acrForUser(user)
@@ -59,7 +69,7 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 	accessClaims := jwt.MapClaims{
 		"exp":       accessTokenExpiresAt.Unix(),
 		"iat":       time.Now().Unix(),
-		"auth_time": time.Now().Unix(),
+		"auth_time": authTime.Unix(),
 		"jti":       xid.New().String(),
 		"iss":       bs.AppAuthIssuer,
 		"aud":       aud,
@@ -120,11 +130,12 @@ func GenerateTokens(user user.User, clientID string, scope string, cfg *config.C
 
 	// Refresh Token
 	refreshClaims := jwt.MapClaims{
-		"sub": user.ID,
-		"iat": time.Now().Unix(),
-		"sid": sessionID,
-		"azp": clientID,
-		"exp": refreshTokenExpiresAt.Unix(),
+		"auth_time": authTime.Unix(),
+		"sub":       user.ID,
+		"iat":       time.Now().Unix(),
+		"sid":       sessionID,
+		"azp":       clientID,
+		"exp":       refreshTokenExpiresAt.Unix(),
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	signedRefreshToken, err := refreshToken.SignedString([]byte(bs.AuthRefreshTokenSecret))

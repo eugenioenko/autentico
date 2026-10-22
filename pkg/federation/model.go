@@ -50,6 +50,8 @@ type FederationState struct {
 	State               string `json:"state"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
+	Prompt              string `json:"prompt,omitempty"`
+	MaxAge              string `json:"max_age,omitempty"`
 }
 
 // FederationProviderRequest is used for admin create/update API calls.
@@ -66,5 +68,8 @@ type FederationProviderRequest struct {
 
 func (s *FederationState) authorizeParams() authzsig.AuthorizeParams {
 	return authzsig.AuthorizeParams{ClientID: s.ClientID, RedirectURI: s.RedirectURI, Scope: s.Scope,
-		Nonce: s.Nonce, State: s.State, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod}
+		Nonce: s.Nonce, State: s.State, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod,
+		Prompt: s.Prompt,
+		MaxAge: s.MaxAge,
+	}
 }

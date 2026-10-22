@@ -20,6 +20,7 @@ type LoginRequest struct {
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
 	Prompt              string `json:"prompt"`
+	MaxAge              string `json:"max_age"`
 }
 
 func ValidateLoginRequest(input LoginRequest) error {

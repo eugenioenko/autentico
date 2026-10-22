@@ -30,6 +30,8 @@ func postConsentForm(t *testing.T, ts *TestServer, htmlBody, action string) *htt
 	form.Set("code_challenge", getHiddenField(htmlBody, "code_challenge"))
 	form.Set("code_challenge_method", getHiddenField(htmlBody, "code_challenge_method"))
 	form.Set("prompt", getHiddenField(htmlBody, "prompt"))
+	form.Set("max_age", getHiddenField(htmlBody, "max_age"))
+	form.Set("consent_flow", getHiddenField(htmlBody, "consent_flow"))
 	form.Set("consent_sig", consentSig)
 	form.Set("gorilla.csrf.Token", csrfToken)
 

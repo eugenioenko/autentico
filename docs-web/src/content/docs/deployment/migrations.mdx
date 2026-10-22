@@ -80,6 +80,8 @@ Magic-link requests now share a one-minute per-account email cooldown across cli
 
 Schema **18** is a routine additive migration that records the completed local MFA method on browser SSO sessions. It runs automatically on startup when no major migration is pending, and needs no new key or major approval. Existing sessions and TOTP enrollments are preserved. Older sessions have no MFA evidence: when local policy requires MFA, users must authenticate again before SSO or consent can issue a code. Password, signup, email-verification, magic-link, passkey and federation logins now share the same MFA and consent checks. See [MFA policy](/authentication/mfa/).
 
+Consent and authentication-time hardening needs no further schema migration or key. Consent pages open during an upgrade must restart authorization. Older refresh tokens recover authentication time from a linked browser session or original unrotated password grant. Already-rotated tokens without a browser link require a new login because the original time cannot be reconstructed. Other sessions are preserved. See [refresh token compatibility](/protocol/refresh-tokens/#authentication-time).
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.

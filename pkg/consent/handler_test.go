@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,19 @@ import (
 func setupConsentClient(t *testing.T, clientID string) {
 	t.Helper()
 	testutils.InsertTestClient(t, clientID, []string{"http://localhost/callback"})
+	_, err := db.GetDB().Exec(`UPDATE clients SET consent_required=TRUE WHERE client_id=?`, clientID)
+	require.NoError(t, err)
+}
+
+// withTestConsentFlow represents a completed primary login, not a public signer.
+func withTestConsentFlow(t *testing.T, sessionID string, params ConsentParams) ConsentParams {
+	t.Helper()
+	target, err := LoginURL(params, sessionID)
+	require.NoError(t, err)
+	u, err := url.Parse(target)
+	require.NoError(t, err)
+	params.FlowToken = u.Query().Get("consent_flow")
+	return params
 }
 
 func createIdpSession(t *testing.T, userID string) string {
@@ -63,7 +77,7 @@ func TestHandleConsent_Get_InvalidClient_ReturnsBadRequest(t *testing.T) {
 	HandleConsent(rr, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
-	assert.Contains(t, rr.Body.String(), "invalid_client")
+	assert.Contains(t, rr.Body.String(), "invalid_request")
 }
 
 func TestHandleConsent_Get_ValidRequest_RendersConsentPage(t *testing.T) {
@@ -74,7 +88,8 @@ func TestHandleConsent_Get_ValidRequest_RendersConsentPage(t *testing.T) {
 	setupConsentClient(t, "c1")
 	sessionID := createIdpSession(t, "user1")
 
-	req := httptest.NewRequest(http.MethodGet, "/oauth2/consent?client_id=c1&redirect_uri=http://localhost/callback&scope=openid+profile&state=xyz", nil)
+	params := withTestConsentFlow(t, sessionID, ConsentParams{ClientID: "c1", RedirectURI: "http://localhost/callback", Scope: "openid profile", State: "xyz", CodeChallenge: "challenge", CodeChallengeMethod: "S256"})
+	req := httptest.NewRequest(http.MethodGet, URL(params), nil)
 	req.AddCookie(&http.Cookie{Name: testCookieName, Value: sessionID})
 	rr := httptest.NewRecorder()
 	HandleConsent(rr, req)
@@ -148,6 +163,7 @@ func TestHandleConsent_Post_Deny_RedirectsWithAccessDenied(t *testing.T) {
 		State:         "xyz",
 		CodeChallenge: "challenge", CodeChallengeMethod: "S256",
 	}
+	params = withTestConsentFlow(t, sessionID, params)
 	sig := signConsent(params, "user1")
 
 	form := url.Values{}
@@ -158,6 +174,7 @@ func TestHandleConsent_Post_Deny_RedirectsWithAccessDenied(t *testing.T) {
 	form.Set("state", "xyz")
 	form.Set("code_challenge", params.CodeChallenge)
 	form.Set("code_challenge_method", params.CodeChallengeMethod)
+	form.Set("consent_flow", params.FlowToken)
 	form.Set("consent_sig", sig)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/consent", strings.NewReader(form.Encode()))
@@ -191,6 +208,7 @@ func TestHandleConsent_Post_Allow_StoresConsentAndRedirects(t *testing.T) {
 		CodeChallenge:       "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
 		CodeChallengeMethod: "S256",
 	}
+	params = withTestConsentFlow(t, sessionID, params)
 	sig := signConsent(params, "user1")
 
 	form := url.Values{}
@@ -201,6 +219,7 @@ func TestHandleConsent_Post_Allow_StoresConsentAndRedirects(t *testing.T) {
 	form.Set("state", "abc")
 	form.Set("code_challenge", "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 	form.Set("code_challenge_method", "S256")
+	form.Set("consent_flow", params.FlowToken)
 	form.Set("consent_sig", sig)
 
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/consent", strings.NewReader(form.Encode()))
@@ -329,6 +348,7 @@ func TestVerifyConsentSignature_ValidSignature(t *testing.T) {
 func TestRedirectToConsent_BuildsCorrectURL(t *testing.T) {
 	testutils.WithConfigOverride(t, func() {
 		config.Bootstrap.AppOAuthPath = "/oauth2"
+		config.Bootstrap.AuthIdpSessionCookieName = testCookieName
 	})
 
 	params := ConsentParams{
@@ -343,6 +363,7 @@ func TestRedirectToConsent_BuildsCorrectURL(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: testCookieName, Value: "eligible-sso"})
 	rr := httptest.NewRecorder()
 	RedirectToConsent(rr, req, params)
 

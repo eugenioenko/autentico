@@ -31,6 +31,8 @@ type OAuthParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
+	MaxAge              string
 	AuthorizeSig        string
 }
 
@@ -52,6 +54,8 @@ func BuildVerifyURL(rawToken string, p OAuthParams) string {
 	q.Set("token", rawToken)
 	q.Set("redirect_uri", p.RedirectURI)
 	q.Set("state", p.State)
+	q.Set("prompt", p.Prompt)
+	q.Set("max_age", p.MaxAge)
 	q.Set("client_id", p.ClientID)
 	q.Set("scope", p.Scope)
 	if p.Nonce != "" {
@@ -91,6 +95,9 @@ func RenderVerifyEmail(w http.ResponseWriter, r *http.Request, mode, username st
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"Prompt":              params.Prompt,
+		"LoginPrompt":         client.LoginPrompt(params.Prompt),
+		"MaxAge":              params.MaxAge,
 	}
 	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
@@ -115,6 +122,8 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       r.URL.Query().Get("code_challenge"),
 		CodeChallengeMethod: r.URL.Query().Get("code_challenge_method"),
 		AuthorizeSig:        r.URL.Query().Get("authorize_sig"),
+		Prompt:              r.URL.Query().Get("prompt"),
+		MaxAge:              r.URL.Query().Get("max_age"),
 	}
 
 	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
@@ -126,6 +135,8 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
 		State:               params.State,
+		Prompt:              params.Prompt,
+		MaxAge:              params.MaxAge,
 	}, params.AuthorizeSig) {
 		slog.Warn("verify-email: authorize parameter signature mismatch")
 		RenderVerifyEmail(w, r, "expired", "", params, "Invalid verification link. Please log in again.")
@@ -177,6 +188,8 @@ func HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
+		Prompt:              params.Prompt,
+		MaxAge:              params.MaxAge,
 	}, mfa.PrimaryVerification)
 	if err != nil {
 		slog.Error("verify-email: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
@@ -214,6 +227,8 @@ func handleResendVerification(w http.ResponseWriter, r *http.Request, send func(
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 		AuthorizeSig:        r.FormValue("authorize_sig"),
+		Prompt:              r.FormValue("prompt"),
+		MaxAge:              r.FormValue("max_age"),
 	}
 
 	// RFC 6749 §10.6: never email a verification link with unvalidated authorization parameters.

@@ -12,7 +12,6 @@ import (
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -195,6 +194,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		codeScope = requestedScope
+		codeAuthTime = time.Now()
 
 	case "client_credentials":
 		// RFC 6749 §4.4.2: the client MUST authenticate with the authorization server
@@ -287,37 +287,22 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "client_id is required for refresh_token grant")
 			return
 		}
-		usr, err = UserByRefreshToken(w, request)
-		if err != nil {
+		grant, refreshErr := readRefreshGrant(w, request)
+		if refreshErr != nil {
 			return
 		}
-		// Carry the IdP session id forward so a refreshed session stays linked to
-		// the same browser login. Without this, a refresh would orphan the new
-		// session from the cascade and let a revoked IdP session produce live
-		// tokens at the next refresh.
-		var priorIdp *string
-		if err := db.GetDB().QueryRow(
-			`SELECT idp_session_id FROM sessions WHERE refresh_token_hash = ?`,
-			utils.HashToken(request.RefreshToken),
-		).Scan(&priorIdp); err != nil {
-			slog.Warn("token: failed to look up prior IdP session for refresh token", "error", err)
+		usr = grant.user
+		if grant.session.IdpSessionID != nil {
+			idpSessionID = *grant.session.IdpSessionID
 		}
-		if priorIdp != nil {
-			idpSessionID = *priorIdp
+		// OIDC Core §12.2: refreshed tokens retain the original authentication.
+		codeAuthTime, err = grant.authenticationTime()
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Original authentication is unavailable. Please sign in again.")
+			return
 		}
-		// RFC 6749 §5.1: scope must be included in the response when it may differ
-		// from what the client originally requested. Look up the scope and issued_at
-		// stored with the original token.
-		var tokenScope string
-		var tokenIssuedAt time.Time
-		if err := db.GetDB().QueryRow(`SELECT scope, issued_at FROM tokens WHERE refresh_token_hash = ?`, utils.HashToken(request.RefreshToken)).Scan(&tokenScope, &tokenIssuedAt); err != nil {
-			slog.Warn("token: failed to read scope/issued_at from original token", "error", err)
-		}
-		// OIDC Core §12.2: auth_time in a refreshed ID token MUST match the original
-		// authentication time, not the refresh time.
-		if !tokenIssuedAt.IsZero() {
-			codeAuthTime = tokenIssuedAt
-		}
+		tokenScope := grant.scope
+
 		// RFC 6749 §6: if scope is present on a refresh request, it MUST NOT exceed the original grant;
 		// a subset is allowed (downscoping). If absent, the original scope is reused unchanged.
 		if request.Scope != "" {
@@ -346,7 +331,7 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		clientCfg = &resolved
 	}
 
-	authToken, err := GenerateTokens(*usr, request.ClientID, codeScope, clientCfg)
+	authToken, err := generateTokens(*usr, request.ClientID, codeScope, clientCfg, codeAuthTime)
 	if err != nil {
 		slog.Error("token: failed to generate tokens", "request_id", reqid.Get(r.Context()), "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Token generation failed")

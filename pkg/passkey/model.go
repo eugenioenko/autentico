@@ -38,6 +38,8 @@ type LoginState struct {
 	Nonce               string `json:"nonce"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
+	Prompt              string `json:"prompt,omitempty"`
+	MaxAge              string `json:"max_age,omitempty"`
 }
 
 // RegistrationState is stored in passkey_challenges for registration ceremonies.
@@ -52,6 +54,8 @@ type RegistrationState struct {
 	Nonce               string `json:"nonce"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
+	Prompt              string `json:"prompt,omitempty"`
+	MaxAge              string `json:"max_age,omitempty"`
 }
 
 // WebAuthnUser implements the webauthn.User interface.

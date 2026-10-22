@@ -23,6 +23,8 @@ type AuthorizeParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
+	MaxAge              string
 	State               string
 }
 
@@ -44,8 +46,19 @@ func Verify(p AuthorizeParams, signature string) bool {
 }
 
 // canonicalize builds a deterministic string from the authorize parameters.
-// Fields are joined with a delimiter that cannot appear in valid OAuth2 values.
+// Controlled requests use unambiguous encoding; ordinary requests retain the
+// original format so already-issued email links continue to verify.
 func canonicalize(p AuthorizeParams) string {
+	// OIDC Core §3.1.2.1: prompts and freshness controls cannot be removed
+	// or relaxed between authorization and primary authentication. Preserve
+	// signatures on older ordinary links that did not carry these controls.
+	if p.Prompt != "" || p.MaxAge != "" {
+		return "authorize-controls-v2\n" + url.Values{
+			"client_id": {p.ClientID}, "redirect_uri": {p.RedirectURI}, "scope": {p.Scope},
+			"state": {p.State}, "nonce": {p.Nonce}, "code_challenge": {p.CodeChallenge},
+			"code_challenge_method": {p.CodeChallengeMethod}, "prompt": {p.Prompt}, "max_age": {p.MaxAge},
+		}.Encode()
+	}
 	return strings.Join([]string{
 		p.ClientID,
 		p.RedirectURI,
@@ -60,5 +73,8 @@ func canonicalize(p AuthorizeParams) string {
 // FromValues reads the signed fields without normalizing their contents.
 func FromValues(v url.Values) AuthorizeParams {
 	return AuthorizeParams{ClientID: v.Get("client_id"), RedirectURI: v.Get("redirect_uri"), Scope: v.Get("scope"),
-		Nonce: v.Get("nonce"), CodeChallenge: v.Get("code_challenge"), CodeChallengeMethod: v.Get("code_challenge_method"), State: v.Get("state")}
+		Nonce: v.Get("nonce"), CodeChallenge: v.Get("code_challenge"), CodeChallengeMethod: v.Get("code_challenge_method"), State: v.Get("state"),
+		Prompt: v.Get("prompt"),
+		MaxAge: v.Get("max_age"),
+	}
 }
