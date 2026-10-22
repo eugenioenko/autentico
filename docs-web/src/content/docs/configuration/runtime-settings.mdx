@@ -157,7 +157,7 @@ Configurable via the dedicated **CORS** page in the Admin UI sidebar.
 ### `pkce_enforce_s256`
 Default: `true`
 
-Enforce PKCE with the S256 code challenge method for all clients. When disabled, clients may use `code_challenge_method=plain`, which provides no security benefit — the verifier equals the challenge and is visible in the authorization request. Only disable for backward compatibility with legacy clients that cannot support S256 (RFC 7636).
+Enforce PKCE with the S256 code challenge method for all clients. An omitted method means `plain` and is also rejected while this setting is enabled. When disabled, clients may use explicit or implicit `plain`, which exposes the verifier in the authorization request and provides less protection than S256. Discovery advertises `plain` only when this setting is disabled. Only disable for backward compatibility with legacy clients that cannot support S256 (RFC 7636).
 
 ---
 

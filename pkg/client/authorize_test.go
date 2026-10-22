@@ -19,7 +19,9 @@ func TestValidateAuthorization(t *testing.T) {
 		valid      bool
 	}{
 		{name: "public PKCE", valid: true},
-		{name: "default S256", valid: true, change: func(p *authzsig.AuthorizeParams) { p.CodeChallengeMethod = "" }},
+		{name: "implicit plain forbidden", change: func(p *authzsig.AuthorizeParams) { p.CodeChallengeMethod = "" }},
+		{name: "confidential implicit plain forbidden", sql: "UPDATE clients SET client_type='confidential'", change: func(p *authzsig.AuthorizeParams) { p.CodeChallengeMethod = "" }},
+		{name: "implicit plain opt-in", valid: true, allowPlain: true, change: func(p *authzsig.AuthorizeParams) { p.CodeChallengeMethod = "" }},
 		{name: "confidential without PKCE", valid: true, sql: "UPDATE clients SET client_type='confidential'", change: func(p *authzsig.AuthorizeParams) { p.CodeChallenge, p.CodeChallengeMethod = "", "" }},
 		{name: "explicit plain opt-in", valid: true, allowPlain: true, change: func(p *authzsig.AuthorizeParams) { p.CodeChallengeMethod = "plain" }},
 		{name: "missing client", change: func(p *authzsig.AuthorizeParams) { p.ClientID = "" }},

@@ -63,6 +63,11 @@ func ValidatePKCE(clientType, challenge, method string) error {
 	if method != "" && (challenge == "" || (method != "S256" && method != "plain")) {
 		return fmt.Errorf("invalid code_challenge_method")
 	}
+	// RFC 7636 §4.3: an omitted transformation defaults to plain, including
+	// signed requests entering directly through other browser flow handlers.
+	if challenge != "" && method == "" {
+		method = "plain"
+	}
 	// RFC 7636 §7.2: retain the configured S256 enforcement policy.
 	if method == "plain" && config.Get().AuthPKCEEnforceSHA256 {
 		return fmt.Errorf("code_challenge_method plain is not allowed; use S256")

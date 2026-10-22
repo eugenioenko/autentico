@@ -41,6 +41,8 @@ Both paths return the same document. Most OIDC client libraries accept this URL 
 }
 ```
 
+`code_challenge_methods_supported` is `["S256"]` by default. When `pkce_enforce_s256` is disabled, it becomes `["S256", "plain"]`. Clients should always send an explicit `code_challenge_method=S256`; an omitted method defaults to `plain`.
+
 ## JWKS endpoint
 
 The JSON Web Key Set (public keys for token verification) is at:

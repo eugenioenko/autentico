@@ -67,7 +67,7 @@ func TestCallbackBlocksDiscoveryDerivedPrivateEndpoints(t *testing.T) {
 				resp.Header.Set("Content-Type", "application/json")
 				return resp, nil
 			})
-			state, err := SignState(FederationState{ProviderID: "upstream", ClientID: "client", RedirectURI: "https://client.example/cb", Scope: "openid", CodeChallenge: "challenge"})
+			state, err := SignState(FederationState{ProviderID: "upstream", ClientID: "client", RedirectURI: "https://client.example/cb", Scope: "openid", CodeChallenge: "challenge", CodeChallengeMethod: "S256"})
 			require.NoError(t, err)
 			req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/upstream/callback?"+url.Values{"state": {state}, "code": {"code"}}.Encode(), nil)
 			req.SetPathValue("id", "upstream")

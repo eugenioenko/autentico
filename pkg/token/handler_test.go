@@ -4,13 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/eugenioenko/autentico/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/eugenioenko/autentico/pkg/utils"
 
 	authcode "github.com/eugenioenko/autentico/pkg/auth_code"
 	"github.com/eugenioenko/autentico/pkg/config"
@@ -1097,12 +1098,13 @@ func TestVerifyCodeChallenge_Plain(t *testing.T) {
 	assert.False(t, verifyCodeChallenge(challenge, "plain", "wrong"))
 }
 
-// RFC 7636 §4.2: S256 is MTI — empty method defaults to S256
-func TestVerifyCodeChallenge_DefaultsToS256(t *testing.T) {
+// RFC 7636 §4.2 requires S256 support; §4.3 still defaults an absent method to plain.
+func TestVerifyCodeChallenge_DefaultsToPlain(t *testing.T) {
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-	challenge := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-
-	assert.True(t, verifyCodeChallenge(challenge, "", verifier))
+	hashed := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	assert.True(t, verifyCodeChallenge(verifier, "", verifier))
+	assert.False(t, verifyCodeChallenge(hashed, "", verifier), "an omitted method cannot silently select S256")
+	assert.False(t, verifyCodeChallenge(verifier, "", "wrong-verifier"))
 }
 
 // RFC 7636 §4.4.1: unsupported transformation method MUST be rejected

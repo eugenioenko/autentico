@@ -28,7 +28,7 @@ func TestCompleteAuthFlowRejectsInvalidRegistration(t *testing.T) {
 			}
 			rr := httptest.NewRecorder()
 			err := completeAuthFlow(rr, httptest.NewRequest(http.MethodGet, "/callback", nil), &user.User{ID: "victim"}, &FederationState{
-				ClientID: tc.clientID, RedirectURI: tc.redirect, CodeChallenge: "challenge",
+				ClientID: tc.clientID, RedirectURI: tc.redirect, CodeChallenge: "challenge", CodeChallengeMethod: "S256",
 			})
 			require.Error(t, err)
 			require.Empty(t, rr.Header().Get("Location"))
