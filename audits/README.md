@@ -63,5 +63,6 @@ Then:
 | 2026-06-10 | claude-fable-5 | security-review | 4 open hardening items, 2 false positives disproved |
 | 2026-10-20 | claude-opus-5-5 | security-review | 21 findings (4 HIGH, 8 MEDIUM, 9 LOW), issues #462-#482 |
 | 2026-10-21 | claude-opus-5-5 | compliance-review | 14 OIDC/OAuth spec findings (1 HIGH, 4 MEDIUM, 9 LOW), issues #511-#523 + #471 |
+| 2026-10-22 | claude-opus-5-5 | pentest | Black-box pre-release test of the binary: 15 findings (1 MEDIUM, 14 LOW); all prior fixes held; upgrades, races and crash recovery clean |
 
 Keep this index updated when adding a file.
