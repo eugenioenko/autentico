@@ -42,7 +42,7 @@ test.afterAll(() => {
 let totpSecret: string;
 let adminToken: string;
 
-test("signup creates account", async ({ page }) => {
+test("signup requires TOTP before creating a session", async ({ page }) => {
 
   await page.goto(`${BASE_URL}/account/`);
   await page.waitForURL("**/oauth2/authorize**", { timeout: TIMEOUT });
@@ -55,10 +55,10 @@ test("signup creates account", async ({ page }) => {
   await page.fill("#confirm_password", PASSWORD);
   await page.click('button[type="submit"]');
 
-  // Signup auto-logs in (no MFA on first signup)
-  await expect(page.getByTestId("account-dashboard")).toBeVisible({
-    timeout: 15000,
-  });
+  // Creating an account does not satisfy required MFA or establish SSO.
+  await expect(page.getByText("Setup Authenticator", { exact: true })).toBeVisible({ timeout: TIMEOUT });
+  await expect(page.getByTestId("account-dashboard")).not.toBeVisible();
+  expect((await page.context().cookies()).some(cookie => cookie.name === "autentico_idp_session")).toBe(false);
 
   // Mark email as verified so magic link can look up this user
   const usersResp = await fetch(`${BASE_URL}/admin/api/users`, {
@@ -75,8 +75,8 @@ test("signup creates account", async ({ page }) => {
     body: JSON.stringify({ is_email_verified: true }),
   });
 
-  await page.getByTestId("sign-out").click();
-  await page.waitForURL("**/oauth2/logout**", { timeout: TIMEOUT });
+  // Abandon this pending enrollment. The next fresh password login must
+  // still require enrollment; no authenticated cookie was issued here.
 });
 
 test("first password login triggers TOTP enrollment", async ({ page }) => {
