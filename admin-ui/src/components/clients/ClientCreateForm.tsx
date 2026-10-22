@@ -40,8 +40,6 @@ const GRANT_TYPE_OPTIONS = [
 
 const RESPONSE_TYPE_OPTIONS = [
   { label: "Code", value: "code" },
-  { label: "Token", value: "token" },
-  { label: "ID Token", value: "id_token" },
 ];
 
 const CLIENT_TYPE_OPTIONS = [

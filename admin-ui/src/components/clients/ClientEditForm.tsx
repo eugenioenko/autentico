@@ -39,8 +39,6 @@ const GRANT_TYPE_OPTIONS = [
 
 const RESPONSE_TYPE_OPTIONS = [
   { label: "Code", value: "code" },
-  { label: "Token", value: "token" },
-  { label: "ID Token", value: "id_token" },
 ];
 
 const AUTH_METHOD_OPTIONS = [
@@ -68,6 +66,7 @@ export default function ClientEditForm({
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateClient = useUpdateClient();
+  const hasLegacyResponseTypes = client?.response_types?.some((value) => value !== "code") ?? false;
 
   useEffect(() => {
     if (client && open) {
@@ -274,6 +273,20 @@ export default function ClientEditForm({
           name="response_types"
           label="Response Types"
           tooltip={{ title: tip("response_types"), icon: <ExclamationCircleOutlined /> }}
+          extra={hasLegacyResponseTypes
+            ? "This client has unsupported response types. Remove them before saving. Select Code explicitly if this client should use Authorization Code responses."
+            : undefined}
+          rules={[{
+            validator: (_rule, values: string[] | undefined) => {
+              if (values?.some((value) => value !== "code")) {
+                return Promise.reject(new Error("Only Code is supported. Remove unsupported response types before saving."));
+              }
+              if (hasLegacyResponseTypes && !values?.includes("code")) {
+                return Promise.reject(new Error("Select Code explicitly to replace the legacy response types."));
+              }
+              return Promise.resolve();
+            },
+          }]}
         >
           <Select mode="multiple" options={RESPONSE_TYPE_OPTIONS} />
         </Form.Item>

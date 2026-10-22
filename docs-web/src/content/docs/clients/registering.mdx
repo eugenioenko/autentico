@@ -9,6 +9,8 @@ import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
 Go to **Admin UI → Clients → New Client**. Fill in the required fields and click **Create**. The UI generates `client_id` and `client_secret` (for confidential clients) automatically. Save the secret immediately — it is only shown once.
 
+Only `response_types: ["code"]` is supported. Registration and update reject implicit (`token`), ID-token-only (`id_token`) and hybrid response types. The Admin UI offers only Code. Existing registrations cannot enable an unsupported flow: authorization returns `unsupported_response_type` instead of issuing a code for another response type. When editing a legacy registration, remove unsupported response types and explicitly select Code before saving; the form explains the required repair and does not enable Code automatically. Authorization also requires the client’s `authorization_code` grant, including during SSO.
+
 ## Via API
 
 <Tabs>

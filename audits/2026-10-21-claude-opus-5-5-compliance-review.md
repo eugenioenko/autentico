@@ -16,7 +16,7 @@ Only MUST-level violations, or places where the server advertises or reports som
 | HIGH | `prompt=none` with a valid SSO session and missing consent redirects to the consent page instead of returning `consent_required`. | `pkg/authorize/handler.go:149` | OIDC Core §3.1.2.1 | test | Fixed in [#525](https://github.com/eugenioenko/autentico/pull/525) ([#511](https://github.com/eugenioenko/autentico/issues/511)) |
 | MEDIUM | Refreshed ID tokens use the previous token row's `issued_at` as `auth_time`; it drifts forward on every refresh. | `pkg/token/handler.go:319` | OIDC Core §12.2 | test | Fixed in [#525](https://github.com/eugenioenko/autentico/pull/525) ([#512](https://github.com/eugenioenko/autentico/issues/512)) |
 | MEDIUM | Codes issued from the consent POST get `auth_time` = consent time, not the IdP session's authentication time. | `pkg/consent/handler.go:154`, `pkg/auth_code/create.go:10` | OIDC Core §2 (`auth_time`) | read | Fixed in [#525](https://github.com/eugenioenko/autentico/pull/525) ([#471](https://github.com/eugenioenko/autentico/issues/471)) |
-| MEDIUM | `response_type=token` is accepted for clients registered with `token`, and a code is returned in the query. Registration accepts `token`/`id_token`. | `pkg/authorize/handler.go:128`, `pkg/client/model.go` | RFC 6749 §3.1.1, §4.1.2.1 | test | Open ([#513](https://github.com/eugenioenko/autentico/issues/513)) |
+| MEDIUM | `response_type=token` is accepted for clients registered with `token`, and a code is returned in the query. Registration accepts `token`/`id_token`. | `pkg/authorize/handler.go:128`, `pkg/client/model.go` | RFC 6749 §3.1.1, §4.1.2.1 | test | Fixed in [#526](https://github.com/eugenioenko/autentico/pull/526) ([#513](https://github.com/eugenioenko/autentico/issues/513)) |
 | MEDIUM | Device authorization endpoint does not authenticate confidential clients (or reject inactive ones). | `pkg/devicecode/handler.go:42` | RFC 8628 §3.1 | read | Open ([#514](https://github.com/eugenioenko/autentico/issues/514)) |
 | LOW | Unknown `grant_type` returns `invalid_request`; the `unsupported_grant_type` branch is unreachable. | `pkg/token/handler.go:80`, `pkg/token/model.go` | RFC 6749 §5.2 | test | Open ([#515](https://github.com/eugenioenko/autentico/issues/515)) |
 | LOW | 401 `invalid_client` after Basic auth has no `WWW-Authenticate` at token and revoke; revoke's bearer 401 has none either. | `pkg/token/handler.go:92`, `pkg/revoke/handler.go:43,49,55` | RFC 6749 §5.2, RFC 6750 §3 | test | Open ([#516](https://github.com/eugenioenko/autentico/issues/516)) |
@@ -67,3 +67,7 @@ As part of this review, inline spec annotations were added to compliant return p
 - [`rfc/rfc.md`](../rfc/rfc.md): MUST/SHOULD/MAY tables
 - [2026-05-09 compliance review](2026-05-09-rfc-compliance-review.md)
 - [2026-10-20 security review](2026-10-20-claude-opus-5-5-security-review.md)
+
+## Follow-up review
+
+CodeRabbit’s source review of [#526](https://github.com/eugenioenko/autentico/pull/526) found that SSO code issuance also needed to enforce the registered authorization-code grant. The reproduced follow-up [#527](https://github.com/eugenioenko/autentico/issues/527) is fixed in that PR, with authenticated GET/POST regressions. This follow-up was outside the original audit.

@@ -73,7 +73,7 @@ GET /oauth2/authorize
 
 | Parameter | Required | Description |
 |---|---|---|
-| `response_type` | Yes | Must be `code` |
+| `response_type` | Yes | Must be `code`; other values return `unsupported_response_type`, including on SSO |
 | `client_id` | Yes | Your registered client ID |
 | `redirect_uri` | Yes | Must exactly match a registered redirect URI |
 | `scope` | Yes | Space-separated scopes. Must include `openid` for OIDC. |

@@ -251,7 +251,8 @@ func ValidateClientCreateRequest(input ClientCreateRequest) error {
 		validation.Field(&input.ClientName, validation.Required, validation.Length(1, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Required, validation.Length(1, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
-		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
+		// RFC 7591 §2 / RFC 6749 §3.1.1: register only implemented response types.
+		validation.Field(&input.ResponseTypes, validation.Each(validation.Required, validation.In("code"))),
 		validation.Field(&input.ClientType, validation.In("", "confidential", "public")),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
 		validation.Field(&input.Description, validation.Length(0, 1000), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
@@ -319,7 +320,8 @@ func ValidateClientUpdateRequest(input ClientUpdateRequest) error {
 		validation.Field(&input.ClientName, validation.Length(0, 255), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.RedirectURIs, validation.Length(0, 10)),
 		validation.Field(&input.GrantTypes, validation.Each(validation.In("authorization_code", "refresh_token", "client_credentials", "password", "urn:ietf:params:oauth:grant-type:device_code"))),
-		validation.Field(&input.ResponseTypes, validation.Each(validation.In("code", "token", "id_token"))),
+		// RFC 7591 §2 / RFC 6749 §3.1.1: register only implemented response types.
+		validation.Field(&input.ResponseTypes, validation.Each(validation.Required, validation.In("code"))),
 		validation.Field(&input.TokenEndpointAuthMethod, validation.In("", "client_secret_basic", "client_secret_post", "none")),
 		validation.Field(&input.Description, validation.Length(0, 1000), validation.Match(noHTMLPattern).Error("must not contain HTML characters (< or >)")),
 		validation.Field(&input.LogoURI, validation.By(validateWebURI)),
