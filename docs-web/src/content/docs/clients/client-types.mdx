@@ -29,7 +29,7 @@ curl -X POST https://auth.example.com/oauth2/token \
 
 For OAuth Basic authentication, form-encode `client_id` and `client_secret` separately, join the encoded values with a colon, then Base64-encode the result (RFC 6749 §2.3.1). The server reverses that form encoding exactly once. For example, a literal `+` becomes `%2B`, `%` becomes `%25`, `:` becomes `%3A`, and a space becomes `+`. This matters for custom IDs or secrets; client libraries must prepare OAuth Basic credentials rather than passing raw reserved characters.
 
-Form authentication sends credentials only in the POST body. Credentials in URL parameters are rejected. Use one authentication method per request: do not combine Basic with a form secret or another Authorization header. A redundant body `client_id` is allowed only when it matches the decoded Basic identity.
+Form authentication sends credentials only in the POST body. Non-empty credentials in URL parameters are rejected. Empty parameters are treated as omitted, as required by RFC 6749 §3.2 and RFC 8628 §3.1. Use one authentication method per request: do not combine Basic with a form secret or another Authorization header. A redundant body `client_id` is allowed only when it matches the decoded Basic identity.
 
 Invalid body/URI transports, duplicate parameters and conflicting credentials return `400 invalid_request`. Wrong or malformed Basic credentials return `401 invalid_client` with a matching Basic challenge; malformed Basic never falls back to form credentials. These rules apply to token, device authorization, introspection and revocation requests. Admin bearer authentication remains available at introspection and revocation as a separate method.
 

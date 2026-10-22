@@ -65,6 +65,20 @@ describe('OAuth client credential transports', () => {
     expect(JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).azp).toBe(CLIENT);
   });
 
+  it('treats empty URI parameters as omitted while rejecting later non-empty credential values', async () => {
+    for (const query of ['client_id=', 'client_secret=', 'client_id', 'client_secret', 'client_id=&client_secret=']) {
+      const response = await postForm(`${OAUTH_URL}/token?${query}`, {
+        ...requestFields('token'), client_id: CLIENT, client_secret: SECRET });
+      expect(response.status).toBe(200);
+      expect((await response.json()).access_token).toBeTruthy();
+    }
+    await assertError(await postForm(`${OAUTH_URL}/token?client_id=&client_secret=`, requestFields('token')), 401, 'invalid_client');
+    for (const key of ['client_id', 'client_secret']) {
+      const query = new URLSearchParams({ [key]: '' }); query.append(key, key === 'client_id' ? CLIENT : SECRET);
+      await assertError(await postForm(`${OAUTH_URL}/token?${query}`, { ...requestFields('token'), client_id: CLIENT, client_secret: SECRET }), 400, 'invalid_request');
+    }
+  });
+
   for (const endpoint of endpoints) {
     it(`${endpoint} rejects URL credentials, multiple methods and contradictory body identities`, async () => {
       const query = new URLSearchParams({ client_id: CLIENT, client_secret: SECRET });

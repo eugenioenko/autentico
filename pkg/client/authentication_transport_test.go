@@ -100,3 +100,32 @@ func TestAuthenticationPreservesLegacyIntrospectionJSONBody(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, body, string(remaining))
 }
+
+func TestEmptyURIParametersAreOmittedButLaterCredentialsAreRejected(t *testing.T) {
+	for _, tt := range []struct {
+		query  string
+		reject bool
+	}{
+		{"client_id=", false}, {"client_secret=", false}, {"client_id", false}, {"client_secret", false},
+		{"client_id=&client_secret=", false},
+		{"client_secret=&client_secret=transport-secret", true},
+		{"client_id=&client_id=transport-client", true},
+	} {
+		t.Run(tt.query, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestConfidentialClient(t, "transport-client", "transport-secret")
+			form := url.Values{"client_id": {"transport-client"}, "client_secret": {"transport-secret"}}
+			r := httptest.NewRequest(http.MethodPost, "/oauth2/token?"+tt.query, strings.NewReader(form.Encode()))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			authenticated, err := AuthenticateClientFromRequest(r)
+			if tt.reject {
+				require.ErrorIs(t, err, ErrInvalidClientAuthenticationRequest)
+				require.Nil(t, authenticated)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, authenticated)
+				require.Equal(t, "transport-client", authenticated.ClientID)
+			}
+		})
+	}
+}

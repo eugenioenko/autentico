@@ -55,6 +55,8 @@ func AuthenticateClientFromRequest(r *http.Request) (*Client, error) {
 	}
 	query := r.URL.Query()
 	for _, key := range []string{"client_id", "client_secret"} {
+		// RFC 6749 §3.2 / RFC 8628 §3.1: empty parameters are omitted.
+		// Inspect every value so a later non-empty URI credential is rejected.
 		for _, value := range query[key] {
 			if value != "" {
 				return nil, fmt.Errorf("%w: client credentials must be sent in the request body", ErrInvalidClientAuthenticationRequest)
