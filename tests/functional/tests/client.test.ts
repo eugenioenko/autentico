@@ -101,12 +101,21 @@ describe('implemented authorization response types', () => {
         const response = await postJSON(endpoint, { client_name: 'Unsupported response',
           redirect_uris: ['http://localhost:3000/callback'], response_types }, token);
         expect(response.status).toBe(400);
+        expect((await response.json()).error).toBe('invalid_client_metadata');
       }
-      const updated = await putJSON(`${BASE_URL}/admin/api/clients/${client.client_id}`, { response_types }, token);
-      expect(updated.status).toBe(400);
+      for (const endpoint of [`${BASE_URL}/admin/api/clients/${client.client_id}`, `${OAUTH_URL}/register/${client.client_id}`]) {
+        const updated = await putJSON(endpoint, { response_types }, token);
+        expect(updated.status).toBe(400);
+        expect((await updated.json()).error).toBe('invalid_client_metadata');
+      }
     }
     const stored = await getJSON<{ response_types: string[] }>(`${BASE_URL}/admin/api/clients/${client.client_id}`, token);
     expect(stored.response_types).toEqual(['code']);
+    for (const endpoint of [`${BASE_URL}/admin/api/clients/${client.client_id}`, `${OAUTH_URL}/register/${client.client_id}`]) {
+      expect((await putJSON(endpoint, { response_types: ['code'] }, token)).status).toBe(200);
+    }
+    const repaired = await getJSON<{ response_types: string[] }>(`${BASE_URL}/admin/api/clients/${client.client_id}`, token);
+    expect(repaired.response_types).toEqual(['code']);
     const query = new URLSearchParams({ client_id: client.client_id, redirect_uri: 'http://localhost:3000/callback',
       response_type: 'code', state: 'opaque & state', scope: 'openid',
       code_challenge: 'challenge', code_challenge_method: 'S256' });

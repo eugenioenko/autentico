@@ -67,3 +67,7 @@ As part of this review, inline spec annotations were added to compliant return p
 - [`rfc/rfc.md`](../rfc/rfc.md): MUST/SHOULD/MAY tables
 - [2026-05-09 compliance review](2026-05-09-rfc-compliance-review.md)
 - [2026-10-20 security review](2026-10-20-claude-opus-5-5-security-review.md)
+
+## Follow-up review
+
+CodeRabbit’s source review of [#526](https://github.com/eugenioenko/autentico/pull/526) found that SSO code issuance also needed to enforce the registered authorization-code grant. The reproduced follow-up [#527](https://github.com/eugenioenko/autentico/issues/527) is fixed in that PR, with authenticated GET/POST regressions. This follow-up was outside the original audit.
