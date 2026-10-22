@@ -96,7 +96,7 @@ describe('implemented authorization response types', () => {
       redirect_uris: ['http://localhost:3000/callback'], response_types: ['code'], client_type: 'public' }, token);
     expect(created.status).toBe(201);
     const client = await created.json();
-    for (const response_types of [['token'], ['id_token'], ['code', 'token'], ['code id_token']]) {
+    for (const response_types of [['token'], ['id_token'], ['code', 'token'], ['code id_token'], [''], ['code', '']]) {
       for (const endpoint of [`${OAUTH_URL}/register`, `${BASE_URL}/admin/api/clients`]) {
         const response = await postJSON(endpoint, { client_name: 'Unsupported response',
           redirect_uris: ['http://localhost:3000/callback'], response_types }, token);

@@ -226,7 +226,7 @@ func TestValidateClientUpdateRequest(t *testing.T) {
 }
 
 func TestClientMetadataOnlyRegistersImplementedResponseTypes(t *testing.T) {
-	for _, types := range [][]string{{"token"}, {"id_token"}, {"code", "token"}, {"code id_token"}} {
+	for _, types := range [][]string{{"token"}, {"id_token"}, {"code", "token"}, {"code id_token"}, {""}, {"code", ""}} {
 		request := ClientCreateRequest{ClientName: "Code-only app", RedirectURIs: []string{"http://localhost/cb"}, ResponseTypes: types}
 		assert.Error(t, ValidateClientCreateRequest(request), types)
 		assert.Error(t, ValidateClientUpdateRequest(ClientUpdateRequest{ResponseTypes: types}), types)
