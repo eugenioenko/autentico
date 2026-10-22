@@ -164,7 +164,7 @@ func TestDeletion_SelfServiceFlow(t *testing.T) {
 	accessToken := obtainAccessToken(t, ts, username, password)
 
 	// POST deletion-request — self-service mode deletes immediately
-	req, err := http.NewRequest("POST", ts.BaseURL+"/account/api/deletion-request", bytes.NewBuffer([]byte(`{}`)))
+	req, err := http.NewRequest("POST", ts.BaseURL+"/account/api/deletion-request", bytes.NewBuffer([]byte(`{"current_password":"password123"}`)))
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")

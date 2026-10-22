@@ -24,6 +24,12 @@ const DangerZoneCard: React.FC = () => {
     queryFn: () => api.get('/deletion-request').then((res) => res.data.data ?? null),
   });
 
+  const { data: profile, isPending: profilePending, isError: profileFailed } = useQuery<{ has_password: boolean }>({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/profile').then((res) => res.data.data),
+  });
+  const immediateDeletion = settings.allow_self_service_deletion && profile?.has_password === true;
+
   const [showModal, setShowModal] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
@@ -40,30 +46,29 @@ const DangerZoneCard: React.FC = () => {
 
   return (
     <>
-      {showModal && <AccountDeletionModal onClose={() => setShowModal(false)} />}
+      {showModal && <AccountDeletionModal immediateDeletion={immediateDeletion} onClose={() => setShowModal(false)} />}
       <Card
         title="Danger Zone"
         description={
-          settings.allow_self_service_deletion
+          immediateDeletion
             ? 'Permanently delete your account. This action cannot be undone.'
             : 'Request account deletion. An admin will review and process your request.'
         }
         action={
           !deletionRequest ? (
-            <Button variant="danger" onClick={() => setShowModal(true)}>
+            <Button variant="danger" disabled={profilePending || !profile} onClick={() => setShowModal(true)}>
               Delete Account
             </Button>
           ) : undefined
         }
       >
+        {profileFailed && <Alert type="danger" message="Could not load account details. Refresh the page to try again." />}
         {deletionRequest && (
           <div className="space-y-4">
             <div className="rounded-xl bg-theme-danger-bg border border-theme-danger-bg px-4 py-3 text-sm text-theme-danger-fg">
               A deletion request was submitted on{' '}
               <strong>{new Date(deletionRequest.requested_at).toLocaleDateString()}</strong>.
-              {settings.allow_self_service_deletion
-                ? ' Your account has been deleted.'
-                : ' An admin will review and process your request. Your account remains active until then.'}
+              {' An admin will review and process your request. Your account remains active until then.'}
             </div>
             {deletionRequest.reason && (
               <p className="text-sm text-theme-muted">
@@ -71,15 +76,13 @@ const DangerZoneCard: React.FC = () => {
               </p>
             )}
             {cancelError && <Alert type="danger" message={cancelError} />}
-            {!settings.allow_self_service_deletion && (
-              <Button
-                variant="ghost"
-                onClick={() => cancelMutation.mutate()}
-                disabled={cancelMutation.isPending}
-              >
-                {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Deletion Request'}
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Deletion Request'}
+            </Button>
           </div>
         )}
       </Card>

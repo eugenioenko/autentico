@@ -35,7 +35,7 @@ func verifyCurrentPassword(w http.ResponseWriter, usr *user.User, currentPasswor
 // @Tags account
 // @Produce json
 // @Security UserAuth
-// @Success 200 {object} user.UserResponse
+// @Success 200 {object} ProfileResponse
 // @Failure 401 {object} model.ApiError
 // @Router /account/api/profile [get]
 func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
-	utils.SuccessResponse(w, usr.ToResponse(), http.StatusOK)
+	utils.SuccessResponse(w, ProfileResponse{UserResponse: usr.ToResponse(), HasPassword: usr.Password != ""}, http.StatusOK)
 }
 
 // HandleUpdateProfile godoc

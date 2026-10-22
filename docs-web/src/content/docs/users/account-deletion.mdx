@@ -11,11 +11,11 @@ Autentico supports user-initiated account deletion with two modes: immediate sel
 
 ### Self-service deletion
 
-When `allow_self_service_deletion` is `true`, a user's account is permanently deleted immediately when they submit a deletion request. No admin review is required.
+When `allow_self_service_deletion` is `true`, accounts with a local password can be deleted immediately after confirming the current password. The account UI asks for it, and API callers must send `current_password`. Password failures use the existing account lockout policy. A successful deletion records a `user_deleted` audit event with `source: self` when audit logging is enabled.
 
 ### Admin-reviewed deletion
 
-When `allow_self_service_deletion` is `false` (the default), the user's request is stored as a pending deletion request. An admin must review and approve or cancel the request.
+When `allow_self_service_deletion` is `false` (the default), the user's request is stored as a pending deletion request. An admin must review and approve or cancel the request. Accounts without a local password, including passkey-only and federated accounts, also use this review flow even when immediate self-service deletion is enabled. Submitting a request does not require a password and leaves the account active.
 
 ## Configuration
 
@@ -28,7 +28,7 @@ curl -X PUT https://auth.example.com/admin/api/settings \
 
 | Setting | Default | Description |
 |---|---|---|
-| `allow_self_service_deletion` | `false` | When `true`, deletion requests are executed immediately without admin review |
+| `allow_self_service_deletion` | `false` | When `true`, password accounts can delete immediately with current-password confirmation; passwordless accounts require admin review |
 
 ## Account API endpoints (user-facing)
 
@@ -38,18 +38,21 @@ These endpoints are authenticated with the user's access token.
 
 **`POST /account/api/deletion-request`**
 
-Submits a deletion request. In self-service mode, the account is deleted immediately (returns `204`). In admin-review mode, a pending request is created (returns `201`).
+Submits a deletion request. Eligible password accounts are deleted immediately after current-password confirmation (returns `204`). Admin-review mode and passwordless accounts create a pending request (returns `201`). API clients should use the response status to distinguish the outcomes.
 
 ```bash
 curl -X POST https://auth.example.com/account/api/deletion-request \
   -H "Authorization: Bearer $USER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"reason": "No longer using the service"}'
+  -d '{"reason": "No longer using the service", "current_password": "YOUR_PASSWORD"}'
 ```
 
 | Field | Required | Description |
 |---|---|---|
 | `reason` | No | Optional reason for the deletion request |
+| `current_password` | For immediate deletion | Current local password; never stored in the request or audit record |
+
+Missing or malformed current-password input returns `400`; an incorrect password returns `403`, and account lockout returns `429`. These responses preserve the account and sessions. The account profile API includes `has_password` so clients can display the appropriate deletion flow.
 
 Returns `409 Conflict` if a pending request already exists, or `last_active_admin` if immediate deletion would remove the last active administrator. Create or promote another active administrator first.
 
@@ -140,6 +143,8 @@ When a deletion is approved (or executed in self-service mode), the user and all
 - All federated identity links
 - All group memberships
 - All consent records
+- Password reset and magic-link tokens
+- Device authorization codes
 - The deletion request itself
 
 <Aside type="caution">

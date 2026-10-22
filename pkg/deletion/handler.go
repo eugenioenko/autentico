@@ -3,6 +3,7 @@ package deletion
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -18,15 +19,18 @@ import (
 
 // HandleRequestDeletion godoc
 // @Summary Request account deletion
-// @Description Submits a deletion request for the authenticated user. If self-service deletion is enabled, the account is deleted immediately.
+// @Description Password accounts require current_password for immediate self-service deletion. Passwordless accounts and admin-review mode create a pending request.
 // @Tags account-deletion
 // @Accept json
 // @Produce json
-// @Param body body CreateDeletionRequestInput false "Optional deletion reason"
+// @Param body body CreateDeletionRequestInput false "Deletion reason and current password for immediate deletion"
 // @Security UserAuth
-// @Success 200 {object} DeletionRequestResponse
+// @Success 201 {object} DeletionRequestResponse
 // @Success 204 "Account deleted immediately (self-service mode)"
+// @Failure 400 {object} model.ApiError
 // @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Failure 429 {object} model.ApiError
 // @Failure 409 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
 // @Router /account/api/deletion-request [post]
@@ -38,9 +42,30 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input CreateDeletionRequestInput
-	_ = json.NewDecoder(r.Body).Decode(&input)
+	if r.Body != nil {
+		// OWASP Authentication §Require Re-authentication for Sensitive Features:
+		// malformed input must never authorize a destructive operation.
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil && !errors.Is(err, io.EOF) {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+			return
+		}
+	}
 
-	if config.Get().AllowSelfServiceDeletion {
+	// OWASP Authentication §Require Re-authentication for Sensitive Features:
+	// passwordless accounts use admin review until a fresh sign-in flow exists.
+	if config.Get().AllowSelfServiceDeletion && usr.Password != "" {
+		if input.CurrentPassword == "" {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Current password is required for immediate deletion")
+			return
+		}
+		if err := user.VerifyPassword(usr.ID, input.CurrentPassword); err != nil {
+			if errors.Is(err, user.ErrAccountLocked) {
+				utils.WriteErrorResponse(w, http.StatusTooManyRequests, "account_locked", "Account is temporarily locked")
+				return
+			}
+			utils.WriteErrorResponse(w, http.StatusForbidden, "invalid_password", "Current password does not match")
+			return
+		}
 		if err := HardDeleteUser(usr.ID); err != nil {
 			// OWASP Authorization §Exit Safely: all deletion modes preserve an active admin.
 			if errors.Is(err, user.ErrLastActiveAdmin) {
@@ -51,6 +76,9 @@ func HandleRequestDeletion(w http.ResponseWriter, r *http.Request) {
 			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete account")
 			return
 		}
+		// OWASP Authentication §Logging and Monitoring: retain the acting user's
+		// identity after the account row is gone; never record the credential.
+		audit.Log(audit.EventUserDeleted, usr, audit.TargetUser, usr.ID, audit.Detail("source", "self"), utils.GetClientIP(r))
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
