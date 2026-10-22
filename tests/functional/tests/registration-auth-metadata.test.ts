@@ -48,6 +48,16 @@ describe('Client registration authentication metadata', () => {
     }, admin);
     expect(registered.status).toBe(201);
     expect(await registered.json()).toMatchObject({ client_type: 'public', token_endpoint_auth_method: 'none' });
+    const missingChallenge = await fetch(`${OAUTH_URL}/authorize?${new URLSearchParams({
+      client_id: clientId, redirect_uri: callback, response_type: 'code', scope: 'openid', state: 'missing-challenge',
+    })}`, { redirect: 'manual' });
+    expect(missingChallenge.status).toBe(302);
+    const denied = new URL(missingChallenge.headers.get('location')!);
+    expect(denied.origin + denied.pathname).toBe(callback);
+    expect(denied.searchParams.get('error')).toBe('invalid_request');
+    expect(denied.searchParams.get('error_description')).toContain('code_challenge is required');
+    expect(denied.searchParams.get('state')).toBe('missing-challenge');
+    expect(denied.searchParams.has('code')).toBe(false);
     const { code } = await obtainAuthorizationCode(clientId, callback, 'admin', 'Password123!', 'openid offline_access');
     const missingPKCE = await postForm(`${OAUTH_URL}/token`, {
       grant_type: 'authorization_code', client_id: clientId, code, redirect_uri: callback,

@@ -10,10 +10,12 @@ const legacy = [
   { id: 'legacy-auth-public', type: 'public', method: 'client_secret_basic', effective: 'none' },
 ];
 
+const legacyFixtures = [...legacy, { id: 'legacy-auth-disabled', type: 'confidential', method: 'none', effective: 'client_secret_basic', disabled: true }];
+
 test.beforeAll(async () => {
   await startServer();
   admin = await getAdminToken();
-  for (const client of legacy) {
+  for (const client of legacyFixtures) {
     const response = await fetch(`${BASE_URL}/admin/api/clients`, { method: 'POST',
       headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: client.id, client_name: client.id, client_type: client.type,
@@ -26,8 +28,8 @@ test.beforeAll(async () => {
   execFileSync('python3', ['-c', `import json, sqlite3, sys
 with sqlite3.connect(sys.argv[1]) as database:
     for client in json.loads(sys.argv[2]):
-        database.execute('UPDATE clients SET token_endpoint_auth_method=? WHERE client_id=?', (client['method'], client['id']))
-`, join(__dirname, '../../../autentico.db'), JSON.stringify(legacy)]);
+        database.execute('UPDATE clients SET token_endpoint_auth_method=?, is_active=? WHERE client_id=?', (client['method'], not client.get('disabled', False), client['id']))
+`, join(__dirname, '../../../autentico.db'), JSON.stringify(legacyFixtures)]);
 });
 test.afterAll(() => stopServer());
 
@@ -44,6 +46,24 @@ async function choose(page: Page, label: string, option: string) {
   await page.getByLabel(label, { exact: true }).click();
   await page.locator('.ant-select-dropdown:visible').getByText(option, { exact: true }).click();
 }
+
+test('legacy read and list responses report effective authentication before repair, including disabled clients', async () => {
+  const listed = await fetch(`${BASE_URL}/admin/api/clients`, { headers: { Authorization: `Bearer ${admin}` } });
+  expect(listed.status).toBe(200);
+  const items = (await listed.json()).data.items;
+  for (const client of legacyFixtures) {
+    const expected = { client_id: client.id, client_type: client.type, token_endpoint_auth_method: client.effective,
+      is_active: client.id !== 'legacy-auth-disabled' };
+    expect(items.find((item: { client_id: string }) => item.client_id === client.id)).toMatchObject(expected);
+    for (const route of ['/admin/api/clients', '/oauth2/register']) {
+      const read = await fetch(`${BASE_URL}${route}/${client.id}`, { headers: { Authorization: `Bearer ${admin}` } });
+      expect(read.status).toBe(200);
+      const metadata = await read.json();
+      expect(metadata).toMatchObject(expected);
+      expect(metadata).not.toHaveProperty('client_secret');
+    }
+  }
+});
 
 for (const clientType of ['public', 'confidential']) {
   test(`admin creates a consistent ${clientType} client and type changes reset authentication`, async ({ page }) => {
