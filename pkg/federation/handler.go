@@ -55,9 +55,27 @@ func HandleFederationIcon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(svg)
 }
 
+// LoginHandler holds the outbound client used for a federation login.
+// Construct with NewLoginHandler(nil) to enforce the production SSRF policy.
+type LoginHandler struct{ httpClient *http.Client }
+
+// NewLoginHandler creates isolated login handlers; nil selects the restricted client.
+// An explicit client supports trusted in-process integrations such as local OIDC test fixtures.
+func NewLoginHandler(httpClient *http.Client) *LoginHandler {
+	if httpClient == nil {
+		httpClient = safeHTTPClient()
+	}
+	return &LoginHandler{httpClient: httpClient}
+}
+
 // HandleFederationBegin initiates an OIDC federation login by redirecting
 // the user to the external identity provider.
 func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
+	NewLoginHandler(nil).HandleBegin(w, r)
+}
+
+// HandleBegin validates the client and initiates discovery with this handler's outbound client.
+func (h *LoginHandler) HandleBegin(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
 	if providerID == "" {
 		http.Error(w, "missing provider id", http.StatusBadRequest)
@@ -98,8 +116,8 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use a restricted HTTP client to prevent SSRF via redirect following.
-	safeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
+	// Use a restricted HTTP client to prevent SSRF on every outbound connection.
+	safeCtx := context.WithValue(r.Context(), oauth2.HTTPClient, h.httpClient)
 	oidcProvider, err := oidc.NewProvider(safeCtx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)
@@ -122,6 +140,11 @@ func HandleFederationBegin(w http.ResponseWriter, r *http.Request) {
 // HandleFederationCallback handles the OIDC callback from the external provider,
 // resolves the local user, and issues an authorization code.
 func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
+	NewLoginHandler(nil).HandleCallback(w, r)
+}
+
+// HandleCallback completes discovery, code exchange and signature verification with one client.
+func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	providerID := r.PathValue("id")
 	if providerID == "" {
 		http.Error(w, "missing provider id", http.StatusBadRequest)
@@ -165,8 +188,8 @@ func HandleFederationCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use a restricted HTTP client to prevent SSRF via redirect following.
-	ctx := context.WithValue(r.Context(), oauth2.HTTPClient, safeHTTPClient())
+	// Use a restricted HTTP client to prevent SSRF on every outbound connection.
+	ctx := context.WithValue(r.Context(), oauth2.HTTPClient, h.httpClient)
 	oidcProvider, err := oidc.NewProvider(ctx, provider.Issuer)
 	if err != nil {
 		slog.Error("federation: failed to discover OIDC provider in callback", "request_id", reqid.Get(r.Context()), "issuer", provider.Issuer, "error", err)

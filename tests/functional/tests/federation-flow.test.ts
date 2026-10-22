@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execSync, spawn, type ChildProcess } from 'child_process';
+import { execSync, execFileSync, spawn, type ChildProcess } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { startServer, stopServer } from '../server-manager';
+import { resetState } from '../helpers';
 import {
   BASE_URL,
   OAUTH_URL,
@@ -32,6 +34,7 @@ const TEST_CODE_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
 let instanceBProcess: ChildProcess | null = null;
 let instanceBTempDir: string | null = null;
+let fixtureBinaryDir: string | null = null;
 let adminTokenB: string | null = null;
 
 // Track user IDs created during setup for assertions
@@ -277,6 +280,16 @@ async function performFederatedLogin(
 
 describe('Federation flow — two Autentico instances', () => {
   beforeAll(async () => {
+    // The production transport intentionally rejects private upstreams. Compile
+    // the Go test-only entry point to exercise this positive loopback fixture
+    // with an explicit local transport, keeping the production binary unchanged.
+    await stopServer();
+    resetState();
+    fixtureBinaryDir = mkdtempSync(join(tmpdir(), 'autentico-fed-fixture-'));
+    const fixtureBinary = join(fixtureBinaryDir, 'server');
+    execFileSync('go', ['test', '-c', '-o', fixtureBinary, './pkg/cli'], { cwd: ROOT, stdio: 'pipe', env: { ...process.env, CGO_ENABLED: '0' } });
+    await startServer({ binary: fixtureBinary, args: ['-test.run=^TestFederationFixtureServer$', '-test.timeout=5m'], env: { AUTENTICO_TEST_FEDERATION_FIXTURE: '1' } });
+
     // 1. Start Instance B
     instanceBTempDir = mkdtempSync(join(tmpdir(), 'autentico-fed-b-'));
     console.log(`[federation] Instance B temp dir: ${instanceBTempDir}`);
@@ -384,6 +397,12 @@ describe('Federation flow — two Autentico instances', () => {
       const token = await getAdminToken();
       await deleteRequest(`${BASE_URL}/admin/api/federation/${FEDERATION_PROVIDER_ID}`, token);
     } catch {}
+
+    await stopServer();
+    if (fixtureBinaryDir) {
+      rmSync(fixtureBinaryDir, { recursive: true, force: true });
+      fixtureBinaryDir = null;
+    }
 
     // Stop Instance B
     if (instanceBProcess?.pid) {

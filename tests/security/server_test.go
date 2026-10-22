@@ -47,6 +47,11 @@ type TestServer struct {
 }
 
 func startTestServer(t *testing.T) *TestServer {
+	return startTestServerWithFederationClient(t, nil)
+}
+
+// startTestServerWithFederationClient isolates local OIDC fixtures from production network policy.
+func startTestServerWithFederationClient(t *testing.T, federationClient *http.Client) *TestServer {
 	t.Helper()
 	testutils.WithTotpKey(t)
 
@@ -155,8 +160,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.HandleFunc(oauth+"/.well-known/jwks.json", wellknown.HandleJWKS)
 	mux.HandleFunc(oauth+"/token", token.HandleToken)
 	mux.HandleFunc("POST "+oauth+"/device_authorization", devicecode.HandleDeviceAuthorization)
-	mux.HandleFunc("GET "+oauth+"/federation/{id}", federation.HandleFederationBegin)
-	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federation.HandleFederationCallback)
+	federationLogin := federation.NewLoginHandler(federationClient)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}", federationLogin.HandleBegin)
+	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federationLogin.HandleCallback)
 	mux.HandleFunc(oauth+"/revoke", revoke.HandleRevoke)
 	mux.HandleFunc(oauth+"/userinfo", userinfo.HandleUserInfo)
 	mux.HandleFunc("POST "+oauth+"/logout", session.HandleLogout)
@@ -210,7 +216,7 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleDeleteUserClaim)))
 	mux.Handle("GET /admin/api/deletion-requests", middleware.AdminAuthMiddleware(http.HandlerFunc(deletion.HandleListDeletionRequests)))
 
-	mux.Handle("POST /admin/api/federation/providers", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleCreateProvider)))
+	mux.Handle("POST /admin/api/federation", middleware.AdminAuthMiddleware(http.HandlerFunc(federation.HandleCreateProvider)))
 
 	server.Config.Handler = middleware.CORSMiddleware(middleware.LoggingMiddleware(mux))
 	server.Start()

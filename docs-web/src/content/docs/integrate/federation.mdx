@@ -32,6 +32,12 @@ The OAuth2 authorization parameters (client_id, redirect_uri, scope, state, code
 
 Federation requires an active registered client, an allowed redirect URI and scopes, and permission to use the authorization code flow. Public clients must supply PKCE; the configured S256 policy also applies. These checks run before contacting the external provider and again before issuing a local authorization code, so removing a redirect URI or disabling a client also blocks an in-progress login. Codes without a client binding cannot be exchanged.
 
+## Outbound network protection
+
+Discovery, token exchange and signing-key (JWKS) requests use a restricted HTTP client. Each connection checks its resolved IP before dialing, including redirects and discovery-provided endpoint URLs. Private, loopback, link-local, unspecified, multicast and shared-address (CGNAT) destinations are blocked, including IPv4-mapped IPv6 addresses. Redirect chains are limited to five requests; the client does not use environment proxies.
+
+Federation providers must expose reachable public endpoints. A provider configured with a private issuer can still be stored by an admin, but login fails before contacting it. The same restriction applies if a public provider's discovery document points its token or signing-key endpoint at a private address. This policy also applies after DNS changes between requests.
+
 ## User resolution
 
 When a user authenticates through a federation provider, Autentico resolves the local user account in this order:

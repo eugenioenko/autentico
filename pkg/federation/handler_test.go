@@ -170,9 +170,9 @@ func TestHandleFederationCallback_Success(t *testing.T) {
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 
-	HandleFederationCallback(rr, req)
+	NewLoginHandler(ts.Client()).HandleCallback(rr, req)
 
-	assert.NotEqual(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
 func TestHandleFederationCallback_ExistingUser(t *testing.T) {
@@ -225,11 +225,11 @@ func TestHandleFederationCallback_ExistingUser(t *testing.T) {
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 
-	HandleFederationCallback(rr, req)
+	NewLoginHandler(ts.Client()).HandleCallback(rr, req)
 
 	// It will still fail on Exchange/Verify because we didn't mock tokens fully,
 	// but it should reach the part where it retrieves provider and state.
-	assert.NotEqual(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
 func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
@@ -280,9 +280,9 @@ func TestHandleFederationCallback_ExistingUser_NoIdentity(t *testing.T) {
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
 
-	HandleFederationCallback(rr, req)
+	NewLoginHandler(ts.Client()).HandleCallback(rr, req)
 
-	assert.NotEqual(t, http.StatusNotFound, rr.Code)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
 func TestHandleFederationCallback_Errors_Extra(t *testing.T) {
@@ -472,7 +472,7 @@ func TestHandleFederationBegin_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb", nil)
 	req.SetPathValue("id", "mock")
 	rr := httptest.NewRecorder()
-	HandleFederationBegin(rr, req)
+	NewLoginHandler(ts.Client()).HandleBegin(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
 	loc := rr.Header().Get("Location")
@@ -507,7 +507,7 @@ func TestHandleFederationBegin_PreservesClientNonce(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/oauth2/federation/mock?client_id=c1&code_challenge=challenge&redirect_uri=http://localhost/cb"+query, nil)
 		req.SetPathValue("id", "mock")
 		rr := httptest.NewRecorder()
-		HandleFederationBegin(rr, req)
+		NewLoginHandler(ts.Client()).HandleBegin(rr, req)
 		require.Equal(t, http.StatusFound, rr.Code)
 
 		loc, err := url.Parse(rr.Header().Get("Location"))

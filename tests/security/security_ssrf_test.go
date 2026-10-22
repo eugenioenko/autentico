@@ -3,139 +3,61 @@ package security
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/stretchr/testify/require"
 )
 
-// SSRF in federation provider registration tests.
-//
-// CVE-2020-10770 (Keycloak): SSRF via request_uri OIDC parameter
-// CVE-2026-1180 (Keycloak): SSRF via jwks_uri in dynamic client registration
-// Federation providers with internal/metadata URLs as issuer
+// registerSSRFProvider hits the same authenticated route and required fields as production.
+func registerSSRFProvider(t *testing.T, ts *TestServer, adminToken, id, issuer string) {
+	t.Helper()
+	body, err := json.Marshal(map[string]any{"id": id, "name": "SSRF fixture", "issuer": issuer, "client_id": "upstream-client", "client_secret": "secret", "enabled": true})
+	require.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPost, ts.BaseURL+"/admin/api/federation", bytes.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := ts.Client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusCreated, resp.StatusCode, "registration must succeed so the test reaches outbound discovery")
+}
 
-// Federation provider with cloud metadata URL as issuer should be rejected
-// or at minimum not trigger SSRF at creation time.
-func TestFederation_SSRF_CloudMetadataIssuer(t *testing.T) {
+// TestFederationSSRFBlocksDiscovery checks both entry points without contacting private targets.
+func TestFederationSSRFBlocksDiscovery(t *testing.T) {
 	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "ssrf-admin", "password123", "ssrf@test.com")
-
-	maliciousIssuers := []string{
-		"http://169.254.169.254/latest/meta-data/",
-		"http://metadata.google.internal/computeMetadata/v1/",
-		"http://100.100.100.200/latest/meta-data/",
-		"http://[::ffff:169.254.169.254]/latest/",
-	}
-
-	for _, issuer := range maliciousIssuers {
+	_, admin := createTestAdmin(t, ts, "ssrf-admin", "password123", "ssrf@test.com")
+	var requests atomic.Int32
+	trap := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"issuer": "http://" + r.Host, "authorization_endpoint": "https://provider.example/auth", "token_endpoint": "http://" + r.Host + "/token", "jwks_uri": "http://" + r.Host + "/jwks"})
+	}))
+	defer trap.Close()
+	issuers := []string{trap.URL, "http://localhost:" + fmt.Sprint(trap.Listener.Addr().(*net.TCPAddr).Port), "http://169.254.169.254/latest/meta-data", "http://100.100.100.200/latest/meta-data", "http://[::ffff:169.254.169.254]", "http://[::1]", "http://0.0.0.0", "http://[::]", "file:///etc/passwd", "gopher://internal:25"}
+	for i, issuer := range issuers {
 		t.Run(issuer, func(t *testing.T) {
-			body, _ := json.Marshal(map[string]any{
-				"name":          "malicious-provider",
-				"issuer":        issuer,
-				"client_id":     "c1",
-				"client_secret": "s1",
-				"enabled":       true,
-			})
-
-			req, err := http.NewRequest("POST", ts.BaseURL+"/admin/api/federation/providers",
-				bytes.NewReader(body))
+			id := fmt.Sprintf("ssrf-%d", i)
+			registerSSRFProvider(t, ts, admin, id, issuer)
+			params := federationParams()
+			signed, err := federation.SignState(federation.FederationState{ProviderID: id, ClientID: params.Get("client_id"), RedirectURI: params.Get("redirect_uri"), Scope: params.Get("scope"), CodeChallenge: params.Get("code_challenge"), CodeChallengeMethod: params.Get("code_challenge_method")})
 			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+adminToken)
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := ts.Client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			// At minimum the creation should not trigger an outbound request.
-			// Ideally it should reject internal URLs.
-			// If it accepts (201/200), that's a finding — the URL is stored
-			// and will be fetched when federation login is attempted.
-			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-				t.Logf("FINDING: server accepted SSRF-risky issuer %q (status %d) — "+
-					"URL will be fetched during federation login", issuer, resp.StatusCode)
+			for _, path := range []string{"/oauth2/federation/" + id + "?" + params.Encode(), "/oauth2/federation/" + id + "/callback?" + url.Values{"state": {signed}, "code": {"upstream-code"}}.Encode()} {
+				resp, err := ts.Client.Get(ts.BaseURL + path)
+				require.NoError(t, err)
+				_ = resp.Body.Close()
+				require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+				require.Empty(t, resp.Header.Get("Location"))
+				require.Empty(t, resp.Cookies())
 			}
 		})
 	}
-}
-
-// Federation provider with localhost/loopback issuer.
-func TestFederation_SSRF_LoopbackIssuer(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "loop-admin", "password123", "loop@test.com")
-
-	loopbackIssuers := []string{
-		"http://127.0.0.1:8080",
-		"http://localhost:8080",
-		"http://[::1]:8080",
-		"http://0.0.0.0:8080",
-	}
-
-	for _, issuer := range loopbackIssuers {
-		t.Run(issuer, func(t *testing.T) {
-			body, _ := json.Marshal(map[string]any{
-				"name":          "loopback-provider",
-				"issuer":        issuer,
-				"client_id":     "c1",
-				"client_secret": "s1",
-				"enabled":       true,
-			})
-
-			req, err := http.NewRequest("POST", ts.BaseURL+"/admin/api/federation/providers",
-				bytes.NewReader(body))
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+adminToken)
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := ts.Client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-				t.Logf("FINDING: server accepted loopback issuer %q (status %d)", issuer, resp.StatusCode)
-			}
-		})
-	}
-}
-
-// Federation provider with file:// or other dangerous schemes.
-func TestFederation_SSRF_DangerousSchemes(t *testing.T) {
-	ts := startTestServer(t)
-	_, adminToken := createTestAdmin(t, ts, "scheme-admin", "password123", "scheme@test.com")
-
-	schemes := []string{
-		"file:///etc/passwd",
-		"gopher://internal:25/",
-		"dict://internal:11211/",
-	}
-
-	for _, issuer := range schemes {
-		t.Run(issuer, func(t *testing.T) {
-			body, _ := json.Marshal(map[string]any{
-				"name":          "scheme-provider",
-				"issuer":        issuer,
-				"client_id":     "c1",
-				"client_secret": "s1",
-				"enabled":       true,
-			})
-
-			req, err := http.NewRequest("POST", ts.BaseURL+"/admin/api/federation/providers",
-				bytes.NewReader(body))
-			require.NoError(t, err)
-			req.Header.Set("Authorization", "Bearer "+adminToken)
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := ts.Client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			// These should be rejected — non-HTTP schemes make no sense for OIDC
-			assert.NotEqual(t, http.StatusOK, resp.StatusCode,
-				"non-HTTP scheme issuer %q should be rejected", issuer)
-			assert.NotEqual(t, http.StatusCreated, resp.StatusCode,
-				"non-HTTP scheme issuer %q should be rejected", issuer)
-		})
-	}
+	require.Zero(t, requests.Load(), "blocked discovery must not make even the first HTTP request")
 }

@@ -74,6 +74,8 @@ Introspection callers must also meet the updated authorization policy: use authe
 
 Immediate account deletion now requires `current_password` for password accounts. Passwordless accounts submit an admin-reviewed deletion request, even when `allow_self_service_deletion` is enabled. API clients must handle `204` (deleted) and `201` (pending review); the account UI selects the flow using the profile response’s `has_password` field.
 
+Federation now checks every outbound connection after DNS resolution. Private, loopback, link-local and shared-address endpoints are blocked for discovery, token exchange and signing-key retrieval. A private issuer may still be saved, but cannot be used for login; expose a public endpoint before upgrading.
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.
