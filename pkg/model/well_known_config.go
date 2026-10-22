@@ -19,6 +19,8 @@ type WellKnownConfigResponse struct {
 	JwksURI string `json:"jwks_uri"`
 	// RFC 8414 §2: REQUIRED. OAuth 2.0 response_type values supported.
 	ResponseTypesSupported []string `json:"response_types_supported"`
+	// OIDC Discovery §3: omission implies query and fragment for dynamic OPs.
+	ResponseModesSupported []string `json:"response_modes_supported"`
 	// OIDC Discovery §3: REQUIRED.
 	SubjectTypesSupported []string `json:"subject_types_supported"`
 	// OIDC Discovery §3: REQUIRED.

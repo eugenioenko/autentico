@@ -13,6 +13,7 @@ describe('OIDC Discovery', () => {
     expect(config.authorization_endpoint).toBeTruthy();
     expect(config.token_endpoint).toBeTruthy();
     expect(config.response_types_supported).toContain('code');
+    expect(config.response_modes_supported).toEqual(['query']);
 
     // OIDC Discovery §3: REQUIRED fields
     expect(config.subject_types_supported).toContain('public');

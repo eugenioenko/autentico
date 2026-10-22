@@ -3659,6 +3659,15 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "enum": [
+                            "query"
+                        ],
+                        "type": "string",
+                        "description": "Response mode (query only)",
+                        "name": "response_mode",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "description": "Client ID",
                         "name": "client_id",
@@ -5580,6 +5589,13 @@ const docTemplate = `{
                 "request_uri_parameter_supported": {
                     "description": "OIDC Discovery §3: omission defaults to true; explicitly advertise false.",
                     "type": "boolean"
+                },
+                "response_modes_supported": {
+                    "description": "OIDC Discovery §3: omission implies query and fragment for dynamic OPs.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "response_types_supported": {
                     "description": "RFC 8414 §2: REQUIRED. OAuth 2.0 response_type values supported.",

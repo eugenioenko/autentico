@@ -25,6 +25,13 @@ func TestAuthorizeParameterSupportBeforeLoginAndSSO(t *testing.T) {
 		{"opaque request URI", "request_uri=not-a-uri", "request_uri_not_supported"},
 		{"empty request URI", "request_uri=", ""},
 		{"bare request URI", "request_uri", ""},
+		{"fragment response mode", "response_mode=fragment", "invalid_request"},
+		{"form post response mode", "response_mode=form_post", "invalid_request"},
+		{"unknown response mode", "response_mode=other", "invalid_request"},
+		{"wrong case response mode", "response_mode=QUERY", "invalid_request"},
+		{"query response mode", "response_mode=query", ""},
+		{"empty response mode", "response_mode=", ""},
+		{"bare response mode", "response_mode", ""},
 		{"absent parameters", "", ""},
 	} {
 		for _, hasSession := range []bool{false, true} {
@@ -58,6 +65,7 @@ func TestAuthorizeParameterSupportBeforeLoginAndSSO(t *testing.T) {
 					HandleAuthorize(rr, r)
 					target, err := url.Parse(rr.Header().Get("Location"))
 					require.NoError(t, err)
+					require.Empty(t, target.Fragment)
 					if tc.errorCode != "" || hasSession {
 						require.Equal(t, http.StatusFound, rr.Code, rr.Body.String())
 						require.Equal(t, "http://localhost/cb", target.Scheme+"://"+target.Host+target.Path)
@@ -72,6 +80,9 @@ func TestAuthorizeParameterSupportBeforeLoginAndSSO(t *testing.T) {
 					} else if method == http.MethodPost {
 						require.Equal(t, http.StatusFound, rr.Code)
 						require.Equal(t, "/oauth2/authorize", target.Path)
+						if tc.extra == "response_mode=query" {
+							require.Equal(t, "query", target.Query().Get("response_mode"))
+						}
 						require.Empty(t, target.Query().Get("error"))
 					} else {
 						require.Equal(t, http.StatusOK, rr.Code)

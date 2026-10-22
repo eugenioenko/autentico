@@ -11,6 +11,8 @@ Callback query parameters already present in the registered `redirect_uri` are p
 
 Request objects passed through `request` or `request_uri` are unsupported. Nonempty values return `request_not_supported` or `request_uri_not_supported`, respectively, before login or SSO. See [discovery metadata](/protocol/oidc-discovery/#request-objects).
 
+Authorization results use query parameters. A nonempty unsupported `response_mode`, including `fragment` or `form_post`, returns `invalid_request` before login or SSO. Discovery advertises only `["query"]`.
+
 ## Flow overview
 
 ```mermaid
@@ -79,6 +81,7 @@ GET /oauth2/authorize
 |---|---|---|
 | `response_type` | Yes | Must be `code`; other values return `unsupported_response_type`, including on SSO |
 | `client_id` | Yes | Your registered client ID |
+| `response_mode` | Optional | Only `query` is supported; omission or an empty value uses query encoding |
 | `redirect_uri` | Yes | Must exactly match a registered redirect URI |
 | `scope` | Yes | Space-separated scopes. Must include `openid` for OIDC. |
 | `state` | Recommended | Opaque value for CSRF protection. Returned unchanged. |

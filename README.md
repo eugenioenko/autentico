@@ -115,6 +115,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps; federation validates registered clients, redirect URIs, scopes, and PKCE before issuing codes
 - **Authorization request validation** — signed continuation parameters are checked against the current client, callback URI, scopes, and PKCE before signup, email verification, magic-link login, and passkey authentication.
 - **Code-only authorization responses** — authorization and client registration support only `response_type=code`; implicit and hybrid response types are rejected.
+- **Authorization response modes** — discovery advertises query encoding; unsupported modes are rejected before login or SSO.
 - **Authorization request objects** — discovery explicitly disables `request_uri`; unsupported request objects are rejected before login or SSO.
 - **PKCE validation** — authorization rejects unsupported methods and methods without a challenge before login or SSO code issuance; all browser flows share the same PKCE policy. An omitted method means `plain`, rejected by default S256 enforcement.
 - **Token grant errors** — unsupported grants return `unsupported_grant_type`; missing grants remain `invalid_request`, and client grant restrictions remain `unauthorized_client`.
