@@ -11,10 +11,10 @@ let cookie: string;
 let admin: string;
 const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 
-async function authorize(clientId: string, method: string, withSession: boolean, challenge: string, transform: string) {
+async function authorize(clientId: string, method: string, withSession: boolean, challenge: string, transform: string, extra: Record<string, string> = {}) {
   const parameters = new URLSearchParams({
     response_type: 'code', client_id: clientId, redirect_uri: CALLBACK, scope: 'openid',
-    state: 'opaque & state', code_challenge: challenge, code_challenge_method: transform,
+    state: 'opaque & state', code_challenge: challenge, code_challenge_method: transform, ...extra,
   });
   if (transform === '') parameters.delete('code_challenge_method');
   const headers: Record<string, string> = {};
@@ -48,6 +48,39 @@ describe('Authorize PKCE method validation', () => {
 
   for (const method of ['GET', 'POST']) {
     for (const withSession of [false, true]) {
+      it.each(['https://rp.example/request.jwt', 'not-a-uri'])(`rejects request_uri=%s over ${method}, SSO=${withSession}`, async (uri) => {
+        const response = await authorize(CLIENTS[0], method, withSession, CHALLENGE, 'S256', { request_uri: uri });
+        expect(response.status).toBe(302);
+        const target = new URL(response.headers.get('Location')!);
+        expect(target.origin + target.pathname).toBe(`${BASE_URL}/parameter-callback`);
+        expect(target.searchParams.get('registered')).toBe('kept');
+        expect(target.searchParams.get('state')).toBe('opaque & state');
+        expect(target.searchParams.get('error')).toBe('request_uri_not_supported');
+        expect(target.searchParams.has('code')).toBe(false);
+      });
+
+      it.each([
+        ['empty', { request_uri: '' }], ['absent', {}],
+      ] as const)(`accepts %s request_uri over ${method}, SSO=${withSession}`, async (_name, extra) => {
+        const response = await authorize(CLIENTS[0], method, withSession, CHALLENGE, 'S256', extra);
+        if (withSession) {
+          expect(response.status).toBe(302);
+          const target = new URL(response.headers.get('Location')!);
+          expect(target.origin + target.pathname).toBe(`${BASE_URL}/parameter-callback`);
+          expect(target.searchParams.get('code')).toBeTruthy();
+          expect(target.searchParams.has('error')).toBe(false);
+        } else if (method === 'POST') {
+          expect(response.status).toBe(302);
+          const target = new URL(response.headers.get('Location')!, BASE_URL);
+          expect(target.origin).toBe(BASE_URL);
+          expect(target.pathname).toBe('/oauth2/authorize');
+          expect(target.searchParams.has('error')).toBe(false);
+        } else {
+          expect(response.status).toBe(200);
+          expect(await response.text()).toContain('name="authorize_sig"');
+        }
+      });
+
       for (const clientId of CLIENTS) {
         it.each([
           ['unsupported', CHALLENGE, 'S512'],

@@ -864,6 +864,10 @@ definitions:
       request_parameter_supported:
         description: 'OIDC Core §3: OPTIONAL.'
         type: boolean
+      request_uri_parameter_supported:
+        description: 'OIDC Discovery §3: omission defaults to true; explicitly advertise
+          false.'
+        type: boolean
       response_types_supported:
         description: 'RFC 8414 §2: REQUIRED. OAuth 2.0 response_type values supported.'
         items:

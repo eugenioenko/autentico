@@ -979,3 +979,11 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | MUST | RFC 6749 §2.3 / §2.3.1 / §5.2 | Use one authentication mechanism; body credentials cannot come from the URI | Shared authentication rejects URI, duplicate and conflicting credentials and malformed Basic fallback. |
 | MUST | RFC 6749 §2.3.1 | Reverse form encoding of Basic credentials before authentication | Decode each component once; token grant bindings and claims use the resolved client ID. |
 | MUST | RFC 6749 §5.2 / RFC 6750 §3 | Challenge failed header authentication with the matching scheme | Basic client failures and missing-client 401s include Basic challenges; invalid revocation bearer credentials use Bearer. |
+
+## Request objects by reference
+
+| Keyword | Section | Requirement | Status |
+|---|---|---|---|
+| OPTIONAL metadata | OIDC Discovery §3 | Omission of request_uri_parameter_supported implies true | Explicit false is always emitted; raw JSON tests distinguish false from omission (#520). |
+| MUST | OIDC Core §6.2 / §3.1.2.6 | Reject an unsupported request_uri with request_uri_not_supported | Authorize rejects before login/SSO after trusted client and callback checks, with no request-object fetch or code issuance (#520). |
+| MUST | RFC 6749 §3.1 | Treat empty parameter values as omitted | Empty and bare request_uri remain valid ordinary authorization requests (#520). |
