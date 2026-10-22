@@ -943,3 +943,5 @@ Regression coverage includes sequential, concurrent and cross-path replay, enrol
 Refresh rotation retains revoked token records and their original OAuth sessions until both access and refresh lifetimes plus cleanup retention have elapsed, preserving replay detection after access expiry (RFC 6749 §6; RFC 9700 §4.14.2). Existing session metadata is extended during cleanup without reactivating revoked state.
 
 Browser registration policy is resolved from the current OAuth client (RFC 6749 §2). Signup and trusted-device behavior use explicit per-client overrides; SSO auto-login applies that client's idle limit alongside OIDC Core §3.1.2.1 prompt/max_age rules. MFA continuation uses the stored challenge client rather than a request-supplied replacement.
+
+Introspection authorization (RFC 7662 §2.1, §2.3, §4): confidential clients authenticate with a secret; public `client_id` values do not authorize inspection. Admin bearer callers require the admin API audience and current admin role, plus normal credential/session liveness. Client ownership isolation remains enforced for confidential callers. Discovery advertises client-secret Basic/post methods.

@@ -3753,6 +3753,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.ApiError"
                         }
                     },
+                    "403": {
+                        "description": "insufficient_scope; WWW-Authenticate: Bearer error=insufficient_scope",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {

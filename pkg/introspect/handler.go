@@ -9,6 +9,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/bearer"
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/jwtutil"
 	"github.com/eugenioenko/autentico/pkg/reqid"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -31,6 +32,7 @@ func inactive(w http.ResponseWriter) {
 // @Success 200 {object} IntrospectResponse
 // @Failure 400 {object} model.ApiError
 // @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError "insufficient_scope; WWW-Authenticate: Bearer error=insufficient_scope"
 // @Failure 429 {object} model.ApiError
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/introspect [post]
@@ -44,7 +46,15 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	authenticatedClient, err := client.AuthenticateClientFromRequest(r)
 	if err != nil {
 		slog.Warn("introspect: client authentication failed", "request_id", reqid.Get(r.Context()), "error", err)
+		w.Header().Set("WWW-Authenticate", `Basic realm="introspection"`)
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
+		return
+	}
+	// RFC 7662 §2.1 / §4: a public client_id is not an authorization
+	// credential for token scanning. Require authenticated confidential clients.
+	if authenticatedClient != nil && authenticatedClient.ClientType != "confidential" {
+		w.Header().Set("WWW-Authenticate", `Basic realm="introspection"`)
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Confidential client authentication required")
 		return
 	}
 	if authenticatedClient == nil {
@@ -56,18 +66,27 @@ func HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 		// resource server making the request." We restrict bearer auth to admin
 		// users only to prevent arbitrary users from inspecting other users' tokens.
 		if r.Header.Get("Authorization") == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="introspection"`)
 			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_client", "Client authentication required")
 			return
 		}
 		v, err := bearer.ValidateBearer(r)
 		if err != nil {
 			slog.Warn("introspect: bearer auth failed", "request_id", reqid.Get(r.Context()), "error", err)
-			utils.WriteErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
+			utils.WriteBearerUnauthorized(w, config.GetBootstrap().AppAuthIssuer, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
+			return
+		}
+		// RFC 7662 §2.1 / §4 and RFC 6750 §5.2: require the same admin
+		// audience as AdminAuthMiddleware, in addition to the current admin role.
+		if err := jwtutil.ValidateAudience(v.Claims.Audience, []string{config.AdminClientID}); err != nil {
+			w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token not issued for admin API")
 			return
 		}
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
 			slog.Warn("introspect: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
+			w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token introspection")
 			return
 		}

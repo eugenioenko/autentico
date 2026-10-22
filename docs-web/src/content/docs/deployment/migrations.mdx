@@ -70,6 +70,8 @@ Autentico rejects the old credentials after the upgrade. External applications t
 
 Review registered redirect wildcards when upgrading: `*` now matches only one plain path segment. Broader patterns that previously matched nested paths or query content are rejected. Replace them with concrete callback URLs or the [documented single-segment form](/clients/registering/#redirect_uris). For the OpenID Foundation suite, replace the broad `/test/*/callback` pattern with `/test/a/*/callback`, or register the exact `/test/a/<ALIAS>/callback` for the selected alias.
 
+Introspection callers must also meet the updated authorization policy: use authenticated confidential-client credentials or an admin access token with the `autentico-admin` audience. Public `client_id` values and admin-user tokens issued only for other apps no longer authorize introspection. See [introspection authentication](/protocol/introspection-revocation/#authentication).
+
 ### Prepare the TOTP encryption key
 
 Generate and persist the key **before running `migrate`**. A missing, empty or invalid key makes the command exit with an error before changing the database. The same key must be available to the migration command and every later server start. It is separate from the JWT signing key.

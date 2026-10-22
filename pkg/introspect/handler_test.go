@@ -97,6 +97,7 @@ func TestHandleIntrospect_NoAuth_Returns401(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Equal(t, `Basic realm="introspection"`, rr.Header().Get("WWW-Authenticate"))
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code, "RFC 7662 §2.1: unauthenticated request MUST be rejected")
 	assert.Contains(t, rr.Body.String(), "invalid_client")
@@ -117,6 +118,7 @@ func TestHandleIntrospect_InvalidClientCredentials_Returns401(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Equal(t, `Basic realm="introspection"`, rr.Header().Get("WWW-Authenticate"))
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code, "wrong client secret MUST be rejected")
 	assert.Contains(t, rr.Body.String(), "invalid_client")
@@ -136,6 +138,7 @@ func TestHandleIntrospect_UnknownClient_Returns401(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Equal(t, `Basic realm="introspection"`, rr.Header().Get("WWW-Authenticate"))
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code, "unknown client MUST be rejected")
 	assert.Contains(t, rr.Body.String(), "invalid_client")
@@ -554,7 +557,10 @@ func TestHandleIntrospect_InactiveToken_NoExtraFields(t *testing.T) {
 // generateBearerJWT creates a signed JWT for the given userID and inserts a
 // matching active session and active tokens row so that bearer-auth
 // liveness checks pass.
-func generateBearerJWT(t *testing.T, userID string) string {
+func generateBearerJWT(t *testing.T, userID string, audience ...string) string {
+	if len(audience) == 0 {
+		audience = append([]string{config.AdminClientID}, config.Get().AuthAccessTokenAudience...)
+	}
 	t.Helper()
 	sessionID := xid.New().String()
 	accessTokenExpiresAt := time.Now().Add(time.Hour).UTC()
@@ -562,7 +568,7 @@ func generateBearerJWT(t *testing.T, userID string) string {
 		"exp":   accessTokenExpiresAt.Unix(),
 		"iat":   time.Now().Unix(),
 		"iss":   config.GetBootstrap().AppAuthIssuer,
-		"aud":   config.Get().AuthAccessTokenAudience,
+		"aud":   audience,
 		"sub":   userID,
 		"typ":   "Bearer",
 		"sid":   sessionID,
@@ -583,7 +589,7 @@ func generateBearerJWT(t *testing.T, userID string) string {
 		INSERT INTO tokens (id, user_id, access_token_hash, refresh_token_hash, access_token_type,
 			refresh_token_expires_at, access_token_expires_at, issued_at, scope, grant_type, client_id, acr)
 		VALUES (?, ?, ?, ?, 'Bearer', ?, ?, ?, 'openid', 'password', ?, ?)
-	`, "tok-"+sessionID[:6], userID, utils.HashToken(signed), utils.HashToken("refresh-"+sessionID[:6]), accessTokenExpiresAt, accessTokenExpiresAt, time.Now(), testutils.StoredTokenClientID(signed), testutils.StoredTokenACR(signed))
+	`, "tok-"+sessionID, userID, utils.HashToken(signed), utils.HashToken("refresh-"+sessionID), accessTokenExpiresAt, accessTokenExpiresAt, time.Now(), testutils.StoredTokenClientID(signed), testutils.StoredTokenACR(signed))
 	assert.NoError(t, err)
 	return signed
 }
@@ -650,6 +656,8 @@ func TestHandleIntrospect_BearerAuth_DeactivatedSession(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `Bearer`)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `error="invalid_token"`)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code,
 		"admin bearer on a deactivated session MUST be rejected")
@@ -678,6 +686,8 @@ func TestHandleIntrospect_BearerAuth_NonAdmin(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `Bearer`)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`)
 
 	assert.Equal(t, http.StatusForbidden, rr.Code, "RFC 7662 §4: non-admin bearer MUST be rejected")
 	assert.Contains(t, rr.Body.String(), "insufficient_scope")
@@ -712,6 +722,8 @@ func TestHandleIntrospect_BearerAuth_Expired(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `Bearer`)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `error="invalid_token"`)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "invalid_token")
@@ -731,6 +743,8 @@ func TestHandleIntrospect_BearerAuth_Invalid(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	HandleIntrospect(rr, req)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `Bearer`)
+	assert.Contains(t, rr.Header().Get("WWW-Authenticate"), `error="invalid_token"`)
 
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	assert.Contains(t, rr.Body.String(), "invalid_token")
