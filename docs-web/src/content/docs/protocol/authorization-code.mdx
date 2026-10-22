@@ -9,6 +9,8 @@ The Authorization Code flow is the recommended OAuth2 grant type for web applica
 
 Callback query parameters already present in the registered `redirect_uri` are preserved. The response URL encodes `code` and `state` as query values, so special characters in `state` round-trip unchanged, including when login requires MFA. Clients should decode query parameters with their URL library and compare the returned state with the original value.
 
+Request objects passed through `request` or `request_uri` are unsupported. Nonempty values return `request_not_supported` or `request_uri_not_supported`, respectively, before login or SSO. See [discovery metadata](/protocol/oidc-discovery/#request-objects).
+
 ## Flow overview
 
 ```mermaid

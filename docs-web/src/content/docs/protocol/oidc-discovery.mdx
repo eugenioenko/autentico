@@ -28,6 +28,8 @@ Both paths return the same document. Most OIDC client libraries accept this URL 
   "id_token_signing_alg_values_supported": ["RS256"],
   "scopes_supported": ["openid", "profile", "email", "address", "phone", "offline_access", "groups"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+  "request_parameter_supported": false,
+  "request_uri_parameter_supported": false,
   "claims_supported": [
     "sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "sid", "acr",
     "name", "preferred_username", "given_name", "family_name", "middle_name",
@@ -42,6 +44,12 @@ Both paths return the same document. Most OIDC client libraries accept this URL 
 ```
 
 `code_challenge_methods_supported` is `["S256"]` by default. When `pkce_enforce_s256` is disabled, it becomes `["S256", "plain"]`. Clients should always send an explicit `code_challenge_method=S256`; an omitted method defaults to `plain`.
+
+## Request objects
+
+Autentico does not support request objects through `request` or `request_uri`. Discovery explicitly sets `request_uri_parameter_supported` to `false`, because omitting it would imply support ([OIDC Discovery §3](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata)).
+
+A nonempty `request_uri` at `/authorize` returns `request_uri_not_supported` to the registered callback before login or SSO; it is never fetched. An empty value is treated as omitted. Send authorization parameters directly instead. A nonempty `request` continues to return `request_not_supported`.
 
 ## JWKS endpoint
 

@@ -29,6 +29,7 @@ describe('OIDC Discovery', () => {
     expect(config.introspection_endpoint).toBeTruthy();
     expect(config.revocation_endpoint).toBeTruthy();
     expect(config.code_challenge_methods_supported).toContain('S256');
+    expect(config).toHaveProperty('request_uri_parameter_supported', false);
   });
 
   it('issuer matches the server URL', async () => {

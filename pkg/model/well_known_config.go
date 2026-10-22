@@ -35,6 +35,8 @@ type WellKnownConfigResponse struct {
 	AcrValuesSupported []string `json:"acr_values_supported,omitempty"`
 	// OIDC Core §3: OPTIONAL.
 	RequestParameterSupported bool `json:"request_parameter_supported"`
+	// OIDC Discovery §3: omission defaults to true; explicitly advertise false.
+	RequestURIParameterSupported bool `json:"request_uri_parameter_supported"`
 	// RFC 8414 §2: OPTIONAL. Token introspection endpoint.
 	IntrospectionEndpoint string `json:"introspection_endpoint,omitempty"`
 	// RFC 8414 §2: OPTIONAL. Token revocation endpoint.

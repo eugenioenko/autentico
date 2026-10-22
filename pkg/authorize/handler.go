@@ -105,6 +105,14 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// OIDC Core §6.2 / §3.1.2.6: an unsupported request_uri must fail
+	// before login or SSO; never fetch or silently ignore its request object.
+	// RFC 6749 §3.1: an empty parameter is treated as omitted.
+	if get("request_uri") != "" {
+		redirectWithError(w, r, request.RedirectURI, request.State, "request_uri_not_supported", "request_uri is not supported")
+		return
+	}
+
 	// RFC 6749 §4.1.2.1: invalid_request: missing required parameter or invalid parameter value
 	if err := ValidateAuthorizeRequest(request); err != nil {
 		redirectWithError(w, r, request.RedirectURI, request.State, "invalid_request", err.Error())
