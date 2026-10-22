@@ -81,7 +81,7 @@ GET /oauth2/authorize
 | `scope` | Yes | Space-separated scopes. Must include `openid` for OIDC. |
 | `state` | Recommended | Opaque value for CSRF protection. Returned unchanged. |
 | `nonce` | Recommended | Opaque value embedded in the ID token to prevent replay attacks. |
-| `code_challenge` | Required for public clients | Base64url-encoded SHA-256 hash of `code_verifier` |
+| `code_challenge` | Required for public clients | For `S256`, the base64url-encoded SHA-256 hash of `code_verifier`; for `plain`, the verifier itself |
 | `code_challenge_method` | Optional | `S256` (recommended) or `plain`; omission means `plain` and is rejected when S256 enforcement is enabled |
 
 ## Step 3: User authenticates
