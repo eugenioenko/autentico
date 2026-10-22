@@ -56,6 +56,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 		Prompt:              r.FormValue("prompt"),
+		MaxAge:              r.FormValue("max_age"),
 	}
 
 	if config.Get().AuthMode == "passkey_only" {
@@ -73,6 +74,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       request.CodeChallenge,
 		CodeChallengeMethod: request.CodeChallengeMethod,
 		State:               request.State,
+		Prompt:              request.Prompt,
+		MaxAge:              request.MaxAge,
 	}, authorizeSig) {
 		slog.Warn("login: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "client_id", request.ClientID, "ip", utils.GetClientIP(r))
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
@@ -145,6 +148,8 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 			CodeChallenge:       request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
 			AuthorizeSig:        authorizeSig,
+			Prompt:              request.Prompt,
+			MaxAge:              request.MaxAge,
 		}, "")
 		return
 	}
@@ -159,6 +164,7 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       request.CodeChallenge,
 		CodeChallengeMethod: request.CodeChallengeMethod,
 		Prompt:              request.Prompt,
+		MaxAge:              request.MaxAge,
 	}, mfa.PrimaryPassword)
 	if err != nil {
 		slog.Error("login: failed to complete authentication", "request_id", reqid.Get(r.Context()), "error", err)
@@ -177,6 +183,8 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, req LoginRequest, l
 	params.Set("client_id", req.ClientID)
 	params.Set("redirect_uri", req.RedirectURI)
 	params.Set("state", req.State)
+	params.Set("prompt", client.LoginPrompt(req.Prompt))
+	params.Set("max_age", req.MaxAge)
 	params.Set("scope", req.Scope)
 	params.Set("error", loginError)
 	if req.Nonce != "" {

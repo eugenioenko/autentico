@@ -32,11 +32,13 @@
       <input type="hidden" name="nonce" value="{{.Nonce}}" />
       <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
       <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+      <input type="hidden" name="prompt" value="{{.Prompt}}" />
+      <input type="hidden" name="max_age" value="{{.MaxAge}}" />
       <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
       <button class="auth-btn" type="submit">Resend verification email</button>
     </form>
   {{end}}
 
-  <div class="auth-link"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Back to login</a></div>
+  <div class="auth-link"><a href="{{authURL "/authorize"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&response_type=code&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}&prompt={{.LoginPrompt}}&max_age={{.MaxAge}}">Back to login</a></div>
 </div>
 {{end}}

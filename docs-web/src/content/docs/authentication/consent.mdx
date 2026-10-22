@@ -52,7 +52,7 @@ curl -X POST https://auth.example.com/admin/api/clients \
   }'
 ```
 
-When `consent_required` is `false` or not set, the consent screen is skipped entirely and the authorization code is issued immediately after authentication.
+When `consent_required` is `false` or not set, consent is skipped after authentication unless the request includes `prompt=consent`. That prompt requires an explicit decision even for a first-party client.
 
 ## Scope descriptions
 
@@ -99,7 +99,15 @@ Re-consent is triggered when:
 
 ## Security
 
-The consent form is protected against parameter tampering using an HMAC-SHA256 signature (`consent_sig`). The signature covers all OAuth2 parameters and the user ID, and is verified on form submission. This prevents an attacker from modifying the redirect URI, client ID, or scopes between the GET and POST requests.
+Consent URLs are internal continuations issued after successful login or eligible SSO. A signed `consent_flow` binds the exact authorization parameters to the browser session for ten minutes. An old session cookie and arbitrary GET parameters cannot create a new consent request. Applications should begin at `/oauth2/authorize`.
+
+Opening and submitting consent recheck current client status, redirect URI, code flow, scopes and PKCE, along with active user status, local MFA, the current client idle timeout, global session lifetime and any positive `max_age`. An expired login or continuation requires restarting authorization.
+
+Fresh login can continue to consent with SSO disabled or `prompt=login` / `max_age=0`. An SSO continuation cannot substitute for fresh login. `prompt=none` never opens consent: it returns `login_required` when authentication is needed, or `consent_required` when an eligible session needs approval.
+
+The form's HMAC-SHA256 `consent_sig` covers every authorization field, including `prompt`, `max_age`, continuation and user ID. Submission requires an explicit Allow or Deny action. Changing parameters or browser sessions invalidates the continuation.
+
+Token `auth_time` reflects actual browser authentication, including after waiting on consent or using SSO. Code exchange and token refreshes preserve that time; issuing a token does not authenticate the user again.
 
 <Aside type="tip">
 First-party clients that you fully trust (such as your own frontend) can set `consent_required` to `false` to skip the consent screen. Third-party clients should always require consent so users can review what data they are sharing.

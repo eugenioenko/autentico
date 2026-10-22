@@ -15,8 +15,8 @@ On a new authorization request:
 
 1. Autentico reads the session cookie
 2. Looks up the session record in the database
-3. Checks whether the session is still active and within the idle timeout window
-4. If valid: issues an authorization code without showing the login page
+3. Checks active user/session status, completed local MFA, the current client idle timeout, global absolute lifetime and requested `max_age`
+4. If valid: issues a code or continues to required consent without showing login
 5. If expired or missing: presents the login page
 
 ## Session lifetime and idle timeout
@@ -32,6 +32,12 @@ Uses Go duration format for timeouts: `24h`, `168h`, `720h`, etc.
 The session cookie's `Expires` attribute is set to `sso_session_max_age` at login time. Changing this setting does not retroactively update existing cookies — increasing the value will not extend sessions already issued, and decreasing it relies on the server-side check to reject sessions that outlive the new limit.
 
 The idle timeout can be overridden per-client, so different clients can have stricter session requirements. See [Per-Client Overrides](/configuration/per-client-overrides/).
+
+## Authentication controls
+
+`prompt=login` and `max_age=0` require active authentication. A positive `max_age` limits the original login's age in seconds; malformed, negative or overflowing values are rejected. `prompt=consent` forces consent even when the client normally skips it. Controls are signed and preserved through password, signup, passkey, email, federation, MFA and recovery flows.
+
+Consent rechecks freshness when displayed and approved. Disabling SSO prevents reuse of an SSO continuation; a just-completed login can still finish consent. For `prompt=none`, an expired session returns `login_required` and a valid session needing consent returns `consent_required`, without UI.
 
 ## Session storage
 

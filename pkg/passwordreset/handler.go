@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/reqid"
@@ -29,6 +30,8 @@ type oauthParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
+	MaxAge              string
 }
 
 func paramsFromRequest(r *http.Request, getter func(string) string) oauthParams {
@@ -40,6 +43,8 @@ func paramsFromRequest(r *http.Request, getter func(string) string) oauthParams 
 		Nonce:               getter("nonce"),
 		CodeChallenge:       getter("code_challenge"),
 		CodeChallengeMethod: getter("code_challenge_method"),
+		Prompt:              getter("prompt"),
+		MaxAge:              getter("max_age"),
 	}
 }
 
@@ -64,6 +69,9 @@ func renderForgotPassword(w http.ResponseWriter, r *http.Request, mode string, p
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"Prompt":              params.Prompt,
+		"LoginPrompt":         client.LoginPrompt(params.Prompt),
+		"MaxAge":              params.MaxAge,
 	}
 	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
@@ -92,6 +100,9 @@ func renderResetPassword(w http.ResponseWriter, r *http.Request, mode, token str
 		"ThemeTitle":          cfg.Theme.Title,
 		"ThemeLogoUrl":        cfg.Theme.LogoUrl,
 		csrf.TemplateTag:      csrf.TemplateField(r),
+		"Prompt":              params.Prompt,
+		"LoginPrompt":         client.LoginPrompt(params.Prompt),
+		"MaxAge":              params.MaxAge,
 	}
 	view.InjectNonce(r, data)
 	if err = tmpl.ExecuteTemplate(w, "layout", data); err != nil {
@@ -277,6 +288,8 @@ func buildResetURL(rawToken string, p oauthParams) string {
 	q.Set("token", rawToken)
 	q.Set("redirect_uri", p.RedirectURI)
 	q.Set("state", p.State)
+	q.Set("prompt", p.Prompt)
+	q.Set("max_age", p.MaxAge)
 	q.Set("client_id", p.ClientID)
 	q.Set("scope", p.Scope)
 	if p.Nonce != "" {

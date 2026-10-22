@@ -46,11 +46,12 @@ type TokenRequest struct {
 
 type RefreshTokenClaims struct {
 	jwtutil.ZeroClaims
-	UserID    string `json:"sub"` // The ID of the user associated with the refresh token
-	SessionID string `json:"sid"` // The session ID for which the refresh token is issued
-	ClientID  string `json:"azp"` // The client the refresh token was issued to
-	IssuedAt  int64  `json:"iat"` // The timestamp when the refresh token was issued
-	ExpiresAt int64  `json:"exp"` // The timestamp when the refresh token will expire
+	UserID    string `json:"sub"`                 // The ID of the user associated with the refresh token
+	SessionID string `json:"sid"`                 // The session ID for which the refresh token is issued
+	ClientID  string `json:"azp"`                 // The client the refresh token was issued to
+	AuthTime  int64  `json:"auth_time,omitempty"` // Original authentication, preserved through rotation
+	IssuedAt  int64  `json:"iat"`                 // The timestamp when the refresh token was issued
+	ExpiresAt int64  `json:"exp"`                 // The timestamp when the refresh token will expire
 }
 
 // GetExpirationTime returns exp unconditionally so a missing exp (zero value)

@@ -55,6 +55,12 @@ Missing client identification or invalid credentials return `invalid_client`. A 
 
 A new refresh token is issued with each refresh. Store the new refresh token — the old one is invalidated. Send one refresh request at a time: concurrent requests using the same token have one winner, and replay detection revokes all of the user’s tokens. Rotation and replacement token/session storage commit together, so a storage failure leaves the original token available for retry. An invalid scope request also leaves it usable.
 
+## Authentication time
+
+Access and ID tokens retain original `auth_time` across code exchange and every refresh. Their `iat` describes the new token's issuance. Waiting at consent, using SSO or refreshing does not create a new authentication event (OIDC Core §12.2).
+
+New refresh credentials carry signed authentication context internally. On upgrade, older credentials recover that time from a linked browser session or original, unrotated password grant. An already-rotated older credential without a browser link has no recoverable authentication time and returns `invalid_grant`; the user must sign in again. This rejection leaves the credential unconsumed and does not invalidate other sessions. Treat refresh tokens as opaque values.
+
 ## Refresh token lifetime
 
 The default refresh token lifetime is 30 days (`720h`). Configure globally via the `refresh_token_expiration` runtime setting, or per-client via the `refresh_token_expiration` override field.

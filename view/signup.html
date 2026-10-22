@@ -13,6 +13,8 @@
   <input type="hidden" name="nonce" value="{{.Nonce}}" />
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
+  <input type="hidden" name="prompt" value="{{.Prompt}}" />
+  <input type="hidden" name="max_age" value="{{.MaxAge}}" />
   <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
   <div class="auth-field">
     {{if eq .ProfileFieldEmail "is_username"}}
@@ -101,7 +103,7 @@
   <button class="auth-btn" type="submit" id="signup-btn">
     {{if eq .AuthMode "passkey_only"}}Signup with Passkey{{else}}Create Account{{end}}
   </button>
-  <div class="auth-link">Already have an account? <a href="{{authURL "/authorize"}}?response_type=code&client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Log in</a></div>
+  <div class="auth-link">Already have an account? <a href="{{authURL "/authorize"}}?response_type=code&client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}&prompt={{.LoginPrompt}}&max_age={{.MaxAge}}">Log in</a></div>
 </form>
 {{end}}
 
@@ -145,6 +147,8 @@
       nonce: document.querySelector('[name=nonce]').value,
       code_challenge: document.querySelector('[name=code_challenge]').value,
       code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      prompt: document.querySelector('[name=prompt]').value,
+      max_age: document.querySelector('[name=max_age]').value,
       authorize_sig: document.querySelector('[name=authorize_sig]').value,
     });
     try {

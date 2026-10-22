@@ -8,12 +8,35 @@ import (
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
+// refreshGrant carries the claims and storage metadata already validated together.
+type refreshGrant struct {
+	user      *user.User
+	session   *session.Session
+	claims    *RefreshTokenClaims
+	scope     string
+	issuedAt  time.Time
+	grantType string
+}
+
+// UserByRefreshToken retains the existing user lookup API for callers that do
+// not issue a replacement grant.
 func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User, error) {
+	grant, err := readRefreshGrant(w, request)
+	if err != nil {
+		return nil, err
+	}
+	return grant.user, nil
+}
+
+// readRefreshGrant verifies the credential once and preserves its authenticated
+// context for the token endpoint, without parsing discarded access JWTs.
+func readRefreshGrant(w http.ResponseWriter, request TokenRequest) (*refreshGrant, error) {
 	err := ValidateTokenRequestRefresh(request)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
@@ -62,10 +85,11 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 	// token rotation occurred and someone (attacker or legitimate user) is replaying
 	// a stale token. Revoke all tokens for this user as a protective measure.
 	var revokedAt *time.Time
-	var clientID, acr, accessHash, storedUserID string
-	err = db.GetDB().QueryRow(`SELECT revoked_at, client_id, acr, access_token_hash, COALESCE(user_id, '')
+	var clientID, acr, accessHash, storedUserID, scope, grantType string
+	var issuedAt time.Time
+	err = db.GetDB().QueryRow(`SELECT revoked_at, client_id, acr, access_token_hash, COALESCE(user_id, ''), COALESCE(scope, ''), issued_at, COALESCE(grant_type, '')
 		FROM tokens WHERE refresh_token_hash = ?`, utils.HashToken(request.RefreshToken)).Scan(
-		&revokedAt, &clientID, &acr, &accessHash, &storedUserID)
+		&revokedAt, &clientID, &acr, &accessHash, &storedUserID, &scope, &issuedAt, &grantType)
 	// RFC 6749 §6 and §5.2: validate the refresh token; missing records are invalid_grant.
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid or expired refresh token")
@@ -104,5 +128,42 @@ func UserByRefreshToken(w http.ResponseWriter, request TokenRequest) (*user.User
 		return nil, fmt.Errorf("session not MFA-authenticated")
 	}
 
-	return usr, nil
+	return &refreshGrant{user: usr, session: sess, claims: authToken, scope: scope, issuedAt: issuedAt, grantType: grantType}, nil
+}
+
+// authenticationTime recovers the original login for legacy browser grants and
+// preserves signed authentication context on every subsequent rotation.
+func (grant *refreshGrant) authenticationTime() (time.Time, error) {
+	if grant.claims.AuthTime > 0 {
+		// OIDC Core §12.2: authentication cannot postdate the signed issuance.
+		if grant.claims.AuthTime > grant.claims.IssuedAt || grant.claims.AuthTime > time.Now().Unix() {
+			return time.Time{}, fmt.Errorf("invalid refresh authentication time")
+		}
+		return time.Unix(grant.claims.AuthTime, 0), nil
+	}
+	if grant.claims.AuthTime < 0 {
+		return time.Time{}, fmt.Errorf("invalid refresh authentication time")
+	}
+	if grant.session.IdpSessionID != nil && *grant.session.IdpSessionID != "" {
+		browser, err := idpsession.IdpSessionByID(*grant.session.IdpSessionID)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("original browser authentication is unavailable")
+		}
+		return grant.validateLegacyTime(browser.CreatedAt)
+	}
+	// An unrotated legacy password grant was authenticated at its issuance.
+	// A legacy already-rotated unlinked grant has no recoverable original time.
+	if grant.grantType == "password" && !grant.issuedAt.IsZero() {
+		return grant.validateLegacyTime(grant.issuedAt)
+	}
+	return time.Time{}, fmt.Errorf("original authentication is unavailable; sign in again")
+}
+
+// validateLegacyTime rejects corrupt historical context before consuming a token.
+func (grant *refreshGrant) validateLegacyTime(authenticated time.Time) (time.Time, error) {
+	// OIDC Core §12.2: authentication must precede the original token issuance.
+	if authenticated.IsZero() || authenticated.Unix() > grant.claims.IssuedAt || authenticated.After(time.Now()) {
+		return time.Time{}, fmt.Errorf("invalid original authentication time")
+	}
+	return authenticated, nil
 }

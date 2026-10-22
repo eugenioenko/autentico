@@ -43,12 +43,12 @@ func DescribeScopes(scopeStr string) []ScopeInfo {
 // NeedsConsent returns true if the user must be shown a consent screen.
 // OIDC Core §3.1.2.4: AS MUST obtain consent before releasing info; MAY skip if previously obtained.
 func NeedsConsent(consentRequired *bool, userID, clientID, requestedScopes, prompt string) bool {
-	if consentRequired == nil || !*consentRequired {
-		return false
-	}
 	// OIDC Core §3.1.2.1: prompt=consent MUST re-prompt even if consent was previously granted
 	if containsPromptValue(prompt, "consent") {
 		return true
+	}
+	if consentRequired == nil || !*consentRequired {
+		return false
 	}
 	existing, err := GetConsent(userID, clientID)
 	if err != nil || existing == nil {

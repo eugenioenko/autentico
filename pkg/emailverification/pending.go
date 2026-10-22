@@ -17,6 +17,8 @@ func signVerifiedParams(p OAuthParams) (OAuthParams, error) {
 	params := authzsig.AuthorizeParams{
 		ClientID: p.ClientID, RedirectURI: p.RedirectURI, Scope: p.Scope, State: p.State,
 		Nonce: p.Nonce, CodeChallenge: p.CodeChallenge, CodeChallengeMethod: p.CodeChallengeMethod,
+		Prompt: p.Prompt,
+		MaxAge: p.MaxAge,
 	}
 	// RFC 6749 §10.6: validate the registered callback before issuing a signature.
 	if _, err := client.ValidateAuthorization(params); err != nil {
@@ -79,5 +81,7 @@ func HandlePendingVerification(w http.ResponseWriter, r *http.Request) {
 		ClientID: params.ClientID, RedirectURI: params.RedirectURI, Scope: params.Scope, State: params.State,
 		Nonce: params.Nonce, CodeChallenge: params.CodeChallenge, CodeChallengeMethod: params.CodeChallengeMethod,
 		AuthorizeSig: q.Get("authorize_sig"),
+		Prompt:       params.Prompt,
+		MaxAge:       params.MaxAge,
 	}, "")
 }

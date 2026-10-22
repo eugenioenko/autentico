@@ -59,6 +59,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       r.FormValue("code_challenge"),
 		CodeChallengeMethod: r.FormValue("code_challenge_method"),
 		AuthorizeSig:        r.FormValue("authorize_sig"),
+		Prompt:              r.FormValue("prompt"),
+		MaxAge:              r.FormValue("max_age"),
 	}
 
 	// Verify HMAC signature to prevent authorize parameter tampering (#184, #186)
@@ -70,6 +72,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
 		State:               params.State,
+		Prompt:              params.Prompt,
+		MaxAge:              params.MaxAge,
 	}, params.AuthorizeSig) {
 		slog.Warn("signup: authorize parameter signature mismatch", "client_id", params.ClientID)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Authorization request parameters have been tampered with")
@@ -208,6 +212,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 				CodeChallenge:       params.CodeChallenge,
 				CodeChallengeMethod: params.CodeChallengeMethod,
 				AuthorizeSig:        params.AuthorizeSig,
+				Prompt:              params.Prompt,
+				MaxAge:              params.MaxAge,
 			})
 			_ = email.SendVerificationEmail(usr.Email, verifyURL)
 		}
@@ -220,6 +226,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 			CodeChallenge:       params.CodeChallenge,
 			CodeChallengeMethod: params.CodeChallengeMethod,
 			AuthorizeSig:        params.AuthorizeSig,
+			Prompt:              params.Prompt,
+			MaxAge:              params.MaxAge,
 		}, "")
 		return
 	}
@@ -233,6 +241,8 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Nonce:               params.Nonce,
 		CodeChallenge:       params.CodeChallenge,
 		CodeChallengeMethod: params.CodeChallengeMethod,
+		Prompt:              params.Prompt,
+		MaxAge:              params.MaxAge,
 	}, mfa.PrimarySignup)
 	if err != nil {
 		slog.Error("signup: failed to complete authentication", "error", err)
@@ -251,6 +261,8 @@ type SignupParams struct {
 	Nonce               string
 	CodeChallenge       string
 	CodeChallengeMethod string
+	Prompt              string
+	MaxAge              string
 	AuthorizeSig        string
 }
 
@@ -287,6 +299,9 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 		"ProfileFieldPicture":    cfg.ProfileFieldPicture,
 		"ProfileFieldLocale":     cfg.ProfileFieldLocale,
 		"ProfileFieldAddress":    cfg.ProfileFieldAddress,
+		"Prompt":                 params.Prompt,
+		"LoginPrompt":            client.LoginPrompt(params.Prompt),
+		"MaxAge":                 params.MaxAge,
 	}
 	view.InjectNonce(r, data)
 
@@ -306,6 +321,10 @@ func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupPa
 	q.Set("redirect_uri", params.RedirectURI)
 	q.Set("scope", params.Scope)
 	q.Set("state", params.State)
+	if client.HasPrompt(params.Prompt, "consent") {
+		q.Set("prompt", "create consent")
+	}
+	q.Set("max_age", params.MaxAge)
 	q.Set("nonce", params.Nonce)
 	q.Set("code_challenge", params.CodeChallenge)
 	q.Set("code_challenge_method", params.CodeChallengeMethod)

@@ -21,11 +21,14 @@ func TestConsentRedirectPreservesExistingQueryAndOpaqueState(t *testing.T) {
 			callback := "http://localhost/callback?existing=a%26b&repeat=1&repeat=2"
 			state := "state & injected=1 + %25 # é"
 			testutils.InsertTestClient(t, "query-client", []string{callback})
+			_, err := db.GetDB().Exec(`UPDATE clients SET consent_required=TRUE WHERE client_id='query-client'`)
+			require.NoError(t, err)
 			sessionID := createIdpSession(t, "query-user")
 			params := ConsentParams{ClientID: "query-client", RedirectURI: callback, Scope: "openid", State: state,
 				CodeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", CodeChallengeMethod: "S256"}
+			params = withTestConsentFlow(t, sessionID, params)
 			form := url.Values{"action": {action}, "client_id": {params.ClientID}, "redirect_uri": {callback}, "scope": {params.Scope}, "state": {state},
-				"code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_sig": {signConsent(params, "query-user")}}
+				"code_challenge": {params.CodeChallenge}, "code_challenge_method": {params.CodeChallengeMethod}, "consent_flow": {params.FlowToken}, "consent_sig": {signConsent(params, "query-user")}}
 			req := httptest.NewRequest(http.MethodPost, "/oauth2/consent", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.AddCookie(&http.Cookie{Name: testCookieName, Value: sessionID})

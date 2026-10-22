@@ -97,6 +97,8 @@ func (h *LoginHandler) HandleBegin(w http.ResponseWriter, r *http.Request) {
 		State:               q.Get("state"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 
 	// RFC 6749 §4.1.2.1 / §10.6: validate before signing or contacting the provider;
@@ -337,6 +339,8 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, st
 		Nonce:               state.Nonce,
 		CodeChallenge:       state.CodeChallenge,
 		CodeChallengeMethod: state.CodeChallengeMethod,
+		Prompt:              state.Prompt,
+		MaxAge:              state.MaxAge,
 	}, mfa.PrimaryFederation)
 	if err != nil {
 		return err

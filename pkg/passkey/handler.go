@@ -57,6 +57,8 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 		State:               q.Get("state"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}, q.Get("authorize_sig")) {
 		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
@@ -129,6 +131,8 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		Nonce:               q.Get("nonce"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 	stateJSON, err := json.Marshal(regState)
 	if err != nil {
@@ -219,6 +223,8 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 		State:               q.Get("state"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}, q.Get("authorize_sig")) {
 		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
@@ -257,6 +263,8 @@ func HandleLoginBegin(w http.ResponseWriter, r *http.Request) {
 		Nonce:               q.Get("nonce"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 	stateJSON, err := json.Marshal(loginState)
 	if err != nil {
@@ -564,6 +572,8 @@ func HandleDiscoverableLoginBegin(w http.ResponseWriter, r *http.Request) {
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 		State:               q.Get("state"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}, q.Get("authorize_sig")) {
 		slog.Warn("passkey: authorize parameter signature mismatch", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 		writeJSONError(w, http.StatusBadRequest, "authorization parameters tampered")
@@ -588,6 +598,8 @@ func HandleDiscoverableLoginBegin(w http.ResponseWriter, r *http.Request) {
 		Nonce:               q.Get("nonce"),
 		CodeChallenge:       q.Get("code_challenge"),
 		CodeChallengeMethod: q.Get("code_challenge_method"),
+		Prompt:              q.Get("prompt"),
+		MaxAge:              q.Get("max_age"),
 	}
 	stateJSON, err := json.Marshal(loginState)
 	if err != nil {
@@ -762,6 +774,8 @@ func completeAuthFlow(w http.ResponseWriter, r *http.Request, usr *user.User, lo
 		Nonce:               loginState.Nonce,
 		CodeChallenge:       loginState.CodeChallenge,
 		CodeChallengeMethod: loginState.CodeChallengeMethod,
+		Prompt:              loginState.Prompt,
+		MaxAge:              loginState.MaxAge,
 	}, mfa.PrimaryPasskey)
 }
 
@@ -780,6 +794,8 @@ func validatedLoginState(raw string) (*LoginState, *client.Client, error) {
 	registeredClient, err := client.ValidateAuthorization(authzsig.AuthorizeParams{
 		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope, Nonce: state.Nonce,
 		State: state.State, CodeChallenge: state.CodeChallenge, CodeChallengeMethod: state.CodeChallengeMethod,
+		Prompt: state.Prompt,
+		MaxAge: state.MaxAge,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -791,6 +807,8 @@ func (s *LoginState) verificationParams() emailverification.OAuthParams {
 	return emailverification.OAuthParams{
 		ClientID: s.ClientID, RedirectURI: s.RedirectURI, Scope: s.Scope, State: s.State,
 		Nonce: s.Nonce, CodeChallenge: s.CodeChallenge, CodeChallengeMethod: s.CodeChallengeMethod,
+		Prompt: s.Prompt,
+		MaxAge: s.MaxAge,
 	}
 }
 

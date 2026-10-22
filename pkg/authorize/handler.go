@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -146,35 +145,28 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, autoLoginResult.redirectURL, http.StatusFound)
 		return
 	}
+	// OIDC Core §3.1.2.1: silent authorization cannot display consent.
+	if client.HasPrompt(request.Prompt, "none") {
+		if autoLoginResult.needsConsent {
+			redirectWithError(w, r, request.RedirectURI, request.State, "consent_required", "")
+		} else {
+			redirectWithError(w, r, request.RedirectURI, request.State, "login_required", "")
+		}
+		return
+	}
 	if autoLoginResult.needsConsent {
 		consent.RedirectToConsent(w, r, consent.ConsentParams{
-			RedirectURI:         request.RedirectURI,
-			State:               request.State,
-			ClientID:            request.ClientID,
-			Scope:               request.Scope,
-			Nonce:               request.Nonce,
-			CodeChallenge:       request.CodeChallenge,
+			RedirectURI: request.RedirectURI, State: request.State, ClientID: request.ClientID,
+			Scope: request.Scope, Nonce: request.Nonce, CodeChallenge: request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
 			Prompt:              request.Prompt,
+			MaxAge:              request.MaxAge,
 		})
 		return
 	}
 
-	// OIDC Core §3.1.2.1: prompt=none — return error if login or consent is required
-	if request.Prompt == "none" {
-		if autoLoginResult.hasSession {
-			// OIDC Core §3.1.2.1: consent_required if consent is needed but prompt=none
-			if consent.NeedsConsent(registeredClient.ConsentRequired, autoLoginResult.userID, request.ClientID, request.Scope, "") {
-				redirectWithError(w, r, request.RedirectURI, request.State, "consent_required", "")
-				return
-			}
-		}
-		redirectWithError(w, r, request.RedirectURI, request.State, "login_required", "")
-		return
-	}
-
 	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
-	if request.Prompt == "create" {
+	if client.HasPrompt(request.Prompt, "create") {
 		if !cfg.AuthAllowSelfSignup {
 			renderLogin(w, r, request, "Self-registration is not enabled")
 			return
@@ -188,6 +180,8 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 			CodeChallenge:       request.CodeChallenge,
 			CodeChallengeMethod: request.CodeChallengeMethod,
 			AuthorizeSig:        AuthorizeSignature(request),
+			Prompt:              request.Prompt,
+			MaxAge:              request.MaxAge,
 		}, get("error"))
 		return
 	}
@@ -234,7 +228,18 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 
 	federatedProviders, _ := federation.ListEnabledProviderViews()
 
+	signupPrompt := "create"
+	if client.HasPrompt(request.Prompt, "consent") {
+		signupPrompt += " consent"
+	}
+	signupQuery := url.Values{
+		"response_type": {"code"}, "client_id": {request.ClientID}, "redirect_uri": {request.RedirectURI},
+		"scope": {request.Scope}, "state": {request.State}, "nonce": {request.Nonce},
+		"code_challenge": {request.CodeChallenge}, "code_challenge_method": {request.CodeChallengeMethod},
+		"prompt": {signupPrompt}, "max_age": {request.MaxAge},
+	}
 	data := map[string]any{
+		"SignupURL":           config.GetBootstrap().AppOAuthPath + "/authorize?" + signupQuery.Encode(),
 		"State":               request.State,
 		"RedirectURI":         request.RedirectURI,
 		"ClientID":            request.ClientID,
@@ -259,6 +264,7 @@ func renderLogin(w http.ResponseWriter, r *http.Request, request AuthorizeReques
 		"SmtpConfigured":      cfg.SmtpHost != "",
 		"MagicLinkEnabled":    cfg.MagicLinkEnabled && cfg.SmtpHost != "",
 		"FederatedProviders":  federatedProviders,
+		"MaxAge":              request.MaxAge,
 	}
 	view.InjectNonce(r, data)
 
@@ -313,7 +319,7 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	}
 
 	// OIDC Core §3.1.2.1: prompt=login: the AS SHOULD prompt the End-User for reauthentication.
-	if !cfg.AuthSsoEnabled || hasLogin {
+	if !cfg.AuthSsoEnabled || hasLogin || client.HasPrompt(request.Prompt, "create") {
 		return autoLoginResult{}
 	}
 
@@ -335,21 +341,14 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 		return autoLoginResult{}
 	}
 
-	withinIdleTimeout := cfg.AuthSsoSessionIdleTimeout == 0 || time.Since(session.LastActivityAt) < cfg.AuthSsoSessionIdleTimeout
-	if !withinIdleTimeout {
-		return autoLoginResult{hasSession: true, userID: session.UserID}
-	}
-
-	withinMaxAge := cfg.AuthSsoSessionMaxAge == 0 || time.Since(session.CreatedAt) < cfg.AuthSsoSessionMaxAge
-	if !withinMaxAge {
-		return autoLoginResult{hasSession: true, userID: session.UserID}
-	}
-
 	// OIDC Core §3.1.2.1: max_age: if the elapsed time since the last active
 	// authentication exceeds max_age, the OP MUST actively re-authenticate the End-User.
-	maxAgeSecs := parseMaxAge(request.MaxAge)
-	if maxAgeSecs >= 0 && time.Since(session.CreatedAt) > time.Duration(maxAgeSecs)*time.Second {
-		return autoLoginResult{hasSession: true, userID: session.UserID}
+	now := time.Now()
+	maxAgeSecs, err := client.ParseMaxAge(request.MaxAge)
+	// OIDC Core §3.1.2.1 / §3.1.2.3: expired sessions do not authenticate
+	// the request, even if the client would otherwise also need consent.
+	if err != nil || !idpsession.IsFresh(session, cfg, now) || !idpsession.WithinMaxAge(session, maxAgeSecs, now) {
+		return autoLoginResult{}
 	}
 
 	_ = idpsession.UpdateLastActivity(session.ID)
@@ -396,17 +395,4 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	}
 	redirectURL.RawQuery = redirectParams.Encode()
 	return autoLoginResult{redirectURL: redirectURL.String(), hasSession: true, userID: session.UserID}
-}
-
-// parseMaxAge parses the max_age query parameter as seconds.
-// Returns -1 if absent or invalid (meaning no max_age constraint).
-func parseMaxAge(s string) int64 {
-	if s == "" {
-		return -1
-	}
-	v, err := strconv.ParseInt(s, 10, 64)
-	if err != nil || v < 0 {
-		return -1
-	}
-	return v
 }

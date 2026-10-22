@@ -461,6 +461,8 @@ func redirectToLoginWithError(w http.ResponseWriter, r *http.Request, challenge 
 			params.Set("redirect_uri", loginState.RedirectURI)
 			params.Set("state", loginState.State)
 			params.Set("scope", loginState.Scope)
+			params.Set("prompt", client.LoginPrompt(loginState.Prompt))
+			params.Set("max_age", loginState.MaxAge)
 			if loginState.Nonce != "" {
 				params.Set("nonce", loginState.Nonce)
 			}
@@ -488,6 +490,8 @@ func challengeClient(challenge *MfaChallenge) (LoginState, *client.Client, error
 		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope,
 		State: state.State, Nonce: state.Nonce, CodeChallenge: state.CodeChallenge,
 		CodeChallengeMethod: state.CodeChallengeMethod,
+		Prompt:              state.Prompt,
+		MaxAge:              state.MaxAge,
 	})
 	if err != nil {
 		return state, nil, err

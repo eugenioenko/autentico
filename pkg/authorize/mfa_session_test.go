@@ -20,7 +20,7 @@ func TestSsoRequiresCurrentMfaEvidence(t *testing.T) {
 		consent  bool
 	}{
 		{"", false}, {"", true}, {"email", false}, {"email", true},
-		{"totp", false}, {"trusted_device", false},
+		{"totp", false}, {"trusted_device", false}, {"totp", true}, {"trusted_device", true},
 	} {
 		t.Run(fmt.Sprintf("evidence=%s/consent=%t", tt.evidence, tt.consent), func(t *testing.T) {
 			testutils.WithTestDB(t)
@@ -46,7 +46,11 @@ func TestSsoRequiresCurrentMfaEvidence(t *testing.T) {
 			HandleAuthorize(rr, r)
 			target, err := url.Parse(rr.Header().Get("Location"))
 			require.NoError(t, err)
-			if tt.evidence == "totp" || tt.evidence == "trusted_device" {
+			if (tt.evidence == "totp" || tt.evidence == "trusted_device") && tt.consent {
+				require.Equal(t, "consent_required", target.Query().Get("error"))
+				require.Empty(t, target.Query().Get("code"))
+				require.Equal(t, "/cb", target.Path)
+			} else if tt.evidence == "totp" || tt.evidence == "trusted_device" {
 				require.NotEmpty(t, target.Query().Get("code"))
 				require.Empty(t, target.Query().Get("error"))
 			} else {

@@ -14,6 +14,8 @@
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <input type="hidden" name="prompt" value="{{.Prompt}}" />
+  <input type="hidden" name="max_age" value="{{.MaxAge}}" />
+  <input type="hidden" name="consent_flow" value="{{.FlowToken}}" />
   <input type="hidden" name="consent_sig" value="{{.ConsentSig}}" />
   <ul class="consent-scopes">
     {{range .Scopes}}

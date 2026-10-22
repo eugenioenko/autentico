@@ -150,6 +150,8 @@ func TestSelfSignup_StatePreserved(t *testing.T) {
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -217,6 +219,8 @@ func TestSelfSignup_PromptCreate(t *testing.T) {
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	signupReq, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -315,6 +319,8 @@ func TestSelfSignup_PasswordMismatch(t *testing.T) {
 	form.Set("code_challenge", testCodeChallenge)
 	form.Set("code_challenge_method", "S256")
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 	form.Set("gorilla.csrf.Token", csrfToken)
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
@@ -379,6 +385,8 @@ func TestSelfSignup_DuplicateUser(t *testing.T) {
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)
@@ -450,6 +458,8 @@ func TestSelfSignup_UsernameIsEmail(t *testing.T) {
 	form.Set("code_challenge_method", "S256")
 	form.Set("gorilla.csrf.Token", csrfToken)
 	form.Set("authorize_sig", authorizeSig)
+	form.Set("prompt", getHiddenField(string(body), "prompt"))
+	form.Set("max_age", getHiddenField(string(body), "max_age"))
 
 	req, err := http.NewRequest("POST", ts.BaseURL+"/oauth2/signup", strings.NewReader(form.Encode()))
 	require.NoError(t, err)

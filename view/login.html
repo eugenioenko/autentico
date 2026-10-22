@@ -14,6 +14,7 @@
   <input type="hidden" name="code_challenge" value="{{.CodeChallenge}}" />
   <input type="hidden" name="code_challenge_method" value="{{.CodeChallengeMethod}}" />
   <input type="hidden" name="prompt" value="{{.Prompt}}" />
+  <input type="hidden" name="max_age" value="{{.MaxAge}}" />
   <input type="hidden" name="authorize_sig" value="{{.AuthorizeSig}}" />
   {{if not .HideUsernameField}}
   <div class="auth-field">
@@ -52,7 +53,7 @@
   </button>
   {{end}}
   {{if .MagicLinkEnabled}}
-  <a href="{{authURL "/magic-link"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}" class="auth-btn-secondary">
+  <a href="{{authURL "/magic-link"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}&prompt={{.Prompt}}&max_age={{.MaxAge}}" class="auth-btn-secondary">
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
     </svg>
@@ -61,7 +62,7 @@
   {{end}}
   {{if .FederatedProviders}}
   {{range .FederatedProviders}}
-  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}" class="auth-btn-secondary">
+  <a href="{{authURL "/federation/"}}{{.ID}}?state={{$.State}}&redirect_uri={{$.RedirectURI}}&client_id={{$.ClientID}}&scope={{$.Scope}}&nonce={{$.Nonce}}&code_challenge={{$.CodeChallenge}}&code_challenge_method={{$.CodeChallengeMethod}}&prompt={{$.Prompt}}&max_age={{$.MaxAge}}" class="auth-btn-secondary">
     {{if .HasIcon}}<img src="{{authURL "/federation/"}}{{.ID}}/icon.svg" alt="" width="20" height="20" class="federation-icon" />{{end}}
     Sign in with {{.Name}}
   </a>
@@ -70,10 +71,10 @@
   {{if or .AllowSelfSignup (and .SmtpConfigured (not .HidePasswordField))}}
   <div class="auth-links">
     {{if and .SmtpConfigured (not .HidePasswordField)}}
-    <div class="auth-link"><a href="{{authURL "/forgot-password"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Forgot password?</a></div>
+    <div class="auth-link"><a href="{{authURL "/forgot-password"}}?client_id={{.ClientID}}&redirect_uri={{.RedirectURI}}&state={{.State}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}&prompt={{.Prompt}}&max_age={{.MaxAge}}">Forgot password?</a></div>
     {{end}}
     {{if .AllowSelfSignup}}
-    <div class="auth-link" style="margin-left:auto;"><a href="{{authURL "/authorize"}}?response_type=code&prompt=create&state={{.State}}&redirect_uri={{.RedirectURI}}&client_id={{.ClientID}}&scope={{.Scope}}&nonce={{.Nonce}}&code_challenge={{.CodeChallenge}}&code_challenge_method={{.CodeChallengeMethod}}">Create account</a></div>
+    <div class="auth-link" style="margin-left:auto;"><a href="{{.SignupURL}}">Create account</a></div>
     {{end}}
   </div>
   {{end}}
@@ -101,6 +102,8 @@
       nonce: document.querySelector('[name=nonce]').value,
       code_challenge: document.querySelector('[name=code_challenge]').value,
       code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      prompt: document.querySelector('[name=prompt]').value,
+      max_age: document.querySelector('[name=max_age]').value,
       authorize_sig: document.querySelector('[name=authorize_sig]').value,
     });
     try {
@@ -121,6 +124,8 @@
       nonce: document.querySelector('[name=nonce]').value,
       code_challenge: document.querySelector('[name=code_challenge]').value,
       code_challenge_method: document.querySelector('[name=code_challenge_method]').value,
+      prompt: document.querySelector('[name=prompt]').value,
+      max_age: document.querySelector('[name=max_age]').value,
       authorize_sig: document.querySelector('[name=authorize_sig]').value,
     });
     if (mediation === 'conditional') { params.set('mediation', 'conditional'); }

@@ -539,7 +539,7 @@ describe('Federation flow — two Autentico instances', () => {
       expect(consentPage.status).toBe(200);
       const consentHtml = await consentPage.text();
       const form = new URLSearchParams({ action: 'allow' });
-      for (const name of ['client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method', 'prompt', 'consent_sig', 'gorilla.csrf.Token']) {
+      for (const name of ['client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method', 'prompt', 'max_age', 'consent_flow', 'consent_sig', 'gorilla.csrf.Token']) {
         form.set(name, field(consentHtml, name));
       }
       const approved = await fetch(`${OAUTH_URL}/consent`, { method: 'POST', redirect: 'manual',

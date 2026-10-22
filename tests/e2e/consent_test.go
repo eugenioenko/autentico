@@ -30,6 +30,8 @@ func postConsentForm(t *testing.T, ts *TestServer, htmlBody, action string) *htt
 	form.Set("code_challenge", getHiddenField(htmlBody, "code_challenge"))
 	form.Set("code_challenge_method", getHiddenField(htmlBody, "code_challenge_method"))
 	form.Set("prompt", getHiddenField(htmlBody, "prompt"))
+	form.Set("max_age", getHiddenField(htmlBody, "max_age"))
+	form.Set("consent_flow", getHiddenField(htmlBody, "consent_flow"))
 	form.Set("consent_sig", consentSig)
 	form.Set("gorilla.csrf.Token", csrfToken)
 
@@ -246,8 +248,32 @@ func TestConsentFlow_PromptNone_ConsentRequired_ReturnsError(t *testing.T) {
 	require.Equal(t, http.StatusFound, resp.StatusCode)
 	location := resp.Header.Get("Location")
 	redirectURL, _ := url.Parse(location)
-	errParam := redirectURL.Query().Get("error")
-	assert.Contains(t, []string{"login_required", "consent_required"}, errParam)
+	require.Equal(t, "login_required", redirectURL.Query().Get("error"))
+
+	// A fully authenticated browser still needs consent, but silent requests
+	// must return to the RP without opening any consent UI (OIDC Core §3.1.2.1).
+	pending := performAuthFlowUntilConsent(t, ts, "consent-client", "http://localhost:3000/callback", "promptnone-user", "password123", "s1")
+	response, err := ts.Client.Get(authorizeURL)
+	require.NoError(t, err)
+	_ = response.Body.Close()
+	require.Equal(t, http.StatusFound, response.StatusCode)
+	target, err := url.Parse(response.Header.Get("Location"))
+	require.NoError(t, err)
+	require.Equal(t, "http://localhost:3000/callback", target.Scheme+"://"+target.Host+target.Path)
+	require.Equal(t, "consent_required", target.Query().Get("error"))
+	require.Empty(t, target.Query().Get("code"))
+
+	// Once the user approves the original request, silent code issuance works.
+	approved := postConsentForm(t, ts, followToConsentPage(t, ts, pending), "allow")
+	_ = approved.Body.Close()
+	require.Equal(t, http.StatusFound, approved.StatusCode)
+	response, err = ts.Client.Get(authorizeURL)
+	require.NoError(t, err)
+	_ = response.Body.Close()
+	target, err = url.Parse(response.Header.Get("Location"))
+	require.NoError(t, err)
+	require.Empty(t, target.Query().Get("error"))
+	require.NotEmpty(t, target.Query().Get("code"))
 }
 
 func TestConsentFlow_ConsentSignatureTampering_Rejected(t *testing.T) {

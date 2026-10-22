@@ -49,6 +49,8 @@ func finishLogin(w http.ResponseWriter, r *http.Request, userID string, state Lo
 		ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope,
 		State: state.State, Nonce: state.Nonce, CodeChallenge: state.CodeChallenge,
 		CodeChallengeMethod: state.CodeChallengeMethod,
+		Prompt:              state.Prompt,
+		MaxAge:              state.MaxAge,
 	})
 	if err != nil {
 		return "", err
@@ -115,11 +117,13 @@ func finishLogin(w http.ResponseWriter, r *http.Request, userID string, state Lo
 	}
 	// OIDC Core §3.1.2.4: every primary method observes local client consent.
 	if consent.NeedsConsent(registered.ConsentRequired, usr.ID, state.ClientID, state.Scope, state.Prompt) {
-		return consent.URL(consent.ConsentParams{
+		return consent.LoginURL(consent.ConsentParams{
 			ClientID: state.ClientID, RedirectURI: state.RedirectURI, Scope: state.Scope,
 			State: state.State, Nonce: state.Nonce, CodeChallenge: state.CodeChallenge,
-			CodeChallengeMethod: state.CodeChallengeMethod, Prompt: state.Prompt,
-		}), nil
+			CodeChallengeMethod: state.CodeChallengeMethod,
+			Prompt:              state.Prompt,
+			MaxAge:              state.MaxAge,
+		}, idpSessionID)
 	}
 	code, err := authcode.GenerateSecureCode()
 	if err != nil {

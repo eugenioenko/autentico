@@ -29,6 +29,7 @@ The ID token is a JWT signed with the server's RSA private key (RS256). It is re
 | `aud` | Audience — the `client_id` of the requesting relying party |
 | `exp` | Expiration timestamp (Unix) |
 | `iat` | Issued-at timestamp (Unix) |
+| `auth_time` | Original authentication time (Unix), preserved through consent, SSO and refresh |
 | `nonce` | The `nonce` value from the authorization request, if provided. Used by relying parties to prevent replay attacks. |
 
 Relying parties verify the ID token signature using the public JWK Set at `/oauth2/.well-known/jwks.json`. The `kid` header identifies which key to use.
@@ -46,6 +47,7 @@ The access token is a JWT used to authenticate API requests. It is passed as a `
 | `aud` | Audience — always includes the issuer and `client_id`; extended by `access_token_audience` setting or per-client `allowed_audiences` override. The admin API requires `autentico-admin` in this claim. |
 | `exp` | Expiration timestamp |
 | `iat` | Issued-at timestamp |
+| `auth_time` | Original authentication time, preserved across refresh rotation |
 | `sid` | Session ID — correlates the token to a specific session |
 | `scope` | Space-separated scopes granted for this token |
 
@@ -62,6 +64,7 @@ The refresh token is a JWT used to obtain new access tokens without re-authentic
 | `sub` | User ID |
 | `sid` | Session ID |
 | `iat` | Issued-at timestamp |
+| `auth_time` | Original authentication time, preserved across refresh rotation |
 | `exp` | Expiration timestamp |
 
 Refresh tokens are opaque to relying parties — do not parse or depend on their internal structure.

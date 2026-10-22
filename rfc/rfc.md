@@ -961,3 +961,11 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | MUST | OIDC Core §3.1.2.3 | Authenticate the end user before issuing an authorization response | ✅ All browser primary methods share current-client validation and local MFA enforcement, including signup, email verification, named/discoverable passkeys and federation. No SSO session or code precedes required MFA (#468). |
 | MUST | OIDC Core §3.1.2.4 | Obtain required end-user authorization before issuing a code | ✅ Every primary login and verified MFA continuation applies per-client consent before code issuance (#468). |
 | Local policy | OIDC Core §3.1.2.3 / WebAuthn Level 3 §5.8.6 | Do not infer local MFA completion from enrollment, upstream login or preferred passkey UV | ✅ Passkeys and federation are primary credentials. Browser sessions record completed MFA evidence; SSO and direct consent require that evidence to satisfy current local policy. Email links preserve the existing duplicate-email-OTP exception without bypassing TOTP (#468). |
+
+### Consent request binding and authentication freshness (#471)
+
+| Level | Specification | Requirement | Implementation |
+|---|---|---|---|
+| MUST | RFC 6749 §3.1.2 / §3.3 / §4.1.1; RFC 7636 §4.4.1 | Validate redirect, client, code flow, scopes and PKCE before authorization | Consent GET/POST validate current registration and a short-lived browser-bound continuation. |
+| MUST | OIDC Core §3.1.2.1 / §3.1.2.3–4 | Honor prompt, authentication age and required consent | Signed controls survive browser login; consent rechecks MFA and idle/absolute/request age. Silent requests return login_required or consent_required without UI. |
+| MUST | OIDC Core §2 / §12.2 | Preserve original authentication time when issuing or refreshing tokens | Consent/SSO use session authentication; access, ID and signed refresh tokens preserve auth_time across rotations while iat records issuance. Unrecoverable legacy context requires reauthentication. |
