@@ -342,15 +342,17 @@ func TestClient_ResponseTypeRestriction(t *testing.T) {
 
 	_, adminToken := createTestAdmin(t, ts, "admin@test.com", "password123", "admin@test.com")
 
-	// Client only allows response_type "token"
+	// Register supported metadata, then model a historical token-only client.
 	clientResp := createTestClient(t, ts, adminToken, client.ClientCreateRequest{
 		ClientName:    "Token Only Client",
 		RedirectURIs:  []string{redirectURI},
 		GrantTypes:    []string{"authorization_code"},
-		ResponseTypes: []string{"token"},
+		ResponseTypes: []string{"code"},
 		ClientType:    "public",
 	})
 	clientID := clientResp["client_id"].(string)
+	_, err := db.GetDB().Exec(`UPDATE clients SET response_types='["token"]' WHERE client_id=?`, clientID)
+	require.NoError(t, err)
 
 	// Attempt /authorize with response_type=code — should be rejected
 	authorizeURL := ts.BaseURL + "/oauth2/authorize?" + url.Values{
