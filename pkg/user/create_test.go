@@ -16,6 +16,10 @@ func TestCreateUser(t *testing.T) {
 	assert.NotNil(t, u)
 	assert.Equal(t, "testuser", u.Username)
 	assert.Equal(t, "test@example.com", u.Email)
+	assert.Equal(t, "user", u.Role)
+	stored, err := UserByID(u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "user", stored.Role)
 
 	// Test duplicate username
 	_, err = CreateUser("testuser", "password456", "other@example.com")
