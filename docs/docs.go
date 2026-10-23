@@ -2580,7 +2580,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Export all settings as a JSON file (smtp_password excluded).",
+                "description": "Export runtime settings as JSON, excluding smtp_password, private_key and onboarding state.",
                 "produces": [
                     "application/json"
                 ],

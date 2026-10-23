@@ -203,7 +203,7 @@ type settingsPreviewResponse struct {
 
 // HandleExportSettings godoc
 // @Summary Export settings
-// @Description Export all settings as a JSON file (smtp_password excluded).
+// @Description Export runtime settings as JSON, excluding smtp_password, private_key and onboarding state.
 // @Tags admin-settings
 // @Produce json
 // @Security AdminAuth
@@ -215,6 +215,10 @@ func HandleExportSettings(w http.ResponseWriter, _ *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to read settings")
 		return
 	}
+	// OWASP Secrets Management §Secrets Lifecycle: exports expose configuration,
+	// not credentials. Absent import keys leave the existing secrets intact.
+	delete(all, "smtp_password")
+	delete(all, "private_key")
 	delete(all, "onboarded")
 	export := settingsExport{
 		Version:    1,
