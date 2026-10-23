@@ -36,7 +36,7 @@ ghcr.io/eugenioenko/autentico:latest
 
 ### Build from Source
 
-Requires Go 1.22+, Node 22+, pnpm.
+Requires Go 1.25+, Node 22+, pnpm.
 
 ```bash
 git clone https://github.com/eugenioenko/autentico.git
