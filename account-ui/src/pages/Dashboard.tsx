@@ -52,6 +52,29 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-4" data-testid="account-dashboard">
+      {!!apps?.length && (
+        <Card title="Applications" description="Apps you can sign in to with this account.">
+          <ul className="divide-y divide-theme-fg/10" data-testid="account-apps">
+            {apps.map((app) => (
+              <li key={app.client_id} className="py-3 flex items-center gap-3">
+                <AppLogo app={app} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{app.name}</p>
+                  {app.description && <p className="text-sm text-theme-muted">{app.description}</p>}
+                </div>
+                {app.client_uri && (
+                  <a href={app.client_uri} target="_blank" rel="noopener noreferrer">
+                    <Button variant="primary">
+                      Open <IconExternalLink size={13} />
+                    </Button>
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <Card
         title="Account Security"
         action={
@@ -95,29 +118,6 @@ const Dashboard: React.FC = () => {
           ))}
         </dl>
       </Card>
-
-      {!!apps?.length && (
-        <Card title="Applications" description="Apps you can sign in to with this account.">
-          <ul className="divide-y divide-theme-fg/10" data-testid="account-apps">
-            {apps.map((app) => (
-              <li key={app.client_id} className="py-3 flex items-center gap-3">
-                <AppLogo app={app} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate">{app.name}</p>
-                  {app.description && <p className="text-sm text-theme-muted">{app.description}</p>}
-                </div>
-                {app.client_uri && (
-                  <a href={app.client_uri} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost">
-                      Open <IconExternalLink size={13} />
-                    </Button>
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
     </div>
   );
 };
