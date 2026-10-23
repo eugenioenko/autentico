@@ -153,9 +153,9 @@ func TestAlternateLoginTrustedDeviceUsesClientPolicyAndStillRequiresConsent(t *t
 			config.Values.TrustDeviceEnabled = !allow
 			_, err := db.GetDB().Exec(`UPDATE clients SET trust_device_enabled=? WHERE client_id='finish'`, allow)
 			require.NoError(t, err)
-			require.NoError(t, trusteddevice.CreateTrustedDevice(trusteddevice.TrustedDevice{ID: "trusted", UserID: usr.ID, ExpiresAt: time.Now().Add(time.Hour)}))
+			require.NoError(t, trusteddevice.CreateTrustedDevice(trusteddevice.TrustedDevice{ID: "trusted", UserID: usr.ID, ExpiresAt: time.Now().Add(time.Hour)}, "fixture-cookie-token"))
 			r := httptest.NewRequest("GET", "/finish", nil)
-			r.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: "trusted"})
+			r.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: "fixture-cookie-token"})
 			rr := httptest.NewRecorder()
 			next, err := FinishLogin(rr, r, usr.ID, state, PrimaryFederation)
 			require.NoError(t, err)

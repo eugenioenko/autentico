@@ -3,7 +3,7 @@ package trusteddevice
 import "time"
 
 type TrustedDevice struct {
-	ID         string    // token stored in cookie
+	ID         string // public management ID, separate from the cookie credential
 	UserID     string
 	DeviceName string
 	CreatedAt  time.Time

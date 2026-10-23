@@ -1062,7 +1062,7 @@ const docTemplate = `{
                         "UserAuth": []
                     }
                 ],
-                "description": "Returns all trusted devices for the authenticated user (devices that bypass MFA).",
+                "description": "Returns trusted device metadata and public management IDs; cookie credentials and hashes are never returned.",
                 "produces": [
                     "application/json"
                 ],
