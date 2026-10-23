@@ -123,7 +123,7 @@ func TestAuthorizeDeviceCode_NotPending(t *testing.T) {
 
 	// Try to authorize — should not change (WHERE status = 'pending')
 	err := AuthorizeDeviceCode("GHJKLMNP", "user-456")
-	require.NoError(t, err) // no SQL error, but 0 rows affected
+	require.ErrorIs(t, err, ErrCodeConsumed) // a stale decision must report failure
 
 	found, err := DeviceCodeByUserCode("GHJKLMNP")
 	require.NoError(t, err)
