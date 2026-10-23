@@ -15,6 +15,20 @@ The image is a minimal Linux container with just the `autentico` binary. The ent
 
 The listener uses the same [HTTP timeouts as binary deployments](/deployment/binary/#http-timeouts).
 
+## Release tags
+
+Stable releases update `latest` and the matching major/minor tag. Prereleases use numbered SemVer suffixes such as `v3.0.0-beta.1`, `v3.0.0-beta.2` or `v3.0.0-rc.1`. They are marked as prereleases on GitHub and publish only their full Docker version tag, leaving `latest` and stable major/minor tags unchanged.
+
+For example:
+
+| Git tag | GitHub release | Docker tags |
+|---|---|---|
+| `v3.0.0` | Latest stable release | `3.0.0`, `3.0`, `latest` |
+| `v3.0.0-beta.1` | Prerelease | `3.0.0-beta.1` |
+| `v3.0.0-rc.1` | Prerelease | `3.0.0-rc.1` |
+
+Docker version tags omit the leading `v`. To try a published beta, select its exact image tag, for example `ghcr.io/eugenioenko/autentico:3.0.0-beta.1`. Before upgrading an existing database to v3, follow [the migration guide](/deployment/migrations/).
+
 ## Quick start
 
 ```bash
