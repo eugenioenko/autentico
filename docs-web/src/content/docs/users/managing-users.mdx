@@ -30,6 +30,8 @@ curl -X POST https://auth.example.com/admin/api/users \
 </TabItem>
 </Tabs>
 
+The role must be `user` or `admin`. Omitting it or sending an empty string creates a regular `user`. Only an authenticated administrator can create users through this endpoint, including new administrators.
+
 ## Listing users
 
 ```bash

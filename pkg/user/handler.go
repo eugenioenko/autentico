@@ -45,7 +45,7 @@ func HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		request.Username = strings.ToLower(request.Username)
 		request.Email = request.Username
 	}
-	response, err := CreateUser(request.Username, request.Password, request.Email)
+	response, err := CreateUserWithRole(request.Username, request.Password, request.Email, request.Role)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "A user with that username or email already exists")

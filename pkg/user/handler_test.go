@@ -112,6 +112,54 @@ func TestHandleCreateUser_Success(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "newuser")
 }
 
+func TestHandleCreateUser_AppliesRole(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.ValidationMinUsernameLength = 3
+		config.Values.ValidationMaxUsernameLength = 50
+		config.Values.ValidationMinPasswordLength = 6
+	})
+
+	body, _ := json.Marshal(UserCreateRequest{
+		Username: "newadmin",
+		Password: "password123",
+		Email:    "admin@example.com",
+		Role:     "admin",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleCreateUser(rr, req)
+	assert.Equal(t, http.StatusCreated, rr.Code)
+
+	var response model.ApiResponse[UserResponse]
+	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &response))
+	assert.Equal(t, "admin", response.Data.Role)
+
+	stored, err := UserByID(response.Data.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, "admin", stored.Role)
+}
+
+func TestHandleCreateUser_RejectsUnknownRole(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() {
+		config.Values.ValidationMinUsernameLength = 3
+		config.Values.ValidationMaxUsernameLength = 50
+		config.Values.ValidationMinPasswordLength = 6
+	})
+
+	body, _ := json.Marshal(UserCreateRequest{
+		Username: "newuser",
+		Password: "password123",
+		Role:     "owner",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/users", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	HandleCreateUser(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "role is invalid")
+}
+
 func TestHandleCreateUser_UsernameIsEmail(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.WithConfigOverride(t, func() {
