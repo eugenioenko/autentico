@@ -175,8 +175,10 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	mux.Handle(oauth+"/reset-password", rateLimited(csrfProtected(passwordreset.HandleResetPassword)))
 	mux.HandleFunc("GET "+oauth+"/federation/{id}", federationLogin.HandleBegin)
 	mux.HandleFunc("GET "+oauth+"/federation/{id}/callback", federationLogin.HandleCallback)
-	mux.Handle(oauth+"/signup", csrfProtected(signup.HandleSignup))
-	mux.Handle(oauth+"/signup/", csrfProtected(signup.HandleSignup))
+	// OWASP Authentication §Protect Against Automated Attacks: signup uses the
+	// same per-IP request budget as login, MFA and token requests.
+	mux.Handle(oauth+"/signup", rateLimited(csrfProtected(signup.HandleSignup)))
+	mux.Handle(oauth+"/signup/", rateLimited(csrfProtected(signup.HandleSignup)))
 	mux.Handle("POST "+oauth+"/token", rateLimitedFunc(token.HandleToken))
 	mux.Handle("POST "+oauth+"/protocol/openid-connect/token", rateLimitedFunc(token.HandleToken))
 	mux.Handle("POST "+oauth+"/device_authorization", rateLimitedFunc(devicecode.HandleDeviceAuthorization))
