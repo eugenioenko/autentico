@@ -309,5 +309,11 @@ func ValidateUserCreateRequest(input UserCreateRequest) error {
 		}
 	}
 
+	if input.Role != "" {
+		if err := validation.Validate(input.Role, validation.In("user", "admin")); err != nil {
+			return fmt.Errorf("role is invalid: %w", err)
+		}
+	}
+
 	return nil
 }

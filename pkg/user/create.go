@@ -35,8 +35,15 @@ func CreatePasskeyUser(username, email string) (*UserResponse, error) {
 }
 
 func CreateUser(username, password, email string) (*UserResponse, error) {
+	return CreateUserWithRole(username, password, email, "user")
+}
+
+func CreateUserWithRole(username, password, email, role string) (*UserResponse, error) {
 	id := xid.New().String()
 	var createdAt time.Time
+	if role == "" {
+		role = "user"
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -49,8 +56,8 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 	if email != "" {
 		emailParam = email
 	}
-	query := `INSERT INTO users (id, username, password, email, registered_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING created_at`
-	row := db.GetDB().QueryRow(query, id, username, hashedPasswordStr, emailParam)
+	query := `INSERT INTO users (id, username, password, email, registered_at, role) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?) RETURNING created_at`
+	row := db.GetDB().QueryRow(query, id, username, hashedPasswordStr, emailParam, role)
 	err = row.Scan(&createdAt)
 	if err != nil {
 		err = fmt.Errorf("failed to create user: %w", err)
@@ -62,7 +69,7 @@ func CreateUser(username, password, email string) (*UserResponse, error) {
 		Username:        username,
 		Email:           email,
 		CreatedAt:       createdAt,
-		Role:            "user", // default role
+		Role:            role,
 		IsEmailVerified: false,
 		TotpVerified:    false,
 	}
