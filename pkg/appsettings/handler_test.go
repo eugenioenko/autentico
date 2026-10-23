@@ -157,7 +157,7 @@ func TestHandleGetSettings_DatabaseError(t *testing.T) {
 
 // --- Export ---
 
-func TestHandleExportSettings_IncludesAllSettings(t *testing.T) {
+func TestHandleExportSettings_IncludesNonSensitiveSettings(t *testing.T) {
 	testutils.WithTestDB(t)
 	_ = SetSetting("smtp_password", "supersecret")
 	_ = SetSetting("onboarded", "true")
@@ -172,7 +172,7 @@ func TestHandleExportSettings_IncludesAllSettings(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	assert.Equal(t, 1, resp.Data.Version)
 	assert.Equal(t, "My IDP", resp.Data.Settings["theme_title"])
-	assert.Equal(t, "supersecret", resp.Data.Settings["smtp_password"])
+	assert.NotContains(t, resp.Data.Settings, "smtp_password")
 	assert.NotContains(t, resp.Data.Settings, "onboarded")
 }
 
