@@ -50,3 +50,15 @@ it('blocks invalid supplied hints on GET/POST, while accepting expired signed hi
     }
   }
 });
+
+it('does not redirect raw malformed query or form encoding', async () => {
+ for (const method of ['GET','POST']) {
+  for (const raw of [
+   `id_token_hint=%ZZ&client_id=${client_id}&post_logout_redirect_uri=${encodeURIComponent(callback)}`,
+   `state=%ZZ&client_id=${client_id}&post_logout_redirect_uri=${encodeURIComponent(callback)}`,
+  ]) {
+   const response=await fetch(`${OAUTH_URL}/logout${method === 'GET' ? `?${raw}` : ''}`,{method,redirect:'manual',headers:method === 'POST' ? {'Content-Type':'application/x-www-form-urlencoded'} : {},body:method === 'POST' ? raw : undefined});
+   expect(response.status).toBe(200);expect(response.headers.get('location')).toBe(null);
+  }
+ }
+});
