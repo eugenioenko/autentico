@@ -47,12 +47,12 @@ export async function startServer(fixture?: { binary: string; args: string[]; en
       detached: false,
       env: {
         ...env,
-        ...fixture?.env,
         AUTENTICO_CSRF_SECURE_COOKIE: 'false',
         AUTENTICO_IDP_SESSION_SECURE: 'false',
         AUTENTICO_REFRESH_TOKEN_SECURE: 'false',
         AUTENTICO_RATE_LIMIT_RPS: '0',
         AUTENTICO_RATE_LIMIT_RPM: '0',
+        ...fixture?.env,
       },
     });
 
