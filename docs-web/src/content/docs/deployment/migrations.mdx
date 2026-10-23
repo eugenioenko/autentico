@@ -119,7 +119,7 @@ services:
 
 For a container using the image's persistent `/app/data/.env`, use the `init` command shown below instead of creating a second configuration file on the host.
 
-Keep a protected copy of this key with your recovery material, separate from database-only exports. Do not generate a new key on each deployment or replace it after encryption: a different key cannot decrypt existing enrollments. If the key is lost, restore the original key from backup. `start` refuses a wrong key or corrupt encrypted enrollment rather than disabling MFA. The migration itself preserves the original seeds; it does not reset enrollments or ask users to scan new QR codes.
+Keep a protected copy of this key with your recovery material, separate from database-only exports. Do not generate a new key on each deployment or replace it after encryption: a different key cannot decrypt existing enrollments. If the key is lost, restore the original key from backup. `start` and `migrate` validate existing encrypted enrollments before applying routine schema upgrades. A wrong key or corrupt encrypted enrollment stops the upgrade without advancing the schema or resetting MFA. Restore the original key and retry. The migration itself preserves the original seeds; it does not reset enrollments or ask users to scan new QR codes.
 
 ### Docker Compose
 
