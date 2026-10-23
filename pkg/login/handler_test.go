@@ -295,7 +295,7 @@ func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
 		UserID:     u.ID,
 		DeviceName: "Test",
 		ExpiresAt:  time.Now().Add(time.Hour),
-	})
+	}, "fixture-cookie-token")
 
 	form := url.Values{}
 	form.Set("username", "testuser")
@@ -307,7 +307,7 @@ func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// Add trusted device cookie
-	req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: deviceID})
+	req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: "fixture-cookie-token"})
 
 	rr := httptest.NewRecorder()
 	HandleLoginUser(rr, req)

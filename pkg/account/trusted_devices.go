@@ -11,7 +11,7 @@ import (
 
 // HandleListTrustedDevices godoc
 // @Summary List trusted devices
-// @Description Returns all trusted devices for the authenticated user (devices that bypass MFA).
+// @Description Returns trusted device metadata and public management IDs; cookie credentials and hashes are never returned.
 // @Tags account-security
 // @Produce json
 // @Security UserAuth

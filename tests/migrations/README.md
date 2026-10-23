@@ -27,6 +27,8 @@ session invalidation is required for this upgrade alone.
 
 Schema 19 adds only indexed pending federation flows. Black-box schema-18 upgrades use explicit CLI migration and automatic startup in WAL/rollback-journal modes, preserving TOTP ciphertext, enrollment, replay/lockout counters, token hashes, browser MFA evidence and trusted devices. Index-collision failures after table creation roll back partial DDL and version, preserve user data and allow retry. The real two-instance HTTP suite additionally verifies pending login and consumed-state replay protection across server restarts.
 
+Schema 20 hashes trusted-device cookies while assigning separate public IDs. Black-box upgrades preserve existing cookies, device metadata/expiry, token hashes and MFA state in both journal modes through startup and CLI migration. Failures roll back the schema and transformed rows so the same database can be retried.
+
 CI runs the real database and CLI migration suite on both Linux and Windows,
 including paths containing spaces, Unicode, and URI-reserved characters.
 The functional CI job also runs the Docker Compose migration test against the

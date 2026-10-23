@@ -68,7 +68,7 @@ func TestMfaClientTrustedDeviceOverride(t *testing.T) {
 				require.Equal(t, 72*3600, device.MaxAge)
 				require.Equal(t, 1, count)
 				var expiry time.Time
-				require.NoError(t, db.GetDB().QueryRow(`SELECT expires_at FROM trusted_devices WHERE id=?`, device.Value).Scan(&expiry))
+				require.NoError(t, db.GetDB().QueryRow(`SELECT expires_at FROM trusted_devices WHERE token_hash=?`, utils.HashToken(device.Value)).Scan(&expiry))
 				require.WithinDuration(t, time.Now().Add(72*time.Hour), expiry, time.Second)
 			} else {
 				require.Nil(t, device)

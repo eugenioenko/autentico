@@ -22,7 +22,7 @@ func TestHandleListTrustedDevices(t *testing.T) {
 		UserID:     usr.ID,
 		DeviceName: "My Browser",
 		ExpiresAt:  time.Now().Add(time.Hour),
-	})
+	}, "fixture-cookie-token")
 
 	rr := mockAuthRequest(t, "", "GET", "/account/api/trusted-devices", HandleListTrustedDevices, info)
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -37,7 +37,7 @@ func TestHandleRevokeTrustedDevice(t *testing.T) {
 		UserID:     usr.ID,
 		DeviceName: "My Browser",
 		ExpiresAt:  time.Now().Add(time.Hour),
-	})
+	}, "fixture-cookie-token")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /account/api/trusted-devices/{id}", HandleRevokeTrustedDevice)

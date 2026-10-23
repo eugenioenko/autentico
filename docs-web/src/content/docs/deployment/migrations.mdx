@@ -82,6 +82,8 @@ Schema **18** is a routine additive migration that records the completed local M
 
 Schema **19** adds an indexed table for pending federation logins. This routine migration runs automatically from schema 18 when auto-migration is enabled; it preserves existing tokens, sessions, TOTP ciphertext and enrollment/replay/lockout state. No new key or major approval is required. Keep the existing configuration and secrets for restart continuity. In-flight federation links from the previous version must restart sign-in: callbacks now require the initiating browser cookie, an unexpired pending flow and single-use consumption. See [federation login protection](/integrate/federation/#browser-binding-and-replay-protection).
 
+Schema **20** separates public trusted-device IDs from cookie credentials. It hashes existing cookie values and assigns independent management IDs, preserving existing cookies, device metadata and expiration, tokens, sessions, and TOTP enrollments. This routine upgrade applies automatically from schema 19 unless auto-migration is disabled. No new key or major approval is needed; unattended deployments continue using `--approve-major=15,17`. Interactive migration now asks you to type **`20`**. Refresh any open trusted-device list before revoking a device, since its public ID changes once.
+
 Consent and authentication-time hardening needs no further schema migration or key. Consent pages open during an upgrade must restart authorization. Older refresh tokens recover authentication time from a linked browser session or original unrotated password grant. Already-rotated tokens without a browser link require a new login because the original time cannot be reconstructed. Other sessions are preserved. See [refresh token compatibility](/protocol/refresh-tokens/#authentication-time).
 
 Client registration now infers public clients from `token_endpoint_auth_method: "none"` when `client_type` is omitted and rejects contradictory metadata. Existing confidential clients continue requiring their current secrets; read/list responses correct their reported method and an ordinary client edit repairs stored metadata. This requires no schema migration, key or secret rotation. See [authentication metadata and existing clients](/clients/registering/#authentication-metadata-and-existing-clients).
@@ -133,7 +135,7 @@ docker compose run --rm autentico init
 docker compose run --rm autentico migrate
 ```
 
-If schema 15 is pending, the command warns that everyone will be signed out. It also explains that schema 17 preserves and encrypts TOTP enrollments. Type the **target schema number shown by the command** to approve the upgrade (currently **`19`**). After it succeeds:
+If schema 15 is pending, the command warns that everyone will be signed out. It also explains that schema 17 preserves and encrypts TOTP enrollments. Type the **target schema number shown by the command** to approve the upgrade (currently **`20`**). After it succeeds:
 
 ```bash
 docker compose up -d autentico
