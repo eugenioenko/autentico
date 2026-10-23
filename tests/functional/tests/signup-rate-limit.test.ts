@@ -41,3 +41,25 @@ for (const suffix of ['', '/']) {
   expect(invalidGet.status).toBe(429);
  });
 }
+
+for (const suffix of ['', '/']) {
+ it(`still rejects missing and invalid CSRF at /signup${suffix} with budget available`, async () => {
+  await stopServer();
+  await startServer({binary:join(import.meta.dirname,'../../../autentico'),args:['start'],env:{
+   AUTENTICO_RATE_LIMIT_RPS:'0.000001',AUTENTICO_RATE_LIMIT_BURST:'4',
+   AUTENTICO_RATE_LIMIT_RPM:'60000',AUTENTICO_RATE_LIMIT_RPM_BURST:'60000',
+  }});
+  const parameters={client_id:'autentico-account',redirect_uri:`${BASE_URL}/account/callback`,response_type:'code',scope:'openid',state:'csrf-check',code_challenge:'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',code_challenge_method:'S256'};
+  const page=await fetch(`${OAUTH_URL}/authorize?${new URLSearchParams(parameters)}`,{redirect:'manual'});
+  expect(page.status).toBe(200);
+  const cookie=page.headers.getSetCookie().find(value=>value.startsWith('_gorilla_csrf='))?.split(';')[0];
+  expect(cookie).toBeTruthy();
+  for (const value of ['', 'invalid-csrf-token']) {
+   const body=new URLSearchParams(parameters);
+   if (value) body.set('gorilla.csrf.Token',value);
+   const response=await fetch(`${OAUTH_URL}/signup${suffix}`,{method:'POST',redirect:'manual',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:cookie!,Origin:BASE_URL},body});
+   expect(response.status).toBe(403);
+   expect(await response.text()).toContain('CSRF');
+  }
+ });
+}
