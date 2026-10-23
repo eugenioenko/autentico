@@ -27,6 +27,7 @@ import (
 // @Success 200 {string} string "Token revoked successfully"
 // @Failure 400 {object} model.ApiError
 // @Failure 401 {object} model.AuthErrorResponse "Client authentication failed; matching WWW-Authenticate challenge"
+// @Failure 403 {object} model.ApiError "Bearer token lacks admin audience or role"
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/revoke [post]
 func HandleRevoke(w http.ResponseWriter, r *http.Request) {

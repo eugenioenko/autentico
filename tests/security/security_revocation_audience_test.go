@@ -15,7 +15,7 @@ import (
 // not authorize privileged cross-client operations at this resource server.
 func TestRevocationRequiresAdminAudience(t *testing.T) {
 	ts := startTestServer(t)
-	_, admin := createTestAdmin(t, ts, "revoke-admin", "password123", "admin@example.com")
+	adminUser, admin := createTestAdmin(t, ts, "revoke-admin", "password123", "admin@example.com")
 	ordinary := obtainTokensViaROPC(t, ts, "test-client", "revoke-admin", "password123")
 	createTestUser(t, "revoke-target", "password123", "target@example.com")
 	target := obtainTokensViaConfidentialROPC(t, ts, "revoke-target", "password123")
@@ -40,6 +40,12 @@ func TestRevocationRequiresAdminAudience(t *testing.T) {
 	for _, credential := range []string{target.AccessToken, target.RefreshToken} {
 		require.Equal(t, http.StatusForbidden, request(ordinary.AccessToken, credential).StatusCode)
 	}
+	// The signed audience is insufficient after the user's current role changes.
+	_, err := db.GetDB().Exec(`UPDATE users SET role='user' WHERE id=?`, adminUser.ID)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusForbidden, request(admin, target.AccessToken).StatusCode)
+	_, err = db.GetDB().Exec(`UPDATE users SET role='admin' WHERE id=?`, adminUser.ID)
+	require.NoError(t, err)
 	var revoked int
 	require.NoError(t, db.GetDB().QueryRow("SELECT count(*) FROM tokens WHERE revoked_at IS NOT NULL").Scan(&revoked))
 	require.Zero(t, revoked, "rejected requests must not mutate tokens")
