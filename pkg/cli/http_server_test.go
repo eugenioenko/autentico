@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net"
@@ -64,10 +65,19 @@ func TestHTTPServerClosesSlowRequestBody(t *testing.T) {
 	conn := dialDeadline(t, addr)
 	_, err := io.WriteString(conn, "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100\r\n\r\nx")
 	require.NoError(t, err)
-	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, nil)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
+	_, err = io.Copy(io.Discard, resp.Body)
+	require.NoError(t, err)
+	_, err = reader.ReadByte()
+	require.Error(t, err)
+	if e, ok := err.(net.Error); ok {
+		require.False(t, e.Timeout(), "slow-body connection was not closed")
+	}
+
 }
 
 func TestHTTPServerClosesIdleKeepAlive(t *testing.T) {
@@ -89,12 +99,12 @@ func TestHTTPServerClosesIdleKeepAlive(t *testing.T) {
 	}
 }
 
-func TestHTTPServerAllowsResponseAfterHeaderDeadline(t *testing.T) {
+func TestHTTPServerAllowsResponseAfterReadDeadline(t *testing.T) {
 	srv, addr := socketTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(450 * time.Millisecond)
 		_, _ = io.WriteString(w, strings.Repeat("export-data", 10000))
 	}))
-	require.Less(t, srv.ReadHeaderTimeout, 250*time.Millisecond)
+	require.Less(t, srv.ReadTimeout, 450*time.Millisecond)
 	client := &http.Client{Timeout: 5 * time.Second}
 	defer client.CloseIdleConnections()
 	for _, path := range []string{"/healthz", "/admin/api/settings/export"} {
@@ -121,4 +131,32 @@ func TestHTTPServerBoundsResponseWrites(t *testing.T) {
 		_ = resp.Body.Close()
 	}
 	require.Error(t, err)
+}
+
+func TestHTTPServerTimesOutBlockedSocketWrites(t *testing.T) {
+	result := make(chan error, 1)
+	_, addr := socketTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload := strings.Repeat("x", 64*1024)
+		for {
+			if _, err := io.WriteString(w, payload); err != nil {
+				result <- err
+				return
+			}
+		}
+	}))
+	conn := dialDeadline(t, addr)
+	tcp, ok := conn.(*net.TCPConn)
+	require.True(t, ok)
+	require.NoError(t, tcp.SetReadBuffer(1024))
+	_, err := io.WriteString(conn, "GET /large-export HTTP/1.1\r\nHost: localhost\r\n\r\n")
+	require.NoError(t, err)
+	// Do not read: the response must fill the socket buffers and then time out.
+	select {
+	case err := <-result:
+		var networkError net.Error
+		require.True(t, errors.As(err, &networkError))
+		require.True(t, networkError.Timeout())
+	case <-time.After(4 * time.Second):
+		t.Fatal("blocked response write did not time out")
+	}
 }

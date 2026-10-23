@@ -63,4 +63,4 @@ Autentico listens on HTTP — put it behind a TLS-terminating reverse proxy (ngi
 
 ## HTTP timeouts
 
-The HTTP listener allows 10 seconds to receive request headers and 30 seconds to read the entire request. Response writes and idle keep-alive connections have a two-minute timeout. These limits apply to binary and Docker deployments, including deployments behind a reverse proxy. Admin exports can run beyond the header deadline, within the response write limit.
+The HTTP listener allows 10 seconds to receive request headers and 30 seconds to read the entire request. Response preparation and writes share a two-minute deadline starting when request headers have been read. Idle keep-alive connections close after two minutes. These limits apply to binary and Docker deployments, including deployments behind a reverse proxy. Admin exports can run beyond the header deadline, within the response write limit.
