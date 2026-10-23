@@ -59,6 +59,15 @@ When retention is set to `0` or empty, audit events are not recorded at all. The
 | `federation_updated` | federation | Federation provider updated |
 | `federation_deleted` | federation | Federation provider removed |
 | `deletion_approved` | user | Account deletion request approved |
+| `group_created` | group | Group created |
+| `group_updated` | group | Group updated |
+| `group_deleted` | group | Group deleted |
+| `group_member_added` | group | User added to a group; detail includes `user_id` |
+| `group_member_removed` | group | User removed from a group; detail includes `user_id` |
+| `user_claim_upserted` | user | Custom claim created or updated; detail includes `claim_name` |
+| `user_claim_deleted` | user | Custom claim deleted; detail includes `claim_name` |
+
+Group, membership and custom-claim events are recorded after a successful change, with the acting administrator, affected target and client IP. Rejected changes do not produce success events. Custom-claim values are never included in audit details. These events follow the same retention setting as other audit events and are available in the Admin UI event filter.
 
 ## Querying audit logs
 
@@ -136,7 +145,7 @@ Each audit event stores the following fields in the `audit_logs` table:
 | `event` | TEXT | Event type (see table above) |
 | `actor_id` | TEXT | ID of the user who performed the action (nullable -- null for failed logins) |
 | `actor_username` | TEXT | Username of the actor at the time of the event |
-| `target_type` | TEXT | Type of entity affected: `user`, `client`, `session`, `token`, `settings`, `federation` |
+| `target_type` | TEXT | Type of entity affected: `user`, `client`, `session`, `token`, `settings`, `federation`, `group` |
 | `target_id` | TEXT | ID of the affected entity |
 | `detail` | TEXT | JSON string with additional context (e.g. `{"method":"federation","provider":"google"}`) |
 | `ip_address` | TEXT | Client IP address |

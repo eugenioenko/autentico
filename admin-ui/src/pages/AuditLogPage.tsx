@@ -57,6 +57,13 @@ const EVENT_OPTIONS = [
   { label: "Federation Updated", value: "federation_updated" },
   { label: "Federation Deleted", value: "federation_deleted" },
   { label: "Deletion Approved", value: "deletion_approved" },
+  { label: "Group Created", value: "group_created" },
+  { label: "Group Updated", value: "group_updated" },
+  { label: "Group Deleted", value: "group_deleted" },
+  { label: "Group Member Added", value: "group_member_added" },
+  { label: "Group Member Removed", value: "group_member_removed" },
+  { label: "User Claim Upserted", value: "user_claim_upserted" },
+  { label: "User Claim Deleted", value: "user_claim_deleted" },
 ];
 
 const EVENT_COLORS: Record<string, string> = {
@@ -88,6 +95,13 @@ const EVENT_COLORS: Record<string, string> = {
   federation_updated: "processing",
   federation_deleted: "error",
   deletion_approved: "error",
+  group_created: "processing",
+  group_updated: "processing",
+  group_deleted: "error",
+  group_member_added: "processing",
+  group_member_removed: "warning",
+  user_claim_upserted: "processing",
+  user_claim_deleted: "warning",
 };
 
 function formatDate(date: string): string {
@@ -299,6 +313,7 @@ export default function AuditLogPage() {
         <Space>
           <Select
             style={{ width: 200 }}
+            aria-label="Filter audit events"
             options={EVENT_OPTIONS}
             value={eventFilter}
             onChange={handleEventFilter}

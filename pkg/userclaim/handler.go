@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
@@ -72,6 +73,8 @@ func HandleUpsertUserClaim(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to save claim")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes / Data to exclude): identify the claim, never its potentially sensitive value.
+	audit.Log(audit.EventUserClaimUpserted, audit.ActorFromRequest(r), audit.TargetUser, userID, audit.Detail("claim_name", req.Name), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "claim saved"}, http.StatusCreated)
 }
 
@@ -101,5 +104,7 @@ func HandleDeleteUserClaim(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete claim")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes / Data to exclude): identify the claim, never its potentially sensitive value.
+	audit.Log(audit.EventUserClaimDeleted, audit.ActorFromRequest(r), audit.TargetUser, userID, audit.Detail("claim_name", name), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "claim removed"}, http.StatusOK)
 }
