@@ -22,12 +22,13 @@ type Actor interface {
 type TargetType string
 
 const (
-	TargetUser     TargetType = "user"
-	TargetClient   TargetType = "client"
-	TargetSession  TargetType = "session"
+	TargetUser       TargetType = "user"
+	TargetClient     TargetType = "client"
+	TargetSession    TargetType = "session"
 	TargetToken      TargetType = "token"
 	TargetSettings   TargetType = "settings"
 	TargetFederation TargetType = "federation"
+	TargetGroup      TargetType = "group"
 )
 
 // SimpleActor is a lightweight Actor for cases where importing the user
@@ -38,7 +39,7 @@ type SimpleActor struct {
 }
 
 func (a SimpleActor) GetID() string       { return a.ID }
-func (a SimpleActor) GetUsername() string  { return a.Username }
+func (a SimpleActor) GetUsername() string { return a.Username }
 
 // ActorFromRequest extracts the actor from a request's bearer token.
 // Returns nil if the token is missing or invalid. Safe to use in packages
@@ -75,9 +76,9 @@ const (
 	EventPasskeyLoginFailed     Event = "passkey_login_failed"
 	EventPasswordChanged        Event = "password_changed"
 	EventPasswordResetRequested Event = "password_reset_requested"
-	EventPasswordResetCompleted    Event = "password_reset_completed"
-	EventMagicLinkRequested        Event = "magic_link_requested"
-	EventMagicLinkLoginSuccess     Event = "magic_link_login_success"
+	EventPasswordResetCompleted Event = "password_reset_completed"
+	EventMagicLinkRequested     Event = "magic_link_requested"
+	EventMagicLinkLoginSuccess  Event = "magic_link_login_success"
 	EventUserCreated            Event = "user_created"
 	EventUserUpdated            Event = "user_updated"
 	EventUserDeactivated        Event = "user_deactivated"
@@ -95,13 +96,20 @@ const (
 	EventClientDeleted          Event = "client_deleted"
 	EventSettingsUpdated        Event = "settings_updated"
 	EventSettingsImported       Event = "settings_imported"
-	EventFederationCreated     Event = "federation_created"
-	EventFederationUpdated     Event = "federation_updated"
-	EventFederationDeleted     Event = "federation_deleted"
+	EventFederationCreated      Event = "federation_created"
+	EventFederationUpdated      Event = "federation_updated"
+	EventFederationDeleted      Event = "federation_deleted"
 	EventAllUserSessionsRevoked Event = "all_user_sessions_revoked"
 	EventOtherSessionsRevoked   Event = "other_sessions_revoked"
 	EventTokenRevoked           Event = "token_revoked"
-	EventDeletionApproved      Event = "deletion_approved"
+	EventDeletionApproved       Event = "deletion_approved"
+	EventGroupCreated           Event = "group_created"
+	EventGroupUpdated           Event = "group_updated"
+	EventGroupDeleted           Event = "group_deleted"
+	EventGroupMemberAdded       Event = "group_member_added"
+	EventGroupMemberRemoved     Event = "group_member_removed"
+	EventUserClaimUpserted      Event = "user_claim_upserted"
+	EventUserClaimDeleted       Event = "user_claim_deleted"
 )
 
 // Detail builds a detail map from key-value string pairs.
@@ -116,40 +124,40 @@ func Detail(kv ...string) map[string]string {
 
 // AuditLog represents a single audit event stored in the database.
 type AuditLog struct {
-	ID           string
-	Event        string
-	ActorID      *string
+	ID            string
+	Event         string
+	ActorID       *string
 	ActorUsername string
-	TargetType   string
-	TargetID     string
-	Detail       string
-	IPAddress    string
-	CreatedAt    time.Time
+	TargetType    string
+	TargetID      string
+	Detail        string
+	IPAddress     string
+	CreatedAt     time.Time
 }
 
 // AuditLogResponse is the JSON representation of an audit event.
 type AuditLogResponse struct {
-	ID           string  `json:"id"`
-	Event        string  `json:"event"`
-	ActorID      *string `json:"actor_id"`
+	ID            string  `json:"id"`
+	Event         string  `json:"event"`
+	ActorID       *string `json:"actor_id"`
 	ActorUsername string  `json:"actor_username"`
-	TargetType   string  `json:"target_type"`
-	TargetID     string  `json:"target_id"`
-	Detail       string  `json:"detail"`
-	IPAddress    string  `json:"ip_address"`
-	CreatedAt    string  `json:"created_at"`
+	TargetType    string  `json:"target_type"`
+	TargetID      string  `json:"target_id"`
+	Detail        string  `json:"detail"`
+	IPAddress     string  `json:"ip_address"`
+	CreatedAt     string  `json:"created_at"`
 }
 
 func (a *AuditLog) ToResponse() AuditLogResponse {
 	return AuditLogResponse{
-		ID:           a.ID,
-		Event:        a.Event,
-		ActorID:      a.ActorID,
+		ID:            a.ID,
+		Event:         a.Event,
+		ActorID:       a.ActorID,
 		ActorUsername: a.ActorUsername,
-		TargetType:   a.TargetType,
-		TargetID:     a.TargetID,
-		Detail:       a.Detail,
-		IPAddress:    a.IPAddress,
-		CreatedAt:    a.CreatedAt.Format(time.RFC3339),
+		TargetType:    a.TargetType,
+		TargetID:      a.TargetID,
+		Detail:        a.Detail,
+		IPAddress:     a.IPAddress,
+		CreatedAt:     a.CreatedAt.Format(time.RFC3339),
 	}
 }

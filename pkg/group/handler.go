@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/eugenioenko/autentico/pkg/api"
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 )
@@ -69,6 +70,8 @@ func HandleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to create group")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes): record actor and target after a successful administrative change.
+	audit.Log(audit.EventGroupCreated, audit.ActorFromRequest(r), audit.TargetGroup, response.ID, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, response, http.StatusCreated)
 }
 
@@ -135,6 +138,8 @@ func HandleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to update group")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes): the update has succeeded even if the response read fails.
+	audit.Log(audit.EventGroupUpdated, audit.ActorFromRequest(r), audit.TargetGroup, id, nil, utils.GetClientIP(r))
 	g, err := GroupByID(id)
 	if err != nil {
 		slog.Error("group: failed to read group after update", "error", err, "group_id", id)
@@ -168,6 +173,8 @@ func HandleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to delete group")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes): record the successful change with its actor and affected target.
+	audit.Log(audit.EventGroupDeleted, audit.ActorFromRequest(r), audit.TargetGroup, id, nil, utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "group deleted"}, http.StatusOK)
 }
 
@@ -238,6 +245,8 @@ func HandleAddMember(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to add member")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes): record the successful change with its actor and affected target.
+	audit.Log(audit.EventGroupMemberAdded, audit.ActorFromRequest(r), audit.TargetGroup, groupID, audit.Detail("user_id", req.UserID), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "member added"}, http.StatusCreated)
 }
 
@@ -267,6 +276,8 @@ func HandleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to remove member")
 		return
 	}
+	// OWASP Logging Cheat Sheet (Event attributes): record the successful change with its actor and affected target.
+	audit.Log(audit.EventGroupMemberRemoved, audit.ActorFromRequest(r), audit.TargetGroup, groupID, audit.Detail("user_id", userID), utils.GetClientIP(r))
 	utils.SuccessResponse(w, map[string]string{"message": "member removed"}, http.StatusOK)
 }
 
