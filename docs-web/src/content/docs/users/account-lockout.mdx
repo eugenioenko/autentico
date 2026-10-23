@@ -11,7 +11,7 @@ Autentico tracks consecutive failed login attempts and locks the account tempora
 
 1. Each failed password attempt increments `failed_login_attempts` on the user record
 2. When `failed_login_attempts` reaches `account_lockout_max_attempts`, the account is locked by setting `locked_until = now + account_lockout_duration`
-3. Login attempts while the account is locked return an error immediately (no password check)
+3. Login attempts while locked remain rejected, including the correct password. Browser login and the password grant return the same generic invalid-credentials response as unknown usernames. Locked attempts still perform bcrypt work to avoid a fast timing distinction.
 4. The counter resets to `0` on a successful login
 
 ## Configuration
@@ -47,7 +47,7 @@ Unlocking resets `failed_login_attempts` to `0` and clears `locked_until`.
 
 ## ROPC grant
 
-Account lockout applies to ROPC (Resource Owner Password Credentials) token requests as well as browser-based logins.
+Account lockout applies to ROPC (Resource Owner Password Credentials) token requests as well as browser-based logins. The password grant returns HTTP `400 invalid_grant` for locked accounts; the authenticated admin API still exposes lockout state and supports unlocking.
 
 <Aside type="tip">
 If users frequently lock themselves out, consider increasing `account_lockout_max_attempts` rather than disabling the feature. A threshold of 5-10 is a reasonable starting point for most applications.

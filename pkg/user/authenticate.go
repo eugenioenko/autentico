@@ -26,12 +26,15 @@ var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("anti-timing-dummy"), bcry
 // VerifyPassword delegate to this so lockout policy is defined in one place.
 func verifyPasswordWithLockout(usr *User, password string) error {
 	cfg := config.Get()
-	if cfg.AuthAccountLockoutMaxAttempts > 0 && usr.LockedUntil != nil && usr.LockedUntil.After(time.Now()) {
-		return ErrAccountLocked
-	}
 	// OWASP Authentication §Account Lockout: compute bcrypt outside the writer,
 	// then check current credentials/lockout and account every failed attempt atomically.
 	matches := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(password)) == nil
+	// OWASP Authentication Responses: keep the bcrypt work on locked accounts,
+	// matching unknown usernames instead of exposing a cheap lockout fast path.
+	if cfg.AuthAccountLockoutMaxAttempts > 0 && usr.LockedUntil != nil && usr.LockedUntil.After(time.Now()) {
+		return ErrAccountLocked
+	}
+
 	var authenticationErr error
 	err := mutateUser(usr.ID, false, func(tx *sql.Tx) error {
 		var hash sql.NullString

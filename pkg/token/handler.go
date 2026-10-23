@@ -149,11 +149,11 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if errors.Is(err, user.ErrAccountLocked) {
 				slog.Warn("token: account locked (ROPC)", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-				utils.WriteErrorResponse(w, http.StatusForbidden, "account_locked", err.Error())
-				return
+			} else {
+				slog.Warn("token: invalid ROPC credentials", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
 			}
-			slog.Warn("token: invalid ROPC credentials", "request_id", reqid.Get(r.Context()), "ip", utils.GetClientIP(r))
-			// RFC 6749 §4.3.2: invalid credentials in ROPC MUST return invalid_grant (not invalid_client)
+			// RFC 6749 §5.2 / OWASP Authentication Responses: rejected credentials,
+			// including account lockout, use the same public invalid_grant response.
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Invalid username or password")
 			return
 		}
