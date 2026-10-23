@@ -126,7 +126,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
 - **Refresh Token Grant** — long-lived sessions without re-authentication
 - **Token Introspection** (RFC 7662) — for resource servers to validate opaque tokens
-- **Token Revocation** (RFC 7009) — explicit token invalidation
+- **Token Revocation** (RFC 7009) — explicit token invalidation; privileged bearer revocation requires the admin audience and current admin role
 - **UserInfo Endpoint** — standard OIDC identity claims
 - **Keycloak-compatible paths** — `/oauth2/protocol/openid-connect/token` and `/oauth2/protocol/openid-connect/userinfo` are registered alongside standard paths, easing migration from Keycloak
 

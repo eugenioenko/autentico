@@ -70,6 +70,8 @@ Public clients cannot authorize introspection with `client_id` alone, even if th
 
 ## Token revocation (RFC 7009)
 
+Admin bearer revocation requires a live token with the `autentico-admin` audience and a current admin role. An admin user's token issued only for an ordinary app does not authorize cross-client revocation; rejected audience or role checks return HTTP 403 with a Bearer `insufficient_scope` challenge. Client-authenticated revocation retains its existing ownership checks.
+
 The revocation endpoint invalidates a token immediately.
 
 ```

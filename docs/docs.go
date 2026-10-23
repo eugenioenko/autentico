@@ -4155,6 +4155,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.AuthErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Bearer token lacks admin audience or role",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
