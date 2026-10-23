@@ -184,6 +184,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 
 ## Phase 3 — RFC 7636: PKCE
 
+RFC 9700 §4.8.2: reject a verifier without an original challenge before consuming the code. Confidential non-PKCE exchanges without a verifier remain supported (#546).
+
 **File:** `rfc/rfc7636.txt`
 
 | Section | What to check | Code path |
