@@ -18,6 +18,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect prerelease
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # Build metadata can contain hyphens without making a prerelease.
+          version="${RELEASE_TAG%%+*}"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -70,6 +83,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
+          make_latest: ${{ steps.version.outputs.prerelease == 'false' }}
           files: |
             autentico-linux-amd64
             autentico-linux-arm64
@@ -100,10 +115,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          # SemVer auto mode adds latest only for stable versions.
+          flavor: latest=auto
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
