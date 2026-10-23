@@ -123,7 +123,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **OAuth client authentication** — confidential device clients authenticate at issuance and polling. Protocol endpoints accept one Basic or body credential set, decode OAuth Basic correctly, reject URI/ambiguous credentials, and return matching authentication challenges.
 - **Atomic grant redemption** — authorization codes, device codes and refresh tokens have one winning exchange. Credential consumption and token/session storage commit together; failed storage leaves the credential available for retry.
 - **Refresh client authentication** — every refresh identifies the issuing client; confidential clients authenticate with their secret. Inactive clients, disallowed refresh grants, mismatched clients and unbound historical tokens are rejected.
-- **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support))
+- **Resource Owner Password Credentials** — supported for legacy client compatibility (see [ROPC note](#on-ropc-support)); required email verification also applies to non-admin password grants
 - **Refresh Token Grant** — long-lived sessions without re-authentication
 - **Token Introspection** (RFC 7662) — for resource servers to validate opaque tokens
 - **Token Revocation** (RFC 7009) — explicit token invalidation
