@@ -482,7 +482,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 | §2 | When both `client_id` and `id_token_hint` present, MUST verify they match | `pkg/session/logout.go` `rpInitiatedLogout` lines 192–207 |
 | §3 | `post_logout_redirect_uri` MUST have been previously registered | `pkg/session/logout.go` `rpInitiatedLogout` — exact match against `GetPostLogoutRedirectURIs()` |
 | §3 | MUST NOT redirect if URI doesn't exactly match | `pkg/session/logout.go` `rpInitiatedLogout` — falls through to `renderLogoutSuccess` |
-| §4 | On validation failure, MUST NOT perform post-logout redirection | `pkg/session/logout.go` `rpInitiatedLogout` — `client_id` mismatch returns logout page |
+| §4 | On validation failure, MUST NOT perform post-logout redirection | `pkg/session/logout.go` `rpInitiatedLogout` — invalid supplied hints and `client_id` mismatch return the logout page |
 | §2.1 | `end_session_endpoint` in discovery | `pkg/wellknown/handler.go` line 47 |
 
 **MUST / SHOULD / MAY compliance:**
@@ -497,7 +497,7 @@ Note: `revocation_endpoint`, `introspection_endpoint`, and `code_challenge_metho
 | MUST | §2.1 | `end_session_endpoint` in discovery when RP-Initiated Logout is supported | ✅ Pre-existing |
 | MUST | §3 | `post_logout_redirect_uri` must be pre-registered | ✅ Verified + annotated (2026-04-03) — exact match against registered URIs |
 | MUST NOT | §3 | Must NOT redirect if URI doesn't match a registered value | ✅ Verified + annotated (2026-04-03) — falls through to logout page |
-| MUST NOT | §4 | Must NOT redirect when validation fails | ✅ Fixed (2026-04-03) — `client_id` mismatch renders logout page |
+| MUST NOT | §4 | Must NOT redirect when validation fails | ✅ Fixed (2026-04-03) — invalid supplied hints and `client_id` mismatch render the logout page |
 | RECOMMENDED | §2 | `id_token_hint` parameter | ✅ Supported but not required |
 | RECOMMENDED | §3 | `id_token_hint` when `post_logout_redirect_uri` is included | ✅ Verified — redirect works with `client_id` alone as "other means" per §3 |
 | SHOULD | §2 | Accept expired ID tokens when session is current/recent | ✅ Verified + annotated (2026-04-03) — `Valid()` always returns nil |

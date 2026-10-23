@@ -84,8 +84,8 @@ func (c *idTokenHintClaims) audClientID() string {
 }
 
 // parseIDTokenHint parses an ID token hint without validating expiry.
-// Returns nil claims (no error) when the hint is empty or unparseable — callers
-// should treat missing claims as "no hint provided".
+// Returns nil for an absent or invalid hint. Callers must distinguish a supplied
+// invalid hint from an absent hint before allowing a post-logout redirect.
 func parseIDTokenHint(hint string) *idTokenHintClaims {
 	if hint == "" {
 		return nil
@@ -95,7 +95,7 @@ func parseIDTokenHint(hint string) *idTokenHintClaims {
 	// exp time has passed — skip claims validation, signature is still verified.
 	_, err := jwt.ParseWithClaims(hint, claims, func(t *jwt.Token) (interface{}, error) {
 		return key.GetPublicKey(), nil
-	}, jwt.WithoutClaimsValidation())
+	}, jwt.WithoutClaimsValidation(), jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}))
 	if err != nil {
 		return nil
 	}
@@ -171,6 +171,14 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 	// RP-Initiated Logout 1.0 §2: Always clear the IdP session cookie regardless
 	// of token hint presence.
 	idpsession.ClearCookie(w)
+
+	// RP-Initiated Logout 1.0 §4: an invalid supplied hint is a validation
+	// failure, even when client_id identifies a registered redirect URI.
+	if idTokenHint != "" && hints == nil {
+		slog.Warn("session: invalid id_token_hint")
+		renderLogoutSuccess(w, r, "")
+		return
+	}
 
 	// Resolve which client to use for post_logout_redirect_uri validation.
 	resolvedClientID := clientIDParam
