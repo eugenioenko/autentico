@@ -60,3 +60,7 @@ Never expose the SQLite database file to the public internet. Keep it on a volum
 ## Reverse proxy
 
 Autentico listens on HTTP — put it behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik) before exposing it to the internet. See [Reverse Proxy](/deployment/reverse-proxy/).
+
+## HTTP timeouts
+
+The HTTP listener allows 10 seconds to receive request headers and 30 seconds to read the entire request. Response writes and idle keep-alive connections have a two-minute timeout. These limits apply to binary and Docker deployments, including deployments behind a reverse proxy. Admin exports can run beyond the header deadline, within the response write limit.
