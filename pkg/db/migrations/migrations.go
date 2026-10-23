@@ -92,6 +92,13 @@ func run(db *sql.DB, verbose, backedUp bool) error {
 		}
 		return nil
 	}
+	// RFC 6238 §5.1: confirm the persistent key can recover existing seeds
+	// before routine migrations advance an already encrypted database.
+	if current >= 17 {
+		if err := validateEncryptedTotp(db); err != nil {
+			return fmt.Errorf("migrations: validate existing TOTP enrollments: %w", err)
+		}
+	}
 	if current > 0 && !backedUp && pendingMajor(current) {
 		var path string
 		var seq int
