@@ -781,7 +781,7 @@ This is analogous to the existing "public endpoints by design" decision for intr
 |---|---|---|
 | §3.1 | `client_id` REQUIRED, `scope` OPTIONAL, client supports `device_code` grant | `pkg/devicecode/handler.go` `HandleDeviceAuthorization` |
 | §3.2 | Response: `device_code`, `user_code`, `verification_uri`, `expires_in` REQUIRED; `verification_uri_complete`, `interval` OPTIONAL; `Cache-Control: no-store` | `pkg/devicecode/handler.go` response construction |
-| §3.3 | User verification mechanism — code entry and confirmation | `account-ui/src/pages/Device.tsx`, `pkg/account/device.go` |
+| §3.3 | User verification mechanism — code entry and confirmation; concurrent approve/deny has exactly one winner (HTTP 409 for a stale decision) | `account-ui/src/pages/Device.tsx`, `pkg/account/device.go` |
 | §3.4 | Token request: `grant_type`, `device_code` REQUIRED; `client_id` binding | `pkg/token/device_code.go` `handleDeviceCodeGrant` |
 | §3.5 | Polling responses: `authorization_pending`, `slow_down` (+5s interval), `access_denied`, `expired_token` | `pkg/token/device_code.go` status switch |
 | §3.5 | Device code is single-use — consumed after successful token exchange | `pkg/token/device_code.go`, `pkg/devicecode/update.go` `ConsumeDeviceCode` |

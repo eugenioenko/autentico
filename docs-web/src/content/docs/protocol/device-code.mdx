@@ -200,3 +200,5 @@ Both are [runtime settings](/configuration/runtime-settings/#device-authorizatio
 ## Discovery
 
 The endpoint is published in the [discovery document](/protocol/oidc-discovery/) as `device_authorization_endpoint`, and `urn:ietf:params:oauth:grant-type:device_code` is listed in `grant_types_supported`. Client libraries that support RFC 8628 can configure themselves from discovery.
+
+Approving or denying a device request is a single decision. If requests race, one succeeds and the other returns HTTP `409` (`already_used`). Token polling follows the successful decision.
