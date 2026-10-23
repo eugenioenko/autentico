@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/model"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/require"
@@ -39,6 +40,7 @@ func TestSettingsExportOmitsSecretsAndImportPreservesThem(t *testing.T) {
 			stored, err := GetSetting("smtp_password")
 			require.NoError(t, err)
 			require.Equal(t, password, stored)
+			require.Equal(t, password, config.Get().SmtpPassword)
 			stored, err = GetSetting("private_key")
 			require.NoError(t, err)
 			require.Equal(t, "legacy-private-key", stored)
@@ -47,4 +49,20 @@ func TestSettingsExportOmitsSecretsAndImportPreservesThem(t *testing.T) {
 			require.Equal(t, "import-user", stored)
 		})
 	}
+}
+
+func TestSettingsImportExplicitEmptyPasswordClearsStoredAndRuntimeValue(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.WithConfigOverride(t, func() { config.Values.SmtpPassword = "prior-runtime-password" })
+	require.NoError(t, EnsureDefaults())
+	require.NoError(t, SetSetting("smtp_password", "prior-stored-password"))
+	payload, err := json.Marshal(settingsExport{Version: 1, Settings: map[string]string{"smtp_password": ""}})
+	require.NoError(t, err)
+	response := httptest.NewRecorder()
+	HandleImportApply(response, httptest.NewRequest(http.MethodPost, "/admin/api/settings/import/apply", bytes.NewReader(payload)))
+	require.Equal(t, http.StatusNoContent, response.Code)
+	stored, err := GetSetting("smtp_password")
+	require.NoError(t, err)
+	require.Empty(t, stored)
+	require.Empty(t, config.Get().SmtpPassword)
 }
