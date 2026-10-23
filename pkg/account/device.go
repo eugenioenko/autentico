@@ -2,6 +2,7 @@ package account
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -106,6 +107,11 @@ func HandleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := devicecode.AuthorizeDeviceCode(userCode, usr.ID); err != nil {
+		// RFC 8628 §3.3: a concurrent decision may already have consumed this request.
+		if errors.Is(err, devicecode.ErrCodeConsumed) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "already_used", "This code has already been used")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to authorize device")
 		return
 	}
@@ -145,6 +151,11 @@ func HandleDeviceDeny(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := devicecode.DenyDeviceCode(userCode); err != nil {
+		// RFC 8628 §3.3: a concurrent decision may already have consumed this request.
+		if errors.Is(err, devicecode.ErrCodeConsumed) {
+			utils.WriteErrorResponse(w, http.StatusConflict, "already_used", "This code has already been used")
+			return
+		}
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to deny device")
 		return
 	}

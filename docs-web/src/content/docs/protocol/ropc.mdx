@@ -82,3 +82,5 @@ Only TOTP codes are supported in the ROPC flow. Email OTP is not available becau
 - Email OTP is not available — only TOTP codes can be used for MFA in ROPC
 - No SSO session is created — each ROPC token exchange is independent
 - Account lockout still applies — repeated failed password attempts will lock the account
+
+When `require_email_verification` is enabled, unverified non-admin users cannot obtain tokens through the password grant. The endpoint returns HTTP 400 `invalid_grant` with `Email verification is required`; users must finish email verification first. The browser flow's admin recovery exemption also applies here.

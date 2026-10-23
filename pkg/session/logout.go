@@ -32,14 +32,16 @@ func HandleLogout(w http.ResponseWriter, r *http.Request) {
 	// RP-Initiated Logout 1.0 §2: OPs MUST support the use of the HTTP GET and
 	// POST methods at the Logout Endpoint. If using POST, the request parameters
 	// are serialized using Form Serialization.
-	if err := r.ParseForm(); err != nil {
-		slog.Warn("session: failed to parse logout POST form", "error", err)
+	parseErr := r.ParseForm()
+	if parseErr != nil {
+		slog.Warn("session: failed to parse logout POST form", "error", parseErr)
 	}
 	rpInitiatedLogout(w, r,
 		r.FormValue("id_token_hint"),
 		r.FormValue("post_logout_redirect_uri"),
 		r.FormValue("state"),
 		r.FormValue("client_id"),
+		parseErr != nil,
 	)
 }
 
@@ -84,8 +86,8 @@ func (c *idTokenHintClaims) audClientID() string {
 }
 
 // parseIDTokenHint parses an ID token hint without validating expiry.
-// Returns nil claims (no error) when the hint is empty or unparseable — callers
-// should treat missing claims as "no hint provided".
+// Returns nil for an absent or invalid hint. Callers must distinguish a supplied
+// invalid hint from an absent hint before allowing a post-logout redirect.
 func parseIDTokenHint(hint string) *idTokenHintClaims {
 	if hint == "" {
 		return nil
@@ -95,7 +97,7 @@ func parseIDTokenHint(hint string) *idTokenHintClaims {
 	// exp time has passed — skip claims validation, signature is still verified.
 	_, err := jwt.ParseWithClaims(hint, claims, func(t *jwt.Token) (interface{}, error) {
 		return key.GetPublicKey(), nil
-	}, jwt.WithoutClaimsValidation())
+	}, jwt.WithoutClaimsValidation(), jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}))
 	if err != nil {
 		return nil
 	}
@@ -118,21 +120,18 @@ func HandleRpInitiatedLogout(w http.ResponseWriter, r *http.Request) {
 	// RP-Initiated Logout 1.0 §2: OPs MUST support the use of the HTTP GET and
 	// POST methods at the Logout Endpoint. If using GET, request parameters are
 	// serialized using URI Query String Serialization.
-	rpInitiatedLogout(w, r,
-		r.URL.Query().Get("id_token_hint"),
-		r.URL.Query().Get("post_logout_redirect_uri"),
-		r.URL.Query().Get("state"),
-		r.URL.Query().Get("client_id"),
-	)
+	params, parseErr := url.ParseQuery(r.URL.RawQuery)
+	rpInitiatedLogout(w, r, params.Get("id_token_hint"), params.Get("post_logout_redirect_uri"), params.Get("state"), params.Get("client_id"), parseErr != nil)
 }
 
 // rpInitiatedLogout implements the core RP-Initiated Logout 1.0 logic shared
 // by both GET (query params) and POST (form params) handlers.
-func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, postLogoutRedirectURI, state, clientIDParam string) {
+func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, postLogoutRedirectURI, state, clientIDParam string, invalidParams bool) {
 	// RP-Initiated Logout 1.0 §2: id_token_hint is RECOMMENDED. The OP SHOULD
 	// accept ID Tokens when the RP has a current or recent session, even when
 	// the exp time has passed.
 	hints := parseIDTokenHint(idTokenHint)
+	invalidRequest := invalidParams || idTokenHint != "" && hints == nil
 
 	// RP-Initiated Logout 1.0 §2: When an id_token_hint is present, the OP MUST
 	// validate that it was the issuer of the ID Token.
@@ -152,9 +151,7 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 			// perform post-logout redirection.
 			slog.Warn("session: client_id does not match id_token_hint",
 				"client_id_param", clientIDParam, "hint_client_id", hintClientID)
-			idpsession.ClearCookie(w)
-			renderLogoutSuccess(w, r, "")
-			return
+			invalidRequest = true
 		}
 	}
 
@@ -171,6 +168,15 @@ func rpInitiatedLogout(w http.ResponseWriter, r *http.Request, idTokenHint, post
 	// RP-Initiated Logout 1.0 §2: Always clear the IdP session cookie regardless
 	// of token hint presence.
 	idpsession.ClearCookie(w)
+
+	// RP-Initiated Logout 1.0 §4: invalid encodings, supplied hints or client
+	// bindings must not become an omitted-hint redirect. Always complete local
+	// logout before rendering the signed-out page for a failed validation.
+	if invalidRequest {
+		slog.Warn("session: invalid logout request")
+		renderLogoutSuccess(w, r, "")
+		return
+	}
 
 	// Resolve which client to use for post_logout_redirect_uri validation.
 	resolvedClientID := clientIDParam

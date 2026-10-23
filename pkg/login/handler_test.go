@@ -161,7 +161,7 @@ func TestHandleLoginUser_LockedAccount(t *testing.T) {
 	HandleLoginUser(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "error=Account+is+temporarily+locked")
+	assert.Contains(t, rr.Header().Get("Location"), "error=Invalid+username+or+password")
 }
 
 func TestHandleLoginUser_EmailMfaNoSmtp(t *testing.T) {
@@ -295,7 +295,7 @@ func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
 		UserID:     u.ID,
 		DeviceName: "Test",
 		ExpiresAt:  time.Now().Add(time.Hour),
-	})
+	}, "fixture-cookie-token")
 
 	form := url.Values{}
 	form.Set("username", "testuser")
@@ -307,7 +307,7 @@ func TestHandleLoginUser_SkipMfaIfTrusted(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/oauth2/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// Add trusted device cookie
-	req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: deviceID})
+	req.AddCookie(&http.Cookie{Name: trusteddevice.CookieName, Value: "fixture-cookie-token"})
 
 	rr := httptest.NewRecorder()
 	HandleLoginUser(rr, req)

@@ -9,19 +9,34 @@ import (
 )
 
 func AuthorizeDeviceCode(userCode string, userID string) error {
-	_, err := db.GetDB().Exec(
+	result, err := db.GetDB().Exec(
 		`UPDATE device_codes SET status = 'authorized', user_id = ? WHERE user_code = ? AND status = 'pending'`,
 		userID, userCode,
 	)
-	return err
+	return decisionResult(result, err)
 }
 
 func DenyDeviceCode(userCode string) error {
-	_, err := db.GetDB().Exec(
+	result, err := db.GetDB().Exec(
 		`UPDATE device_codes SET status = 'denied' WHERE user_code = ? AND status = 'pending'`,
 		userCode,
 	)
-	return err
+	return decisionResult(result, err)
+}
+
+// RFC 8628 §3.3 and §3.5: only one pending authorization decision may win.
+func decisionResult(result sql.Result, err error) error {
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrCodeConsumed
+	}
+	return nil
 }
 
 var ErrCodeConsumed = errors.New("device code is unavailable or already consumed")

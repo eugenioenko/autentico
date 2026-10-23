@@ -83,6 +83,14 @@ test('client enables trusted-device UI, current expiry, and password bypass', as
   await page.waitForURL(`${callback}?**`);
   trusted = (await page.context().cookies()).find(c => c.name === 'autentico_trusted_device')!;
   expect(trusted).toBeTruthy();
+  const devicesResponse = await fetch(`${BASE_URL}/account/api/trusted-devices`, { headers: { Authorization: `Bearer ${admin}` } });
+  expect(devicesResponse.status).toBe(200);
+  const exportedDevices = await devicesResponse.text();
+  expect(exportedDevices).not.toContain(trusted.value);
+  const devices = JSON.parse(exportedDevices).data;
+  expect(devices).toHaveLength(1);
+  expect(devices[0].id).not.toBe(trusted.value);
+  expect(devices[0]).not.toHaveProperty('token_hash');
   expect(Math.abs(trusted.expires - Date.now() / 1000 - 72 * 3600)).toBeLessThan(5);
   await clearEmails(); await login(page, 'trust-allowed');
   await page.waitForURL(`${callback}?**`);

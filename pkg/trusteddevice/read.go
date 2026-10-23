@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/utils"
 )
 
 func TrustedDevicesByUserID(userID string) ([]*TrustedDevice, error) {
@@ -43,6 +44,17 @@ func TrustedDeviceByIDIncludingExpired(id string) (*TrustedDevice, error) {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("trusted device not found")
 		}
+		return nil, fmt.Errorf("failed to get trusted device: %w", err)
+	}
+	return &d, nil
+}
+
+// TrustedDeviceByTokenIncludingExpired resolves a cookie without accepting its
+// database hash or the public record ID as a credential.
+func TrustedDeviceByTokenIncludingExpired(token string) (*TrustedDevice, error) {
+	var d TrustedDevice
+	err := db.GetDB().QueryRow(`SELECT id,user_id,device_name,created_at,last_used_at,expires_at FROM trusted_devices WHERE token_hash=?`, utils.HashToken(token)).Scan(&d.ID, &d.UserID, &d.DeviceName, &d.CreatedAt, &d.LastUsedAt, &d.ExpiresAt)
+	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted device: %w", err)
 	}
 	return &d, nil

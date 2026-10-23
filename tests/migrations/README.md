@@ -17,7 +17,7 @@ restoration and retry, process interruption, concurrent migrators, damaged
 backups, invalid database files, file permissions, and new-volume initialization.
 The Linux partial-write case uses a real kernel file-size limit and also works
 when the suite runs as root. Existing account data and TOTP enrollment must
-survive. Schema 17 encrypts active, pending and deactivated seeds without resetting enrollment, replay or lockout state. Missing or malformed keys must leave the database byte-for-byte unchanged. Encryption update/commit failures and process interruption restore the original enrollments and allow retry. Real post-upgrade login and restart tests prove the existing authenticator still works and replay state persists. Wrong keys reject startup and migration. Schema 15 discards old tokens, OAuth/SSO sessions and pending login grants; schema 17 alone preserves sessions.
+survive. Schema 17 encrypts active, pending and deactivated seeds without resetting enrollment, replay or lockout state. Missing or malformed keys must leave the database byte-for-byte unchanged. Encryption update/commit failures and process interruption restore the original enrollments and allow retry. Real post-upgrade login and restart tests prove the existing authenticator still works and replay state persists. Wrong keys reject startup and migration. Schema 17/18 fixtures cover automatic startup, interactive migration and unattended migration in WAL and DELETE modes: a wrong valid key must preserve the old schema and enrollment state, and restoring the original key allows retry. Schema 15 discards old tokens, OAuth/SSO sessions and pending login grants; schema 17 alone preserves sessions.
 
 Schema 18 is a routine additive upgrade. Real CLI and automatic-start tests
 upgrade schema 17 in both journal modes, preserve browser sessions and trusted
@@ -26,6 +26,8 @@ than claiming that a second factor was completed. No major approval, backup or
 session invalidation is required for this upgrade alone.
 
 Schema 19 adds only indexed pending federation flows. Black-box schema-18 upgrades use explicit CLI migration and automatic startup in WAL/rollback-journal modes, preserving TOTP ciphertext, enrollment, replay/lockout counters, token hashes, browser MFA evidence and trusted devices. Index-collision failures after table creation roll back partial DDL and version, preserve user data and allow retry. The real two-instance HTTP suite additionally verifies pending login and consumed-state replay protection across server restarts.
+
+Schema 20 hashes trusted-device cookies while assigning separate public IDs. Black-box upgrades preserve existing cookies, device metadata/expiry, token hashes and MFA state in both journal modes through startup and CLI migration. Failures roll back the schema and transformed rows so the same database can be retried.
 
 CI runs the real database and CLI migration suite on both Linux and Windows,
 including paths containing spaces, Unicode, and URI-reserved characters.

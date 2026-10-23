@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/totpsecret"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,7 +56,7 @@ INSERT INTO trusted_devices(id,user_id,expires_at) VALUES('kept-device','kept',d
 				require.Equal(t, "totp", method)
 				require.Equal(t, "kept browser", agent)
 				var count int
-				require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM trusted_devices WHERE id='kept-device'`).Scan(&count))
+				require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM trusted_devices WHERE token_hash=?`, utils.HashToken("kept-device")).Scan(&count))
 				require.Equal(t, 1, count)
 				require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM federation_login_flows`).Scan(&count))
 				require.Zero(t, count)

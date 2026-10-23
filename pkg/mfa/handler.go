@@ -22,6 +22,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 	"github.com/gorilla/csrf"
+	"github.com/rs/xid"
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -276,20 +277,20 @@ func handleMfaPost(w http.ResponseWriter, r *http.Request) {
 
 	// Save trusted device if requested
 	if cfg.TrustDeviceEnabled && r.FormValue("trust_device") == "on" {
-		deviceID, genErr := authcode.GenerateSecureCode()
+		deviceToken, genErr := authcode.GenerateSecureCode()
 		if genErr == nil {
 			ua := r.UserAgent()
 			if len(ua) > 200 {
 				ua = ua[:200]
 			}
 			dev := trusteddevice.TrustedDevice{
-				ID:         deviceID,
+				ID:         xid.New().String(),
 				UserID:     usr.ID,
 				DeviceName: ua,
 				ExpiresAt:  time.Now().Add(cfg.TrustDeviceExpiration),
 			}
-			if trusteddevice.CreateTrustedDevice(dev) == nil {
-				trusteddevice.SetCookie(w, deviceID, cfg.TrustDeviceExpiration)
+			if trusteddevice.CreateTrustedDevice(dev, deviceToken) == nil {
+				trusteddevice.SetCookie(w, deviceToken, cfg.TrustDeviceExpiration)
 			}
 		}
 	}

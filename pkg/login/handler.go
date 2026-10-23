@@ -125,12 +125,14 @@ func HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 
 	usr, err := user.AuthenticateUser(request.Username, request.Password)
 	if err != nil {
+		// OWASP Authentication §Authentication Responses: lockout must not reveal account existence.
 		loginError := "Invalid username or password"
+		auditReason := loginError
 		if errors.Is(err, user.ErrAccountLocked) {
-			loginError = "Account is temporarily locked due to too many failed login attempts"
+			auditReason = "Account is temporarily locked due to too many failed login attempts"
 			slog.Warn("login: account locked", "request_id", reqid.Get(r.Context()), "username", request.Username, "ip", utils.GetClientIP(r))
 		}
-		detail := audit.Detail("username", request.Username, "reason", loginError)
+		detail := audit.Detail("username", request.Username, "reason", auditReason)
 		audit.Log(audit.EventLoginFailed, nil, audit.TargetUser, "", detail, utils.GetClientIP(r))
 		redirectToLogin(w, r, request, loginError)
 		return

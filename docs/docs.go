@@ -1062,7 +1062,7 @@ const docTemplate = `{
                         "UserAuth": []
                     }
                 ],
-                "description": "Returns all trusted devices for the authenticated user (devices that bypass MFA).",
+                "description": "Returns trusted device metadata and public management IDs; cookie credentials and hashes are never returned.",
                 "produces": [
                     "application/json"
                 ],
@@ -2580,7 +2580,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Export all settings as a JSON file (smtp_password excluded).",
+                "description": "Export runtime settings as JSON, excluding smtp_password, private_key and onboarding state.",
                 "produces": [
                     "application/json"
                 ],
@@ -4153,6 +4153,12 @@ const docTemplate = `{
                         "description": "Client authentication failed; matching WWW-Authenticate challenge",
                         "schema": {
                             "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Bearer token lacks admin audience or role",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     },
                     "500": {
