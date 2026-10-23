@@ -161,7 +161,7 @@ func TestHandleLoginUser_LockedAccount(t *testing.T) {
 	HandleLoginUser(rr, req)
 
 	assert.Equal(t, http.StatusFound, rr.Code)
-	assert.Contains(t, rr.Header().Get("Location"), "error=Account+is+temporarily+locked")
+	assert.Contains(t, rr.Header().Get("Location"), "error=Invalid+username+or+password")
 }
 
 func TestHandleLoginUser_EmailMfaNoSmtp(t *testing.T) {

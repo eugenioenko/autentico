@@ -104,7 +104,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §4.1.2.1 | `error_description` MUST be URL-encoded in redirect | `pkg/authorize/handler.go` `redirectWithError` |
 | §4.1.3 | Token request: `grant_type`, `code`, `redirect_uri`, client auth | `pkg/token/handler.go`, `pkg/token/authorization_code.go` |
 | §4.1.4 | Token response: `scope` must be omitted if identical to requested | `pkg/token/model.go` `TokenResponse` |
-| §4.3 | ROPC: `invalid_grant` vs `invalid_client` error codes and account eligibility | `pkg/token/handler.go` password block; required email verification precedes MFA/issuance, preserving the browser admin exemption (#542) |
+| §4.3 | ROPC: `invalid_grant` vs `invalid_client` error codes and account eligibility; lockout uses generic invalid credentials | `pkg/token/handler.go` password block; required email verification precedes MFA/issuance, preserving the browser admin exemption (#542) |
 | §4.6 | Refresh: `scope` MUST NOT exceed original; `scope` MUST appear in response | `pkg/token/refresh_token.go` |
 | §5.2 | Error response: `error`, `error_description`, HTTP 400 (401 only for `invalid_client`) | `pkg/utils/responses.go` |
 | §10.6 | Auth code replay: revoke authorization-code tokens for the affected user and client | `pkg/token/revoke.go` |
