@@ -104,7 +104,7 @@ At the end of each phase, verify that every endpoint or capability introduced by
 | §4.1.2.1 | `error_description` MUST be URL-encoded in redirect | `pkg/authorize/handler.go` `redirectWithError` |
 | §4.1.3 | Token request: `grant_type`, `code`, `redirect_uri`, client auth | `pkg/token/handler.go`, `pkg/token/authorization_code.go` |
 | §4.1.4 | Token response: `scope` must be omitted if identical to requested | `pkg/token/model.go` `TokenResponse` |
-| §4.3 | ROPC: `invalid_grant` vs `invalid_client` error codes | `pkg/token/handler.go` password block |
+| §4.3 | ROPC: `invalid_grant` vs `invalid_client` error codes and account eligibility | `pkg/token/handler.go` password block; required email verification precedes MFA/issuance, preserving the browser admin exemption (#542) |
 | §4.6 | Refresh: `scope` MUST NOT exceed original; `scope` MUST appear in response | `pkg/token/refresh_token.go` |
 | §5.2 | Error response: `error`, `error_description`, HTTP 400 (401 only for `invalid_client`) | `pkg/utils/responses.go` |
 | §10.6 | Auth code replay: revoke authorization-code tokens for the affected user and client | `pkg/token/revoke.go` |
@@ -183,6 +183,8 @@ At the end of each phase, verify that every endpoint or capability introduced by
 ---
 
 ## Phase 3 — RFC 7636: PKCE
+
+RFC 9700 §4.8.2: reject a verifier without an original challenge before consuming the code. Confidential non-PKCE exchanges without a verifier remain supported (#546).
 
 **File:** `rfc/rfc7636.txt`
 
@@ -779,7 +781,7 @@ This is analogous to the existing "public endpoints by design" decision for intr
 |---|---|---|
 | §3.1 | `client_id` REQUIRED, `scope` OPTIONAL, client supports `device_code` grant | `pkg/devicecode/handler.go` `HandleDeviceAuthorization` |
 | §3.2 | Response: `device_code`, `user_code`, `verification_uri`, `expires_in` REQUIRED; `verification_uri_complete`, `interval` OPTIONAL; `Cache-Control: no-store` | `pkg/devicecode/handler.go` response construction |
-| §3.3 | User verification mechanism — code entry and confirmation | `account-ui/src/pages/Device.tsx`, `pkg/account/device.go` |
+| §3.3 | User verification mechanism — code entry and confirmation; concurrent approve/deny has exactly one winner (HTTP 409 for a stale decision) | `account-ui/src/pages/Device.tsx`, `pkg/account/device.go` |
 | §3.4 | Token request: `grant_type`, `device_code` REQUIRED; `client_id` binding | `pkg/token/device_code.go` `handleDeviceCodeGrant` |
 | §3.5 | Polling responses: `authorization_pending`, `slow_down` (+5s interval), `access_denied`, `expired_token` | `pkg/token/device_code.go` status switch |
 | §3.5 | Device code is single-use — consumed after successful token exchange | `pkg/token/device_code.go`, `pkg/devicecode/update.go` `ConsumeDeviceCode` |
@@ -1006,3 +1008,5 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | Local atomicity policy | RFC 9700 §4.7.1 | Consume one callback before trusting its upstream result | Acquire SQLite's writer, recheck expiry, delete exactly one state/browser match and commit before network requests. Failed commits roll back/discard safely; replay fails after restart (#473). |
 
 Routine schema 19 adds the expiry-indexed flow table without changing existing credentials or enrollment. CLI/start black-box tests cover both journal modes, data preservation, partial-DDL rollback and retry; real two-instance HTTP tests reproduce the prior attack and verify browser mismatch, concurrent callbacks, independent flows and restart persistence.
+
+Revocation bearer authorization (RFC 6750 §5.2 / §3.1): the admin audience and current admin role are both required. Audience and role rejection return a Bearer insufficient_scope challenge; ordinary client revocation still enforces ownership (#539).

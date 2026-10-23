@@ -27,6 +27,7 @@ import (
 // @Success 200 {string} string "Token revoked successfully"
 // @Failure 400 {object} model.ApiError
 // @Failure 401 {object} model.AuthErrorResponse "Client authentication failed; matching WWW-Authenticate challenge"
+// @Failure 403 {object} model.ApiError "Bearer token lacks admin audience or role"
 // @Failure 500 {object} model.ApiError
 // @Router /oauth2/revoke [post]
 func HandleRevoke(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +65,16 @@ func HandleRevoke(w http.ResponseWriter, r *http.Request) {
 			utils.WriteBearerUnauthorized(w, config.GetBootstrap().AppAuthIssuer, "invalid_token", "Bearer token is invalid, expired, or its session has been revoked")
 			return
 		}
+		// RFC 6750 §5.2: privileged revocation requires the admin resource audience.
+		if err := jwtutil.ValidateAudience(v.Claims.Audience, []string{config.AdminClientID}); err != nil {
+			w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
+			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Token not issued for admin API")
+			return
+		}
 		usr, err := user.UserByID(v.Claims.UserID)
 		if err != nil || usr.Role != "admin" {
 			slog.Warn("revoke: bearer auth requires admin role", "request_id", reqid.Get(r.Context()), "user_id", v.Claims.UserID)
+			w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
 			utils.WriteErrorResponse(w, http.StatusForbidden, "insufficient_scope", "Admin access required for bearer token revocation")
 			return
 		}

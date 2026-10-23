@@ -159,6 +159,12 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 		// Enforce MFA on password grant when required or when user has TOTP enrolled.
 		cfg := config.Get()
+		// RFC 6749 §4.3.2 / §5.2: enforce local account eligibility before
+		// issuing a grant. Match browser email policy and its admin exemption.
+		if cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Email verification is required")
+			return
+		}
 		if cfg.RequireMfa || usr.TotpVerified {
 			if !usr.TotpVerified {
 				// MFA is required but user has not enrolled — they must enroll via browser flow first.

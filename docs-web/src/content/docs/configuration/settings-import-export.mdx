@@ -11,7 +11,7 @@ Autentico provides API endpoints to export all runtime settings as JSON and impo
 
 **`GET /admin/api/settings/export`**
 
-Exports all settings as a versioned JSON document. The `onboarded` flag is excluded from the export.
+Exports all settings as a versioned JSON document. The `onboarded` flag, `smtp_password` and any legacy `private_key` setting are excluded from the export.
 
 ```bash
 curl https://auth.example.com/admin/api/settings/export \
@@ -42,7 +42,7 @@ curl https://auth.example.com/admin/api/settings/export \
 ```
 
 <Aside type="note">
-The export includes all settings, including SMTP passwords and other sensitive values. Store exported files securely.
+SMTP passwords and private keys are omitted. Importing an export preserves the target instance's existing SMTP password; configure credentials separately when moving to a new instance. Exported configuration can still contain operational details, so store it securely.
 </Aside>
 
 ## Import preview
