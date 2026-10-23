@@ -70,7 +70,7 @@ For consumer apps with global users spread across timezones, the peak is flatter
 If your peak load exceeds this, options are:
 
 - **Reduce bcrypt cost factor** — lowering it from 12 to 10 roughly halves login time at the cost of slightly reduced brute-force resistance
-- **Enable WAL mode** on SQLite — improves concurrent read/write throughput (not currently the default)
+- **SQLite WAL mode** — already enabled by default: the pooled connection string sets `_pragma=journal_mode(WAL)` (`pkg/db/db.go`), which is what gives the concurrent read/write throughput above. There is no extra setup step.
 - **Sticky-session load balancer** — multiple Autentico instances, each with its own SQLite file; the load balancer routes each user to the same instance for the duration of their session
 - **Replace the persistence layer** — the `pkg/db` boundary is the correct migration point if you genuinely need horizontal write scaling
 
