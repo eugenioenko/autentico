@@ -167,3 +167,5 @@ This allows existing Keycloak client integrations to work by changing only the b
 <Aside type="tip">
 The `redirect_uri` in the token exchange must exactly match the one used in the authorization request — not just the registered URIs. This is an OAuth2 security requirement.
 </Aside>
+
+The token endpoint rejects `code_verifier` when the authorization request had no `code_challenge`, including confidential clients, as required by RFC 9700 §4.8.2. Rejection returns `invalid_grant` without consuming the code. Confidential clients that omit PKCE continue exchanging codes without a verifier.

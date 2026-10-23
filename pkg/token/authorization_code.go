@@ -44,6 +44,13 @@ func UserByAuthorizationCode(w http.ResponseWriter, request TokenRequest) (*user
 		return nil, nil, fmt.Errorf("client ID mismatch")
 	}
 
+	// RFC 9700 §4.8.2: reject PKCE downgrade; a verifier requires an
+	// original challenge, even for confidential clients using optional PKCE.
+	if request.CodeVerifier != "" && code.CodeChallenge == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "code_verifier supplied without an original code_challenge")
+		return nil, nil, fmt.Errorf("code_verifier supplied without an original code_challenge")
+	}
+
 	// RFC 7636 §4.3: if code_challenge was present in the authorization request,
 	// code_verifier MUST be sent at the token endpoint.
 	if code.CodeChallenge != "" {
