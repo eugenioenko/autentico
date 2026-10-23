@@ -1006,3 +1006,5 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 | Local atomicity policy | RFC 9700 §4.7.1 | Consume one callback before trusting its upstream result | Acquire SQLite's writer, recheck expiry, delete exactly one state/browser match and commit before network requests. Failed commits roll back/discard safely; replay fails after restart (#473). |
 
 Routine schema 19 adds the expiry-indexed flow table without changing existing credentials or enrollment. CLI/start black-box tests cover both journal modes, data preservation, partial-DDL rollback and retry; real two-instance HTTP tests reproduce the prior attack and verify browser mismatch, concurrent callbacks, independent flows and restart persistence.
+
+Revocation bearer authorization (RFC 6750 §5.2 / §3.1): the admin audience and current admin role are both required. Audience and role rejection return a Bearer insufficient_scope challenge; ordinary client revocation still enforces ownership (#539).
