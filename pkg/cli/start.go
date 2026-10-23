@@ -346,10 +346,7 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	}
 	combinedMiddleware := middleware.CombineMiddlewares(middlewareList)
 
-	srv := &http.Server{
-		Addr:    ":" + bs.AppListenPort,
-		Handler: combinedMiddleware(mux),
-	}
+	srv := newHTTPServer(":"+bs.AppListenPort, combinedMiddleware(mux))
 
 	go func() {
 		<-ctx.Done()

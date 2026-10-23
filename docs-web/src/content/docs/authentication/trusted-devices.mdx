@@ -11,14 +11,15 @@ When MFA is enabled, users can check **"Trust this device"** after a successful 
 
 1. User completes MFA successfully
 2. User checks the **"Trust this device"** checkbox before submitting the MFA form
-3. Autentico creates a `trusted_devices` record tied to the user and stores a signed token in a cookie
-4. On subsequent logins from the same browser, Autentico finds the cookie, looks up the trusted device record, validates it, and bypasses the MFA challenge
+3. Autentico creates a `trusted_devices` record tied to the user and stores a random token in an HttpOnly cookie; only its SHA-256 hash is persisted
+4. On subsequent logins from the same browser, Autentico hashes the cookie, looks up the trusted device record, validates it, and bypasses the MFA challenge
 
-The trusted device token is stored in the `trusted_devices` table with:
+The `trusted_devices` table stores metadata and a credential hash:
 
 | Field | Description |
 |---|---|
-| `id` | Opaque token stored in the cookie |
+| `id` | Public management ID, independent of the cookie token |
+| `token_hash` | Indexed SHA-256 hash of the cookie token; never returned by the account API |
 | `user_id` | User the device is trusted for |
 | `device_name` | User-agent string at trust time |
 | `created_at` | When the device was first trusted |
@@ -50,6 +51,9 @@ curl -X PUT https://auth.example.com/admin/api/settings \
 The effective per-client setting controls both the "Trust this device" checkbox and whether an existing cookie may bypass MFA during password or magic-link login. A client can disable trusted devices even when enabled globally, or enable them when globally disabled. See [per-client overrides](/configuration/per-client-overrides/). New device records and cookies use that client's trust duration. Shared SSO remains independent: a client with trusted devices disabled may reuse an already authenticated IdP session. Request `prompt=login` for a fresh login where its direct MFA policy is checked.
 
 ## Managing trusted devices
+
+The account API lists public device IDs and metadata, and accepts those IDs for revocation. Neither an ID nor a stored hash can be used as a trusted-device cookie. Schema 20 upgrades existing devices without changing their cookies or expiry; no new key or re-enrollment is needed.
+
 
 Trusted devices are cleared when:
 - The device record expires (`expires_at` passes)

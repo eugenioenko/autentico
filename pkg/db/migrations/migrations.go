@@ -10,7 +10,7 @@ import (
 
 // SchemaVersion is the schema version this binary expects.
 // Increment this and add a new Migration entry each time the schema changes.
-var SchemaVersion = 19
+var SchemaVersion = 20
 
 // Migration represents a single schema change.
 type Migration struct {
@@ -44,6 +44,7 @@ var migrations = []Migration{
 	{Version: 17, SQL: migration017, Major: true, Func: encryptTotp},
 	{Version: 18, SQL: migration018},
 	{Version: 19, SQL: migration019},
+	{Version: 20, SQL: migration020, Func: hashTrustedDevices},
 }
 
 func getUserVersion(db *sql.DB) (int, error) {
@@ -91,6 +92,13 @@ func run(db *sql.DB, verbose, backedUp bool) error {
 			fmt.Println("Already up to date.")
 		}
 		return nil
+	}
+	// RFC 6238 §5.1: confirm the persistent key can recover existing seeds
+	// before routine migrations advance an already encrypted database.
+	if current >= 17 {
+		if err := validateEncryptedTotp(db); err != nil {
+			return fmt.Errorf("migrations: validate existing TOTP enrollments: %w", err)
+		}
 	}
 	if current > 0 && !backedUp && pendingMajor(current) {
 		var path string

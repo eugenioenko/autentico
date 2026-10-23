@@ -186,7 +186,7 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/a/*/call
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), TOTP encryption key, CSRF secret, and token signing secrets; on an existing `.env`, adds only a missing TOTP key and preserves other settings and secrets
 - `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing
-- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `19`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
+- `autentico migrate` — interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `20`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
 - `autentico onboard` — headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -293,7 +293,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables listed below (SchemaVersion 19):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables listed below (SchemaVersion 20):
 
 | Table | Purpose |
 |-------|---------|
@@ -303,7 +303,7 @@ Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables 
 | `auth_codes` | Single-use authorization codes (PKCE, nonce, `idp_session_id` carried from `/authorize` to `/oauth2/token`) |
 | `idp_sessions` | SSO browser sessions — one row per browser/device; parent of OAuth sessions via `sessions.idp_session_id`. `idpsession.DeactivateWithCascade` revokes the row + every child OAuth session + their tokens in one transaction. |
 | `mfa_challenges` | Pending TOTP/email OTP challenges |
-| `trusted_devices` | Trusted device tokens (MFA bypass) |
+| `trusted_devices` | Public management IDs and unique indexed SHA-256 cookie hashes (MFA bypass); routine schema 20 preserves existing cookies/expiry |
 | `passkey_challenges` | Pending WebAuthn ceremony state |
 | `passkey_credentials` | Registered WebAuthn credentials (JSON blob) |
 | `clients` | OAuth2 clients with per-client config overrides (including `consent_required`) and account dashboard metadata (`show_in_account`, `client_uri`, `logo_uri`, `description`) |

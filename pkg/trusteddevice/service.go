@@ -10,11 +10,11 @@ import (
 const CookieName = "autentico_trusted_device"
 
 // SetCookie writes the trusted device cookie with the given token and expiry.
-func SetCookie(w http.ResponseWriter, deviceID string, expiry time.Duration) {
+func SetCookie(w http.ResponseWriter, token string, expiry time.Duration) {
 	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
-		Value:    deviceID,
+		Value:    token,
 		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
 		Secure:   bs.AuthIdpSessionSecureCookie,
@@ -39,7 +39,7 @@ func IsDeviceTrusted(userID string, r *http.Request) bool {
 	if token == "" {
 		return false
 	}
-	device, err := TrustedDeviceByIDIncludingExpired(token)
+	device, err := TrustedDeviceByTokenIncludingExpired(token)
 	if err != nil {
 		return false
 	}
@@ -49,6 +49,6 @@ func IsDeviceTrusted(userID string, r *http.Request) bool {
 	if time.Now().After(device.ExpiresAt) {
 		return false
 	}
-	_ = UpdateLastUsed(token)
+	_ = UpdateLastUsed(device.ID)
 	return true
 }

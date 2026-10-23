@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const target = 19
+const target = 20
 
 var totpKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{42}, 32))
 
@@ -158,7 +159,9 @@ func env(path string) []string {
 		"AUTENTICO_TOTP_ENCRYPTION_KEY="+totpKey,
 		"AUTENTICO_ACCESS_TOKEN_SECRET=migration-test-access-secret",
 		"AUTENTICO_REFRESH_TOKEN_SECRET=migration-test-refresh-secret",
-		"AUTENTICO_CSRF_SECRET_KEY=01234567890123456789012345678901")
+		"AUTENTICO_CSRF_SECRET_KEY=01234567890123456789012345678901",
+		"AUTENTICO_CSRF_SECURE_COOKIE=false",
+		"AUTENTICO_IDP_SESSION_SECURE=false")
 }
 
 func command(t *testing.T, path, input string, args ...string) (string, error) {
@@ -723,8 +726,8 @@ func futureCLI(t *testing.T, major bool) string {
 	data, err := os.ReadFile(sourcePath)
 	require.NoError(t, err)
 	source := strings.Replace(string(data), fmt.Sprintf("var SchemaVersion = %d", target), fmt.Sprintf("var SchemaVersion = %d", target+1), 1)
-	anchor := fmt.Sprintf("{Version: %d, SQL: migration%03d},", target, target)
-	require.Contains(t, source, anchor)
+	anchor := regexp.MustCompile(fmt.Sprintf(`(?m)^\s*\{Version: %d,.*$`, target)).FindString(source)
+	require.NotEmpty(t, anchor)
 	source = strings.Replace(source, anchor, anchor+fmt.Sprintf("\n{Version: %d, Major: %t, SQL: `CREATE TABLE future_upgrade(id TEXT)`},", target+1, major), 1)
 	dir := t.TempDir()
 	replacement := filepath.Join(dir, "migrations.go")

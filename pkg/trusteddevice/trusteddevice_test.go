@@ -26,7 +26,7 @@ func TestCreateTrustedDevice(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-create-1", "user-1")
-	err := CreateTrustedDevice(dev)
+	err := CreateTrustedDevice(dev, "cookie-"+dev.ID)
 	require.NoError(t, err)
 }
 
@@ -34,8 +34,8 @@ func TestCreateTrustedDeviceDuplicateID(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-dup-1", "user-1")
-	require.NoError(t, CreateTrustedDevice(dev))
-	err := CreateTrustedDevice(dev)
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
+	err := CreateTrustedDevice(dev, "cookie-"+dev.ID)
 	assert.Error(t, err)
 }
 
@@ -45,7 +45,7 @@ func TestTrustedDeviceByIDIncludingExpired(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-read-1")
 	dev := sampleDevice("dev-read-1", "user-read-1")
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	got, err := TrustedDeviceByIDIncludingExpired("dev-read-1")
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestTrustedDeviceByIDIncludingExpired_ReturnsExpired(t *testing.T) {
 		DeviceName: "TestBrowser",
 		ExpiresAt:  time.Now().Add(-1 * time.Hour),
 	}
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	got, err := TrustedDeviceByIDIncludingExpired("dev-expired-read")
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestUpdateLastUsed(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-update-1", "user-1")
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	err := UpdateLastUsed("dev-update-1")
 	require.NoError(t, err)
@@ -106,10 +106,10 @@ func TestIsDeviceTrustedValid(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-trusted-1")
 	dev := sampleDevice("dev-trusted-1", "user-trusted-1")
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: CookieName, Value: "dev-trusted-1"})
+	req.AddCookie(&http.Cookie{Name: CookieName, Value: "cookie-dev-trusted-1"})
 
 	assert.True(t, IsDeviceTrusted("user-trusted-1", req))
 }
@@ -118,10 +118,10 @@ func TestIsDeviceTrustedWrongUser(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-a")
 	dev := sampleDevice("dev-trusted-2", "user-a")
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: CookieName, Value: "dev-trusted-2"})
+	req.AddCookie(&http.Cookie{Name: CookieName, Value: "cookie-dev-trusted-2"})
 
 	assert.False(t, IsDeviceTrusted("user-b", req))
 }
@@ -135,10 +135,10 @@ func TestIsDeviceTrustedExpired(t *testing.T) {
 		DeviceName: "TestBrowser",
 		ExpiresAt:  time.Now().Add(-1 * time.Hour), // already expired
 	}
-	require.NoError(t, CreateTrustedDevice(dev))
+	require.NoError(t, CreateTrustedDevice(dev, "cookie-"+dev.ID))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: CookieName, Value: "dev-expired-1"})
+	req.AddCookie(&http.Cookie{Name: CookieName, Value: "cookie-dev-expired-1"})
 
 	assert.False(t, IsDeviceTrusted("user-exp-1", req))
 }
@@ -189,8 +189,8 @@ func TestTrustedDevicesByUserID(t *testing.T) {
 	testutils.InsertTestUser(t, "user-1")
 	dev1 := sampleDevice("dev-1", "user-1")
 	dev2 := sampleDevice("dev-2", "user-1")
-	_ = CreateTrustedDevice(dev1)
-	_ = CreateTrustedDevice(dev2)
+	_ = CreateTrustedDevice(dev1, "cookie-"+dev1.ID)
+	_ = CreateTrustedDevice(dev2, "cookie-"+dev2.ID)
 
 	devices, err := TrustedDevicesByUserID("user-1")
 	assert.NoError(t, err)
@@ -203,7 +203,7 @@ func TestDeleteTrustedDevice(t *testing.T) {
 	testutils.WithTestDB(t)
 	testutils.InsertTestUser(t, "user-1")
 	dev := sampleDevice("dev-1", "user-1")
-	_ = CreateTrustedDevice(dev)
+	_ = CreateTrustedDevice(dev, "cookie-"+dev.ID)
 
 	err := DeleteTrustedDevice("dev-1")
 	assert.NoError(t, err)

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,7 +70,7 @@ INSERT INTO trusted_devices(id,user_id,expires_at) VALUES('device','kept',dateti
 				require.Equal(t, "kept browser", agent)
 				require.Equal(t, "192.0.2.1", ip)
 				var count int
-				require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM trusted_devices WHERE id='device'`).Scan(&count))
+				require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM trusted_devices WHERE token_hash=?`, utils.HashToken("device")).Scan(&count))
 				require.Equal(t, 1, count)
 				require.Empty(t, backups(t, path))
 				noRecovery(t, path)

@@ -102,6 +102,8 @@ Per the specification:
 
 - When `id_token_hint` is present, Autentico validates that it was the issuer of the ID token (signature verification against the server's key)
 - When both `client_id` and `id_token_hint` are present, the `client_id` must match the `azp` (authorized party) or `aud` (audience) claim in the ID token
+- A supplied malformed or incorrectly signed `id_token_hint` prevents redirection, even when `client_id` and a registered logout URI are provided. Expired but correctly signed hints are still accepted.
+- Malformed query/form encoding also prevents redirection. Local session revocation and cookie clearing still complete when request validation fails.
 - If validation fails, post-logout redirection is not performed -- the user sees the signed-out confirmation page instead
 - The `post_logout_redirect_uri` must exactly match a registered URI on the resolved client
 
