@@ -108,7 +108,8 @@ The compiled binary is at `./autentico`.
 |---|---|
 | `autentico init` | Create `.env` with fresh secrets, or add only a missing TOTP encryption key to existing config. `--url` and `--dev` apply to new files. |
 | `autentico start` | Start the server. Applies routine migrations automatically; pending major migrations require explicit `migrate` approval. |
-| `autentico start --auto-setup` | Generate `.env` if missing, then start. Safe to pass on every run. |
+| `autentico start --env-file /path/to/.env` | Load the selected file instead of `.env` in the current directory. Environment variables take precedence. Missing or unreadable files cause an error. |
+| `autentico start --auto-setup` | Generate `.env` if missing, then start. Supports `--env-file` to choose the path (parent directory must exist). Safe to pass on every run. |
 | `autentico start --no-auto-migrate` | Skip automatic migrations. Server refuses to start if the schema is behind. |
 | `autentico migrate` | Interactively apply pending database migrations. |
 | `autentico onboard` | Create the first admin account headlessly (for CI/CD). |

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"net/netip"
 	"net/url"
 	"os"
@@ -285,8 +286,14 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 // OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
 // are derived from AppURL — they do not need to be set manually.
 // Invalid trusted-proxy CIDRs return an error before replacing Bootstrap.
-func InitBootstrap() error {
-	_ = godotenv.Load() // silent if no .env in CWD
+// Explicit env files replace the default .env and must load successfully.
+// Existing OS environment variables take precedence over file values.
+func InitBootstrap(envFiles ...string) error {
+	if len(envFiles) == 0 {
+		_ = godotenv.Load() // silent if no .env in CWD
+	} else if err := godotenv.Load(envFiles...); err != nil {
+		return fmt.Errorf("failed to load env file: %w", err)
+	}
 
 	trustedProxies, err := parseTrustedProxies(getEnv("AUTENTICO_TRUSTED_PROXIES", ""))
 	if err != nil {
