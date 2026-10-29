@@ -29,7 +29,7 @@ Schema 19 adds only indexed pending federation flows. Black-box schema-18 upgrad
 
 Schema 20 hashes trusted-device cookies while assigning separate public IDs. Black-box upgrades preserve existing cookies, device metadata/expiry, token hashes and MFA state in both journal modes through startup and CLI migration. Failures roll back the schema and transformed rows so the same database can be retried.
 
-CI runs the real database and CLI migration suite on both Linux and Windows,
+CI runs the real database and CLI migration suite on Linux in the `test` job,
 including paths containing spaces, Unicode, and URI-reserved characters.
 The functional CI job also runs the Docker Compose migration test against the
 same built binary used by the HTTP tests, including a root-owned `0640` config

@@ -317,7 +317,7 @@ Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current expe
 - Unattended Docker deployments must stop the service, prepare a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY`, run `autentico migrate --approve-major=15,17` (`--approve-major=17` from schema 15/16), then start it. Approval is schema-specific and never approves a later major migration; later routine upgrades stay noninteractive
 - Major migrations hold an exclusive OS lock, checkpoint WAL, close SQLite, create and verify a protected snapshot, and persist a recovery record before writes. Failed or interrupted upgrades restore the snapshot before retry. Startup refuses pending recovery
 - The persistent `.lock` file is never unlinked; Unix root-run migrations preserve database ownership on the lock so the service user can restart. `.migration.json` tracks recovery; protected backups retain old bearer tokens and need secure retention
-- SQLite file URIs use `pkg/sqliteutil` to handle Windows drives and reserved characters; CI runs the real database and CLI migration tests on Windows
+- SQLite file URIs use `pkg/sqliteutil` to handle Windows drives and reserved characters; CI runs the real database and CLI migration tests on Linux
 
 Migrations are the single source of truth for the schema. `001_initial_schema.go` creates all tables and is the baseline. Fresh databases run all migrations from scratch; existing databases run only pending ones.
 
