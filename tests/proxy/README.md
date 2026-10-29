@@ -29,7 +29,7 @@ diagnose a failure; these test artifacts can contain test-only browser secrets.
 Coverage includes successful browser login and POST forwarding, actual TOTP
 MFA, same-site SSO, query preservation, host-scoped cookies and credential
 stripping, application-cookie preservation, forged identity/forwarding headers, verified-email-only identity, semicolon path
-traversal, forced same-site image logins with pending-flow eviction, private-route
+traversal, long-return pending-cookie budgets, forced same-site image logins with pending-flow eviction, private-route
 blocking on public Caddy/nginx IdP vhosts,
 noninteractive denial, unsafe methods, unsafe return destinations, path policy,
 wrong-browser completion, altered state/code, callback replay, real expiry,

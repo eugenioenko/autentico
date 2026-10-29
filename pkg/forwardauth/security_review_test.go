@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +68,47 @@ func TestFlowEvictionUsesAuthenticatedAgeNotRequestOrder(t *testing.T) {
 	require.True(t, removed[cookies[0].Name])
 	require.True(t, removed[junk])
 	require.Len(t, removed, 2)
+}
+
+func TestPendingFlowsBoundCompleteEncodedCookieHeader(t *testing.T) {
+	a := fixture(t)
+	jar := map[string]*http.Cookie{}
+	for range 9 {
+		dest := "/reports?query=" + strings.Repeat("x", 1000)
+		r := req(a, a.route("start")+"?return="+url.QueryEscape(dest))
+		for _, c := range jar {
+			r.AddCookie(c)
+		}
+		w := httptest.NewRecorder()
+		HandleStart(w, r)
+		require.Equal(t, 303, w.Code)
+		for _, c := range w.Result().Cookies() {
+			if c.MaxAge < 0 {
+				delete(jar, c.Name)
+			} else {
+				jar[c.Name] = c
+			}
+		}
+		size := 0
+		for _, c := range jar {
+			size += len(c.Name) + 1 + len(c.Value) + 2
+			var f loginFlow
+			sc, err := codec()
+			require.NoError(t, err)
+			require.NoError(t, sc.Decode(c.Name, c.Value, &f))
+			require.Equal(t, dest, f.Return)
+		}
+		require.LessOrEqual(t, size, flowCookieBudget)
+		require.NotEmpty(t, jar)
+		require.Less(t, len(jar), 6)
+	}
+	for _, length := range []int{3000, 4000} {
+		r := req(a, a.route("start")+"?return="+url.QueryEscape("/reports?query="+strings.Repeat("x", length)))
+		w := httptest.NewRecorder()
+		HandleStart(w, r)
+		require.Equal(t, 400, w.Code)
+		require.Empty(t, w.Result().Cookies())
+	}
 }
 
 func TestCodeExpiringAfterValidationRollsBackRedemption(t *testing.T) {

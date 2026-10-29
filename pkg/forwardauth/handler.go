@@ -25,7 +25,13 @@ import (
 	"github.com/rs/xid"
 )
 
-const flowAge = 10 * time.Minute
+const (
+	flowAge = 10 * time.Minute
+	// Budget complete request-cookie pairs, including names and separators.
+	// Leave 2 KiB below nginx's 8 KiB field limit for app/session cookies.
+	flowCookieBudget = 6 * 1024
+	flowCookieMax    = 3 * 1024
+)
 
 var statePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 
@@ -213,10 +219,11 @@ func setCookie(w http.ResponseWriter, a *App, name, value string, age int) {
 
 // Keep at most six pending transactions without turning abandoned or forced
 // login starts into a ten-minute lockout. Authentication remains browser-bound.
-func pruneFlows(w http.ResponseWriter, r *http.Request, a *App, sc *securecookie.SecureCookie) {
+func pruneFlows(w http.ResponseWriter, r *http.Request, a *App, sc *securecookie.SecureCookie, newBytes int) {
 	type pendingFlow struct {
 		name    string
 		expires int64
+		bytes   int
 	}
 	pending := []pendingFlow{}
 	prefix := a.cookieName() + "_flow_"
@@ -230,12 +237,15 @@ func pruneFlows(w http.ResponseWriter, r *http.Request, a *App, sc *securecookie
 			setCookie(w, a, c.Name, "", -1)
 			continue
 		}
-		pending = append(pending, pendingFlow{c.Name, flow.ExpiresAt})
+		size := len(c.Name) + 1 + len(c.Value) + 2 // name=value; separator
+		pending = append(pending, pendingFlow{c.Name, flow.ExpiresAt, size})
+		newBytes += size
 	}
 	// Equal deadlines retain browser cookie creation order (RFC 6265 §5.4).
 	sort.SliceStable(pending, func(i, j int) bool { return pending[i].expires < pending[j].expires })
-	for len(pending) >= 6 {
+	for len(pending) >= 6 || newBytes > flowCookieBudget {
 		setCookie(w, a, pending[0].name, "", -1)
+		newBytes -= pending[0].bytes
 		pending = pending[1:]
 	}
 }
@@ -257,7 +267,7 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dest := r.URL.Query().Get("return")
-	if !a.allowReturn(dest) || len(r.URL.Query()["return"]) != 1 {
+	if len(dest) > flowCookieMax || !a.allowReturn(dest) || len(r.URL.Query()["return"]) != 1 {
 		deny(w, 400)
 		return
 	}
@@ -282,16 +292,25 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	flow := loginFlow{AppID: a.ID, Origin: a.Origin, Return: dest, Verifier: verifier, Nonce: nonce, ExpiresAt: time.Now().Add(flowAge).Unix()}
-	value, err := sc.Encode(flowName(a, state), flow)
+	name := flowName(a, state)
+	// Check the complete encoded pair ourselves; the library's value-only
+	// default can exceed browser cookie limits once the cookie name is added.
+	value, err := sc.MaxLength(0).Encode(name, flow)
 	if err != nil {
 		deny(w, 503)
 		return
 	}
+	size := len(name) + 1 + len(value) + 2
+	if size > flowCookieMax {
+		deny(w, 400)
+		return
+	}
+	sc.MaxLength(4096)
 	sum := sha256.Sum256([]byte(verifier))
 	params := url.Values{"client_id": {a.ClientID}, "redirect_uri": {a.callback()}, "response_type": {"code"}, "scope": {"openid"}, "state": {state}, "nonce": {nonce}, "code_challenge_method": {"S256"}, "code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}}
 	bs := config.GetBootstrap()
-	pruneFlows(w, r, a, sc)
-	setCookie(w, a, flowName(a, state), value, int(flowAge.Seconds()))
+	pruneFlows(w, r, a, sc, size)
+	setCookie(w, a, name, value, int(flowAge.Seconds()))
 	http.Redirect(w, r, bs.AppURL+bs.AppOAuthPath+"/authorize?"+params.Encode(), http.StatusSeeOther)
 }
 

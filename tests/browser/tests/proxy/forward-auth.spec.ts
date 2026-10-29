@@ -172,6 +172,28 @@ for (const [proxy, app] of Object.entries(apps)) {
       await appCookie(context, app);
     });
 
+    test('long pending flows stay within the cookie budget and allow the next login', async ({ page, context }) => {
+      await context.addCookies([{ name: 'app-preference', value: 'x'.repeat(512), url: app.origin }]);
+      for (let i = 0; i < 6; i++) {
+        const destination = '/reports?tab=' + i + '&query=' + 'x'.repeat(1000);
+        await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent(destination)}`);
+        await expect(page.locator('#username')).toBeVisible();
+        const flows = (await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`));
+        expect(flows.length).toBeGreaterThan(0);
+        expect(flows.length).toBeLessThan(6);
+        expect(flows.reduce((size, cookie) => size + cookie.name.length + 1 + cookie.value.length + 2, 0)).toBeLessThanOrEqual(6 * 1024);
+      }
+      const oversized = await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent('/reports?query=' + 'x'.repeat(3000))}`);
+      expect(oversized!.status()).toBe(400);
+      const destination = '/reports?owner=' + 'y'.repeat(1000);
+      await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent(destination)}`);
+      await submitLogin(page); await page.waitForURL(app.origin + destination);
+      const result = JSON.parse(await page.locator('body').innerText());
+      expect(result.path).toBe(destination);
+      expect(String(result.headers.Cookie ?? result.headers.cookie ?? '')).toContain('app-preference=');
+      expect(String(result.headers.Cookie ?? result.headers.cookie ?? '')).not.toContain('autentico_fa_');
+    });
+
     test('wrong browser, tampered state, wrong code and replay cannot complete login', async ({ page, browser }) => {
       const callback = await captureLogin(page, app);
       const other = await browser.newContext({ ignoreHTTPSErrors: true });
