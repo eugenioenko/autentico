@@ -82,6 +82,10 @@ func main() {
 				Name:  "start",
 				Usage: "Start the HTTP server",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "env-file",
+						Usage: "Path to the .env file to load (default: .env in the current directory)",
+					},
 					&cli.BoolFlag{
 						Name:  "no-auto-migrate",
 						Usage: "Do not automatically apply pending database migrations on startup",
@@ -105,6 +109,10 @@ func main() {
 				Name:  "migrate",
 				Usage: "Apply pending database schema migrations",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "env-file",
+						Usage: "Path to the .env file to load (default: .env in the current directory)",
+					},
 					&cli.IntSliceFlag{
 						Name:  "approve-major",
 						Usage: "Approve session invalidation for a specific major database schema version (e.g. 15); repeat for multiple major migrations",
@@ -116,6 +124,10 @@ func main() {
 				Name:  "onboard",
 				Usage: "Create the first admin account (headless alternative to /onboard)",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "env-file",
+						Usage: "Path to the .env file to load (default: .env in the current directory)",
+					},
 					&cli.StringFlag{
 						Name:     "username",
 						Usage:    "Admin username",

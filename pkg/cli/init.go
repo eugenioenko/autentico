@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v2"
 
 	"github.com/eugenioenko/autentico/pkg/dbguard"
@@ -229,13 +228,13 @@ func RunInit(c *cli.Context) error {
 	return nil
 }
 
-// autoGenerateConfig generates a .env file in CWD if one does not already exist.
-// In Docker, WORKDIR is /app/data (the volume), so .env and DB persist automatically.
-// On subsequent runs, the existing .env is loaded and reused.
-func autoGenerateConfig(urlFlag string, devFlag bool) error {
-	if _, err := os.Stat(".env"); err == nil {
-		_ = godotenv.Load(".env")
+// autoGenerateConfig generates the selected env file if it does not already exist.
+// The caller loads the file after generation.
+func autoGenerateConfig(envPath, urlFlag string, devFlag bool) error {
+	if _, err := os.Stat(envPath); err == nil {
 		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("auto-setup: failed to check env file: %w", err)
 	}
 
 	// Determine the app URL: --url flag > AUTENTICO_APP_URL env var > default.
@@ -297,13 +296,11 @@ func autoGenerateConfig(urlFlag string, devFlag bool) error {
 		dev:           dev,
 	})
 
-	if err := createEnvFile(".env", content); err != nil {
+	if err := createEnvFile(envPath, content); err != nil {
 		return fmt.Errorf("auto-setup: failed to write .env: %w", err)
 	}
 
-	_ = godotenv.Load(".env")
-
-	fmt.Printf("  Auto-generated configuration: .env\n")
+	fmt.Printf("  Auto-generated configuration: %s\n", envPath)
 	return nil
 }
 

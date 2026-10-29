@@ -65,13 +65,19 @@ func RunStart(c *cli.Context) error {
 
 // runStart allows isolated integration fixtures to supply a local OIDC transport.
 func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
+	envPath := ".env"
+	var envFiles []string
+	if c.IsSet("env-file") {
+		envPath = c.String("env-file")
+		envFiles = []string{envPath}
+	}
 	if c.Bool("auto-setup") {
-		if err := autoGenerateConfig(c.String("url"), c.Bool("dev")); err != nil {
+		if err := autoGenerateConfig(envPath, c.String("url"), c.Bool("dev")); err != nil {
 			return err
 		}
 	}
 
-	if err := config.InitBootstrap(); err != nil {
+	if err := config.InitBootstrap(envFiles...); err != nil {
 		return err
 	}
 

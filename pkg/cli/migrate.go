@@ -14,7 +14,11 @@ import (
 )
 
 func RunMigrate(c *cli.Context) error {
-	if err := config.InitBootstrap(); err != nil {
+	var envFiles []string
+	if c.IsSet("env-file") {
+		envFiles = []string{c.String("env-file")}
+	}
+	if err := config.InitBootstrap(envFiles...); err != nil {
 		return err
 	}
 	bs := config.GetBootstrap()
