@@ -2,7 +2,7 @@ export type ClaimRequirement = { claim: string; match: 'equals' | 'not_equals' |
 export type ClaimTestResult = { passed: boolean; results: { index: number; claim: string; match: string; passed: boolean; reason: string }[] };
 
 export interface FederationProvider {
-  claim_requirements: ClaimRequirement[];
+  claim_requirements?: ClaimRequirement[];
   claim_requirements_error?: string;
   id: string;
   name: string;

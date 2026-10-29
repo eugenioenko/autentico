@@ -21,7 +21,7 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
     if (provider) {
       setRulesTouched(false);
       form.setFieldsValue({
-        claim_requirements: provider.claim_requirements,
+        claim_requirements: provider.claim_requirements ?? [],
         name: provider.name,
         issuer: provider.issuer,
         client_id: provider.client_id,

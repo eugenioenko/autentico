@@ -58,7 +58,7 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/federation [post]
 func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	var req FederationProviderRequest
-	if !decodeProviderBody(w, r, &req, 256*1024) {
+	if !decodeProviderBody(w, r, &req, 256*1024, false) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
 		return
 	}
@@ -151,7 +151,7 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req FederationProviderRequest
-	if !decodeProviderBody(w, r, &req, 256*1024) {
+	if !decodeProviderBody(w, r, &req, 256*1024, false) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
 		return
 	}
@@ -208,23 +208,27 @@ func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 
 // ProviderResponse is the shared response shape for federation provider endpoints.
 type ProviderResponse struct {
-	ClaimRequirements      ClaimRequirements `json:"claim_requirements"`
-	ClaimRequirementsError string            `json:"claim_requirements_error,omitempty"`
-	ID                     string            `json:"id"`
-	Name                   string            `json:"name"`
-	Issuer                 string            `json:"issuer"`
-	ClientID               string            `json:"client_id"`
-	IconSVG                string            `json:"icon_svg"`
-	Enabled                bool              `json:"enabled"`
-	SortOrder              int               `json:"sort_order"`
+	ClaimRequirements      *ClaimRequirements `json:"claim_requirements,omitempty"`
+	ClaimRequirementsError string             `json:"claim_requirements_error,omitempty"`
+	ID                     string             `json:"id"`
+	Name                   string             `json:"name"`
+	Issuer                 string             `json:"issuer"`
+	ClientID               string             `json:"client_id"`
+	IconSVG                string             `json:"icon_svg"`
+	Enabled                bool               `json:"enabled"`
+	SortOrder              int                `json:"sort_order"`
 }
 
 func toProviderResponse(p FederationProvider) ProviderResponse {
-	if p.ClaimRequirements == nil {
-		p.ClaimRequirements = ClaimRequirements{}
+	var requirements *ClaimRequirements
+	if p.ClaimRequirementsError == "" {
+		if p.ClaimRequirements == nil {
+			p.ClaimRequirements = ClaimRequirements{}
+		}
+		requirements = &p.ClaimRequirements
 	}
 	return ProviderResponse{
-		ClaimRequirements:      p.ClaimRequirements,
+		ClaimRequirements:      requirements,
 		ClaimRequirementsError: p.ClaimRequirementsError,
 		ID:                     p.ID,
 		Name:                   p.Name,
@@ -236,9 +240,11 @@ func toProviderResponse(p FederationProvider) ProviderResponse {
 	}
 }
 
-func decodeProviderBody(w http.ResponseWriter, r *http.Request, into any, limit int64) bool {
+func decodeProviderBody(w http.ResponseWriter, r *http.Request, into any, limit int64, strict bool) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
-	dec.DisallowUnknownFields()
+	if strict {
+		dec.DisallowUnknownFields()
+	}
 	dec.UseNumber()
 	return dec.Decode(into) == nil && dec.Decode(&struct{}{}) == io.EOF
 }
@@ -265,7 +271,7 @@ func HandleTestClaimRequirements(w http.ResponseWriter, r *http.Request) {
 	var req ClaimTestRequest
 	// OIDC Core §3.1.3.7: this matcher is not an ID-token verifier. Only
 	// the callback may use its result to proceed with verified authentication.
-	if !decodeProviderBody(w, r, &req, maxRequirementsBytes) || req.ClaimRequirements == nil {
+	if !decodeProviderBody(w, r, &req, maxRequirementsBytes, true) || req.ClaimRequirements == nil {
 		utils.WriteErrorResponse(w, 400, "invalid_request", "Expected draft claim_requirements array and claims object within 64 KiB")
 		return
 	}

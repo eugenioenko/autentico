@@ -48,6 +48,23 @@ test('production tester enforces authentication, strict types and bounded unambi
   expect(await (await api(base)).json()).toEqual(before);
 });
 
+test('provider API accepts extra metadata while keeping rule validation strict', async () => {
+  const id = 'requirements-compat';
+  const rules = [{ claim: 'email_verified', match: 'equals', value: false }];
+  try {
+    const created = await api(base, { id, name: 'Compatibility', issuer: 'https://issuer.example.invalid', client_id: 'compat', client_secret: 'private-secret', enabled: false, future_metadata: true, claim_requirements: rules });
+    expect(created.status).toBe(201);
+    const provider = await (await api(`${base}/${id}`)).json();
+    expect(provider.claim_requirements).toEqual(rules); expect(provider.client_secret).toBeUndefined();
+    expect((await api(`${base}/${id}`, { ...provider, name: 'Changed', claim_requirements_error: 'ignored read-only metadata' }, 'PUT')).status).toBe(200);
+    expect((await api(`${base}/${id}`, { ...provider, claim_requirements: [{ ...rules[0], unsupported: true }] }, 'PUT')).status).toBe(400);
+    const kept = await (await api(`${base}/${id}`)).json();
+    expect(kept.name).toBe('Changed'); expect(kept.claim_requirements).toEqual(rules); expect(kept.claim_requirements_error).toBeUndefined();
+    expect((await api(`${base}/${id}`, { ...provider, claim_requirements: [] }, 'PUT')).status).toBe(200);
+    expect((await (await api(`${base}/${id}`)).json()).claim_requirements).toEqual([]);
+  } finally { await api(`${base}/${id}`, undefined, 'DELETE'); }
+});
+
 test('admin builds, tests and persists typed requirements; invalid drafts cannot be saved', async ({ page }) => {
   const id = 'requirements-browser';
   await api(`${base}/${id}`, undefined, 'DELETE');

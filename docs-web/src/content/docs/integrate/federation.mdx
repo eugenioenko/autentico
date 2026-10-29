@@ -85,7 +85,7 @@ The admin-only API is `POST /admin/api/federation/test-claim-requirements`, with
 
 The response includes `passed` and ordered `results` with zero-based `index`, `claim`, `match`, `passed` and a safe `reason`. Logical rule errors such as `invalid_pattern` return a failed row; malformed request/sample JSON returns HTTP 400. Samples and comparison values are never included in results or denial logs. Login returns a generic failure; server diagnostics contain only the provider, row index and failure category.
 
-Invalid or unsupported stored rules block login. The admin API exposes `claim_requirements_error: "invalid_stored_claim_requirements"`; use the editor to replace the rules or explicitly clear them. Other edits preserve the invalid policy. Schema 22 stores the ordered JSON array on `federation_providers`; no extra table or environment variable is needed. Existing providers retain their behavior with `[]`.
+Invalid or unsupported stored rules block login. The admin API exposes `claim_requirements_error: "invalid_stored_claim_requirements"`; use the editor to replace the rules or explicitly clear them. Invalid policies omit `claim_requirements` on reads, while valid empty policies return `[]`, so GET-then-PUT metadata edits preserve broken policies. Provider create/update endpoints continue to ignore additional top-level metadata fields; rule objects and tester requests reject unknown fields. Schema 22 stores the ordered JSON array on `federation_providers`; no extra table or environment variable is needed. Existing providers retain their behavior with `[]`.
 
 These are admission rules for future federated logins. They do not revoke existing sessions, restrict password/passkey/other login methods, or configure claims in Autentico-issued tokens.
 

@@ -60,6 +60,28 @@ func TestInvalidStoredRequirementsRemainRepairable(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, listed, 1)
 			require.NotEmpty(t, toProviderResponse(*listed[0]).ClaimRequirementsError)
+			// An ordinary GET-to-PUT round trip must never turn a broken policy
+			// into an explicit clear, including with echoed read-only fields.
+			get := httptest.NewRequest("GET", "/", nil)
+			get.SetPathValue("id", "bad")
+			response := httptest.NewRecorder()
+			HandleGetProvider(response, get)
+			require.Equal(t, 200, response.Code)
+			var echoed map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &echoed))
+			require.NotContains(t, echoed, "claim_requirements")
+			require.Contains(t, echoed, "claim_requirements_error")
+			echoed["name"] = json.RawMessage(`"Metadata edit"`)
+			body, err := json.Marshal(echoed)
+			require.NoError(t, err)
+			put := httptest.NewRequest("PUT", "/", strings.NewReader(string(body)))
+			put.SetPathValue("id", "bad")
+			response = httptest.NewRecorder()
+			HandleUpdateProvider(response, put)
+			require.Equal(t, 200, response.Code, response.Body.String())
+			var unchanged string
+			require.NoError(t, db.GetDB().QueryRow(`SELECT claim_requirements FROM federation_providers WHERE id='bad'`).Scan(&unchanged))
+			require.Equal(t, stored, unchanged)
 			enabled := true
 			require.NoError(t, UpdateFederationProvider("bad", FederationProviderRequest{Name: "Still blocked", Issuer: p.Issuer, ClientID: p.ClientID, Enabled: &enabled}))
 			p, err = FederationProviderByID("bad")
@@ -69,8 +91,33 @@ func TestInvalidStoredRequirementsRemainRepairable(t *testing.T) {
 			p, err = FederationProviderByID("bad")
 			require.NoError(t, err)
 			require.Empty(t, p.ClaimRequirementsError)
+			serialized, err := json.Marshal(toProviderResponse(*p))
+			require.NoError(t, err)
+			require.Contains(t, string(serialized), `"claim_requirements":[]`)
 		})
 	}
+}
+
+func TestProviderHandlersPreserveExtraFieldCompatibilityAndStrictRules(t *testing.T) {
+	testutils.WithTestDB(t)
+	body := `{"id":"compat","name":"Compatible","issuer":"https://issuer.example","client_id":"client","client_secret":"secret","future_metadata":{"ignored":true}}`
+	w := httptest.NewRecorder()
+	HandleCreateProvider(w, httptest.NewRequest("POST", "/", strings.NewReader(body)))
+	require.Equal(t, 201, w.Code, w.Body.String())
+	p, err := FederationProviderByID("compat")
+	require.NoError(t, err)
+	require.Empty(t, p.ClaimRequirements)
+	for _, rules := range []string{`null`, `[{"claim":"org","match":"equals","value":"x","unsupported":true}]`} {
+		r := httptest.NewRequest("PUT", "/", strings.NewReader(`{"name":"Rejected","issuer":"https://issuer.example","client_id":"client","future_metadata":true,"claim_requirements":`+rules+`}`))
+		r.SetPathValue("id", "compat")
+		w = httptest.NewRecorder()
+		HandleUpdateProvider(w, r)
+		require.Equal(t, 400, w.Code, w.Body.String())
+	}
+	p, err = FederationProviderByID("compat")
+	require.NoError(t, err)
+	require.Equal(t, "Compatible", p.Name)
+	require.Equal(t, "secret", p.ClientSecret)
 }
 
 func TestDraftTesterReadOnlyAndPerRowErrors(t *testing.T) {
