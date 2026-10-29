@@ -1309,7 +1309,7 @@ paths:
         "403":
           description: Untrusted proxy or origin
         "429":
-          description: Too many pending browser transactions
+          description: Authentication rate limit exceeded
       summary: Start browser login for a protected application
       tags:
       - forward-auth
@@ -3720,7 +3720,8 @@ paths:
         type: string
       responses:
         "204":
-          description: Allowed; X-Auth-User and X-Auth-Email identify the user
+          description: Allowed; X-Auth-User identifies the user; X-Auth-Email is present
+            only for verified addresses
         "401":
           description: Authentication required; X-Autentico-Login supplies the login
             URL

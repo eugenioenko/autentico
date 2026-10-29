@@ -78,11 +78,12 @@ func checkSession(a *App, credential string) (*user.User, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	// Avoid two serialized SQLite writes per asset/XHR. Keep per-request
-	// persistence for short idle limits so coalescing cannot expire active use.
+	// Avoid per-request writes even with short idle policies. Bound activity
+	// granularity to a quarter of the effective idle limit, capped at 30s;
+	// expiry is checked on every request and never extended by this batching.
 	interval := activityWriteInterval
-	if identity.IdleTimeout > 0 && identity.IdleTimeout <= 2*activityWriteInterval {
-		interval = 0
+	if idle := identity.IdleTimeout; idle > 0 && idle/4 < interval {
+		interval = idle / 4
 	}
 	if now.Sub(last) >= interval || now.Sub(identity.Session.LastActivityAt) >= interval {
 		if err = touchActivity(id, parent, now, interval); err != nil {

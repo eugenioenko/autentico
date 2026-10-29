@@ -94,6 +94,7 @@ def main():
             admin_token = json.load(response)["access_token"]
         request("/admin/api/settings", {"sso_enabled": "true", "require_mfa": "false", "sso_session_max_age": "24h"}, admin_token, "PUT")
         user = request("/admin/api/users", {"username": "proxy-user", "password": "Password123!", "email": "proxy@test.com"}, admin_token)["data"]
+        request("/admin/api/users/" + user["id"], {"is_email_verified": True}, admin_token, "PUT")
         apps = {}
         for name, port in (("caddy", 25443), ("nginx", 25444), ("traefik", 25445)):
             apps[name] = request("/admin/api/protected-apps", {"name": name, "origin": f"https://{name}.example.test:{port}", "allowed_return_paths": ["/"], "session_ttl": "8h"}, admin_token)["data"]
@@ -172,7 +173,7 @@ def main():
                 flags = ["--entrypoints.websecure.address=127.0.0.1:25445", "--providers.file.filename=/certs/traefik.yml", "--log.level=ERROR"]
             subprocess.run(["docker", "run", "--detach", "--name", container, "--network", "host", "--mount", f"type=bind,src={directory},dst=/certs,readonly", IMAGES[name], *flags], check=True, stdout=subprocess.DEVNULL)
         import socket
-        for port in (25443, 25444, 25445):
+        for port in (25443, 25444, 25445, 25446):
             deadline = time.monotonic() + 30
             while True:
                 try:
@@ -183,7 +184,7 @@ def main():
                     if time.monotonic() > deadline:
                         raise RuntimeError(f"Proxy on port {port} did not start")
                     time.sleep(.1)
-        fixture = dict(admin=ADMIN, auth=AUTH, token=admin_token, user=user, apps=apps, control="http://127.0.0.1:25997", controlKey=control_key)
+        fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, control="http://127.0.0.1:25997", controlKey=control_key)
         (directory / "fixture.json").write_text(json.dumps(fixture))
         test_env = dict(os.environ, AUTENTICO_PROXY_FIXTURE=str(directory / "fixture.json"))
         status = subprocess.run([str(ROOT / "tests/browser/node_modules/.bin/playwright"), "test", "--config", "proxy.config.ts"], cwd=ROOT / "tests/browser", env=test_env).returncode

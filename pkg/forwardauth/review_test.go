@@ -158,7 +158,7 @@ func TestRecentAccessIsReadOnlyAndActivityFailuresRollback(t *testing.T) {
 	require.WithinDuration(t, time.Now(), last, time.Second)
 }
 
-func TestShortClientIdleLimitStillPersistsEachAccess(t *testing.T) {
+func TestShortClientIdleLimitUsesSmallerActivityWindow(t *testing.T) {
 	a := fixture(t)
 	credential := completeLogin(t, a)
 	_, err := db.GetDB().Exec(`UPDATE clients SET sso_session_idle_timeout='2s' WHERE client_id=?`, a.ClientID)
@@ -170,6 +170,11 @@ func TestShortClientIdleLimitStillPersistsEachAccess(t *testing.T) {
 	var last time.Time
 	require.NoError(t, db.GetDB().QueryRow(`SELECT last_activity_at FROM idp_sessions WHERE id='parent'`).Scan(&last))
 	require.True(t, last.After(old))
+	// A burst immediately after that refresh must remain read-only even with
+	// a two-second per-client idle override (the global limit is one hour).
+	_, err = db.GetDB().Exec(`CREATE TRIGGER reject_short_activity BEFORE UPDATE OF last_activity_at ON idp_sessions BEGIN SELECT RAISE(ABORT,'unexpected write'); END`)
+	require.NoError(t, err)
+	require.Equal(t, 204, checked(t, a, credential).Code)
 }
 
 func TestReplacementDefaultsOmittedSessionTTL(t *testing.T) {

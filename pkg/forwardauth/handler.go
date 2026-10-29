@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,7 +125,7 @@ func browser(r *http.Request, method string) bool {
 // @Tags forward-auth
 // @Param id path string true "Protected application ID"
 // @Param redirect query string false "Set to 1 for browser login redirects"
-// @Success 204 "Allowed; X-Auth-User and X-Auth-Email identify the user"
+// @Success 204 "Allowed; X-Auth-User identifies the user; X-Auth-Email is present only for verified addresses"
 // @Failure 401 "Authentication required; X-Autentico-Login supplies the login URL"
 // @Failure 403 "Forbidden"
 // @Failure 503 "Authentication service unavailable"
@@ -161,7 +162,11 @@ func HandleCheck(w http.ResponseWriter, r *http.Request) {
 	// These values are copied only by the trusted proxy, which must strip
 	// incoming identity headers and auth cookies before contacting the app.
 	w.Header().Set("X-Auth-User", usr.ID)
-	w.Header().Set("X-Auth-Email", usr.Email)
+	// Unverified profile data must not become a trusted backend account key.
+	w.Header().Del("X-Auth-Email")
+	if usr.IsEmailVerified && usr.Email != "" {
+		w.Header().Set("X-Auth-Email", usr.Email)
+	}
 	// Cookie is a proxy response-to-request header, not Set-Cookie. Preserve
 	// application cookies while withholding our credentials from the backend.
 	safeCookies := []string{}
@@ -206,6 +211,35 @@ func setCookie(w http.ResponseWriter, a *App, name, value string, age int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", Secure: a.secure(), HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: age})
 }
 
+// Keep at most six pending transactions without turning abandoned or forced
+// login starts into a ten-minute lockout. Authentication remains browser-bound.
+func pruneFlows(w http.ResponseWriter, r *http.Request, a *App, sc *securecookie.SecureCookie) {
+	type pendingFlow struct {
+		name    string
+		expires int64
+	}
+	pending := []pendingFlow{}
+	prefix := a.cookieName() + "_flow_"
+	now := time.Now().Unix()
+	for _, c := range r.Cookies() {
+		if !strings.HasPrefix(c.Name, prefix) {
+			continue
+		}
+		var flow loginFlow
+		if !statePattern.MatchString(strings.TrimPrefix(c.Name, prefix)) || sc.Decode(c.Name, c.Value, &flow) != nil || flow.AppID != a.ID || flow.Origin != a.Origin || flow.ExpiresAt <= now || flow.ExpiresAt > now+int64(flowAge.Seconds()) {
+			setCookie(w, a, c.Name, "", -1)
+			continue
+		}
+		pending = append(pending, pendingFlow{c.Name, flow.ExpiresAt})
+	}
+	// Equal deadlines retain browser cookie creation order (RFC 6265 §5.4).
+	sort.SliceStable(pending, func(i, j int) bool { return pending[i].expires < pending[j].expires })
+	for len(pending) >= 6 {
+		setCookie(w, a, pending[0].name, "", -1)
+		pending = pending[1:]
+	}
+}
+
 // HandleStart godoc
 // @Summary Start browser login for a protected application
 // @Description App-origin route, restricted to trusted proxies. Sets a temporary encrypted browser cookie and redirects to existing authorization/login policy.
@@ -215,7 +249,7 @@ func setCookie(w http.ResponseWriter, a *App, name, value string, age int) {
 // @Success 303 "Central authorization redirect"
 // @Failure 400 "Unsafe destination"
 // @Failure 403 "Untrusted proxy or origin"
-// @Failure 429 "Too many pending browser transactions"
+// @Failure 429 "Authentication rate limit exceeded"
 // @Router /_autentico/{id}/start [get]
 func HandleStart(w http.ResponseWriter, r *http.Request) {
 	a := proxyApp(w, r)
@@ -225,17 +259,6 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 	dest := r.URL.Query().Get("return")
 	if !a.allowReturn(dest) || len(r.URL.Query()["return"]) != 1 {
 		deny(w, 400)
-		return
-	}
-	// Bound cookie/header growth while allowing independent parallel tabs.
-	pending := 0
-	for _, c := range r.Cookies() {
-		if strings.HasPrefix(c.Name, a.cookieName()+"_flow_") {
-			pending++
-		}
-	}
-	if pending >= 6 {
-		deny(w, 429)
 		return
 	}
 	sc, err := codec()
@@ -267,6 +290,7 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256([]byte(verifier))
 	params := url.Values{"client_id": {a.ClientID}, "redirect_uri": {a.callback()}, "response_type": {"code"}, "scope": {"openid"}, "state": {state}, "nonce": {nonce}, "code_challenge_method": {"S256"}, "code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}}
 	bs := config.GetBootstrap()
+	pruneFlows(w, r, a, sc)
 	setCookie(w, a, flowName(a, state), value, int(flowAge.Seconds()))
 	http.Redirect(w, r, bs.AppURL+bs.AppOAuthPath+"/authorize?"+params.Encode(), http.StatusSeeOther)
 }
@@ -343,7 +367,6 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		deny(w, 503)
 		return
 	}
-	now := time.Now().UTC()
 	ttl, err := time.ParseDuration(a.SessionTTL)
 	if err != nil {
 		deny(w, 503)
@@ -358,6 +381,22 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 	// RFC 6749 §4.1.2: atomic code consumption and session insertion make
 	// concurrent redemption single-use, including across server restarts.
 	if err = authcode.MarkAuthCodeAsUsedTx(tx, code.Code); err != nil {
+		if errors.Is(err, authcode.ErrCodeUsed) {
+			deny(w, 400)
+		} else {
+			deny(w, 503)
+		}
+		return
+	}
+	// RFC 6749 §4.1.2: claim the writer first, then recheck the stored expiry,
+	// exactly as token issuance does. Rollback restores an expired code's state.
+	var expires time.Time
+	if err = tx.QueryRow(`SELECT expires_at FROM auth_codes WHERE code=?`, code.Code).Scan(&expires); err != nil {
+		deny(w, 503)
+		return
+	}
+	now := time.Now().UTC()
+	if !now.Before(expires) {
 		deny(w, 400)
 		return
 	}

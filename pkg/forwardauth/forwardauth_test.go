@@ -82,10 +82,10 @@ func count(t *testing.T) int {
 
 func TestReturnPathAllowlist(t *testing.T) {
 	a := App{AllowedReturnPaths: []string{"/reports"}}
-	for _, p := range []string{"/reports", "/reports/2026?q=10", "/reports?q=%26x%3D1"} {
+	for _, p := range []string{"/reports", "/reports/2026?q=10", "/reports?q=%26x%3D1", "/reports?q=a;b"} {
 		require.True(t, a.allowReturn(p), p)
 	}
-	for _, p := range []string{"", "https://evil.test/reports", "//evil.test/reports", "/reports-other", "/reports/../admin", "/reports/%2e%2e/admin", "/reports/%252e%252e/admin", "/reports/%5cevil", "/reports//evil", "/reports#fragment", "/reports/%00", "/_autentico/start"} {
+	for _, p := range []string{"", "https://evil.test/reports", "//evil.test/reports", "/reports-other", "/reports/../admin", "/reports/%2e%2e/admin", "/reports/%252e%252e/admin", "/reports/%5cevil", "/reports//evil", "/reports#fragment", "/reports/%00", "/reports/..;/admin", "/reports/%2e%2e%3b/admin", "/reports/a;parameter/admin", "/_autentico/start"} {
 		require.False(t, a.allowReturn(p), p)
 	}
 }
@@ -261,22 +261,30 @@ func TestConcurrentRedemptionSingleSession(t *testing.T) {
 	require.Equal(t, 1, count(t))
 }
 
-func TestPendingFlowLimitAndRegistrationRollback(t *testing.T) {
+func TestPendingFlowRotationAndRegistrationRollback(t *testing.T) {
 	a := fixture(t)
 	cookies := []*http.Cookie{}
-	for i := range 7 {
+	for range 9 {
 		r := req(a, a.route("start")+"?return=%2Freports")
 		for _, c := range cookies {
 			r.AddCookie(c)
 		}
 		w := httptest.NewRecorder()
 		HandleStart(w, r)
-		if i < 6 {
-			require.Equal(t, 303, w.Code)
-			cookies = append(cookies, w.Result().Cookies()[0])
-		} else {
-			require.Equal(t, 429, w.Code)
+		require.Equal(t, 303, w.Code, w.Body.String())
+		for _, response := range w.Result().Cookies() {
+			kept := cookies[:0]
+			for _, c := range cookies {
+				if c.Name != response.Name {
+					kept = append(kept, c)
+				}
+			}
+			cookies = kept
+			if response.MaxAge >= 0 {
+				cookies = append(cookies, response)
+			}
 		}
+		require.LessOrEqual(t, len(cookies), 6)
 	}
 	_, err := SaveApp("", AppRequest{Name: "duplicate", Origin: a.Origin, AllowedReturnPaths: []string{"/"}})
 	require.Error(t, err)

@@ -5,6 +5,8 @@
 }
 https://auth.example.test:25443 {
     tls /certs/cert.pem /certs/key.pem
+    @private path /forward-auth /forward-auth/* /_autentico /_autentico/*
+    respond @private 404
     reverse_proxy 127.0.0.1:25998
 }
 https://caddy.example.test:25443 {

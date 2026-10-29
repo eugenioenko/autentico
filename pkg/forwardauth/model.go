@@ -54,7 +54,10 @@ func canonicalPath(raw string) (string, error) {
 		return "", fmt.Errorf("expected a local absolute path")
 	}
 	p := u.Path
-	if strings.ContainsAny(p, "\\\r\n\x00%") || strings.Contains(p, "//") || strings.ContainsAny(u.RawQuery, "\r\n\x00") || strings.Contains(raw, "#") {
+	// RFC 3986 §3.3 leaves path-parameter interpretation to applications.
+	// Reject decoded semicolons so downstream routers cannot turn "..;" into
+	// traversal after this allowlist has already approved a request.
+	if strings.ContainsAny(p, "\\\r\n\x00%;") || strings.Contains(p, "//") || strings.ContainsAny(u.RawQuery, "\r\n\x00") || strings.Contains(raw, "#") {
 		return "", fmt.Errorf("ambiguous path")
 	}
 	for _, segment := range strings.Split(p, "/") {

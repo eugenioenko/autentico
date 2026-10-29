@@ -86,6 +86,7 @@ test.beforeEach(async () => {
   for (const app of Object.values(apps)) await updateApp(app);
   const response = await api(`/admin/api/users/${fixture.user.id}/reactivate`, {});
   expect([204, 404]).toContain(response.status);
+  expect((await api(`/admin/api/users/${fixture.user.id}`, { is_email_verified: true }, 'PUT')).status).toBe(200);
 });
 
 for (const [proxy, app] of Object.entries(apps)) {
@@ -121,13 +122,54 @@ for (const [proxy, app] of Object.entries(apps)) {
 
     test('unsafe return URLs and out-of-policy paths are rejected without a backend request', async ({ page }) => {
       const before = await control('/stats');
-      for (const path of ['https://evil.test/', '//evil.test/', '/%2f%2fevil.test', '/reports/../secret', '/reports/%252e%252e/secret', '/_autentico/start', '/reports\\evil', '/reports#fragment']) {
+      for (const path of ['https://evil.test/', '//evil.test/', '/%2f%2fevil.test', '/reports/../secret', '/reports/%252e%252e/secret', '/_autentico/start', '/reports\\evil', '/reports#fragment', '/reports/..;/admin', '/reports/%2e%2e%3b/admin']) {
         const response = await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent(path)}`);
         expect(response!.status(), path).toBe(400);
       }
       await updateApp(app, { allowed_return_paths: ['/reports'] });
       expect((await page.goto(app.origin + '/reports-evil'))!.status()).toBe(403);
       expect((await control('/stats')).hits).toBe(before.hits);
+      await login(page, app);
+      const authenticated = await control('/stats');
+      for (const path of ['/reports/..;/admin', '/reports/%2e%2e%3b/admin', '/reports/a;parameter/admin']) {
+        expect((await appFetch(page, path)).status, path).toBe(403);
+      }
+      expect((await control('/stats')).hits).toBe(authenticated.hits);
+    });
+
+
+    test('unverified email is never forwarded as trusted identity', async ({ page, context }) => {
+      await context.setExtraHTTPHeaders({ 'X-Auth-Email': 'forged@evil.test' });
+      await login(page, app);
+      expect((await api(`/admin/api/users/${fixture.user.id}`, { is_email_verified: false }, 'PUT')).status).toBe(200);
+      let result = await appFetch(page, '/reports'); expect(result.status).toBe(200);
+      let headers = Object.fromEntries(Object.entries(JSON.parse(result.body).headers).map(([key, value]) => [key.toLowerCase(), value]));
+      expect(headers['x-auth-user']).toBe(fixture.user.id); expect(headers['x-auth-email']).toBeUndefined();
+      expect((await api(`/admin/api/users/${fixture.user.id}`, { is_email_verified: true }, 'PUT')).status).toBe(200);
+      result = await appFetch(page, '/reports'); expect(result.status).toBe(200);
+      headers = Object.fromEntries(Object.entries(JSON.parse(result.body).headers).map(([key, value]) => [key.toLowerCase(), value]));
+      expect(headers['x-auth-email']).toBe('proxy@test.com');
+    });
+
+    test('six forced same-site image logins cannot lock the browser out', async ({ page, context }) => {
+      await page.goto('https://evil.example.test:25443/');
+      for (let i = 0; i < 6; i++) {
+        const start = `${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent('/reports?pending=' + i)}`;
+        await page.evaluate(url => new Promise<void>(resolve => {
+          const image = new Image(); image.onload = image.onerror = () => resolve(); image.src = url; document.body.append(image);
+        }), start);
+      }
+      const prefix = `__Host-autentico_fa_${app.id}_flow_`;
+      const before = (await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(prefix));
+      expect(before).toHaveLength(6);
+      const destination = '/reports?pending=owner';
+      await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent(destination)}`);
+      await expect(page.locator('#username')).toBeVisible();
+      expect((await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(prefix))).toHaveLength(6);
+      await submitLogin(page); await page.waitForURL(app.origin + destination);
+      const backend = JSON.parse(await page.locator('body').innerText());
+      expect(String(backend.headers.Cookie ?? backend.headers.cookie ?? '')).not.toContain('autentico_fa_');
+      await appCookie(context, app);
     });
 
     test('wrong browser, tampered state, wrong code and replay cannot complete login', async ({ page, browser }) => {
@@ -418,4 +460,16 @@ test('moving the IdP site denies stale registrations but preserves admin listing
   }
   // The old registrations become usable again once their site is restored.
   expect((await appFetch(page, '/reports')).status).toBe(200);
+});
+
+
+test('public Caddy and nginx IdP vhosts block private routes despite forged forwarding headers', async ({ page, context }) => {
+  await context.setExtraHTTPHeaders({ 'X-Forwarded-Host': new URL(apps.caddy.origin).host, 'X-Forwarded-Proto': 'https', 'X-Forwarded-Method': 'GET', 'X-Forwarded-Uri': '/reports' });
+  for (const origin of [fixture.auth, fixture.authNginx]) {
+    expect((await page.goto(origin + '/.well-known/openid-configuration'))!.status()).toBe(200);
+    for (const path of ['/forward-auth', '/forward-auth/' + apps.caddy.id + '/check', '/_autentico', '/_autentico/' + apps.caddy.id + '/start?return=%2Freports', '/_autentico/' + apps.caddy.id + '/callback?state=forged']) {
+      expect((await page.goto(origin + path))!.status(), origin + path).toBe(404);
+    }
+    expect((await appFetch(page, '/_autentico/' + apps.caddy.id + '/logout', 'POST')).status).toBe(404);
+  }
 });

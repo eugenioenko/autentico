@@ -147,7 +147,7 @@ const docTemplate = `{
                         "description": "Untrusted proxy or origin"
                     },
                     "429": {
-                        "description": "Too many pending browser transactions"
+                        "description": "Authentication rate limit exceeded"
                     }
                 }
             }
@@ -3884,7 +3884,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "204": {
-                        "description": "Allowed; X-Auth-User and X-Auth-Email identify the user"
+                        "description": "Allowed; X-Auth-User identifies the user; X-Auth-Email is present only for verified addresses"
                     },
                     "401": {
                         "description": "Authentication required; X-Autentico-Login supplies the login URL"
