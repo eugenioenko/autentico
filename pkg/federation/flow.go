@@ -23,10 +23,8 @@ var errInvalidLoginFlow = errors.New("invalid or expired federation login")
 // browserCookieName uses a host-only, root-path cookie in secure deployments,
 // preventing a sibling domain from planting the browser binding.
 func browserCookieName() string {
-	if config.GetBootstrap().AuthIdpSessionSecureCookie {
-		return "__Host-" + federationBrowserCookie
-	}
-	return federationBrowserCookie
+	bs := config.GetBootstrap()
+	return config.HostCookieName(bs.AuthFederationCookieName, bs.AuthIdpSessionSecureCookie)
 }
 
 // randomFlowValue provides an independent 256-bit flow identifier or cookie.

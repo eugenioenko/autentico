@@ -177,7 +177,7 @@ func HandleCheck(w http.ResponseWriter, r *http.Request) {
 	// application cookies while withholding our credentials from the backend.
 	safeCookies := []string{}
 	for _, c := range r.Cookies() {
-		if strings.HasPrefix(c.Name, "__Host-autentico_fa_") || strings.HasPrefix(c.Name, "autentico_fa_") || c.Name == config.GetBootstrap().AuthIdpSessionCookieName {
+		if isAuthCookie(c.Name) {
 			continue
 		}
 		safeCookies = append(safeCookies, c.String())
@@ -190,6 +190,29 @@ func HandleCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cookie", filtered)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// isAuthCookie withholds configured and historical default credentials from
+// protected backends. RFC 6265 §8.5: even host-only cookies can cross ports.
+// Legacy names are filtered for privacy, never accepted for authentication.
+func isAuthCookie(name string) bool {
+	bs := config.GetBootstrap()
+	for _, prefix := range []string{bs.AuthForwardAuthCookiePrefix, "autentico_fa_"} {
+		if strings.HasPrefix(name, prefix) || strings.HasPrefix(name, "__Host-"+prefix) {
+			return true
+		}
+	}
+	for _, base := range []string{
+		bs.AuthIdpSessionCookieName, bs.AuthRefreshTokenCookieName, bs.AuthCSRFCookieName,
+		bs.AuthTrustedDeviceCookieName, bs.AuthFederationCookieName, bs.AuthPasskeyRegistrationCookieName,
+		"autentico_idp_session", "autentico_refresh_token", "_gorilla_csrf",
+		"autentico_trusted_device", "autentico_federation", "autentico_passkey_registration",
+	} {
+		if name == base || name == "__Host-"+base {
+			return true
+		}
+	}
+	return false
 }
 func validMethod(s string) bool {
 	if len(s) == 0 || len(s) > 32 {

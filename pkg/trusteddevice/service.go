@@ -7,13 +7,14 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 )
 
+// CookieName is the default name; runtime cookie handling uses bootstrap config.
 const CookieName = "autentico_trusted_device"
 
 // SetCookie writes the trusted device cookie with the given token and expiry.
 func SetCookie(w http.ResponseWriter, token string, expiry time.Duration) {
 	bs := config.GetBootstrap()
 	http.SetCookie(w, &http.Cookie{
-		Name:     CookieName,
+		Name:     bs.AuthTrustedDeviceCookieName,
 		Value:    token,
 		Path:     bs.AppOAuthPath,
 		HttpOnly: true,
@@ -25,7 +26,7 @@ func SetCookie(w http.ResponseWriter, token string, expiry time.Duration) {
 
 // ReadCookie returns the trusted device token from the request, or "" if absent.
 func ReadCookie(r *http.Request) string {
-	cookie, err := r.Cookie(CookieName)
+	cookie, err := r.Cookie(config.GetBootstrap().AuthTrustedDeviceCookieName)
 	if err != nil {
 		return ""
 	}

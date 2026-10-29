@@ -34,15 +34,20 @@ type BootstrapConfig struct {
 	// local listen port.
 	AppListenPort string
 	// Secrets and cookies
-	AuthAccessTokenSecret       string
-	AuthRefreshTokenSecret      string
-	AuthCSRFProtectionSecretKey string
-	AuthCSRFSecureCookie        bool
-	AuthJwkCertKeyID            string
-	AuthRefreshTokenCookieName  string
-	AuthRefreshTokenCookieOnly  bool
-	AuthIdpSessionCookieName    string
-	AuthIdpSessionSecureCookie  bool
+	AuthAccessTokenSecret             string
+	AuthRefreshTokenSecret            string
+	AuthCSRFProtectionSecretKey       string
+	AuthCSRFSecureCookie              bool
+	AuthCSRFCookieName                string
+	AuthTrustedDeviceCookieName       string
+	AuthFederationCookieName          string
+	AuthPasskeyRegistrationCookieName string
+	AuthForwardAuthCookiePrefix       string
+	AuthJwkCertKeyID                  string
+	AuthRefreshTokenCookieName        string
+	AuthRefreshTokenCookieOnly        bool
+	AuthIdpSessionCookieName          string
+	AuthIdpSessionSecureCookie        bool
 	// Private key (base64-encoded PEM). If empty, an ephemeral key is used.
 	PrivateKeyBase64 string
 	// Persistent base64 AES-256 key for TOTP seed encryption; never generated at startup.
@@ -242,26 +247,31 @@ var defaultConfig = Config{
 
 var (
 	Bootstrap = BootstrapConfig{
-		DbFilePath:                  "./autentico.db",
-		AppURL:                      "http://localhost:9999",
-		AppOAuthPath:                "/oauth2",
-		AppDomain:                   "localhost",
-		AppHost:                     "localhost:9999",
-		AppPort:                     "9999",
-		AppAuthIssuer:               "http://localhost:9999/oauth2",
-		AuthAccessTokenSecret:       "",
-		AuthRefreshTokenSecret:      "",
-		AuthCSRFProtectionSecretKey: "",
-		AuthCSRFSecureCookie:        false,
-		AuthJwkCertKeyID:            "autentico-key-1",
-		AuthRefreshTokenCookieName:  "autentico_refresh_token",
-		AuthRefreshTokenCookieOnly:  false,
-		AuthIdpSessionCookieName:    "autentico_idp_session",
-		AuthIdpSessionSecureCookie:  false,
-		RateLimitRPS:                5,
-		RateLimitBurst:              10,
-		RateLimitRPM:                20,
-		RateLimitRPMBurst:           20,
+		DbFilePath:                        "./autentico.db",
+		AppURL:                            "http://localhost:9999",
+		AppOAuthPath:                      "/oauth2",
+		AppDomain:                         "localhost",
+		AppHost:                           "localhost:9999",
+		AppPort:                           "9999",
+		AppAuthIssuer:                     "http://localhost:9999/oauth2",
+		AuthAccessTokenSecret:             "",
+		AuthRefreshTokenSecret:            "",
+		AuthCSRFProtectionSecretKey:       "",
+		AuthCSRFSecureCookie:              false,
+		AuthCSRFCookieName:                "_gorilla_csrf",
+		AuthTrustedDeviceCookieName:       "autentico_trusted_device",
+		AuthFederationCookieName:          "autentico_federation",
+		AuthPasskeyRegistrationCookieName: "autentico_passkey_registration",
+		AuthForwardAuthCookiePrefix:       "autentico_fa_",
+		AuthJwkCertKeyID:                  "autentico-key-1",
+		AuthRefreshTokenCookieName:        "autentico_refresh_token",
+		AuthRefreshTokenCookieOnly:        false,
+		AuthIdpSessionCookieName:          "autentico_idp_session",
+		AuthIdpSessionSecureCookie:        false,
+		RateLimitRPS:                      5,
+		RateLimitBurst:                    10,
+		RateLimitRPM:                      20,
+		RateLimitRPMBurst:                 20,
 	}
 	Values = defaultConfig
 )
@@ -285,7 +295,7 @@ func ParseDuration(s string, fallback time.Duration) time.Duration {
 // InitBootstrap loads environment variables (from .env file if present, then
 // OS env) and populates Bootstrap. AppDomain, AppHost, AppPort and AppAuthIssuer
 // are derived from AppURL — they do not need to be set manually.
-// Invalid trusted-proxy CIDRs return an error before replacing Bootstrap.
+// Invalid trusted-proxy CIDRs or new cookie namespaces fail before replacing Bootstrap.
 // Explicit env files replace the default .env and must load successfully.
 // Existing OS environment variables take precedence over file values.
 func InitBootstrap(envFiles ...string) error {
@@ -321,35 +331,44 @@ func InitBootstrap(envFiles ...string) error {
 		}
 	}
 
-	Bootstrap = BootstrapConfig{
-		DbFilePath:                  getEnv("AUTENTICO_DB_FILE_PATH", "./autentico.db"),
-		AppURL:                      appURL,
-		AppOAuthPath:                oauthPath,
-		AppDomain:                   domain,
-		AppHost:                     host,
-		AppPort:                     port,
-		AppListenPort:               getEnv("AUTENTICO_LISTEN_PORT", port),
-		AppAuthIssuer:               appURL + oauthPath,
-		AuthAccessTokenSecret:       getEnv("AUTENTICO_ACCESS_TOKEN_SECRET", ""),
-		AuthRefreshTokenSecret:      getEnv("AUTENTICO_REFRESH_TOKEN_SECRET", ""),
-		AuthCSRFProtectionSecretKey: getEnv("AUTENTICO_CSRF_SECRET_KEY", ""),
-		AuthCSRFSecureCookie:        getEnvBool("AUTENTICO_CSRF_SECURE_COOKIE", true),
-		PrivateKeyBase64:            getEnv("AUTENTICO_PRIVATE_KEY", ""),
-		TotpEncryptionKey:           getEnv("AUTENTICO_TOTP_ENCRYPTION_KEY", ""),
-		AuthJwkCertKeyID:            getEnv("AUTENTICO_JWK_CERT_KEY_ID", "autentico-key-1"),
-		AuthRefreshTokenCookieName:  getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
-		AuthRefreshTokenCookieOnly:  getEnvBool("AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY", false),
-		AuthIdpSessionCookieName:    getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
-		AuthIdpSessionSecureCookie:  getEnvBool("AUTENTICO_IDP_SESSION_SECURE", true),
-		TrustedProxies:              trustedProxies,
-		RateLimitRPS:                getEnvFloat("AUTENTICO_RATE_LIMIT_RPS", 5),
-		RateLimitBurst:              getEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
-		RateLimitRPM:                getEnvFloat("AUTENTICO_RATE_LIMIT_RPM", 20),
-		RateLimitRPMBurst:           getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
-		AntiTimingMinMs:             getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
-		AntiTimingMaxMs:             getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
-		DbReadPoolSize:              getEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
+	next := BootstrapConfig{
+		DbFilePath:                        getEnv("AUTENTICO_DB_FILE_PATH", "./autentico.db"),
+		AppURL:                            appURL,
+		AppOAuthPath:                      oauthPath,
+		AppDomain:                         domain,
+		AppHost:                           host,
+		AppPort:                           port,
+		AppListenPort:                     getEnv("AUTENTICO_LISTEN_PORT", port),
+		AppAuthIssuer:                     appURL + oauthPath,
+		AuthAccessTokenSecret:             getEnv("AUTENTICO_ACCESS_TOKEN_SECRET", ""),
+		AuthRefreshTokenSecret:            getEnv("AUTENTICO_REFRESH_TOKEN_SECRET", ""),
+		AuthCSRFProtectionSecretKey:       getEnv("AUTENTICO_CSRF_SECRET_KEY", ""),
+		AuthCSRFSecureCookie:              getEnvBool("AUTENTICO_CSRF_SECURE_COOKIE", true),
+		AuthCSRFCookieName:                getEnv("AUTENTICO_CSRF_COOKIE_NAME", "_gorilla_csrf"),
+		AuthTrustedDeviceCookieName:       getEnv("AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME", "autentico_trusted_device"),
+		AuthFederationCookieName:          getEnv("AUTENTICO_FEDERATION_COOKIE_NAME", "autentico_federation"),
+		AuthPasskeyRegistrationCookieName: getEnv("AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME", "autentico_passkey_registration"),
+		AuthForwardAuthCookiePrefix:       getEnv("AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX", "autentico_fa_"),
+		PrivateKeyBase64:                  getEnv("AUTENTICO_PRIVATE_KEY", ""),
+		TotpEncryptionKey:                 getEnv("AUTENTICO_TOTP_ENCRYPTION_KEY", ""),
+		AuthJwkCertKeyID:                  getEnv("AUTENTICO_JWK_CERT_KEY_ID", "autentico-key-1"),
+		AuthRefreshTokenCookieName:        getEnv("AUTENTICO_REFRESH_TOKEN_COOKIE_NAME", "autentico_refresh_token"),
+		AuthRefreshTokenCookieOnly:        getEnvBool("AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY", false),
+		AuthIdpSessionCookieName:          getEnv("AUTENTICO_IDP_SESSION_COOKIE_NAME", "autentico_idp_session"),
+		AuthIdpSessionSecureCookie:        getEnvBool("AUTENTICO_IDP_SESSION_SECURE", true),
+		TrustedProxies:                    trustedProxies,
+		RateLimitRPS:                      getEnvFloat("AUTENTICO_RATE_LIMIT_RPS", 5),
+		RateLimitBurst:                    getEnvInt("AUTENTICO_RATE_LIMIT_BURST", 10),
+		RateLimitRPM:                      getEnvFloat("AUTENTICO_RATE_LIMIT_RPM", 20),
+		RateLimitRPMBurst:                 getEnvInt("AUTENTICO_RATE_LIMIT_RPM_BURST", 20),
+		AntiTimingMinMs:                   getEnvInt("AUTENTICO_ANTI_TIMING_MIN_MS", 50),
+		AntiTimingMaxMs:                   getEnvInt("AUTENTICO_ANTI_TIMING_MAX_MS", 150),
+		DbReadPoolSize:                    getEnvInt("AUTENTICO_DB_READ_POOL_SIZE", 0),
 	}
+	if err := next.validateCookieNames(); err != nil {
+		return err
+	}
+	Bootstrap = next
 	return nil
 }
 

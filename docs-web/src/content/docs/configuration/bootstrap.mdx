@@ -50,11 +50,34 @@ The two `_SECURE` cookie flags default to `true`. They should only be set to `fa
 
 | Variable | Default | Description |
 |---|---|---|
+| `AUTENTICO_CSRF_COOKIE_NAME` | `_gorilla_csrf` | CSRF middleware cookie name; the form field and header names stay unchanged. |
+| `AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME` | `autentico_trusted_device` | Trusted-device cookie name, retaining its OAuth path and Strict SameSite policy. |
+| `AUTENTICO_FEDERATION_COOKIE_NAME` | `autentico_federation` | Base name for the upstream-login browser binding. Adds `__Host-` when `AUTENTICO_IDP_SESSION_SECURE=true`. |
+| `AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME` | `autentico_passkey_registration` | Base name for the passkey-registration binding. Adds `__Host-` when `AUTENTICO_CSRF_SECURE_COOKIE=true`. |
+| `AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX` | `autentico_fa_` | Reserved prefix for app sessions and pending login cookies; app IDs and transaction state are appended. Adds `__Host-` for HTTPS app origins. |
 | `AUTENTICO_CSRF_SECURE_COOKIE` | `true` | Adds the `Secure` flag to the CSRF cookie. Set to `false` only when running over plain HTTP (local development). |
 | `AUTENTICO_IDP_SESSION_COOKIE_NAME` | `autentico_idp_session` | Cookie name for the IdP SSO session. |
 | `AUTENTICO_IDP_SESSION_SECURE` | `true` | Adds the `Secure` flag to the IdP session cookie. Set to `false` only for local HTTP development. |
 | `AUTENTICO_REFRESH_TOKEN_COOKIE_NAME` | `autentico_refresh_token` | Cookie name used when cookie-only delivery is enabled. Change if you run multiple Autentico instances under the same domain. |
 | `AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY` | `false` | **Opt-in security enhancement.** When `true`, the refresh token is delivered as an `HttpOnly` cookie instead of in the JSON response body. This prevents JavaScript (including XSS payloads) from ever reading the refresh token. Non-standard: the OIDC spec expects `refresh_token` in the response body, so only enable this if your client is purpose-built to read the token from the cookie rather than the JSON response. |
+
+Cookie names are bootstrap settings: set them in the process environment or `.env`, then restart Autentico. For the five new name/prefix settings, use a nonempty HTTP-token name of at most 128 ASCII bytes. Spaces, separators, control characters and reserved browser prefixes (`__Host-`, `__Secure-`, `__Http-`) are rejected at startup. Supply base names without those prefixes. Automatic `__Host-` naming for federation, passkey registration and HTTPS ForwardAuth retains Secure, Path=/, no Domain and HttpOnly. CSRF and trusted-device cookies retain their existing naming/security behavior; no prefix is added to them automatically. The existing IdP-session and refresh-token settings continue to use their supplied literal names.
+
+Startup also rejects collisions involving the new effective cookie names and overlaps between the ForwardAuth prefix and fixed cookie names. Reserve the entire ForwardAuth prefix for authentication; application cookies should use different names. ForwardAuth strips configured authentication cookies and historical default names before forwarding requests to the backend.
+
+Use distinct names for every instance sharing a hostname, for example:
+
+```ini
+AUTENTICO_IDP_SESSION_COOKIE_NAME=tenant_a_idp
+AUTENTICO_REFRESH_TOKEN_COOKIE_NAME=tenant_a_refresh
+AUTENTICO_CSRF_COOKIE_NAME=tenant_a_csrf
+AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=tenant_a_trusted
+AUTENTICO_FEDERATION_COOKIE_NAME=tenant_a_federation
+AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=tenant_a_registration
+AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=tenant_a_fa_
+```
+
+Changing names starts new browser authentication state. Previous names are not accepted as aliases; users should clear old cookies and sign in again. Pending login/registration flows must restart. Server-side session/device records are unchanged by a rename. Use consistent settings across replicas of the same instance.
 
 ## Trusted reverse proxies
 

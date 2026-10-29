@@ -1028,3 +1028,8 @@ The [protocol decision](forward-auth-cross-domain.md) extends the same code/PKCE
 | MUST enforce single use, expiry and revocation | Existing writer transaction and parent-linked app sessions; concurrent/restart/expiry/revocation black-box suite |
 | MUST keep credentials out of protected backend requests | Reserved callback bypasses backend; filtered cookies and clean redirect; recorded real backend assertions |
 | SHOULD work without third-party cookies | Full real-proxy suite on unrelated sites with explicit browser blocking and a SameSite=None negative control |
+
+
+## Configurable cookie names (#575)
+
+RFC 6265 §4.1.1 token syntax is checked for new name/prefix settings before bootstrap publication; invalid or colliding namespaces fail startup. Configuration changes names only: RFC 6265 §§4.1.2.4–6 path, Secure and HttpOnly semantics stay intact. Existing host-prefixed browser bindings and HTTPS ForwardAuth cookies retain Secure, Path=/ and no Domain; supplied base names cannot weaken prefix requirements. Default names remain unchanged, while configured names govern setting, reading and deletion. CSRF tokens and browser-bound authorization/passkey proofs still require their matching configured cookie. ForwardAuth withholds current and historical default credential names from backend requests (RFC 6265 §8.5 cookies do not isolate ports). No OAuth grant, discovery or schema capability changes.

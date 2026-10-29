@@ -38,11 +38,7 @@ func (a App) route(action string) string { return "/_autentico/" + a.ID + "/" + 
 func (a App) callback() string           { return a.Origin + a.route("callback") }
 func (a App) secure() bool               { return strings.HasPrefix(a.Origin, "https://") }
 func (a App) cookieName() string {
-	prefix := ""
-	if a.secure() {
-		prefix = "__Host-"
-	}
-	return prefix + "autentico_fa_" + a.ID
+	return config.HostCookieName(config.GetBootstrap().AuthForwardAuthCookiePrefix+a.ID, a.secure())
 }
 
 // canonicalPath rejects ambiguous paths before segment-aware prefix matching.

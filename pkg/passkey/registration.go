@@ -35,10 +35,8 @@ func registrationPolicy(clientID, email string) (int, error) {
 }
 
 func registrationCookieName() string {
-	if config.GetBootstrap().AuthCSRFSecureCookie {
-		return "__Host-autentico_passkey_registration"
-	}
-	return "autentico_passkey_registration"
+	bs := config.GetBootstrap()
+	return config.HostCookieName(bs.AuthPasskeyRegistrationCookieName, bs.AuthCSRFSecureCookie)
 }
 
 func registrationOwner(r *http.Request) string {

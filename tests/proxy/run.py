@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--logs", type=Path)
     parser.add_argument("--site-mode", choices=("same-site", "cross-site"), default="same-site")
+    parser.add_argument("--cookie-names", choices=("default", "custom"), default="default")
     args = parser.parse_args()
     binary = args.binary.resolve()
     directory = Path(tempfile.mkdtemp(prefix="autentico-forwardauth-"))
@@ -51,6 +52,16 @@ def main():
     env = dict(os.environ, AUTENTICO_DB_FILE_PATH=str(directory / "identity.db"), AUTENTICO_LISTEN_PORT="25998",
                AUTENTICO_TRUSTED_PROXIES="127.0.0.1/32", AUTENTICO_RATE_LIMIT_RPS="0", AUTENTICO_RATE_LIMIT_RPM="0",
                AUTENTICO_ANTI_TIMING_MIN_MS="0", AUTENTICO_ANTI_TIMING_MAX_MS="0")
+    cookie_names = dict(idp="autentico_idp_session", forwardPrefix="autentico_fa_", csrf="_gorilla_csrf")
+    if args.cookie_names == "custom":
+        cookie_names = dict(idp="tenant_idp", forwardPrefix="tenant_fa_", csrf="tenant_csrf")
+        env.update(AUTENTICO_IDP_SESSION_COOKIE_NAME=cookie_names["idp"],
+                   AUTENTICO_REFRESH_TOKEN_COOKIE_NAME="tenant_refresh",
+                   AUTENTICO_CSRF_COOKIE_NAME=cookie_names["csrf"],
+                   AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME="tenant_trusted",
+                   AUTENTICO_FEDERATION_COOKIE_NAME="tenant_federation",
+                   AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME="tenant_registration",
+                   AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=cookie_names["forwardPrefix"])
     status = 1
     try:
         def command(*cmd):
@@ -198,7 +209,7 @@ def main():
                     if time.monotonic() > deadline:
                         raise RuntimeError(f"Proxy on port {port} did not start")
                     time.sleep(.1)
-        fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, crossDomain=args.site_mode == "cross-site", control="http://127.0.0.1:25997", controlKey=control_key)
+        fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, cookieNames=cookie_names, crossDomain=args.site_mode == "cross-site", control="http://127.0.0.1:25997", controlKey=control_key)
         (directory / "fixture.json").write_text(json.dumps(fixture))
         test_env = dict(os.environ, AUTENTICO_PROXY_FIXTURE=str(directory / "fixture.json"))
         status = subprocess.run([str(ROOT / "tests/browser/node_modules/.bin/playwright"), "test", "--config", "proxy.config.ts"], cwd=ROOT / "tests/browser", env=test_env).returncode

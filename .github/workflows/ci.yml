@@ -207,7 +207,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        site-mode: [same-site, cross-site]
+        include:
+          - site-mode: same-site
+            cookie-names: default
+          - site-mode: cross-site
+            cookie-names: custom
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -227,7 +231,7 @@ jobs:
         working-directory: tests/browser
         run: pnpm exec playwright install chromium --with-deps
       - name: Test real Autentico with Caddy, nginx and Traefik
-        run: python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode "${{ matrix.site-mode }}" --logs "$RUNNER_TEMP/forward-auth-logs"
+        run: python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode "${{ matrix.site-mode }}" --cookie-names "${{ matrix.cookie-names }}" --logs "$RUNNER_TEMP/forward-auth-logs"
       - name: Upload proxy diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
