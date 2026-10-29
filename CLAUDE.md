@@ -169,7 +169,7 @@ Redirect URI for all clients: `https://localhost.emobix.co.uk:8443/test/a/*/call
 `main.go` delegates to `pkg/cli/`. Subcommands:
 - `autentico init` — generates a `.env` with fresh RSA key (base64 PEM), TOTP encryption key, CSRF secret, and token signing secrets; on an existing `.env`, adds only a missing TOTP key and preserves other settings and secrets
 - `autentico start` — loads config, initializes DB, auto-applies routine pending migrations (refuses existing databases with pending major migrations), seeds `autentico-admin` and `autentico-account` clients, registers all routes, starts background cleanup, listens on `AppListenPort`; accepts `--no-auto-migrate` to skip automatic migrations, `--auto-setup` to generate `.env` if missing, and `--env-file <path>` to load (or auto-generate) configuration at a custom path
-- `autentico migrate` — accepts `--env-file <path>` to select configuration; interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `20`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
+- `autentico migrate` — accepts `--env-file <path>` to select configuration; interactive CLI to apply pending database schema migrations; requires a persistent `AUTENTICO_TOTP_ENCRYPTION_KEY` and prompts for the target schema number (currently `21`); `--approve-major=15,17` permits unattended pre-v3 upgrades (`--approve-major=17` from schema 15/16) with a verified backup and rollback on failure
 - `autentico onboard` — accepts `--env-file <path>` to select configuration; headless alternative to the `/onboard` web wizard; creates the first admin account with `--username`, `--password`, `--email`; `--enable-admin-password-grant` adds ROPC grant to the admin client for CI/testing
 
 ### Package Structure
@@ -276,7 +276,7 @@ Overridable: token expiration times, `allowed_audiences`, `allow_self_signup`, `
 
 ### Database
 
-Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables listed below (SchemaVersion 20):
+Initialized by `db.InitDB()`. Schema defined in `pkg/db/migrations/`. 23 tables listed below (SchemaVersion 21):
 
 | Table | Purpose |
 |-------|---------|
@@ -461,3 +461,10 @@ Client registration resolves client_type and token_endpoint_auth_method together
 ## Group and custom-claim auditing
 
 Admin group CRUD, membership changes and custom-claim upsert/delete use `audit.Log` after successful mutation. Group events target `group`; membership details contain `user_id`. Claim events target the user and include only `claim_name`, never the value. Existing retention and best-effort audit-write behavior apply. Event constants, Admin UI filters and the docs-web event table must stay aligned. No schema migration is required.
+
+
+## ForwardAuth
+
+`pkg/forwardauth` registers same-site `protected_apps` and hash-only `forward_auth_sessions` (routine schema 21). Private trusted-proxy `/forward-auth/{id}/check` returns status-only results, or HTML GET/HEAD redirects with `redirect=1`. App-origin `/_autentico/{id}/start`, `/callback` and POST `/logout` bypass the check and backend. Each app has an atomically registered public client with fixed callback and S256 PKCE; callback reuses same-issuer authorization-code validation and atomically consumes the code with app-session insertion, without issuing OAuth tokens. Pending transactions use encrypted per-flow browser cookies derived from the persistent CSRF key. App cookies use Secure/HttpOnly/SameSite=Lax and `__Host-` on HTTPS. Every check validates current app/client/account policy and parent IdP freshness/MFA/revocation. Emit X-Auth-Email only for verified addresses, reject semicolon path parameters, evict old pending flows instead of locking out new logins, and recheck code expiry while holding the writer. Block private proxy/bootstrap prefixes on the public IdP vhost. Activity coalescing uses min(30s, positive idle timeout / 4). Copy identity and filtered Cookie response headers into the proxy's backend request; empty cookie sets use a harmless marker to force replacement. Manage apps through `/admin/api/protected-apps` or Admin → Protected Apps.
+
+`python3 tests/proxy/run.py --binary ./autentico` runs real TLS Caddy, nginx and Traefik Docker proxies against the built production binary, real Chromium and an HTTP backend; `proxy-e2e` runs it in CI. The broad Go suite belongs in CI; local validation should focus on changed packages and these requested integration tests.

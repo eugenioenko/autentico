@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
-target_schema = 20
+target_schema = 21
 args = parser.parse_args()
 if os.getuid() == 0:
     parser.error(

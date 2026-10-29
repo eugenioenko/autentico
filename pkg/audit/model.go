@@ -22,13 +22,14 @@ type Actor interface {
 type TargetType string
 
 const (
-	TargetUser       TargetType = "user"
-	TargetClient     TargetType = "client"
-	TargetSession    TargetType = "session"
-	TargetToken      TargetType = "token"
-	TargetSettings   TargetType = "settings"
-	TargetFederation TargetType = "federation"
-	TargetGroup      TargetType = "group"
+	TargetUser         TargetType = "user"
+	TargetClient       TargetType = "client"
+	TargetSession      TargetType = "session"
+	TargetToken        TargetType = "token"
+	TargetSettings     TargetType = "settings"
+	TargetFederation   TargetType = "federation"
+	TargetGroup        TargetType = "group"
+	TargetProtectedApp TargetType = "protected_app"
 )
 
 // SimpleActor is a lightweight Actor for cases where importing the user
@@ -96,6 +97,9 @@ const (
 	EventClientDeleted          Event = "client_deleted"
 	EventSettingsUpdated        Event = "settings_updated"
 	EventSettingsImported       Event = "settings_imported"
+	EventProtectedAppCreated    Event = "protected_app_created"
+	EventProtectedAppUpdated    Event = "protected_app_updated"
+	EventProtectedAppDeleted    Event = "protected_app_deleted"
 	EventFederationCreated      Event = "federation_created"
 	EventFederationUpdated      Event = "federation_updated"
 	EventFederationDeleted      Event = "federation_deleted"

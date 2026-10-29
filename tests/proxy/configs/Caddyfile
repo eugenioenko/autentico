@@ -1,0 +1,41 @@
+{
+    admin off
+    default_bind 127.0.0.1
+    auto_https off
+}
+https://auth.example.test:25443 {
+    tls /certs/cert.pem /certs/key.pem
+    @private path /forward-auth /forward-auth/* /_autentico /_autentico/*
+    respond @private 404
+    reverse_proxy 127.0.0.1:25998
+}
+https://caddy.example.test:25443 {
+    tls /certs/cert.pem /certs/key.pem
+    route {
+        @bootstrap path /_autentico/*
+        handle @bootstrap {
+            reverse_proxy 127.0.0.1:25998 {
+                header_up X-Forwarded-Host caddy.example.test:25443
+                header_up X-Forwarded-Proto https
+            }
+        }
+        handle {
+          route {
+            request_header -X-Auth-User
+            request_header -X-Auth-Email
+            request_header -X-Auth-Groups
+            forward_auth 127.0.0.1:25998 {
+                uri /forward-auth/CADDY_APP_ID/check?redirect=1
+                header_up X-Forwarded-Host caddy.example.test:25443
+                header_up X-Forwarded-Proto https
+                copy_headers X-Auth-User X-Auth-Email Cookie
+            }
+            reverse_proxy 127.0.0.1:25999 {
+                header_up -Authorization
+                header_up -X-Forwarded-Method
+                header_up -X-Forwarded-Uri
+            }
+          }
+        }
+    }
+}

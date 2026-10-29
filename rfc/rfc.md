@@ -1010,3 +1010,8 @@ Magic-link account limits (#470) follow OWASP Authentication Cheat Sheet §Login
 Routine schema 19 adds the expiry-indexed flow table without changing existing credentials or enrollment. CLI/start black-box tests cover both journal modes, data preservation, partial-DDL rollback and retry; real two-instance HTTP tests reproduce the prior attack and verify browser mismatch, concurrent callbacks, independent flows and restart persistence.
 
 Revocation bearer authorization (RFC 6750 §5.2 / §3.1): the admin audience and current admin role are both required. Audience and role rejection return a Bearer insufficient_scope challenge; ordinary client revocation still enforces ownership (#539).
+
+
+## ForwardAuth proxy integration (#580)
+
+ForwardAuth is a proxy integration, not an advertised OAuth grant or discovery extension. Its internal login uses the existing authorization-code flow: RFC 6749 §4.1.2/§4.1.3 single-use, client-bound and redirect-bound codes; RFC 7636 §4.6 S256 verification; RFC 9700 §4.7 browser correlation and §4.11 validated return destinations. Same-issuer redemption creates only an app session. RFC 7239 §8.1 forwarding trust is enforced against the immediate peer before accepting original-host/protocol metadata. OIDC Core §3.1.2.3 existing login, MFA, account and session-freshness policy governs both completion and later checks. Noninteractive requests stay denied; nginx uses 2xx/401/403 status checks with separate browser redirect handling. No discovery capabilities or accepted OAuth credential transports change.

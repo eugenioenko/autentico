@@ -1,6 +1,7 @@
 package client
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -15,14 +16,23 @@ func CreateClient(req ClientCreateRequest) (*ClientResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate client id: %w", err)
 	}
-	return createClientInternal(clientID, req)
+	return createClientInternal(db.GetDB(), clientID, req)
 }
 
 func CreateClientWithID(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
-	return createClientInternal(clientID, req)
+	return createClientInternal(db.GetDB(), clientID, req)
 }
 
-func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+// CreateClientWithIDTx registers a client atomically with its owning integration.
+func CreateClientWithIDTx(tx *sql.Tx, clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	return createClientInternal(tx, clientID, req)
+}
+
+type clientExecer interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
+func createClientInternal(exec clientExecer, clientID string, req ClientCreateRequest) (*ClientResponse, error) {
 	// RFC 7591 §2 / §3.2.2: resolve and validate metadata before generating a secret.
 	clientType, authMethod, err := resolveClientAuthentication(req.ClientType, req.TokenEndpointAuthMethod)
 	if err != nil {
@@ -97,7 +107,7 @@ func createClientInternal(clientID string, req ClientCreateRequest) (*ClientResp
 			consent_required, description, logo_uri, client_uri, show_in_account
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = db.GetDB().Exec(query,
+	_, err = exec.Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
 		string(postLogoutURIs), string(grantTypes), string(responseTypes), scopes,
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,

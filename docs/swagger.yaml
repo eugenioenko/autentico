@@ -547,6 +547,40 @@ definitions:
       sort_order:
         type: integer
     type: object
+  forwardauth.App:
+    properties:
+      allowed_return_paths:
+        items:
+          type: string
+        type: array
+      client_id:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      origin:
+        type: string
+      session_ttl:
+        type: string
+    type: object
+  forwardauth.AppRequest:
+    properties:
+      allowed_return_paths:
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      name:
+        type: string
+      origin:
+        type: string
+      session_ttl:
+        type: string
+    type: object
   group.GroupCreateRequest:
     properties:
       description:
@@ -676,6 +710,22 @@ definitions:
         type: integer
       message:
         type: string
+    type: object
+  model.ApiResponse-array_forwardauth_App:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/forwardauth.App'
+        type: array
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
+  model.ApiResponse-forwardauth_App:
+    properties:
+      data:
+        $ref: '#/definitions/forwardauth.App'
+      error:
+        $ref: '#/definitions/model.ApiError'
     type: object
   model.ApiResponse-user_LookupUsersResponse:
     properties:
@@ -1184,6 +1234,85 @@ paths:
       summary: Get Well-Known Configuration
       tags:
       - oauth2
+  /_autentico/{id}/callback:
+    get:
+      description: Trusted proxy app-origin callback. Checks state, browser binding,
+        nonce, PKCE and current policy before atomically consuming the code and issuing
+        an app-only cookie.
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Browser transaction state
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "303":
+          description: Clean original destination
+        "400":
+          description: Invalid or replayed callback
+        "403":
+          description: Untrusted proxy, origin or client policy
+      summary: Complete browser login for a protected application
+      tags:
+      - forward-auth
+  /_autentico/{id}/logout:
+    post:
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Exact registered application origin
+        in: header
+        name: Origin
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Session revoked and cookie cleared
+        "403":
+          description: Untrusted proxy, origin or cross-origin logout
+      summary: Revoke this browser's protected-application session
+      tags:
+      - forward-auth
+  /_autentico/{id}/start:
+    get:
+      description: App-origin route, restricted to trusted proxies. Sets a temporary
+        encrypted browser cookie and redirects to existing authorization/login policy.
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Allowed local path and query
+        in: query
+        name: return
+        required: true
+        type: string
+      responses:
+        "303":
+          description: Central authorization redirect
+        "400":
+          description: Unsafe destination
+        "403":
+          description: Untrusted proxy or origin
+        "429":
+          description: Authentication rate limit exceeded
+      summary: Start browser login for a protected application
+      tags:
+      - forward-auth
   /account/api/apps:
     get:
       description: Returns active clients an admin has marked show_in_account, for
@@ -2735,6 +2864,108 @@ paths:
       summary: List child OAuth sessions for an IdP session
       tags:
       - admin-sessions
+  /admin/api/protected-apps:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-array_forwardauth_App'
+      security:
+      - AdminAuth: []
+      summary: List protected applications
+      tags:
+      - admin-forward-auth
+    post:
+      consumes:
+      - application/json
+      description: Origin is immutable and must be supplied unchanged on replacement.
+        Updates replace name, paths and TTL; omitted is_active preserves its value.
+        Disabling revokes all app sessions.
+      parameters:
+      - description: Application configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/forwardauth.AppRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-forwardauth_App'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ApiResponse-forwardauth_App'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - AdminAuth: []
+      summary: Create or replace a protected application
+      tags:
+      - admin-forward-auth
+  /admin/api/protected-apps/{id}:
+    delete:
+      parameters:
+      - description: Application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Unknown application
+      security:
+      - AdminAuth: []
+      summary: Delete a protected application and revoke its sessions
+      tags:
+      - admin-forward-auth
+    put:
+      consumes:
+      - application/json
+      description: Origin is immutable and must be supplied unchanged on replacement.
+        Updates replace name, paths and TTL; omitted is_active preserves its value.
+        Disabling revokes all app sessions.
+      parameters:
+      - description: Application ID for replacement
+        in: path
+        name: id
+        type: string
+      - description: Application configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/forwardauth.AppRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-forwardauth_App'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ApiResponse-forwardauth_App'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.AuthErrorResponse'
+      security:
+      - AdminAuth: []
+      summary: Create or replace a protected application
+      tags:
+      - admin-forward-auth
   /admin/api/sessions:
     get:
       description: Lists all active sessions, optionally filtered by user ID.
@@ -3472,6 +3703,35 @@ paths:
       summary: Batch lookup users by identifiers
       tags:
       - admin-users
+  /forward-auth/{id}/check:
+    get:
+      description: Trusted proxy only. Returns 204, 401, 403 or a fail-closed error.
+        redirect=1 permits redirects for HTML GET/HEAD navigation only; nginx must
+        use status-only mode.
+      parameters:
+      - description: Protected application ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Set to 1 for browser login redirects
+        in: query
+        name: redirect
+        type: string
+      responses:
+        "204":
+          description: Allowed; X-Auth-User identifies the user; X-Auth-Email is present
+            only for verified addresses
+        "401":
+          description: Authentication required; X-Autentico-Login supplies the login
+            URL
+        "403":
+          description: Forbidden
+        "503":
+          description: Authentication service unavailable
+      summary: Check a protected application's browser session
+      tags:
+      - forward-auth
   /healthz:
     get:
       description: Returns the health status of the server and its dependencies. Returns

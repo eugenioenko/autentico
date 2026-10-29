@@ -55,6 +55,9 @@ When retention is set to `0` or empty, audit events are not recorded at all. The
 | `client_deleted` | client | OAuth2 client deleted |
 | `settings_updated` | settings | System settings changed |
 | `settings_imported` | settings | Settings imported from file |
+| `protected_app_created` | protected_app | Protected application registered |
+| `protected_app_updated` | protected_app | Protected application configuration replaced |
+| `protected_app_deleted` | protected_app | Application removed and its sessions revoked |
 | `federation_created` | federation | Federation provider added |
 | `federation_updated` | federation | Federation provider updated |
 | `federation_deleted` | federation | Federation provider removed |
@@ -145,7 +148,7 @@ Each audit event stores the following fields in the `audit_logs` table:
 | `event` | TEXT | Event type (see table above) |
 | `actor_id` | TEXT | ID of the user who performed the action (nullable -- null for failed logins) |
 | `actor_username` | TEXT | Username of the actor at the time of the event |
-| `target_type` | TEXT | Type of entity affected: `user`, `client`, `session`, `token`, `settings`, `federation`, `group` |
+| `target_type` | TEXT | Type of entity affected: `user`, `client`, `session`, `token`, `settings`, `federation`, `group`, `protected_app` |
 | `target_id` | TEXT | ID of the affected entity |
 | `detail` | TEXT | JSON string with additional context (e.g. `{"method":"federation","provider":"google"}`) |
 | `ip_address` | TEXT | Client IP address |

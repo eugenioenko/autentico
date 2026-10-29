@@ -31,6 +31,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/devicecode"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/federation"
+	"github.com/eugenioenko/autentico/pkg/forwardauth"
 	"github.com/eugenioenko/autentico/pkg/group"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
@@ -144,6 +145,16 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	// Infrastructure
 	// -------------------------------------------------------------------------
 	mux.HandleFunc("GET /healthz", health.HandleHealth)
+	// ForwardAuth: private proxy endpoints and app-origin bootstrap routes.
+	mux.HandleFunc("GET /forward-auth/{id}/check", forwardauth.HandleCheck)
+	mux.Handle("GET /_autentico/{id}/start", rateLimitedFunc(forwardauth.HandleStart))
+	mux.Handle("GET /_autentico/{id}/callback", rateLimitedFunc(forwardauth.HandleCallback))
+	mux.Handle("POST /_autentico/{id}/logout", rateLimitedFunc(forwardauth.HandleLogout))
+	mux.Handle("GET /admin/api/protected-apps", adminAPI(forwardauth.HandleList))
+	mux.Handle("POST /admin/api/protected-apps", adminAPI(forwardauth.HandleSave))
+	mux.Handle("PUT /admin/api/protected-apps/{id}", adminAPI(forwardauth.HandleSave))
+	mux.Handle("DELETE /admin/api/protected-apps/{id}", adminAPI(forwardauth.HandleDelete))
+
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	mux.HandleFunc("GET /api-docs/", admin.ApiDocsHandler())
 	mux.HandleFunc("GET /api-docs", admin.ApiDocsHandler())
