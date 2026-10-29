@@ -81,7 +81,7 @@ func proxyApp(w http.ResponseWriter, r *http.Request) *App {
 		deny(w, 503)
 		return nil
 	}
-	if !a.IsActive {
+	if !a.IsActive || !a.validStored() {
 		deny(w, 403)
 		return nil
 	}
@@ -330,7 +330,7 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	current, err := parentIdentity(a, code.IdpSessionID)
-	if err != nil || current.ID != usr.ID {
+	if err != nil || current.User.ID != usr.ID {
 		deny(w, 401)
 		return
 	}

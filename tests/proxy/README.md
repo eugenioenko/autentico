@@ -32,5 +32,6 @@ stripping, application-cookie preservation, forged identity/forwarding headers,
 noninteractive denial, unsafe methods, unsafe return destinations, path policy,
 wrong-browser completion, altered state/code, callback replay, real expiry,
 app disable/re-enable, local logout, central/user revocation, account disable,
-changed MFA policy, cross-app credentials, parallel tabs, pending callbacks and
+changed MFA policy, active use with short idle limits, IdP domain migration with
+continued administration and denied stale registrations, cross-app credentials, parallel tabs, pending callbacks and
 sessions across restart, and fail-closed authentication-service outages.

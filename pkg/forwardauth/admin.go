@@ -33,7 +33,7 @@ func HandleList(w http.ResponseWriter, r *http.Request) {
 
 // HandleSave godoc
 // @Summary Create or replace a protected application
-// @Description Origin is immutable. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.
+// @Description Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.
 // @Tags admin-forward-auth
 // @Accept json
 // @Produce json
@@ -58,24 +58,13 @@ func HandleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	if id != "" {
-		a, err := AppByID(id)
-		if errors.Is(err, sql.ErrNoRows) {
-			deny(w, 404)
-			return
-		}
-		if err != nil {
-			deny(w, 503)
-			return
-		}
-		if a.Origin != req.Origin {
-			utils.WriteErrorResponse(w, 400, "invalid_request", "origin is immutable; register a new app")
-			return
-		}
-	}
 	a, err := SaveApp(id, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint") {
+		if errors.Is(err, sql.ErrNoRows) {
+			deny(w, 404)
+		} else if errors.Is(err, errImmutableOrigin) {
+			utils.WriteErrorResponse(w, 400, "invalid_request", err.Error())
+		} else if strings.Contains(err.Error(), "UNIQUE constraint") {
 			utils.WriteErrorResponse(w, 400, "invalid_request", "An application with that origin already exists")
 		} else {
 			slog.Error("forwardauth: unable to save application", "app_id", id, "error", err)

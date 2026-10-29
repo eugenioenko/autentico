@@ -130,6 +130,14 @@ def main():
                     stop_auth()
                 elif self.path == "/start-auth":
                     start_auth()
+                elif self.path == "/relocate-auth":
+                    stop_auth()
+                    env["AUTENTICO_APP_URL"] = "https://auth.other.test:25443"
+                    start_auth()
+                elif self.path == "/restore-auth":
+                    stop_auth()
+                    env.pop("AUTENTICO_APP_URL", None)
+                    start_auth()
                 elif self.path == "/stats":
                     pass
                 else:

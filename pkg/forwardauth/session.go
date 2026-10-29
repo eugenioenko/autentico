@@ -19,7 +19,13 @@ func hash(value string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func parentIdentity(a *App, parentID string) (*user.User, error) {
+type authenticatedParent struct {
+	User        *user.User
+	Session     *idpsession.IdpSession
+	IdleTimeout time.Duration
+}
+
+func parentIdentity(a *App, parentID string) (*authenticatedParent, error) {
 	parent, err := idpsession.IdpSessionByID(parentID)
 	if err != nil {
 		return nil, errDenied
@@ -41,16 +47,19 @@ func parentIdentity(a *App, parentID string) (*user.User, error) {
 	if !idpsession.IsFresh(parent, &cfg, time.Now()) || !idpsession.SatisfiesMfa(parent.MfaMethod, usr, &cfg) || cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
 		return nil, errDenied
 	}
-	return usr, nil
+	return &authenticatedParent{User: usr, Session: parent, IdleTimeout: cfg.AuthSsoSessionIdleTimeout}, nil
 }
 
+const activityWriteInterval = 30 * time.Second
+
 func checkSession(a *App, credential string) (*user.User, string, error) {
-	if len(credential) != 43 {
+	// Stored policy is enforced at authentication, never during admin recovery.
+	if !a.IsActive || !a.validStored() || len(credential) != 43 {
 		return nil, "", errDenied
 	}
 	var id, parent string
-	var created, expires time.Time
-	err := db.GetDB().QueryRow(`SELECT id,idp_session_id,created_at,expires_at FROM forward_auth_sessions WHERE app_id=? AND token_hash=? AND revoked_at IS NULL`, a.ID, hash(credential)).Scan(&id, &parent, &created, &expires)
+	var created, expires, last time.Time
+	err := db.GetDB().QueryRow(`SELECT id,idp_session_id,created_at,expires_at,last_activity_at FROM forward_auth_sessions WHERE app_id=? AND token_hash=? AND revoked_at IS NULL`, a.ID, hash(credential)).Scan(&id, &parent, &created, &expires, &last)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", errDenied
 	}
@@ -61,21 +70,43 @@ func checkSession(a *App, credential string) (*user.User, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	now := time.Now()
-	if now.Before(created) || !now.Before(expires) || !now.Before(created.Add(ttl)) {
+	now := time.Now().UTC()
+	if now.Before(created) || now.Before(last) || !now.Before(expires) || !now.Before(created.Add(ttl)) {
 		return nil, "", errDenied
 	}
-	usr, err := parentIdentity(a, parent)
+	identity, err := parentIdentity(a, parent)
 	if err != nil {
 		return nil, "", err
 	}
-	// Fail closed if activity persistence fails; successful proxy access counts
-	// toward the existing central idle timeout without extending absolute age.
-	if err = idpsession.UpdateLastActivity(parent); err != nil {
-		return nil, "", err
+	// Avoid two serialized SQLite writes per asset/XHR. Keep per-request
+	// persistence for short idle limits so coalescing cannot expire active use.
+	interval := activityWriteInterval
+	if identity.IdleTimeout > 0 && identity.IdleTimeout <= 2*activityWriteInterval {
+		interval = 0
 	}
-	if _, err = db.GetDB().Exec(`UPDATE forward_auth_sessions SET last_activity_at=? WHERE id=?`, now.UTC(), id); err != nil {
-		return nil, "", err
+	if now.Sub(last) >= interval || now.Sub(identity.Session.LastActivityAt) >= interval {
+		if err = touchActivity(id, parent, now, interval); err != nil {
+			return nil, "", err
+		}
 	}
-	return usr, id, nil
+	return identity.User, id, nil
+}
+
+func touchActivity(id, parent string, now time.Time, interval time.Duration) error {
+	tx, err := db.GetDB().Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	cutoff := now.Add(-interval)
+	// Conditional updates coalesce concurrent checks that observed the same
+	// old snapshot. Commit both activity timestamps together, failing closed
+	// on any write error, without extending absolute session expiry.
+	if _, err = tx.Exec(`UPDATE forward_auth_sessions SET last_activity_at=? WHERE id=? AND revoked_at IS NULL AND last_activity_at<?`, now, id, cutoff); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`UPDATE idp_sessions SET last_activity_at=? WHERE id=? AND deactivated_at IS NULL AND last_activity_at<?`, now, parent, cutoff); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

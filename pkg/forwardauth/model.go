@@ -179,3 +179,10 @@ func validHostname(host string) bool {
 	}
 	return true
 }
+
+// validStored rechecks current policy only where a registration authenticates
+// traffic. Admin reads/deletes must also work after a deployment moves sites.
+func (a *App) validStored() bool {
+	req := AppRequest{Name: a.Name, Origin: a.Origin, AllowedReturnPaths: a.AllowedReturnPaths, SessionTTL: a.SessionTTL}
+	return validate(&req) == nil && req.Origin == a.Origin && req.SessionTTL == a.SessionTTL
+}

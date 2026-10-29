@@ -2881,8 +2881,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Origin is immutable. Updates replace name, paths and TTL; omitted
-        is_active preserves its value. Disabling revokes all app sessions.
+      description: Origin is immutable and must be supplied unchanged on replacement.
+        Updates replace name, paths and TTL; omitted is_active preserves its value.
+        Disabling revokes all app sessions.
       parameters:
       - description: Application configuration
         in: body
@@ -2931,8 +2932,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Origin is immutable. Updates replace name, paths and TTL; omitted
-        is_active preserves its value. Disabling revokes all app sessions.
+      description: Origin is immutable and must be supplied unchanged on replacement.
+        Updates replace name, paths and TTL; omitted is_active preserves its value.
+        Disabling revokes all app sessions.
       parameters:
       - description: Application ID for replacement
         in: path

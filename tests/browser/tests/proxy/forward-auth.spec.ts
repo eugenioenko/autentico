@@ -372,3 +372,50 @@ test('concurrent redemption through the real proxy issues exactly one session', 
   await context.addCookies([{ name, value: credential, url: app.origin, secure: true, httpOnly: true, sameSite: 'Lax' }]);
   const response = await page.goto(app.origin + '/reports'); expect(response!.status()).toBe(200);
 });
+
+test('active traffic preserves a short idle timeout while inactive traffic expires', async ({ page }) => {
+  await settings({ sso_session_idle_timeout: '2s' });
+  await login(page, apps.caddy);
+  // Keep using the app beyond its idle limit. A naive 30s activity throttle
+  // would reject these requests even though the browser remains active.
+  for (let i = 0; i < 8; i++) {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    expect((await appFetch(page, '/reports')).status).toBe(200);
+  }
+  await new Promise(resolve => setTimeout(resolve, 2200));
+  expect((await appFetch(page, '/reports')).status).toBe(401);
+});
+
+test('moving the IdP site denies stale registrations but preserves admin listing and deletion', async ({ page }) => {
+  const extra = await api('/admin/api/protected-apps', { name: 'Obsolete registration', origin: 'https://obsolete.example.test', allowed_return_paths: ['/'] });
+  expect(extra.status).toBe(201);
+  const obsolete = (await extra.json()).data as App;
+  await login(page, apps.caddy);
+  const oldToken = fixture.token;
+  let healthy: App | undefined;
+  try {
+    await control('/relocate-auth');
+    const token = await fetch(fixture.admin + '/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'password', client_id: 'autentico-admin', username: 'admin', password, scope: 'openid profile email' }),
+    });
+    expect(token.status).toBe(200);
+    fixture.token = (await token.json()).access_token;
+    expect((await appFetch(page, '/reports')).status).toBe(403);
+    const created = await api('/admin/api/protected-apps', { name: 'Current-site registration', origin: 'https://healthy.other.test', allowed_return_paths: ['/'] });
+    expect(created.status).toBe(201); healthy = (await created.json()).data as App;
+    const listed = await api('/admin/api/protected-apps'); expect(listed.status).toBe(200);
+    const registrations = (await listed.json()).data as App[];
+    expect(registrations.map(app => app.id)).toEqual(expect.arrayContaining([obsolete.id, apps.caddy.id, healthy.id]));
+    expect((await api(`/admin/api/protected-apps/${obsolete.id}`, undefined, 'DELETE')).status).toBe(204);
+    expect((await api(`/admin/api/protected-apps/${healthy.id}`, undefined, 'DELETE')).status).toBe(204);
+    healthy = undefined;
+  } finally {
+    if (healthy) await api(`/admin/api/protected-apps/${healthy.id}`, undefined, 'DELETE');
+    await control('/restore-auth');
+    fixture.token = oldToken;
+    await api(`/admin/api/protected-apps/${obsolete.id}`, undefined, 'DELETE');
+  }
+  // The old registrations become usable again once their site is restored.
+  expect((await appFetch(page, '/reports')).status).toBe(200);
+});

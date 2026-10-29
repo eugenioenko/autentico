@@ -25,10 +25,6 @@ func scanApp(row scanner) (*App, error) {
 	if err := json.Unmarshal([]byte(paths), &a.AllowedReturnPaths); err != nil {
 		return nil, fmt.Errorf("invalid stored app paths: %w", err)
 	}
-	req := AppRequest{Name: a.Name, Origin: a.Origin, AllowedReturnPaths: a.AllowedReturnPaths, SessionTTL: a.SessionTTL}
-	if err := validate(&req); err != nil || req.Origin != a.Origin {
-		return nil, fmt.Errorf("invalid stored app configuration")
-	}
 	return a, nil
 }
 
@@ -62,15 +58,6 @@ func SaveApp(id string, req AppRequest) (*App, error) {
 	if req.IsActive != nil {
 		active = *req.IsActive
 	}
-	if id != "" {
-		old, err := AppByID(id)
-		if err != nil {
-			return nil, err
-		}
-		if req.Origin != old.Origin {
-			return nil, fmt.Errorf("origin is immutable; register a new app")
-		}
-	}
 	tx, err := db.GetDB().Begin()
 	if err != nil {
 		return nil, err
@@ -81,6 +68,17 @@ func SaveApp(id string, req AppRequest) (*App, error) {
 		id = xid.New().String()
 	}
 	clientID := "forward-auth-" + id
+	if !creating {
+		// Administration must remain available for registrations that no
+		// longer satisfy current authentication policy, or need path repair.
+		var origin string
+		if err = tx.QueryRow(`SELECT origin,client_id FROM protected_apps WHERE id=?`, id).Scan(&origin, &clientID); err != nil {
+			return nil, err
+		}
+		if req.Origin != origin {
+			return nil, errImmutableOrigin
+		}
+	}
 	if creating {
 		no := false
 		_, err = client.CreateClientWithIDTx(tx, clientID, client.ClientCreateRequest{
@@ -125,23 +123,27 @@ func SaveApp(id string, req AppRequest) (*App, error) {
 }
 
 func DeleteApp(id string) error {
-	a, err := AppByID(id)
-	if err != nil {
-		return err
-	}
 	tx, err := db.GetDB().Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Decode neither paths nor policy here: even malformed registrations must
+	// be removable without a manual database edit.
+	var clientID string
+	if err = tx.QueryRow(`SELECT client_id FROM protected_apps WHERE id=?`, id).Scan(&clientID); err != nil {
+		return err
+	}
 	if _, err = tx.Exec(`DELETE FROM protected_apps WHERE id=?`, id); err != nil {
 		return err
 	}
 	// The client remains disabled to preserve historical codes/audit references.
-	if _, err = tx.Exec(`UPDATE clients SET is_active=FALSE WHERE client_id=?`, a.ClientID); err != nil {
+	if _, err = tx.Exec(`UPDATE clients SET is_active=FALSE WHERE client_id=?`, clientID); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
+
+var errImmutableOrigin = errors.New("origin is immutable; register a new app")
 
 var errDenied = errors.New("session is not active")

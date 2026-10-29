@@ -2584,7 +2584,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Origin is immutable. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "description": "Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2635,7 +2635,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Origin is immutable. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "description": "Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
                 "consumes": [
                     "application/json"
                 ],
