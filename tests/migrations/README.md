@@ -61,3 +61,5 @@ retry, startup under the service UID after a root-run migration, and idempotent
 deployment-job retry. The test
 creates its own temporary data and Compose project and cleans them up afterward.
 An existing compatible runtime image can be supplied with `--runtime-image`.
+
+Schema 21 adds protected applications and app-scoped ForwardAuth sessions without changing existing credentials. Black-box routine-upgrade coverage checks both WAL and rollback journals and preserves users, settings and active central sessions.

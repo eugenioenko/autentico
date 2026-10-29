@@ -414,3 +414,8 @@ The following indexes are created across migrations:
 - `idx_federation_login_flows_expiry` on `federation_login_flows(expires_at)`
 
 - `idx_trusted_devices_token_hash` on `trusted_devices(token_hash)` (unique)
+
+
+### `protected_apps` and `forward_auth_sessions`
+
+Routine migration 021 registers same-site protected applications and their separate browser sessions. `protected_apps` stores ID, name, immutable unique origin, JSON path prefixes, unique internal client ID, absolute session TTL, active status and timestamps. `forward_auth_sessions` stores a public ID, app and IdP-session foreign keys, unique SHA-256 credential hash, creation/activity/expiry timestamps and optional revocation time. Foreign keys cascade deletion of an app or parent session. Parent and expiry indexes support revocation lookup and cleanup. The parent session supplies user identity and completed MFA evidence; each check requires that parent to remain valid. Existing login/session credentials are unchanged by this additive migration.

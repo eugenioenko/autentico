@@ -1,0 +1,49 @@
+http:
+  routers:
+    app:
+      rule: Host(`traefik.example.test`)
+      entryPoints: [websecure]
+      tls: {}
+      service: backend
+      middlewares: [strip-identity, auth]
+    bootstrap:
+      rule: Host(`traefik.example.test`) && PathPrefix(`/_autentico/`)
+      priority: 100
+      entryPoints: [websecure]
+      tls: {}
+      service: autentico
+      middlewares: [app-context]
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:25999
+    autentico:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:25998
+  middlewares:
+    strip-identity:
+      headers:
+        customRequestHeaders:
+          X-Auth-User: ""
+          X-Auth-Email: ""
+          X-Auth-Groups: ""
+          X-Forwarded-Method: ""
+          X-Forwarded-Uri: ""
+          Authorization: ""
+    app-context:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Host: traefik.example.test:25445
+          X-Forwarded-Proto: https
+    auth:
+      forwardAuth:
+        address: http://127.0.0.1:25998/forward-auth/TRAEFIK_APP_ID/check?redirect=1
+        trustForwardHeader: false
+        authRequestHeaders: [Cookie, Accept]
+        authResponseHeaders: [X-Auth-User, X-Auth-Email, Cookie]
+tls:
+  certificates:
+    - certFile: /certs/cert.pem
+      keyFile: /certs/key.pem

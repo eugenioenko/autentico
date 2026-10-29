@@ -38,6 +38,120 @@ const docTemplate = `{
                 }
             }
         },
+        "/_autentico/{id}/callback": {
+            "get": {
+                "description": "Trusted proxy app-origin callback. Checks state, browser binding, nonce, PKCE and current policy before atomically consuming the code and issuing an app-only cookie.",
+                "tags": [
+                    "forward-auth"
+                ],
+                "summary": "Complete browser login for a protected application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Browser transaction state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "303": {
+                        "description": "Clean original destination"
+                    },
+                    "400": {
+                        "description": "Invalid or replayed callback"
+                    },
+                    "403": {
+                        "description": "Untrusted proxy, origin or client policy"
+                    }
+                }
+            }
+        },
+        "/_autentico/{id}/logout": {
+            "post": {
+                "tags": [
+                    "forward-auth"
+                ],
+                "summary": "Revoke this browser's protected-application session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact registered application origin",
+                        "name": "Origin",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Session revoked and cookie cleared"
+                    },
+                    "403": {
+                        "description": "Untrusted proxy, origin or cross-origin logout"
+                    }
+                }
+            }
+        },
+        "/_autentico/{id}/start": {
+            "get": {
+                "description": "App-origin route, restricted to trusted proxies. Sets a temporary encrypted browser cookie and redirects to existing authorization/login policy.",
+                "tags": [
+                    "forward-auth"
+                ],
+                "summary": "Start browser login for a protected application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Allowed local path and query",
+                        "name": "return",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "303": {
+                        "description": "Central authorization redirect"
+                    },
+                    "400": {
+                        "description": "Unsafe destination"
+                    },
+                    "403": {
+                        "description": "Untrusted proxy or origin"
+                    },
+                    "429": {
+                        "description": "Too many pending browser transactions"
+                    }
+                }
+            }
+        },
         "/account/api/apps": {
             "get": {
                 "security": [
@@ -2441,6 +2555,164 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/api/protected-apps": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-forward-auth"
+                ],
+                "summary": "List protected applications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-array_forwardauth_App"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Origin is immutable. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-forward-auth"
+                ],
+                "summary": "Create or replace a protected application",
+                "parameters": [
+                    {
+                        "description": "Application configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/forwardauth.AppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-forwardauth_App"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-forwardauth_App"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/protected-apps/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Origin is immutable. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-forward-auth"
+                ],
+                "summary": "Create or replace a protected application",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application ID for replacement",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "description": "Application configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/forwardauth.AppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-forwardauth_App"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-forwardauth_App"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.AuthErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "tags": [
+                    "admin-forward-auth"
+                ],
+                "summary": "Delete a protected application and revoke its sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "404": {
+                        "description": "Unknown application"
+                    }
+                }
+            }
+        },
         "/admin/api/sessions": {
             "get": {
                 "security": [
@@ -3584,6 +3856,44 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/user.UserResponse"
                         }
+                    }
+                }
+            }
+        },
+        "/forward-auth/{id}/check": {
+            "get": {
+                "description": "Trusted proxy only. Returns 204, 401, 403 or a fail-closed error. redirect=1 permits redirects for HTML GET/HEAD navigation only; nginx must use status-only mode.",
+                "tags": [
+                    "forward-auth"
+                ],
+                "summary": "Check a protected application's browser session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Protected application ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Set to 1 for browser login redirects",
+                        "name": "redirect",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Allowed; X-Auth-User and X-Auth-Email identify the user"
+                    },
+                    "401": {
+                        "description": "Authentication required; X-Autentico-Login supplies the login URL"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "503": {
+                        "description": "Authentication service unavailable"
                     }
                 }
             }
@@ -5118,6 +5428,58 @@ const docTemplate = `{
                 }
             }
         },
+        "forwardauth.App": {
+            "type": "object",
+            "properties": {
+                "allowed_return_paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "client_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "origin": {
+                    "type": "string"
+                },
+                "session_ttl": {
+                    "type": "string"
+                }
+            }
+        },
+        "forwardauth.AppRequest": {
+            "type": "object",
+            "properties": {
+                "allowed_return_paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "origin": {
+                    "type": "string"
+                },
+                "session_ttl": {
+                    "type": "string"
+                }
+            }
+        },
         "group.GroupCreateRequest": {
             "type": "object",
             "properties": {
@@ -5309,6 +5671,31 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "model.ApiResponse-array_forwardauth_App": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/forwardauth.App"
+                    }
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
+                }
+            }
+        },
+        "model.ApiResponse-forwardauth_App": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/forwardauth.App"
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
                 }
             }
         },

@@ -199,3 +199,36 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code
+
+  proxy-e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: autentico-binary
+      - run: chmod +x autentico
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: pnpm
+          cache-dependency-path: tests/browser/pnpm-lock.yaml
+      - name: Install browser dependencies
+        working-directory: tests/browser
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        working-directory: tests/browser
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Test real Autentico with Caddy, nginx and Traefik
+        run: python3 tests/proxy/run.py --binary "$PWD/autentico" --logs "$RUNNER_TEMP/forward-auth-logs"
+      - name: Upload proxy diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forward-auth-diagnostics
+          path: |
+            ${{ runner.temp }}/forward-auth-logs/*.log
+            tests/browser/test-results/

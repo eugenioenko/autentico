@@ -27,6 +27,7 @@ var transientTables = []struct {
 	{"mfa_challenges", `DELETE FROM mfa_challenges WHERE expires_at < ?`},
 	{"passkey_challenges", `DELETE FROM passkey_challenges WHERE expires_at < ?`},
 	{"trusted_devices", `DELETE FROM trusted_devices WHERE expires_at < ?`},
+	{"forward_auth_sessions", `DELETE FROM forward_auth_sessions WHERE expires_at < ?`},
 	{"idp_sessions", `DELETE FROM idp_sessions WHERE deactivated_at IS NOT NULL AND deactivated_at < ?`},
 	{"password_reset_tokens", `DELETE FROM password_reset_tokens WHERE expires_at < ?`},
 	{"device_codes", `DELETE FROM device_codes WHERE expires_at < ?`},

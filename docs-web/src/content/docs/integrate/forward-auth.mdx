@@ -1,0 +1,102 @@
+---
+title: ForwardAuth
+description: Protect applications with Autentico through Caddy, nginx or Traefik.
+---
+
+ForwardAuth protects applications that do not implement OIDC. A reverse proxy asks Autentico whether each request is authenticated before forwarding it to the application. All active local users may access an enabled protected application after satisfying the configured login policy. This feature does not add group-based application permissions.
+
+The first version supports a shared **schemeful site**, for example `https://auth.example.com` and `https://dashboard.example.com`. Unrelated domains are tracked separately in [issue #581](https://github.com/eugenioenko/autentico/issues/581). Production applications must have a different hostname from Autentico: different ports do not isolate browser cookies. HTTPS is required except for literal loopback development origins. Keep the protected backend reachable only through the proxy.
+
+## Register an application
+
+Use **Admin → Protected Apps → Add Application**, or the admin-authenticated API:
+
+```bash
+curl -X POST https://auth.example.com/admin/api/protected-apps \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Dashboard","origin":"https://dashboard.example.com","allowed_return_paths":["/"],"session_ttl":"8h"}'
+```
+
+The response's `data.id` identifies the app in proxy configuration. Registration atomically creates an associated `forward-auth-<id>` public client with a fixed callback and S256 PKCE. Manage the app through Protected Apps rather than changing its associated client independently.
+
+| Field | Meaning |
+|---|---|
+| `name` | Plain text display name, 1–100 characters |
+| `origin` | Exact app origin, immutable after registration; one registration per origin |
+| `allowed_return_paths` | 1–32 canonical path prefixes; `/` allows all application paths |
+| `session_ttl` | Absolute app-session lifetime, `1s` through `24h`; default `8h` |
+| `is_active` | Default `true`; disabling permanently revokes existing app sessions |
+
+Path prefixes match complete segments: `/reports` permits `/reports` and `/reports/2026`, but not `/reports-other`. The original query string is preserved. Absolute return URLs, scheme-relative URLs, dot segments, ambiguous encodings, backslashes and reserved `/_autentico` paths are rejected. Restrictions apply to every access check as well as login completion.
+
+`GET /admin/api/protected-apps` lists apps, `PUT /admin/api/protected-apps/{id}` replaces name/paths/TTL and optionally active status, and `DELETE /admin/api/protected-apps/{id}` deletes the app and its sessions. An omitted `is_active` on replacement preserves its value. To change origin, register a new application. Shortening TTL also limits existing sessions; increasing it does not extend their stored expiry.
+
+## Proxy contract
+
+Set `AUTENTICO_TRUSTED_PROXIES` to the addresses/CIDRs of the **immediate network peers** allowed to call ForwardAuth. The default trusts no proxy. Use the private Autentico listener for checks and app bootstrap routes. Never expose this listener directly to untrusted networks, and never trust a whole shared network merely for convenience.
+
+Call `GET /forward-auth/{id}/check` with the browser's `Cookie` and these **overwritten** headers:
+
+| Header | Trusted value |
+|---|---|
+| `X-Forwarded-Host` | Exact registered app authority, including a nondefault port |
+| `X-Forwarded-Proto` | Registered app scheme |
+| `X-Forwarded-Uri` | Original path and query |
+| `X-Forwarded-Method` | Original request method, including when the subrequest itself uses GET |
+
+Repeated or mismatched origin headers fail closed. A browser-provided forwarding header must never override these values. Do not forward request bodies to the check endpoint, or cache its decisions.
+
+| Check result | Proxy behavior |
+|---|---|
+| `204` | Forward the request with the returned identity and filtered cookie headers |
+| `401` | Reject noninteractive requests; browser navigation may use `X-Autentico-Login` |
+| `403` | Deny disabled/unknown destinations or disallowed paths; do not initiate login |
+| `5xx`, timeout or connection failure | Deny access; never fall through to the backend |
+
+`redirect=1` makes an unauthenticated HTML GET/HEAD check return a `303` to its validated login-start URL. JSON/API and unsafe-method requests still receive `401`. This mode is suitable for Caddy and Traefik. nginx `auth_request` requires status-only mode; its configuration separately converts browser `401` responses to login redirects.
+
+On success, copy `X-Auth-User` (stable user ID), `X-Auth-Email` and **`Cookie`** from the check response to the upstream **request**, replacing incoming values. Strip client-provided identity headers, including unsupported group headers. The response `Cookie` is not `Set-Cookie`: it contains only the original application's cookies with ForwardAuth credentials removed. When there are no application cookies, `autentico_no_app_cookies=1` forces proxies to replace the original Cookie header rather than skip an empty value. Do not copy these headers to the browser response.
+
+## Login routes and sessions
+
+Reserve these paths on each app's origin and proxy them directly to the private Autentico listener, preserving the path/query and overwriting the origin headers above. They must bypass the auth check and never reach the application:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/_autentico/{id}/start?return=<encoded-local-path>` | Bind the login transaction to this app and browser |
+| GET | `/_autentico/{id}/callback` | Validate state/nonce/PKCE and complete login |
+| POST | `/_autentico/{id}/logout` | Revoke this browser's app session; exact matching Origin required |
+
+Login uses the existing authorization, primary authentication, email-verification and MFA flow. Eligible SSO may avoid another login prompt. Pending login state and PKCE verifier are encrypted/authenticated with purpose-separated keys derived from the persistent CSRF secret; temporary cookies expire after ten minutes and allow up to six simultaneous pending tabs per app. Wrong-browser completion does not consume the owner's code. Code redemption and app-session creation commit together, preventing concurrent replay across restarts.
+
+The final cookie is `__Host-autentico_fa_<id>`, Secure, HttpOnly, SameSite=Lax, Path=/, with no Domain attribute. Loopback HTTP uses the same name without `__Host-`. Its random credential is stored only as a SHA-256 hash in `forward_auth_sessions`. No access or refresh tokens are issued to the app, and the central IdP cookie remains host-scoped to Autentico.
+
+Every check verifies the app credential, active app/client, central session freshness and revocation, active account, current MFA evidence and required email verification. Successful access updates central activity without extending absolute age. Central logout, user deactivation and administrative session revocation stop linked app access on the next check. App logout affects that app session only. Deleting an app removes its sessions; re-enabling a disabled app does not revive revoked sessions. Missing parents always fail closed. Expired records are cleaned by the existing background cleanup.
+
+Exclude callback query strings from proxy access/error logs and analytics; do not log cookies. The handlers return no-store and no-referrer headers, and successful callbacks redirect to the clean original URL.
+
+## Tested proxy configurations
+
+The repository contains complete runnable TLS configurations used by the black-box suite:
+
+- [Caddyfile](https://github.com/eugenioenko/autentico/blob/main/tests/proxy/configs/Caddyfile): uses `forward_auth`, `copy_headers` and an explicit inner `route` to preserve header-stripping order.
+- [nginx.conf](https://github.com/eugenioenko/autentico/blob/main/tests/proxy/configs/nginx.conf): uses `auth_request`, `auth_request_set`, an internal check location and a separate browser-login error handler.
+- [Traefik configuration](https://github.com/eugenioenko/autentico/blob/main/tests/proxy/configs/traefik.yml): uses ForwardAuth, identity stripping, response-header replacement and a higher-priority bootstrap router.
+
+Replace the `CADDY_APP_ID`, `NGINX_APP_ID` or `TRAEFIK_APP_ID` marker with the registered app ID, and adapt origins, ports, private listener/backend addresses and TLS certificate paths. The fixtures bind loopback addresses; production listeners must use the intended public interface. Configure the proxy to overwrite original-host/protocol headers at its external boundary, especially when another proxy sits in front of it.
+
+The nginx example preserves the original method before creating the GET auth subrequest. Do not replace its explicit browser redirect handler with a redirecting auth-check endpoint. The Caddy inner `route` is necessary: default directive sorting can otherwise remove the identity headers after they have been populated.
+
+## Run the complete black-box suite
+
+On Linux, install Docker, Node/pnpm and OpenSSL. Build the normal production binary and install Chromium:
+
+```bash
+make build
+pnpm --dir tests/browser install --frozen-lockfile
+pnpm --dir tests/browser exec playwright install chromium --with-deps
+python3 tests/proxy/run.py --binary "$PWD/autentico" --logs /tmp/forward-auth-logs
+```
+
+The suite launches the real Autentico executable, Caddy 2.10.2, nginx 1.28.0 and Traefik 3.5.0 in Docker with real TLS and distinct browser hostnames. The backend is a real HTTP server that records every forwarded request. Each proxy is tested for login/return navigation, MFA, cookie isolation, identity spoofing, unsafe redirects, API/unsafe-method denial, replay, expiry, disable/re-enable, logout/revocation, restart and authentication-service outage. Cross-app credentials, pending callbacks across restart and parallel tabs are also exercised. Denial checks assert that the backend received no request. The dedicated `proxy-e2e` CI job runs the same suite against the production build.

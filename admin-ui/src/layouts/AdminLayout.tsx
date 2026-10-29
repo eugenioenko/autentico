@@ -32,6 +32,7 @@ const menuItems: any[] = [
   { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
   { key: "/tokens", icon: <KeyOutlined />, label: "Tokens" },
   { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
+{ key: "/protected-apps", icon: <GlobalOutlined />, label: "Protected Apps" },
   { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
   { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
   { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
