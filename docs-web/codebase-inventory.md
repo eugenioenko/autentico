@@ -234,6 +234,11 @@ Source: `pkg/config/config.go` `InitBootstrap()` function.
 | `AUTENTICO_ACCESS_TOKEN_SECRET` | `""` (required) | HMAC secret for access token signing |
 | `AUTENTICO_REFRESH_TOKEN_SECRET` | `""` (required) | HMAC secret for refresh token signing |
 | `AUTENTICO_CSRF_SECRET_KEY` | `""` (required) | CSRF protection secret |
+| `AUTENTICO_CSRF_COOKIE_NAME` | `_gorilla_csrf` | CSRF cookie name |
+| `AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME` | `autentico_trusted_device` | Trusted-device cookie name |
+| `AUTENTICO_FEDERATION_COOKIE_NAME` | `autentico_federation` | Federation browser-cookie base name |
+| `AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME` | `autentico_passkey_registration` | Passkey-registration browser-cookie base name |
+| `AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX` | `autentico_fa_` | App-session and pending-login cookie prefix |
 | `AUTENTICO_CSRF_SECURE_COOKIE` | `true` | Require HTTPS for CSRF cookie |
 | `AUTENTICO_PRIVATE_KEY` | `""` | Base64-encoded RSA private key PEM for JWT signing (RS256). Ephemeral if unset. |
 | `AUTENTICO_JWK_CERT_KEY_ID` | `autentico-key-1` | Key ID in JWK Set |

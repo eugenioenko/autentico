@@ -42,6 +42,11 @@ func TestRunInit(t *testing.T) {
 	assert.Contains(t, sContent, "AUTENTICO_CSRF_SECURE_COOKIE=true")
 	assert.Contains(t, sContent, "AUTENTICO_REFRESH_TOKEN_COOKIE_ONLY=false")
 	assert.Contains(t, sContent, "AUTENTICO_IDP_SESSION_SECURE=true")
+	assert.Contains(t, sContent, "AUTENTICO_CSRF_COOKIE_NAME=_gorilla_csrf")
+	assert.Contains(t, sContent, "AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=autentico_trusted_device")
+	assert.Contains(t, sContent, "AUTENTICO_FEDERATION_COOKIE_NAME=autentico_federation")
+	assert.Contains(t, sContent, "AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=autentico_passkey_registration")
+	assert.Contains(t, sContent, "AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=autentico_fa_")
 	assert.Contains(t, sContent, "AUTENTICO_TRUSTED_PROXIES=\n")
 
 	// Re-init preserves the complete file, including existing keys.

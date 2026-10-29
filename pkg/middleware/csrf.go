@@ -37,6 +37,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 	bs := config.GetBootstrap()
 	return csrf.Protect(
 		[]byte(bs.AuthCSRFProtectionSecretKey),
+		csrf.CookieName(bs.AuthCSRFCookieName),
 		csrf.Secure(bs.AuthCSRFSecureCookie),
 		csrf.TrustedOrigins([]string{bs.AppHost}),
 		csrf.ErrorHandler(http.HandlerFunc(csrfErrorHandler)),

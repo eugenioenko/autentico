@@ -7,7 +7,7 @@ make build
 pnpm --dir tests/browser install --frozen-lockfile
 pnpm --dir tests/browser exec playwright install chromium --with-deps
 python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode same-site --logs /tmp/forward-auth-logs
-python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode cross-site --logs /tmp/forward-auth-cross-site-logs
+python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode cross-site --cookie-names custom --logs /tmp/forward-auth-cross-site-logs
 ```
 
 Both modes run independently in the `proxy-e2e` CI matrix. It uses the supplied production
@@ -53,3 +53,11 @@ check bounded redirect chains, central/app credential isolation, copied flow
 cookies at wrong destinations, pending-completion policy changes and clean
 backend requests/referrers. Normal fresh-login, MFA and SSO tests run entirely
 through the browser; attack tests pause only the final login redirect.
+
+`--cookie-names custom` overrides all seven cookie settings in the real server's
+process environment, including CSRF, IdP, refresh, trusted-device, federation,
+passkey-registration and ForwardAuth. Default names remain the harness default.
+The CI cross-site job uses custom names; the same-site job retains defaults.
+Login forms prove the custom CSRF cookie is used, SSO/logout use the custom IdP
+name, and app login/parallel flows/rotation/restart/logout exercise custom app
+cookie names. Backend assertions also withhold legacy default credentials.

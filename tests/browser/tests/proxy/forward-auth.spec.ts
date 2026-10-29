@@ -8,6 +8,8 @@ type App = { id: string; name: string; origin: string; allowed_return_paths: str
 const fixture = JSON.parse(readFileSync(process.env.AUTENTICO_PROXY_FIXTURE!, 'utf8'));
 const apps = fixture.apps as Record<string, App>;
 const password = 'Password123!';
+const cookieNames = fixture.cookieNames as { idp: string; forwardPrefix: string; csrf: string };
+const appCookieName = (app: App) => `__Host-${cookieNames.forwardPrefix}${app.id}`;
 async function restrictThirdPartyCookies(page: Page) {
   if (!fixture.crossDomain) return;
   const session = await page.context().newCDPSession(page);
@@ -54,8 +56,8 @@ async function login(page: Page, a: App, target = '/reports?month=10&label=a%26b
   await page.waitForURL(a.origin + target);
   const result = JSON.parse(await page.locator('body').innerText());
   const headers = Object.fromEntries(Object.entries(result.headers).map(([k, v]) => [k.toLowerCase(), v]));
-  expect(String(headers.cookie ?? '')).not.toContain('autentico_fa_');
-  expect(String(headers.cookie ?? '')).not.toContain('autentico_idp_session');
+  expect(String(headers.cookie ?? '')).not.toContain(cookieNames.forwardPrefix);
+  expect(String(headers.cookie ?? '')).not.toContain(cookieNames.idp);
   return result;
 }
 async function shell(page: Page, a: App) {
@@ -69,7 +71,7 @@ async function appFetch(page: Page, path: string, method = 'GET', accept = 'appl
   }, { path, method, accept, body });
 }
 async function appCookie(context: BrowserContext, a: App) {
-  const cookie = (await context.cookies(a.origin)).find(c => c.name === `__Host-autentico_fa_${a.id}`);
+  const cookie = (await context.cookies(a.origin)).find(c => c.name === appCookieName(a));
   expect(cookie).toBeTruthy(); return cookie!;
 }
 
@@ -130,8 +132,8 @@ for (const [proxy, app] of Object.entries(apps)) {
       expect(navigations.length).toBeLessThan(12);
       for (const request of await Promise.all(headers)) {
         const host = new URL(request.url).host;
-        if (host === new URL(app.origin).host) expect(request.headers.cookie ?? '').not.toContain('autentico_idp_session=');
-        if (host === new URL(fixture.auth).host) expect(request.headers.cookie ?? '').not.toContain('autentico_fa_');
+        if (host === new URL(app.origin).host) expect(request.headers.cookie ?? '').not.toContain(cookieNames.idp + '=');
+        if (host === new URL(fixture.auth).host) expect(request.headers.cookie ?? '').not.toContain(cookieNames.forwardPrefix);
       }
       const backendHeaders = Object.fromEntries(Object.entries(result.headers).map(([k, v]) => [k.toLowerCase(), v]));
       expect(String(backendHeaders.referer ?? '')).not.toMatch(/[?&](code|state)=/);
@@ -142,13 +144,13 @@ for (const [proxy, app] of Object.entries(apps)) {
       const callback = await captureLogin(page, app);
       const other = Object.values(apps).find(candidate => candidate.id !== app.id)!;
       const before = await control('/stats');
-      const flow = (await context.cookies(app.origin)).find(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`))!;
+      const flow = (await context.cookies(app.origin)).find(cookie => cookie.name.startsWith(`${appCookieName(app)}_flow_`))!;
       await context.addCookies([{ name: flow.name, value: flow.value, url: other.origin, httpOnly: true, secure: true, sameSite: 'Lax' }]);
       const crossed = new URL(callback); crossed.host = new URL(other.origin).host;
       expect((await page.goto(crossed.toString()))!.status()).toBe(403);
       crossed.pathname = `/_autentico/${other.id}/callback`;
       expect((await page.goto(crossed.toString()))!.status()).toBe(400);
-      expect((await context.cookies(other.origin)).some(cookie => cookie.name === `__Host-autentico_fa_${other.id}`)).toBe(false);
+      expect((await context.cookies(other.origin)).some(cookie => cookie.name === appCookieName(other))).toBe(false);
       expect((await control('/stats')).hits).toBe(before.hits);
       await page.goto(callback); await page.waitForURL(app.origin + '/reports');
       expect((await page.goto(callback))!.status()).toBe(400);
@@ -161,7 +163,7 @@ for (const [proxy, app] of Object.entries(apps)) {
       expect((await page.goto(callback))!.status()).toBe(400);
       await updateApp(app, { is_active: false });
       expect((await page.goto(callback))!.status()).toBe(403);
-      expect((await context.cookies(app.origin)).some(cookie => cookie.name === `__Host-autentico_fa_${app.id}`)).toBe(false);
+      expect((await context.cookies(app.origin)).some(cookie => cookie.name === appCookieName(app))).toBe(false);
       expect((await control('/stats')).hits).toBe(before.hits);
       await updateApp(app);
       await page.goto(callback); await page.waitForURL(app.origin + '/reports');
@@ -170,6 +172,9 @@ for (const [proxy, app] of Object.entries(apps)) {
 
     test('complete browser login, query restoration, isolated cookies, identity replacement and POST forwarding', async ({ page, context }) => {
       await context.addCookies([{ name: 'app-preference', value: 'dark', url: app.origin }]);
+      if (cookieNames.forwardPrefix !== 'autentico_fa_') {
+        await context.addCookies([{ name: '__Host-autentico_fa_legacy', value: 'old-secret', url: app.origin, secure: true, httpOnly: true }]);
+      }
       await context.setExtraHTTPHeaders({ 'X-Auth-User': 'forged', 'X-Auth-Email': 'forged@evil.test', 'X-Auth-Groups': 'admins', 'X-Forwarded-Host': 'evil.test', 'X-Forwarded-Proto': 'http', 'X-Forwarded-Uri': '//evil.test', 'X-Forwarded-Method': 'DELETE' });
       const result = await login(page, app);
       expect(result.path).toBe('/reports?month=10&label=a%26b');
@@ -179,9 +184,10 @@ for (const [proxy, app] of Object.entries(apps)) {
       expect(headers.cookie).toBe('app-preference=dark');
       const cookie = await appCookie(context, app);
       expect(cookie.secure).toBe(true); expect(cookie.httpOnly).toBe(true); expect(cookie.sameSite).toBe('Lax'); expect(cookie.domain).toBe(new URL(app.origin).hostname);
-      const central = (await context.cookies(fixture.auth)).find(c => c.name === 'autentico_idp_session');
+      const central = (await context.cookies(fixture.auth)).find(c => c.name === cookieNames.idp);
       expect(central).toBeTruthy(); expect(central!.value).not.toBe(cookie.value);
-      expect((await context.cookies(app.origin)).some(c => c.name === 'autentico_idp_session')).toBe(false);
+      expect((await context.cookies(fixture.auth + '/oauth2/login')).some(c => c.name === cookieNames.csrf)).toBe(true);
+      expect((await context.cookies(app.origin)).some(c => c.name === cookieNames.idp)).toBe(false);
       const posted = await appFetch(page, '/submit?x=1', 'POST', 'application/json', 'untouched-body');
       expect(posted.status).toBe(200); expect(JSON.parse(posted.body).body).toBe('untouched-body'); expect(JSON.parse(posted.body).method).toBe('POST');
       expect(page.url()).not.toContain('code=');
@@ -236,7 +242,7 @@ for (const [proxy, app] of Object.entries(apps)) {
           const image = new Image(); image.onload = image.onerror = () => resolve(); image.src = url; document.body.append(image);
         }), start);
       }
-      const prefix = `__Host-autentico_fa_${app.id}_flow_`;
+      const prefix = `${appCookieName(app)}_flow_`;
       const before = (await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(prefix));
       expect(before).toHaveLength(6);
       const destination = '/reports?pending=owner';
@@ -245,7 +251,7 @@ for (const [proxy, app] of Object.entries(apps)) {
       expect((await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(prefix))).toHaveLength(6);
       await submitLogin(page); await page.waitForURL(app.origin + destination);
       const backend = JSON.parse(await page.locator('body').innerText());
-      expect(String(backend.headers.Cookie ?? backend.headers.cookie ?? '')).not.toContain('autentico_fa_');
+      expect(String(backend.headers.Cookie ?? backend.headers.cookie ?? '')).not.toContain(cookieNames.forwardPrefix);
       await appCookie(context, app);
     });
 
@@ -255,7 +261,7 @@ for (const [proxy, app] of Object.entries(apps)) {
         const destination = '/reports?tab=' + i + '&query=' + 'x'.repeat(1000);
         await page.goto(`${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent(destination)}`);
         await expect(page.locator('#username')).toBeVisible();
-        const flows = (await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`));
+        const flows = (await context.cookies(app.origin)).filter(cookie => cookie.name.startsWith(`${appCookieName(app)}_flow_`));
         expect(flows.length).toBeGreaterThan(0);
         expect(flows.length).toBeLessThan(6);
         expect(flows.reduce((size, cookie) => size + cookie.name.length + 1 + cookie.value.length + 2, 0)).toBeLessThanOrEqual(6 * 1024);
@@ -268,7 +274,7 @@ for (const [proxy, app] of Object.entries(apps)) {
       const result = JSON.parse(await page.locator('body').innerText());
       expect(result.path).toBe(destination);
       expect(String(result.headers.Cookie ?? result.headers.cookie ?? '')).toContain('app-preference=');
-      expect(String(result.headers.Cookie ?? result.headers.cookie ?? '')).not.toContain('autentico_fa_');
+      expect(String(result.headers.Cookie ?? result.headers.cookie ?? '')).not.toContain(cookieNames.forwardPrefix);
     });
 
     test('wrong browser, tampered state, wrong code and replay cannot complete login', async ({ page, browser }) => {
@@ -320,10 +326,10 @@ for (const [proxy, app] of Object.entries(apps)) {
       await settings({ require_mfa: 'true', mfa_method: 'totp' });
       await page.goto(app.origin + '/reports'); await submitLogin(page, username);
       await expect(page.locator('.auth-secret-key')).toBeVisible();
-      expect((await context.cookies(app.origin)).some(c => c.name === `__Host-autentico_fa_${app.id}`)).toBe(false);
+      expect((await context.cookies(app.origin)).some(c => c.name === appCookieName(app))).toBe(false);
       const secret = (await page.locator('.auth-secret-key').innerText()).trim();
       await page.locator('#code').fill('000000'); await page.getByRole('button', { name: 'Verify & Enable', exact: true }).click();
-      expect((await context.cookies(app.origin)).some(c => c.name === `__Host-autentico_fa_${app.id}`)).toBe(false);
+      expect((await context.cookies(app.origin)).some(c => c.name === appCookieName(app))).toBe(false);
       await page.locator('#code').fill(generateTOTP(secret)); await page.getByRole('button', { name: 'Verify & Enable', exact: true }).click();
       await page.waitForURL(app.origin + '/reports'); await appCookie(context, app);
     });
@@ -362,7 +368,7 @@ test('parallel tabs preserve separate login transactions and original destinatio
 test('pending callback survives restart but rejects an expired authorization code', async ({ page }) => {
   const app = apps.caddy;
   const callback = await captureLogin(page, app);
-  const pending = (await page.context().cookies(app.origin)).filter(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`));
+  const pending = (await page.context().cookies(app.origin)).filter(cookie => cookie.name.startsWith(`${appCookieName(app)}_flow_`));
   await control('/stop-auth'); await control('/start-auth');
   await page.goto(callback); await page.waitForURL(app.origin + '/reports');
   await control('/stop-auth'); await control('/start-auth');
@@ -406,7 +412,7 @@ test('central browser logout revokes both app sessions while leaving their cooki
   await page.goto(apps.nginx.origin + '/reports'); await page.waitForURL(apps.nginx.origin + '/reports');
   const second = await appCookie(context, apps.nginx);
   await page.goto(fixture.auth + '/oauth2/logout');
-  expect((await context.cookies(fixture.auth)).some(c => c.name === 'autentico_idp_session')).toBe(false);
+  expect((await context.cookies(fixture.auth)).some(c => c.name === cookieNames.idp)).toBe(false);
   for (const [app, cookie] of [[apps.caddy, first], [apps.nginx, second]] as const) {
     await context.addCookies([cookie]); await shell(page, app);
     expect((await appFetch(page, '/private')).status).toBe(401);
@@ -444,7 +450,7 @@ test('forged app cookie, duplicate cookies, crossed callbacks and missing callba
   const crossed = new URL(callback); crossed.host = new URL(apps.nginx.origin).host; crossed.pathname = `/_autentico/${apps.nginx.id}/callback`;
   expect((await page.goto(crossed.toString()))!.status()).toBe(400);
   await shell(page, app);
-  await context.addCookies([{ name: `__Host-autentico_fa_${app.id}`, value: 'a'.repeat(43), url: app.origin, secure: true, httpOnly: true }]);
+  await context.addCookies([{ name: appCookieName(app), value: 'a'.repeat(43), url: app.origin, secure: true, httpOnly: true }]);
   expect((await appFetch(page, '/private')).status).toBe(401);
   const duplicate = new URL(callback); duplicate.searchParams.append('state', duplicate.searchParams.get('state')!);
   expect((await page.goto(duplicate.toString()))!.status()).toBe(400);
@@ -519,7 +525,7 @@ test('concurrent redemption through the real proxy issues exactly one session', 
   const winners = responses.filter(response => response.status === 303);
   expect(winners).toHaveLength(1);
   expect(responses.filter(response => response.status === 400)).toHaveLength(7);
-  const name = `__Host-autentico_fa_${app.id}`;
+  const name = appCookieName(app);
   const credential = winners[0].cookies.find(cookie => cookie.startsWith(name + '='))!.split(';')[0].slice(name.length + 1);
   await context.addCookies([{ name, value: credential, url: app.origin, secure: true, httpOnly: true, sameSite: 'Lax' }]);
   const response = await page.goto(app.origin + '/reports'); expect(response!.status()).toBe(200);
