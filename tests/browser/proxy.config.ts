@@ -7,6 +7,6 @@ export default defineConfig({
   use: {
     trace: 'retain-on-failure', screenshot: 'only-on-failure',
     browserName: 'chromium', headless: true, ignoreHTTPSErrors: true,
-    launchOptions: { args: ['--host-resolver-rules=MAP *.example.test 127.0.0.1', '--no-proxy-server'] },
+    launchOptions: { args: ['--host-resolver-rules=MAP *.test 127.0.0.1', '--no-proxy-server'] },
   },
 });

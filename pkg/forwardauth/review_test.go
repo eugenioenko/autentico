@@ -46,7 +46,9 @@ func checked(t *testing.T, a *App, c *http.Cookie) *httptest.ResponseRecorder {
 func TestStalePolicyDoesNotBlockAppAdministration(t *testing.T) {
 	a := fixture(t)
 	credential := completeLogin(t, a)
-	config.Bootstrap.AppURL = "https://auth.other.test"
+	// Unrelated IdP domains are supported; a move onto the application's own
+	// hostname still makes its registration unsafe (cookies ignore ports).
+	config.Bootstrap.AppURL = a.Origin + ":8443"
 	stale, err := AppByID(a.ID)
 	require.NoError(t, err)
 	require.False(t, stale.validStored())

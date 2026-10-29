@@ -1015,3 +1015,16 @@ Revocation bearer authorization (RFC 6750 §5.2 / §3.1): the admin audience and
 ## ForwardAuth proxy integration (#580)
 
 ForwardAuth is a proxy integration, not an advertised OAuth grant or discovery extension. Its internal login uses the existing authorization-code flow: RFC 6749 §4.1.2/§4.1.3 single-use, client-bound and redirect-bound codes; RFC 7636 §4.6 S256 verification; RFC 9700 §4.7 browser correlation and §4.11 validated return destinations. Same-issuer redemption creates only an app session. RFC 7239 §8.1 forwarding trust is enforced against the immediate peer before accepting original-host/protocol metadata. OIDC Core §3.1.2.3 existing login, MFA, account and session-freshness policy governs both completion and later checks. Noninteractive requests stay denied; nginx uses 2xx/401/403 status checks with separate browser redirect handling. No discovery capabilities or accepted OAuth credential transports change.
+
+
+## Cross-domain ForwardAuth (#581)
+
+The [protocol decision](forward-auth-cross-domain.md) extends the same code/PKCE/browser-cookie flow to exact registered HTTPS origins on unrelated sites. RFC 9700 §2.1 exact callback registration and §§4.7/4.11 browser/destination binding still apply. RFC 6749 §4.1.2 single-use expiry and RFC 7636 §4.6 verification remain atomic with app-session creation. Secure, host-only SameSite=Lax cookies accompany top-level GET redirects; production IdP/app hostnames differ because RFC 6265 §8.5 cookies do not isolate ports. No new grant, discovery capability, table or cookie transport is added.
+
+| Requirement | Implementation / validation |
+|---|---|
+| MUST explicitly authorize callback destinations | Admin registers each canonical exact origin; no wildcard or shared-site inference |
+| MUST bind completion to browser, app and transaction | Existing encrypted flow cookie, state, nonce, PKCE and code/client/callback checks; wrong-browser/app/code regressions |
+| MUST enforce single use, expiry and revocation | Existing writer transaction and parent-linked app sessions; concurrent/restart/expiry/revocation black-box suite |
+| MUST keep credentials out of protected backend requests | Reserved callback bypasses backend; filtered cookies and clean redirect; recorded real backend assertions |
+| SHOULD work without third-party cookies | Full real-proxy suite on unrelated sites with explicit browser blocking and a SameSite=None negative control |

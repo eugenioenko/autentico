@@ -38,6 +38,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--logs", type=Path)
+    parser.add_argument("--site-mode", choices=("same-site", "cross-site"), default="same-site")
     args = parser.parse_args()
     binary = args.binary.resolve()
     directory = Path(tempfile.mkdtemp(prefix="autentico-forwardauth-"))
@@ -97,7 +98,8 @@ def main():
         request("/admin/api/users/" + user["id"], {"is_email_verified": True}, admin_token, "PUT")
         apps = {}
         for name, port in (("caddy", 25443), ("nginx", 25444), ("traefik", 25445)):
-            apps[name] = request("/admin/api/protected-apps", {"name": name, "origin": f"https://{name}.example.test:{port}", "allowed_return_paths": ["/"], "session_ttl": "8h"}, admin_token)["data"]
+            host = f"{name}.{name}-app.test" if args.site_mode == "cross-site" else f"{name}.example.test"
+            apps[name] = request("/admin/api/protected-apps", {"name": name, "origin": f"https://{host}:{port}", "allowed_return_paths": ["/"], "session_ttl": "8h"}, admin_token)["data"]
         control_key = secrets.token_hex(32)
         hits = []
 
@@ -135,6 +137,10 @@ def main():
                     stop_auth()
                     env["AUTENTICO_APP_URL"] = "https://auth.other.test:25443"
                     start_auth()
+                elif self.path == "/collide-auth":
+                    stop_auth()
+                    env["AUTENTICO_APP_URL"] = apps["caddy"]["origin"]
+                    start_auth()
                 elif self.path == "/restore-auth":
                     stop_auth()
                     env.pop("AUTENTICO_APP_URL", None)
@@ -157,10 +163,18 @@ def main():
             httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
             servers.append(httpd)
             threading.Thread(target=httpd.serve_forever, daemon=True).start()
-        command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-keyout", str(directory / "key.pem"), "-out", str(directory / "cert.pem"), "-subj", "/CN=*.example.test", "-addext", "subjectAltName=DNS:*.example.test")
+        domains = ("example.test", "other.test", "caddy-app.test", "nginx-app.test", "traefik-app.test")
+        names = ",".join("DNS:*." + domain for domain in domains)
+        command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-keyout", str(directory / "key.pem"), "-out", str(directory / "cert.pem"), "-subj", "/CN=*.example.test", "-addext", "subjectAltName=" + names)
         (directory / "key.pem").chmod(0o644)
         for name, filename in (("caddy", "Caddyfile"), ("nginx", "nginx.conf"), ("traefik", "traefik.yml")):
             config = (ROOT / "tests/proxy/configs" / filename).read_text().replace(name.upper() + "_APP_ID", apps[name]["id"])
+            config = config.replace(f"{name}.example.test", urllib.parse.urlsplit(apps[name]["origin"]).hostname)
+            if name == "caddy":
+                # Empty first-party/sibling pages for real browser attack and
+                # third-party-cookie tests, without an application auth bypass.
+                hosts = ", ".join(f"https://evil.{domain}:25443" for domain in domains)
+                config += f"\n{hosts} {{\n    tls /certs/cert.pem /certs/key.pem\n    respond `Test browser origin`\n}}\n"
             (directory / filename).write_text(config)
             container = "autentico-fa-" + name + "-" + run_id
             containers.append(container)
@@ -184,7 +198,7 @@ def main():
                     if time.monotonic() > deadline:
                         raise RuntimeError(f"Proxy on port {port} did not start")
                     time.sleep(.1)
-        fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, control="http://127.0.0.1:25997", controlKey=control_key)
+        fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, crossDomain=args.site_mode == "cross-site", control="http://127.0.0.1:25997", controlKey=control_key)
         (directory / "fixture.json").write_text(json.dumps(fixture))
         test_env = dict(os.environ, AUTENTICO_PROXY_FIXTURE=str(directory / "fixture.json"))
         status = subprocess.run([str(ROOT / "tests/browser/node_modules/.bin/playwright"), "test", "--config", "proxy.config.ts"], cwd=ROOT / "tests/browser", env=test_env).returncode

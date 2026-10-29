@@ -45,7 +45,7 @@ export default function ProtectedAppsPage() {
       <Typography.Title level={3} style={{ margin: 0 }}>Protected Applications</Typography.Title>
       <Button type="primary" icon={<PlusOutlined />} onClick={() => edit(null)}>Add Application</Button>
     </Space>
-    <Alert type="info" showIcon title="Protect applications behind a reverse proxy" description="Active users can access enabled applications after completing the configured login policy. Applications must be on the same site as Autentico. Configure your proxy using the ForwardAuth integration guide." />
+    <Alert type="info" showIcon title="Protect applications behind a reverse proxy" description="Active users can access enabled applications after completing the configured login policy. Applications may use unrelated domains; each HTTPS origin must be registered explicitly. Configure your proxy using the ForwardAuth integration guide." />
     {isError && <Alert type="error" title="Unable to load protected applications" />}
     <Table<ProtectedApp> rowKey="id" loading={isLoading} dataSource={data} scroll={{ x: 850 }} columns={[
       { title: "Name", dataIndex: "name" },
