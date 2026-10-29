@@ -19,6 +19,7 @@ make run                      # go run main.go start
 
 # Test
 make test                     # go test -p 1 -v ./...
+CGO_ENABLED=1 go test -race -p 1 -v ./... # Match Ubuntu CI; requires a C compiler
 go test ./pkg/token/...       # Run tests for a specific package
 go test -run TestCreateUser ./pkg/user/...  # Run a single test
 

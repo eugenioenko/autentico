@@ -81,6 +81,10 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # The race detector needs CGO and the Ubuntu runner's C compiler.
+      CGO_ENABLED: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -94,8 +98,8 @@ jobs:
           mkdir -p pkg/account/dist && echo '<!doctype html>' > pkg/account/dist/index.html
       - name: Install dependencies
         run: go mod tidy
-      - name: Run tests
-        run: go test -p 1 -v ./...
+      - name: Run tests with race detection
+        run: go test -race -p 1 -v ./...
 
   static-analysis:
     runs-on: ubuntu-latest

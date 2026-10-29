@@ -984,6 +984,18 @@ cd tests/browser && npx playwright test          # Run browser tests
 
 Tests run with `-p 1` (sequential) because they share a process-level SQLite handle. Unit tests use an in-memory database, making them fast and isolated.
 
+The Ubuntu CI job runs the full Go suite with the race detector, including `tests/e2e`, `tests/security`, and `tests/migrations`, and fails on detected races. To run the same check locally, install a C compiler (for example, GCC on Linux) and enable CGO:
+
+```bash
+# Use built UI assets, or create embed placeholders on a clean checkout:
+mkdir -p pkg/admin/dist pkg/account/dist
+[ -f pkg/admin/dist/index.html ] || printf '<!doctype html>\n' > pkg/admin/dist/index.html
+[ -f pkg/account/dist/index.html ] || printf '<!doctype html>\n' > pkg/account/dist/index.html
+CGO_ENABLED=1 go test -race -p 1 -v ./...
+```
+
+Race instrumentation adds execution time; CI allows 30 minutes for this job. The production binary's `CGO_ENABLED=0` build setting does not apply to race tests. Race detection checks executed concurrent paths and complements the functional, browser, and Docker migration checks.
+
 ### RFC Compliance Review
 
 Unlike typical implementations that rely on partial compliance or framework defaults, Auténtico performs a **systematic, spec-driven audit** of every protocol feature.
