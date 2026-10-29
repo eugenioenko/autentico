@@ -330,6 +330,10 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	current, err := parentIdentity(a, code.IdpSessionID)
+	if err != nil && !errors.Is(err, errDenied) {
+		deny(w, 503)
+		return
+	}
 	if err != nil || current.User.ID != usr.ID {
 		deny(w, 401)
 		return

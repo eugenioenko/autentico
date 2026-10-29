@@ -30,7 +30,7 @@ The response's `data.id` identifies the app in proxy configuration. Registration
 
 Path prefixes match complete segments: `/reports` permits `/reports` and `/reports/2026`, but not `/reports-other`. The original query string is preserved. Absolute return URLs, scheme-relative URLs, dot segments, ambiguous encodings, backslashes and reserved `/_autentico` paths are rejected. Restrictions apply to every access check as well as login completion.
 
-`GET /admin/api/protected-apps` lists apps, `PUT /admin/api/protected-apps/{id}` replaces name/paths/TTL and optionally active status, and `DELETE /admin/api/protected-apps/{id}` deletes the app and its sessions. Replacement requests must include `name`, `allowed_return_paths` and the existing, unchanged `origin`; omitting `origin` returns HTTP 400. An omitted `is_active` on replacement preserves its value. To change origin, register a new application. Shortening TTL also limits existing sessions; increasing it does not extend their stored expiry.
+`GET /admin/api/protected-apps` lists apps, `PUT /admin/api/protected-apps/{id}` replaces name/paths/TTL and optionally active status, and `DELETE /admin/api/protected-apps/{id}` deletes the app and its sessions. Replacement requests must include `name`, `allowed_return_paths` and the existing, unchanged `origin`; omitting `origin` returns HTTP 400. The replacement also writes `session_ttl`: omitting it (or supplying an empty string) resets it to the default `8h`, so include the existing TTL when changing only the name or paths. An omitted `is_active` on replacement preserves its value. To change origin, register a new application. Shortening TTL also limits existing sessions; increasing it does not extend their stored expiry.
 
 ## Proxy contract
 

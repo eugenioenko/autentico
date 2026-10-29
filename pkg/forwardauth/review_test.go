@@ -1,16 +1,20 @@
 package forwardauth
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/stretchr/testify/require"
+	"modernc.org/sqlite"
 )
 
 func completeLogin(t *testing.T, a *App) *http.Cookie {
@@ -145,4 +149,57 @@ func TestShortClientIdleLimitStillPersistsEachAccess(t *testing.T) {
 	var last time.Time
 	require.NoError(t, db.GetDB().QueryRow(`SELECT last_activity_at FROM idp_sessions WHERE id='parent'`).Scan(&last))
 	require.True(t, last.After(old))
+}
+
+func TestReplacementDefaultsOmittedSessionTTL(t *testing.T) {
+	a := fixture(t)
+	require.Equal(t, "1h", a.SessionTTL)
+	body, err := json.Marshal(map[string]any{"name": "Renamed", "origin": a.Origin, "allowed_return_paths": a.AllowedReturnPaths})
+	require.NoError(t, err)
+	r := httptest.NewRequest("PUT", "/admin/api/protected-apps/"+a.ID, strings.NewReader(string(body)))
+	r.SetPathValue("id", a.ID)
+	w := httptest.NewRecorder()
+	HandleSave(w, r)
+	require.Equal(t, 200, w.Code, w.Body.String())
+	saved, err := AppByID(a.ID)
+	require.NoError(t, err)
+	require.Equal(t, "Renamed", saved.Name)
+	require.Equal(t, "8h", saved.SessionTTL)
+	require.Equal(t, a.Origin, saved.Origin)
+}
+
+func TestCallbackClientReadFailureIsRetryableWithoutConsumingCode(t *testing.T) {
+	// A real SQLite read error only on the second client query: authorization
+	// validation succeeds, then parent-identity lookup fails. No production
+	// dependency seam or handler mock is needed to reach this failure window.
+	var reads atomic.Int32
+	function := fmt.Sprintf("review_client_read_%d", time.Now().UnixNano())
+	require.NoError(t, sqlite.RegisterScalarFunction(function, 0, func(_ *sqlite.FunctionContext, _ []driver.Value) (driver.Value, error) {
+		if reads.Add(1) == 2 {
+			return nil, fmt.Errorf("temporary client read failure")
+		}
+		return int64(1), nil
+	}))
+	a := fixture(t)
+	c, f, state := start(t, a)
+	grant := code(t, a, f)
+	_, err := db.GetDB().Exec(`ALTER TABLE clients RENAME TO review_clients; CREATE VIEW clients AS SELECT * FROM review_clients WHERE ` + function + `()=1`)
+	require.NoError(t, err)
+	r := req(a, a.route("callback")+"?code="+grant+"&state="+state)
+	r.AddCookie(c)
+	w := httptest.NewRecorder()
+	HandleCallback(w, r)
+	require.Equal(t, 503, w.Code, w.Body.String())
+	require.Empty(t, w.Header().Get("WWW-Authenticate"))
+	require.Equal(t, int32(2), reads.Load())
+	require.Zero(t, count(t))
+	var used bool
+	require.NoError(t, db.GetDB().QueryRow(`SELECT used FROM auth_codes WHERE code=?`, grant).Scan(&used))
+	require.False(t, used)
+	_, err = db.GetDB().Exec(`DROP VIEW clients; ALTER TABLE review_clients RENAME TO clients`)
+	require.NoError(t, err)
+	retry := httptest.NewRecorder()
+	HandleCallback(retry, r)
+	require.Equal(t, 303, retry.Code, retry.Body.String())
+	require.Equal(t, 1, count(t))
 }
