@@ -2,7 +2,6 @@ admin-ui/node_modules
 admin-ui/dist
 autentico
 db/autentico.db
-debug-ui
 docs-web
 coverage.out
 .git
