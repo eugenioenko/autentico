@@ -44,8 +44,9 @@ func req(a *App, route string) *http.Request {
 	r := httptest.NewRequest("GET", route, nil)
 	r.RemoteAddr = "127.0.0.1:1234"
 	r.SetPathValue("id", a.ID)
-	r.Header.Set("X-Forwarded-Host", "app.example.test")
-	r.Header.Set("X-Forwarded-Proto", "https")
+	u, _ := url.Parse(a.Origin)
+	r.Header.Set("X-Forwarded-Host", u.Host)
+	r.Header.Set("X-Forwarded-Proto", u.Scheme)
 	r.Header.Set("X-Forwarded-Uri", "/reports?q=1")
 	r.Header.Set("X-Forwarded-Method", "GET")
 	return r
@@ -91,7 +92,7 @@ func TestReturnPathAllowlist(t *testing.T) {
 }
 func TestRegistrationValidationAndRejectedUpdates(t *testing.T) {
 	a := fixture(t)
-	for _, origin := range []string{"http://app.example.test", "https://app.other.test", "https://auth.example.test", "https://auth.example.test:8443", "https://user@app.example.test", "https://app.example.test/path", "https://app.example.test?x=1", "https://app.example.test#", "https://example.test.evil.test"} {
+	for _, origin := range []string{"http://app.example.test", "http://app.other.test", "https://*.other.test", "https://auth.example.test", "https://auth.example.test:8443", "https://user@app.example.test", "https://app.example.test/path", "https://app.example.test?x=1", "https://app.example.test#"} {
 		_, err := SaveApp("", AppRequest{Name: "bad", Origin: origin, AllowedReturnPaths: []string{"/"}})
 		require.Error(t, err, origin)
 	}

@@ -8,6 +8,24 @@ type App = { id: string; name: string; origin: string; allowed_return_paths: str
 const fixture = JSON.parse(readFileSync(process.env.AUTENTICO_PROXY_FIXTURE!, 'utf8'));
 const apps = fixture.apps as Record<string, App>;
 const password = 'Password123!';
+async function restrictThirdPartyCookies(page: Page) {
+  if (!fixture.crossDomain) return;
+  const session = await page.context().newCDPSession(page);
+  await session.send('Network.enable');
+  await session.send('Network.setCookieControls', {
+    enableThirdPartyCookieRestriction: true,
+    disableThirdPartyCookieMetadata: true,
+    disableThirdPartyCookieHeuristics: true,
+  });
+}
+async function newPage(context: BrowserContext) {
+  const page = await context.newPage();
+  await restrictThirdPartyCookies(page);
+  return page;
+}
+function siblingOrigin(app: App) {
+  return `https://evil.${new URL(app.origin).hostname.split('.').slice(1).join('.')}:25443`;
+}
 async function api(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST') {
   return fetch(fixture.admin + path, { method, headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
 }
@@ -81,7 +99,8 @@ async function captureLogin(page: Page, app: App) {
   } finally { await page.unroute('**/oauth2/login'); }
 }
 
-test.beforeEach(async () => {
+test.beforeEach(async ({ page }) => {
+  await restrictThirdPartyCookies(page);
   await settings({ require_mfa: 'false', require_email_verification: 'false', sso_enabled: 'true', sso_session_max_age: '24h', sso_session_idle_timeout: '4h', authorization_code_expiration: '5m' });
   for (const app of Object.values(apps)) await updateApp(app);
   const response = await api(`/admin/api/users/${fixture.user.id}/reactivate`, {});
@@ -91,6 +110,64 @@ test.beforeEach(async () => {
 
 for (const [proxy, app] of Object.entries(apps)) {
   test.describe(proxy, () => {
+    test('browser redirect flow completes once and keeps host credentials isolated', async ({ page }) => {
+      const navigations: string[] = [];
+      const headers: Promise<{ url: string; headers: Record<string, string> }>[] = [];
+      page.on('request', request => {
+        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) navigations.push(request.url());
+        headers.push(request.allHeaders().then(headers => ({ url: request.url(), headers })));
+      });
+      const destination = '/reports?restore=a%26b&tab=one';
+      const callbackResponse = page.waitForResponse(response => response.url().startsWith(`${app.origin}/_autentico/${app.id}/callback?`));
+      const result = await login(page, app, destination);
+      expect(result.path).toBe(destination);
+      const callback = await callbackResponse;
+      expect(callback.status()).toBe(303);
+      expect(callback.headers()['cache-control']).toBe('no-store');
+      expect(callback.headers()['referrer-policy']).toBe('no-referrer');
+      expect(callback.headers().location).toBe(destination);
+      expect(navigations.filter(url => url.includes(`/_autentico/${app.id}/callback?`))).toHaveLength(1);
+      expect(navigations.length).toBeLessThan(12);
+      for (const request of await Promise.all(headers)) {
+        const host = new URL(request.url).host;
+        if (host === new URL(app.origin).host) expect(request.headers.cookie ?? '').not.toContain('autentico_idp_session=');
+        if (host === new URL(fixture.auth).host) expect(request.headers.cookie ?? '').not.toContain('autentico_fa_');
+      }
+      const backendHeaders = Object.fromEntries(Object.entries(result.headers).map(([k, v]) => [k.toLowerCase(), v]));
+      expect(String(backendHeaders.referer ?? '')).not.toMatch(/[?&](code|state)=/);
+      expect((await appFetch(page, '/reports')).status).toBe(200);
+    });
+
+    test('copied browser state and callback cannot complete at a different registered destination', async ({ page, context }) => {
+      const callback = await captureLogin(page, app);
+      const other = Object.values(apps).find(candidate => candidate.id !== app.id)!;
+      const before = await control('/stats');
+      const flow = (await context.cookies(app.origin)).find(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`))!;
+      await context.addCookies([{ name: flow.name, value: flow.value, url: other.origin, httpOnly: true, secure: true, sameSite: 'Lax' }]);
+      const crossed = new URL(callback); crossed.host = new URL(other.origin).host;
+      expect((await page.goto(crossed.toString()))!.status()).toBe(403);
+      crossed.pathname = `/_autentico/${other.id}/callback`;
+      expect((await page.goto(crossed.toString()))!.status()).toBe(400);
+      expect((await context.cookies(other.origin)).some(cookie => cookie.name === `__Host-autentico_fa_${other.id}`)).toBe(false);
+      expect((await control('/stats')).hits).toBe(before.hits);
+      await page.goto(callback); await page.waitForURL(app.origin + '/reports');
+      expect((await page.goto(callback))!.status()).toBe(400);
+    });
+
+    test('pending completion rechecks application paths and active status without consuming the owner code', async ({ page, context }) => {
+      const callback = await captureLogin(page, app);
+      const before = await control('/stats');
+      await updateApp(app, { allowed_return_paths: ['/different'] });
+      expect((await page.goto(callback))!.status()).toBe(400);
+      await updateApp(app, { is_active: false });
+      expect((await page.goto(callback))!.status()).toBe(403);
+      expect((await context.cookies(app.origin)).some(cookie => cookie.name === `__Host-autentico_fa_${app.id}`)).toBe(false);
+      expect((await control('/stats')).hits).toBe(before.hits);
+      await updateApp(app);
+      await page.goto(callback); await page.waitForURL(app.origin + '/reports');
+      await appCookie(context, app);
+    });
+
     test('complete browser login, query restoration, isolated cookies, identity replacement and POST forwarding', async ({ page, context }) => {
       await context.addCookies([{ name: 'app-preference', value: 'dark', url: app.origin }]);
       await context.setExtraHTTPHeaders({ 'X-Auth-User': 'forged', 'X-Auth-Email': 'forged@evil.test', 'X-Auth-Groups': 'admins', 'X-Forwarded-Host': 'evil.test', 'X-Forwarded-Proto': 'http', 'X-Forwarded-Uri': '//evil.test', 'X-Forwarded-Method': 'DELETE' });
@@ -152,7 +229,7 @@ for (const [proxy, app] of Object.entries(apps)) {
     });
 
     test('six forced same-site image logins cannot lock the browser out', async ({ page, context }) => {
-      await page.goto('https://evil.example.test:25443/');
+      await page.goto(siblingOrigin(app));
       for (let i = 0; i < 6; i++) {
         const start = `${app.origin}/_autentico/${app.id}/start?return=${encodeURIComponent('/reports?pending=' + i)}`;
         await page.evaluate(url => new Promise<void>(resolve => {
@@ -197,7 +274,7 @@ for (const [proxy, app] of Object.entries(apps)) {
     test('wrong browser, tampered state, wrong code and replay cannot complete login', async ({ page, browser }) => {
       const callback = await captureLogin(page, app);
       const other = await browser.newContext({ ignoreHTTPSErrors: true });
-      try { expect((await (await other.newPage()).goto(callback))!.status()).toBe(400); } finally { await other.close(); }
+      try { expect((await (await newPage(other)).goto(callback))!.status()).toBe(400); } finally { await other.close(); }
       const tampered = new URL(callback); tampered.searchParams.set('state', 'a'.repeat(43));
       expect((await page.goto(tampered.toString()))!.status()).toBe(400);
       const wrongCode = new URL(callback); wrongCode.searchParams.set('code', 'a'.repeat(43));
@@ -275,7 +352,7 @@ test('SSO across app hosts keeps credentials isolated and survives a server rest
 
 test('parallel tabs preserve separate login transactions and original destinations', async ({ page, context }) => {
   const app = apps.caddy;
-  const second = await context.newPage();
+  const second = await newPage(context);
   await page.goto(app.origin + '/first?tab=one'); await second.goto(app.origin + '/second?tab=two');
   await submitLogin(page); await page.waitForURL(app.origin + '/first?tab=one');
   await submitLogin(second); await second.waitForURL(app.origin + '/second?tab=two');
@@ -285,8 +362,17 @@ test('parallel tabs preserve separate login transactions and original destinatio
 test('pending callback survives restart but rejects an expired authorization code', async ({ page }) => {
   const app = apps.caddy;
   const callback = await captureLogin(page, app);
+  const pending = (await page.context().cookies(app.origin)).filter(cookie => cookie.name.startsWith(`__Host-autentico_fa_${app.id}_flow_`));
   await control('/stop-auth'); await control('/start-auth');
   await page.goto(callback); await page.waitForURL(app.origin + '/reports');
+  await control('/stop-auth'); await control('/start-auth');
+  // Retain the original browser proof: the persisted used-code state, rather
+  // than merely deletion of the flow cookie, must prevent replay after restart.
+  await page.context().addCookies(pending);
+  const before = await control('/stats');
+  const replay = await page.goto(callback);
+  expect(replay!.status()).toBe(400); expect(replay!.headers().location).toBeUndefined();
+  expect((await control('/stats')).hits).toBe(before.hits);
   await settings({ authorization_code_expiration: '1s' });
   await page.context().clearCookies();
   const expired = await captureLogin(page, app);
@@ -298,7 +384,7 @@ test('pending callback survives restart but rejects an expired authorization cod
 test('admin API rejects unauthenticated and invalid changes without mutating configuration', async () => {
   expect((await fetch(fixture.admin + '/admin/api/protected-apps')).status).toBe(401);
   const before = await (await api('/admin/api/protected-apps')).json();
-  for (const origin of ['https://evil.test', 'http://app.example.test', 'https://app.example.test/path', fixture.auth]) {
+  for (const origin of ['https://*.other.test', 'http://app.other.test', 'https://app.other.test/path', fixture.auth, fixture.auth.replace(':25443', ':8443')]) {
     expect((await api('/admin/api/protected-apps', { name: 'bad', origin, allowed_return_paths: ['/'] })).status).toBe(400);
   }
   expect((await api(`/admin/api/protected-apps/${apps.caddy.id}`, { name: 'changed', origin: apps.nginx.origin, allowed_return_paths: ['/'] }, 'PUT')).status).toBe(400);
@@ -377,8 +463,8 @@ test('forged app cookie, duplicate cookies, crossed callbacks and missing callba
 
 test('cross-origin local logout is denied without revoking the owner session', async ({ page, context }) => {
   const app = apps.caddy; await login(page, app);
-  const attacker = await context.newPage();
-  await attacker.goto('https://evil.example.test:25443/');
+  const attacker = await newPage(context);
+  await attacker.goto(siblingOrigin(app));
   const target = `${app.origin}/_autentico/${app.id}/logout`;
   const rejected = attacker.waitForResponse(response => response.url() === target && response.request().method() === 'POST');
   await attacker.evaluate(url => fetch(url, { method: 'POST', credentials: 'include', mode: 'no-cors' }).then(() => undefined), target);
@@ -394,7 +480,8 @@ test('admin UI creates, edits and deletes app registrations with immutable origi
   await page.getByRole('button', { name: 'Add Application' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name', { exact: true }).fill('Proxy UI app');
-  await dialog.getByLabel('Application origin', { exact: true }).fill('https://ui.example.test:25443');
+  const registeredOrigin = fixture.crossDomain ? 'https://ui.unrelated.test:25443' : 'https://ui.example.test:25443';
+  await dialog.getByLabel('Application origin', { exact: true }).fill(registeredOrigin);
   await dialog.getByLabel('Allowed path prefixes', { exact: true }).fill('/reports\n/status');
   await dialog.getByLabel('Session lifetime', { exact: true }).fill('30m');
   await dialog.getByRole('button', { name: 'OK', exact: true }).click();
@@ -402,6 +489,7 @@ test('admin UI creates, edits and deletes app registrations with immutable origi
   await expect(row).toBeVisible();
   const all = await (await api('/admin/api/protected-apps')).json();
   const created = all.data.find((app: App) => app.name === 'Proxy UI app');
+  expect(created.origin).toBe(registeredOrigin);
   expect(created.allowed_return_paths).toEqual(['/reports', '/status']);
   await row.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(dialog.getByLabel('Application origin', { exact: true })).toBeDisabled();
@@ -450,7 +538,7 @@ test('active traffic preserves a short idle timeout while inactive traffic expir
   expect((await appFetch(page, '/reports')).status).toBe(401);
 });
 
-test('moving the IdP site denies stale registrations but preserves admin listing and deletion', async ({ page }) => {
+test('moving the IdP onto an app hostname denies that app but preserves admin listing and deletion', async ({ page }) => {
   const extra = await api('/admin/api/protected-apps', { name: 'Obsolete registration', origin: 'https://obsolete.example.test', allowed_return_paths: ['/'] });
   expect(extra.status).toBe(201);
   const obsolete = (await extra.json()).data as App;
@@ -458,7 +546,7 @@ test('moving the IdP site denies stale registrations but preserves admin listing
   const oldToken = fixture.token;
   let healthy: App | undefined;
   try {
-    await control('/relocate-auth');
+    await control('/collide-auth');
     const token = await fetch(fixture.admin + '/oauth2/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ grant_type: 'password', client_id: 'autentico-admin', username: 'admin', password, scope: 'openid profile email' }),
@@ -494,4 +582,41 @@ test('public Caddy and nginx IdP vhosts block private routes despite forged forw
     }
     expect((await appFetch(page, '/_autentico/' + apps.caddy.id + '/logout', 'POST')).status).toBe(404);
   }
+});
+
+test('unrelated sites complete fresh login and SSO while third-party cookies are demonstrably blocked', async ({ page, context }) => {
+  test.skip(!fixture.crossDomain, 'Requires genuinely unrelated registrable sites');
+  const idpHost = new URL(fixture.auth).hostname;
+  const appSites = Object.values(apps).map(app => new URL(app.origin).hostname.split('.').slice(-2).join('.'));
+  expect(new Set([...appSites, idpHost.split('.').slice(-2).join('.')]).size).toBe(4);
+  // SameSite=None makes this probe eligible for cross-site subresources unless
+  // the browser's third-party-cookie policy actually blocks it.
+  await context.addCookies([{ name: 'third-party-probe', value: 'present', url: fixture.auth, secure: true, httpOnly: true, sameSite: 'None' }]);
+  const firstParty = await page.goto(fixture.auth + '/healthz');
+  expect((await firstParty!.request().allHeaders()).cookie).toContain('third-party-probe=present');
+  await page.goto(siblingOrigin(apps.caddy));
+  const probeURL = fixture.auth + '/healthz?third-party-probe';
+  const probe = page.waitForRequest(request => request.url() === probeURL);
+  await page.evaluate(url => new Promise<void>(resolve => {
+    const image = new Image(); image.onload = image.onerror = () => resolve(); image.src = url; document.body.append(image);
+  }), probeURL);
+  expect((await (await probe).allHeaders()).cookie ?? '').not.toContain('third-party-probe=');
+  expect((await context.cookies(fixture.auth)).some(cookie => cookie.name === 'third-party-probe')).toBe(true);
+  await login(page, apps.caddy);
+  for (const app of [apps.nginx, apps.traefik]) {
+    await page.goto(app.origin + '/reports?without=third-party-cookies');
+    await page.waitForURL(app.origin + '/reports?without=third-party-cookies');
+    await appCookie(context, app);
+    expect((await appFetch(page, '/reports')).status).toBe(200);
+  }
+});
+
+test('registered app sessions remain valid after the IdP moves to another unrelated hostname', async ({ page }) => {
+  await login(page, apps.caddy);
+  try {
+    await control('/relocate-auth');
+    expect((await appFetch(page, '/reports')).status).toBe(200);
+    expect((await appFetch(page, `/_autentico/${apps.caddy.id}/logout`, 'POST')).status).toBe(204);
+    expect((await appFetch(page, '/reports')).status).toBe(401);
+  } finally { await control('/restore-auth'); }
 });

@@ -949,7 +949,7 @@ When SQLite write throughput becomes a constraint (typically > 100k daily active
 
 ## ForwardAuth
 
-Protect applications behind Caddy, nginx or Traefik using a separate, host-scoped browser session linked to the central login. Register applications in **Admin → Protected Apps**, restrict trusted proxy peers and return paths, and configure the proxy to check each request. Existing authentication methods, MFA, SSO and central revocation apply. The initial version supports applications on the same schemeful site as Autentico.
+Protect applications behind Caddy, nginx or Traefik using a separate, host-scoped browser session linked to the central login. Register applications in **Admin → Protected Apps**, restrict trusted proxy peers and return paths, and configure the proxy to check each request. Existing authentication methods, MFA, SSO and central revocation apply. Applications may share a site with Autentico or use unrelated domains; explicitly register each exact HTTPS origin. Cross-domain login uses browser-bound, single-use authorization codes and separate host-scoped cookies, including with third-party cookies blocked.
 
 See the [ForwardAuth integration guide](https://getautentico.dev/integrate/forward-auth/) for the proxy contract, complete tested configurations, cookie handling and the Docker/Chromium black-box suite (`python3 tests/proxy/run.py --binary "$PWD/autentico"`).
 

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
-	"golang.org/x/net/publicsuffix"
 )
 
 type App struct {
@@ -84,17 +83,6 @@ func (a App) allowReturn(raw string) bool {
 	return false
 }
 
-func site(host string) string {
-	if net.ParseIP(host) != nil || host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return host
-	}
-	domain, err := publicsuffix.EffectiveTLDPlusOne(host)
-	if err != nil {
-		return host
-	}
-	return domain
-}
-
 func validate(req *AppRequest) error {
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" || len(req.Name) > 100 || strings.ContainsAny(req.Name, "<>\r\n") {
@@ -102,7 +90,8 @@ func validate(req *AppRequest) error {
 	}
 	u, err := url.Parse(req.Origin)
 	bs, bsErr := url.Parse(config.GetBootstrap().AppURL)
-	// RFC 9700 §2.1 / §4.11: exact registered origins, same-site only in v1.
+	// RFC 9700 §2.1 / §4.11: explicit exact origins authorize destinations;
+	// a shared registrable domain is not required for a redirect/code flow.
 	if err != nil || bsErr != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawFragment != "" || u.Opaque != "" || (u.Path != "" && u.Path != "/") || u.RawPath != "" || strings.ContainsAny(u.Host, "%,\\\t\r\n ") || strings.Contains(req.Origin, "#") {
 		return fmt.Errorf("origin must be an absolute HTTP(S) origin without credentials, path, query or fragment")
 	}
@@ -134,8 +123,14 @@ func validate(req *AppRequest) error {
 	if !local && u.Hostname() == strings.ToLower(bs.Hostname()) {
 		return fmt.Errorf("application hostname must differ from Autentico's hostname")
 	}
-	if u.Scheme != bs.Scheme || site(u.Hostname()) != site(strings.ToLower(bs.Hostname())) || u.Host == strings.ToLower(bs.Host) {
-		return fmt.Errorf("app must have a distinct origin on the same schemeful site as Autentico")
+	idpPort := bs.Port()
+	if (bs.Scheme == "https" && idpPort == "443") || (bs.Scheme == "http" && idpPort == "80") {
+		idpPort = ""
+	}
+	// RFC 6749 §3.1.2: the callback belongs to the registered application,
+	// including the loopback exception; reject the IdP's own canonical origin.
+	if u.Scheme == bs.Scheme && hostname == strings.ToLower(bs.Hostname()) && port == idpPort {
+		return fmt.Errorf("application origin must differ from Autentico's origin")
 	}
 	if port := u.Port(); port != "" {
 		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {

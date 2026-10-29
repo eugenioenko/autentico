@@ -2584,7 +2584,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "description": "Exact HTTPS origins on same-site or unrelated domains are supported; HTTP is limited to loopback. Production app hostnames must differ from the IdP hostname. Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2635,7 +2635,7 @@ const docTemplate = `{
                         "AdminAuth": []
                     }
                 ],
-                "description": "Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
+                "description": "Exact HTTPS origins on same-site or unrelated domains are supported; HTTP is limited to loopback. Production app hostnames must differ from the IdP hostname. Origin is immutable and must be supplied unchanged on replacement. Updates replace name, paths and TTL; omitted is_active preserves its value. Disabling revokes all app sessions.",
                 "consumes": [
                     "application/json"
                 ],
