@@ -71,19 +71,40 @@ func TestStalePolicyDoesNotBlockAppAdministration(t *testing.T) {
 }
 
 func TestInvalidStoredPolicyCanBeRepairedAndMalformedPathsDeleted(t *testing.T) {
-	for _, stored := range []string{`["/reports/../admin"]`, `{broken`} {
+	for _, stored := range []string{`["/reports/../admin"]`, `{broken`, `["/reports",7]`, `null`} {
 		t.Run(stored, func(t *testing.T) {
 			a := fixture(t)
 			credential := completeLogin(t, a)
 			_, err := db.GetDB().Exec(`UPDATE protected_apps SET allowed_return_paths=? WHERE id=?`, stored, a.ID)
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, checked(t, a, credential).Code, 400)
-			if strings.HasPrefix(stored, "[") {
-				apps, err := ListApps()
-				require.NoError(t, err)
-				require.Len(t, apps, 1)
-				require.False(t, apps[0].validStored())
+			apps, err := ListApps()
+			require.NoError(t, err)
+			require.Len(t, apps, 1)
+			require.False(t, apps[0].validStored())
+			if stored != `["/reports/../admin"]` {
+				require.NotNil(t, apps[0].AllowedReturnPaths)
+				require.Empty(t, apps[0].AllowedReturnPaths)
 			}
+			listed := httptest.NewRecorder()
+			HandleList(listed, httptest.NewRequest("GET", "/admin/api/protected-apps", nil))
+			require.Equal(t, 200, listed.Code)
+			var response struct {
+				Data []App `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(listed.Body.Bytes(), &response))
+			require.Len(t, response.Data, 1)
+			// Tolerant admin listing must never make the authentication read
+			// tolerant, or turn partially decoded prefixes into permissions.
+			strict, readErr := AppByID(a.ID)
+			if stored == `{broken` || stored == `["/reports",7]` {
+				require.Error(t, readErr)
+			} else {
+				require.NoError(t, readErr)
+				require.False(t, strict.validStored())
+			}
+			_, _, authErr := checkSession(&apps[0], credential.Value)
+			require.ErrorIs(t, authErr, errDenied)
 			// PUT can repair paths without decoding the previous paths. Its
 			// request still requires an unchanged origin and current validation.
 			body, err := json.Marshal(AppRequest{Name: "Repaired", Origin: a.Origin, AllowedReturnPaths: []string{"/reports"}, SessionTTL: "1h"})

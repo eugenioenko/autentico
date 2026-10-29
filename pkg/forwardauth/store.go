@@ -16,20 +16,28 @@ const appColumns = `id, name, origin, allowed_return_paths, client_id, session_t
 
 type scanner interface{ Scan(...any) error }
 
-func scanApp(row scanner) (*App, error) {
+func scanApp(row scanner, listForRecovery bool) (*App, error) {
 	a := &App{}
 	var paths string
 	if err := row.Scan(&a.ID, &a.Name, &a.Origin, &paths, &a.ClientID, &a.SessionTTL, &a.IsActive); err != nil {
 		return nil, err
 	}
 	if err := json.Unmarshal([]byte(paths), &a.AllowedReturnPaths); err != nil {
-		return nil, fmt.Errorf("invalid stored app paths: %w", err)
+		if !listForRecovery {
+			return nil, fmt.Errorf("invalid stored app paths: %w", err)
+		}
+		// JSON decoding can leave a partially populated slice on a type error.
+		// Never present salvaged prefixes as an inferred replacement policy.
+		a.AllowedReturnPaths = []string{}
+	}
+	if listForRecovery && a.AllowedReturnPaths == nil {
+		a.AllowedReturnPaths = []string{}
 	}
 	return a, nil
 }
 
 func AppByID(id string) (*App, error) {
-	return scanApp(db.GetDB().QueryRow(`SELECT `+appColumns+` FROM protected_apps WHERE id=?`, id))
+	return scanApp(db.GetDB().QueryRow(`SELECT `+appColumns+` FROM protected_apps WHERE id=?`, id), false)
 }
 
 func ListApps() ([]App, error) {
@@ -40,7 +48,7 @@ func ListApps() ([]App, error) {
 	defer func() { _ = rows.Close() }()
 	apps := []App{}
 	for rows.Next() {
-		a, err := scanApp(rows)
+		a, err := scanApp(rows, true)
 		if err != nil {
 			return nil, err
 		}
