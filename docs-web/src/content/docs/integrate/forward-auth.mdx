@@ -109,11 +109,15 @@ For an unrelated-domain deployment, use the complete configurations above with t
 
 | Value in fixture | Deployment value (example) |
 |---|---|
-| `auth.example.test:25443` | Your public IdP, such as `auth.example.com` |
-| `caddy.example.test:25443`, `nginx.example.test:25444`, or `traefik.example.test:25445` | The exact registered app authority, such as `dashboard.otherdomain.net` |
+| `auth.example.test:25443` or nginx's public IdP alias `auth.example.test:25446` | Your public IdP authority, such as `auth.example.com` |
+| Hostname-only `auth.example.test` (nginx `server_name`) | Your public IdP hostname, such as `auth.example.com`, without a port |
+| `caddy.example.test:25443`, `nginx.example.test:25444`, or `traefik.example.test:25445` | The exact registered app authority, such as `dashboard.otherdomain.net` or `dashboard.otherdomain.net:8443` |
+| Hostname-only `caddy.example.test`, `nginx.example.test`, or `traefik.example.test` (nginx `server_name` and both Traefik `Host(...)` rules) | The registered app hostname, such as `dashboard.otherdomain.net`, without a port |
 | `CADDY_APP_ID`, `NGINX_APP_ID`, or `TRAEFIK_APP_ID` | The new protected application's `data.id` |
 | `127.0.0.1:25998` | Autentico's private address reachable by the proxy |
 | `127.0.0.1:25999` | Your protected backend |
+
+Update hostname-only matches as well as authority values: both the normal app router and bootstrap router must match the new hostname. Keep any non-default port in original-host header overrides, while nginx `server_name` and Traefik `Host(...)` contain only the hostname. Adapt public listeners/entrypoints to the registered port (normally HTTPS 443).
 
 Provide valid TLS certificates for both public hostnames. Keep the `/_autentico/` bootstrap route ahead of app authentication, pass the app's actual cookies into checks, and overwrite original-host/protocol with the app authority and `https`. Bootstrap responses must reach the browser with `Set-Cookie` and `Location` intact. Never forward bootstrap requests to the protected backend. The Caddy `handle`, nginx `location ^~ /_autentico/`, and higher-priority Traefik bootstrap router in those configurations implement this separation; nginx's separate browser redirect handler remains necessary on unrelated domains too.
 
