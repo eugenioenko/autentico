@@ -18,7 +18,11 @@ import (
 // RunOnboard creates the first admin account via CLI, mirroring the /onboard
 // browser flow. It only works once — same guards as the HTTP handler.
 func RunOnboard(c *cli.Context) error {
-	if err := config.InitBootstrap(); err != nil {
+	var envFiles []string
+	if c.IsSet("env-file") {
+		envFiles = []string{c.String("env-file")}
+	}
+	if err := config.InitBootstrap(envFiles...); err != nil {
 		return err
 	}
 	bs := config.GetBootstrap()

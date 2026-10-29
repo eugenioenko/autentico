@@ -276,7 +276,7 @@ Download the latest binary from [GitHub Releases](https://github.com/eugenioenko
 ./autentico start
 ```
 
-To use configuration from another location, run `./autentico start --env-file /path/to/.env`. Environment variables override file values. With `--auto-setup`, a missing file is created at that path; its parent directory must exist. Relative database paths still resolve from the current working directory.
+To use configuration from another location, run `./autentico start --env-file /path/to/.env`. Pass the same `--env-file /path/to/.env` to `migrate` and `onboard` to use that configuration and database. Environment variables override file values. With `--auto-setup`, a missing file is created at that path; its parent directory must exist. Relative database paths still resolve from the current working directory.
 
 The `onboard` command creates the admin account headlessly — useful for CI/CD, Docker, and automated deployments. Credentials can also be passed via environment variables (`AUTENTICO_ADMIN_USERNAME`, `AUTENTICO_ADMIN_PASSWORD`, `AUTENTICO_ADMIN_EMAIL`). Alternatively, start the server first and visit `http://localhost:9999/onboard/` to complete setup in the browser.
 
