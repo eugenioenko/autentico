@@ -726,4 +726,50 @@ describe('Federation flow — two Autentico instances', () => {
     const html = await resp.text();
     expect(html).toContain(`/oauth2/federation/${FEDERATION_PROVIDER_ID}/icon.svg`);
   });
+
+  it('claim requirements reject new and already-linked users, then allow matching claims', async () => {
+    const token = await getAdminToken();
+    const rulesURL = `${BASE_URL}/admin/api/federation/${FEDERATION_PROVIDER_ID}`;
+    const save = async (rules: unknown[]) => {
+      const response = await putJSON(rulesURL, { name: 'Autentico B', issuer: OAUTH_URL_B, client_id: FED_CLIENT_ID, enabled: true, claim_requirements: rules }, token);
+      expect(response.status, await response.text()).toBe(200);
+    };
+    await createUserOnB('requirements-new', 'Password123!', 'requirements-new@test.com', true);
+    try {
+      await save([{ claim: 'account_status', match: 'not_equals', value: 'suspended' }]);
+      const rejected = await performFederatedLogin('requirements-new', 'Password123!');
+      expect(rejected.callbackStatus).toBe(403); expect(rejected.access_token).toBe('');
+      expect(await searchUsersOnA('requirements-new@test.com')).toHaveLength(0);
+      const before = await searchUsersOnA('feduser@test.com');
+      const linked = await performFederatedLogin('feduser', 'Password123!');
+      expect(linked.callbackStatus).toBe(403); expect(await searchUsersOnA('feduser@test.com')).toEqual(before);
+      await save([{ claim: 'email', match: 'regex', value: '^[^@]+@test\\.com$' }, { claim: 'email_verified', match: 'equals', value: true }]);
+      const accepted = await performFederatedLogin('requirements-new', 'Password123!');
+      expect(accepted.callbackStatus).toBe(302); expect(accepted.access_token).toBeTruthy();
+      expect(await searchUsersOnA('requirements-new@test.com')).toHaveLength(1);
+      expect((await performFederatedLogin('feduser', 'Password123!')).callbackStatus).toBe(302);
+    } finally { await save([]); }
+  });
+
+  it('pending callbacks use current claim rules; omitted updates preserve and explicit arrays clear', async () => {
+    const token = await getAdminToken();
+    const target = `${BASE_URL}/admin/api/federation/${FEDERATION_PROVIDER_ID}`;
+    const body = { name: 'Autentico B', issuer: OAUTH_URL_B, client_id: FED_CLIENT_ID, enabled: true };
+    try {
+      const pending = await prepareFederatedLogin('feduser', 'Password123!');
+      const rules = [{ claim: 'email_verified', match: 'equals', value: false }];
+      expect((await putJSON(target, { ...body, claim_requirements: rules }, token)).status).toBe(200);
+      const denied = await fetch(pending.callbackURL, { redirect: 'manual', headers: { Cookie: pending.flowCookie } });
+      expect(denied.status).toBe(403); expect(denied.headers.getSetCookie()).toEqual([]);
+      expect((await putJSON(target, body, token)).status).toBe(200);
+      let provider = await (await getResponse(target, token)).json();
+      expect(provider.claim_requirements).toEqual(rules);
+      expect((await putJSON(target, { ...body, claim_requirements: [{ claim: 'email', match: 'regex', value: '[' }] }, token)).status).toBe(400);
+      provider = await (await getResponse(target, token)).json(); expect(provider.claim_requirements).toEqual(rules);
+      expect((await putJSON(target, { ...body, claim_requirements: [] }, token)).status).toBe(200);
+      provider = await (await getResponse(target, token)).json(); expect(provider.claim_requirements).toEqual([]);
+      expect((await performFederatedLogin('feduser', 'Password123!')).callbackStatus).toBe(302);
+    } finally { expect((await putJSON(target, { ...body, claim_requirements: [] }, token)).status).toBe(200); }
+  });
+
 });

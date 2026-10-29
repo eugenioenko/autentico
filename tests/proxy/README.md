@@ -61,3 +61,10 @@ The CI cross-site job uses custom names; the same-site job retains defaults.
 Login forms prove the custom CSRF cookie is used, SSO/logout use the custom IdP
 name, and app login/parallel flows/rotation/restart/logout exercise custom app
 cookie names. Backend assertions also withhold legacy default credentials.
+
+The suite also covers federation claim-requirement administration through the real
+TLS Caddy vhost: creating/editing typed rules, invalid-save rejection, unsaved draft
+testing, per-row diagnostics and explicit clearing. Production tester API checks
+exercise unauthenticated/non-admin rejection, strict types, negative operators,
+malformed/duplicate sample keys and payload limits. Actual upstream OIDC login
+admission is covered by the separate two-instance federation functional suite.

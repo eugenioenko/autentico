@@ -24,7 +24,7 @@ sequenceDiagram
     Browser->>IdP: GET /oauth2/federation/{id}/callback?code=...&state=...
     IdP->>ExtIdP: Exchange code for tokens
     ExtIdP->>IdP: ID token + access token
-    IdP->>IdP: Verify ID token, resolve local user
+    IdP->>IdP: Verify ID token and nonce, check claim requirements, resolve local user
     IdP->>Browser: 302 -> redirect_uri?code=AUTH_CODE
 ```
 
@@ -48,6 +48,47 @@ Discovery, token exchange and signing-key (JWKS) requests use a restricted HTTP 
 
 Federation providers must expose reachable public endpoints. A provider configured with a private issuer can still be stored by an admin, but login fails before contacting it. The same restriction applies if a public provider's discovery document points its token or signing-key endpoint at a private address. This policy also applies after DNS changes between requests.
 
+## Claim requirements
+
+In **Admin → Federation Providers**, add optional claim requirements when creating or editing a provider. Every row must pass before Autentico creates or links a local account, starts a local session, or issues a code. Requirements use the verified upstream ID token after signature, issuer, audience, expiry and nonce validation. They apply to new users and already-linked identities, using the current provider configuration at callback time.
+
+```json
+[
+  {"claim": "hd", "match": "equals", "value": "mycompany.com"},
+  {"claim": "email_verified", "match": "equals", "value": true}
+]
+```
+
+For Google Workspace, check the `hd` claim, rather than inferring membership from an email suffix; see [Google's ID token validation guidance](https://developers.google.com/identity/openid-connect/openid-connect#validatinganidtoken). For a general email filter, use a regex such as `^[^@]+@mycompany\\.com$` (JSON string syntax).
+
+| Operator | Accepted value | Passing condition |
+|---|---|---|
+| `equals` | String or boolean | Same type and exactly equal, case sensitive |
+| `not_equals` | String or boolean | Same type and unequal |
+| `regex` | String | Go regular expression matches somewhere in the claim string |
+| `not_regex` | String | Go regular expression does not match the claim string |
+
+Missing, null and wrong-type claims fail **every** operator, including negative operators. Claim names are literal, case-sensitive top-level keys: `profile.department` does not traverse a nested object. Arrays, objects and numbers cannot satisfy a requirement. All rows must pass; `[]` adds no restrictions. Regex uses [Go syntax](https://pkg.go.dev/regexp/syntax), with search semantics; use `^` and `$` for whole-value matching. Empty regex is valid and matches any string. JavaScript lookaround and backreferences are unsupported.
+
+Limits: 32 rows; claim names up to 256 UTF-8 bytes (no surrounding whitespace or control characters); string values up to 4096 bytes; regex patterns up to 1024 bytes; serialized requirements up to 64 KiB. The API rejects invalid rules before saving. Provider create/update bodies are limited to 256 KiB. An omitted update field preserves existing rules, an explicit `[]` clears them, and `null` is invalid. New providers default to `[]`. Omitted or blank client secrets on update preserve the existing secret.
+
+**Test rules** evaluates the current draft against a JSON claims object without saving it. It uses the same Go matcher as login, shows each row's result in order, and rejects malformed or duplicate top-level claim names. This tests matching only: it does not verify a JWT or establish that the sample is authentic. Samples are not persisted, upstream providers are not contacted, and no accounts, sessions or tokens are created.
+
+The admin-only API is `POST /admin/api/federation/test-claim-requirements`, with a maximum 64 KiB body:
+
+```json
+{
+  "claim_requirements": [{"claim": "email_verified", "match": "equals", "value": true}],
+  "claims": {"email_verified": true}
+}
+```
+
+The response includes `passed` and ordered `results` with zero-based `index`, `claim`, `match`, `passed` and a safe `reason`. Logical rule errors such as `invalid_pattern` return a failed row; malformed request/sample JSON returns HTTP 400. Samples and comparison values are never included in results or denial logs. Login returns a generic failure; server diagnostics contain only the provider, row index and failure category.
+
+Invalid or unsupported stored rules block login. The admin API exposes `claim_requirements_error: "invalid_stored_claim_requirements"`; use the editor to replace the rules or explicitly clear them. Other edits preserve the invalid policy. Schema 22 stores the ordered JSON array on `federation_providers`; no extra table or environment variable is needed. Existing providers retain their behavior with `[]`.
+
+These are admission rules for future federated logins. They do not revoke existing sessions, restrict password/passkey/other login methods, or configure claims in Autentico-issued tokens.
+
 ## User resolution
 
 When a user authenticates through a federation provider, Autentico resolves the local user account in this order:
@@ -68,6 +109,7 @@ All federation provider endpoints require admin authentication.
 |---|---|---|
 | `GET` | `/admin/api/federation` | List all providers (paginated) |
 | `POST` | `/admin/api/federation` | Create a new provider |
+| `POST` | `/admin/api/federation/test-claim-requirements` | Test draft rules without saving |
 | `GET` | `/admin/api/federation/{id}` | Get a provider by ID |
 | `PUT` | `/admin/api/federation/{id}` | Update a provider |
 | `DELETE` | `/admin/api/federation/{id}` | Delete a provider |

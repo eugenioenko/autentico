@@ -115,6 +115,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - **Authorization Code Flow + PKCE** (RFC 7636, S256 enforced by default) — the right default for web and native apps; federation validates registered clients, redirect URIs, scopes, and PKCE before issuing codes
 - **Authorization request validation** — signed continuation parameters are checked against the current client, callback URI, scopes, and PKCE before signup, email verification, magic-link login, and passkey authentication.
 - **Code-only authorization responses** — authorization and client registration support only `response_type=code`; implicit and hybrid response types are rejected.
+- **Federation claim requirements** — optional per-provider string/boolean equality and Go regex rules, enforced on verified ID tokens before account linking or login. Admin rule builder and read-only draft tester share the login matcher.
 - **Federation login CSRF protection** — short-lived browser bindings and atomic single-use state survive restarts; independent upstream nonces prevent response injection.
 - **Authorization response modes** — discovery advertises query encoding; unsupported modes are rejected before login or SSO.
 - **Authorization request objects** — discovery explicitly disables `request_uri`; unsupported request objects are rejected before login or SSO.

@@ -3,7 +3,7 @@ title: Database Schema
 description: The SQLite database schema used by Autentico.
 ---
 
-Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 20). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
+Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 22). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
 
 ## Tables
 
@@ -239,6 +239,7 @@ External identity provider configurations for federated/social login.
 | `icon_svg` | TEXT | Optional SVG icon for the login button |
 | `enabled` | BOOLEAN | Whether this provider is active |
 | `sort_order` | INTEGER | Display order on the login page |
+| `claim_requirements` | TEXT | Ordered JSON array, NOT NULL, default `[]`; CHECK validates JSON and array shape (schema 22) |
 | `created_at` | DATETIME | |
 
 ### `federation_login_flows`
@@ -419,3 +420,5 @@ The following indexes are created across migrations:
 ### `protected_apps` and `forward_auth_sessions`
 
 Routine migration 021 registers protected applications and their separate browser sessions. Same-site and unrelated-domain applications reuse these tables and existing authorization codes; cross-domain support requires no additional migration. `protected_apps` stores ID, name, immutable unique origin, JSON path prefixes, unique internal client ID, absolute session TTL, active status and timestamps. `forward_auth_sessions` stores a public ID, app and IdP-session foreign keys, unique SHA-256 credential hash, creation/activity/expiry timestamps and optional revocation time. Foreign keys cascade deletion of an app or parent session. Parent and expiry indexes support revocation lookup and cleanup. The parent session supplies user identity and completed MFA evidence; each check requires that parent to remain valid. Existing login/session credentials are unchanged by this additive migration.
+
+Routine migration 022 adds `federation_providers.claim_requirements` as JSON TEXT with an empty-array default. Existing providers, secrets, ordering, accounts and sessions are preserved. Rule validation and matching remain in Go; invalid stored policies fail closed and can be replaced through the admin API. No value table or index is required because requirements are read with their provider, never queried across providers.

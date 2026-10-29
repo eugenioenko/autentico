@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typography, App } from "antd";
 import { useUpdateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProvider, FederationProviderUpdateRequest } from "../../types/federation";
+import ClaimRequirementsEditor from './ClaimRequirementsEditor';
+import { validateClaimRequirements } from '../../api/federation';
 
 interface Props {
   open: boolean;
@@ -13,13 +15,17 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const updateProvider = useUpdateFederationProvider();
+  const [rulesTouched, setRulesTouched] = useState(false);
 
   useEffect(() => {
     if (provider) {
+      setRulesTouched(false);
       form.setFieldsValue({
+        claim_requirements: provider.claim_requirements,
         name: provider.name,
         issuer: provider.issuer,
         client_id: provider.client_id,
+        client_secret: "",
         icon_svg: provider.icon_svg,
         enabled: provider.enabled,
         sort_order: provider.sort_order,
@@ -29,6 +35,7 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
 
   const handleSubmit = async (values: FederationProviderUpdateRequest) => {
     if (!provider) return;
+    if (provider.claim_requirements_error && !rulesTouched) delete values.claim_requirements;
     try {
       await updateProvider.mutateAsync({ id: provider.id, data: values });
       message.success("Federation provider updated");
@@ -47,7 +54,7 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
       title="Edit Federation Provider"
       open={open}
       onClose={onClose}
-      width={520}
+      width={760}
       extra={
         <Space>
           <Button onClick={onClose}>Cancel</Button>
@@ -79,7 +86,8 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
         />
       )}
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      {provider?.claim_requirements_error && <Alert type="error" title="Stored claim requirements are invalid" description="Login is blocked. Replace the requirements or explicitly clear them to repair this provider. Other edits preserve the invalid policy." />}
+      <Form form={form} layout="vertical" onFinish={handleSubmit} onValuesChange={changed => { if ('claim_requirements' in changed) setRulesTouched(true); }}>
         <Form.Item
           name="name"
           label="Display Name"
@@ -118,6 +126,11 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
         <Form.Item name="icon_svg" label="Icon SVG">
           <Input.TextArea rows={3} />
         </Form.Item>
+
+        <Form.Item name="claim_requirements" label="Claim requirements" validateTrigger={[]} rules={[{ validator: validateClaimRequirements }]}>
+          <ClaimRequirementsEditor />
+        </Form.Item>
+        {provider?.claim_requirements_error && <Button onClick={() => { form.setFieldValue('claim_requirements', []); setRulesTouched(true); }}>Clear invalid requirements</Button>}
 
         <Form.Item name="sort_order" label="Sort Order" extra="Lower numbers appear first on the login page.">
           <InputNumber min={0} style={{ width: "100%" }} />

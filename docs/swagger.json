@@ -1867,6 +1867,63 @@
                 }
             }
         },
+        "/admin/api/federation/test-claim-requirements": {
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Read-only claims matcher using the login evaluator. Does not verify JWTs, contact providers, persist samples or issue credentials. Samples must be JSON objects; at most 32 rules and 64 KiB total input. Row indices are zero-based.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-federation"
+                ],
+                "summary": "Test draft federation claim requirements",
+                "parameters": [
+                    {
+                        "description": "Draft rules and sample claims",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/federation.ClaimTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/federation.ClaimTestResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/federation/{id}": {
             "get": {
                 "security": [
@@ -5367,9 +5424,83 @@
                 }
             }
         },
+        "federation.ClaimRequirement": {
+            "type": "object",
+            "properties": {
+                "claim": {
+                    "type": "string"
+                },
+                "match": {
+                    "type": "string",
+                    "enum": [
+                        "equals",
+                        "not_equals",
+                        "regex",
+                        "not_regex"
+                    ]
+                },
+                "value": {
+                    "description": "Value must be a JSON string or boolean. Regex operators require a string."
+                }
+            }
+        },
+        "federation.ClaimRuleResult": {
+            "type": "object",
+            "properties": {
+                "claim": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "match": {
+                    "type": "string"
+                },
+                "passed": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "federation.ClaimTestRequest": {
+            "type": "object",
+            "properties": {
+                "claim_requirements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/federation.ClaimRequirement"
+                    }
+                },
+                "claims": {
+                    "type": "object"
+                }
+            }
+        },
+        "federation.ClaimTestResult": {
+            "type": "object",
+            "properties": {
+                "passed": {
+                    "type": "boolean"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/federation.ClaimRuleResult"
+                    }
+                }
+            }
+        },
         "federation.FederationProviderRequest": {
             "type": "object",
             "properties": {
+                "claim_requirements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/federation.ClaimRequirement"
+                    }
+                },
                 "client_id": {
                     "type": "string"
                 },
@@ -5399,6 +5530,15 @@
         "federation.ProviderResponse": {
             "type": "object",
             "properties": {
+                "claim_requirements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/federation.ClaimRequirement"
+                    }
+                },
+                "claim_requirements_error": {
+                    "type": "string"
+                },
                 "client_id": {
                     "type": "string"
                 },

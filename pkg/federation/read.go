@@ -38,7 +38,7 @@ func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProv
 		return nil, 0, fmt.Errorf("failed to count federation providers: %w", err)
 	}
 
-	query := `SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
+	query := `SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at, claim_requirements
 		FROM federation_providers ` + baseWhere + lq.Where + lq.Order
 	rows, err := db.GetDB().Query(query, lq.Args...)
 	if err != nil {
@@ -49,9 +49,11 @@ func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProv
 	var providers []*FederationProvider
 	for rows.Next() {
 		var p FederationProvider
-		if err := rows.Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt); err != nil {
+		var raw string
+		if err := rows.Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt, &raw); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan federation provider: %w", err)
 		}
+		decodeStoredRequirements(&p, raw)
 		providers = append(providers, &p)
 	}
 	if providers == nil {
@@ -92,16 +94,18 @@ func ListEnabledProviderViews() ([]FederationProviderView, error) {
 
 func FederationProviderByID(id string) (*FederationProvider, error) {
 	var p FederationProvider
+	var raw string
 	err := db.GetDB().QueryRow(
-		`SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at
+		`SELECT id, name, issuer, client_id, client_secret, icon_svg, enabled, sort_order, created_at, claim_requirements
 		 FROM federation_providers WHERE id = ?`, id,
-	).Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt)
+	).Scan(&p.ID, &p.Name, &p.Issuer, &p.ClientID, &p.ClientSecret, &p.IconSVG, &p.Enabled, &p.SortOrder, &p.CreatedAt, &raw)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("federation provider not found")
 		}
 		return nil, fmt.Errorf("failed to get federation provider: %w", err)
 	}
+	decodeStoredRequirements(&p, raw)
 	return &p, nil
 }
 
