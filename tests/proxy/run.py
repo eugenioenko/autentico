@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--logs", type=Path)
     parser.add_argument("--site-mode", choices=("same-site", "cross-site"), default="same-site")
     parser.add_argument("--cookie-names", choices=("default", "custom"), default="default")
+    parser.add_argument("--test-file", action="append", default=[], help="Run only this Playwright test file (repeatable)")
     args = parser.parse_args()
     binary = args.binary.resolve()
     directory = Path(tempfile.mkdtemp(prefix="autentico-forwardauth-"))
@@ -212,7 +213,7 @@ def main():
         fixture = dict(admin=ADMIN, auth=AUTH, authNginx="https://auth.example.test:25446", token=admin_token, user=user, apps=apps, cookieNames=cookie_names, crossDomain=args.site_mode == "cross-site", control="http://127.0.0.1:25997", controlKey=control_key)
         (directory / "fixture.json").write_text(json.dumps(fixture))
         test_env = dict(os.environ, AUTENTICO_PROXY_FIXTURE=str(directory / "fixture.json"))
-        status = subprocess.run([str(ROOT / "tests/browser/node_modules/.bin/playwright"), "test", "--config", "proxy.config.ts"], cwd=ROOT / "tests/browser", env=test_env).returncode
+        status = subprocess.run([str(ROOT / "tests/browser/node_modules/.bin/playwright"), "test", "--config", "proxy.config.ts", *args.test_file], cwd=ROOT / "tests/browser", env=test_env).returncode
     finally:
         if server and server.poll() is None:
             server.terminate()

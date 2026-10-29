@@ -15,6 +15,9 @@ export default function ClaimRequirementsEditor({ value = [], onChange }: Props)
   useEffect(() => { generation.current++; setResult(undefined); setError(''); }, [value, sample]);
   const change = (index: number, patch: Partial<ClaimRequirement>) => onChange?.(value.map((rule, i) => i === index ? { ...rule, ...patch } : rule));
   const test = async () => {
+    // A local parse error starts no request and must leave the tester usable.
+    try { JSON.parse(sample); }
+    catch { setError('Sample claims must be valid JSON.'); setResult(undefined); return; }
     const version = generation.current;
     setLoading(true); setError(''); setResult(undefined);
     try {
@@ -41,7 +44,7 @@ export default function ClaimRequirementsEditor({ value = [], onChange }: Props)
     })}
     <Space><Button disabled={value.length >= 32} onClick={() => onChange?.([...value, { claim: '', match: 'equals', value: '' }])}>Add requirement</Button><Button onClick={() => setOpen(true)}>Test rules</Button></Space>
     <Typography.Text type="secondary">Regex uses Go syntax and searches within a string; use ^ and $ for whole-value matching. For Google Workspace use hd equals mycompany.com; add email_verified equals boolean true when required.</Typography.Text>
-    <Modal open={open} title="Test claim requirements" onCancel={() => setOpen(false)} footer={<Button type="primary" loading={loading} onClick={test}>Run test</Button>} width={640}>
+    <Modal open={open} title="Test claim requirements" onCancel={() => setOpen(false)} footer={<Button type="primary" aria-label="Run test" disabled={loading} loading={loading} onClick={test}>Run test</Button>} width={640}>
       <Alert type="info" showIcon title="Claims matcher only" description="This tests the current draft without saving it. It does not verify a JWT signature or prove token authenticity. Samples are not stored." />
       <Typography.Paragraph>Sample claims JSON</Typography.Paragraph>
       <Input.TextArea aria-label="Sample claims JSON" rows={8} value={sample} onChange={e => setSample(e.target.value)} maxLength={65536} />

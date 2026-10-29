@@ -8,6 +8,8 @@ pnpm --dir tests/browser install --frozen-lockfile
 pnpm --dir tests/browser exec playwright install chromium --with-deps
 python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode same-site --logs /tmp/forward-auth-logs
 python3 tests/proxy/run.py --binary "$PWD/autentico" --site-mode cross-site --cookie-names custom --logs /tmp/forward-auth-cross-site-logs
+# Focused UI/API regression without running unrelated proxy scenarios:
+python3 tests/proxy/run.py --binary "$PWD/autentico" --test-file federation-requirements.spec.ts
 ```
 
 Both modes run independently in the `proxy-e2e` CI matrix. It uses the supplied production

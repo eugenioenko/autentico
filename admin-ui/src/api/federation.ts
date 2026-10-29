@@ -13,7 +13,7 @@ const BASE = "/admin/api/federation";
 export async function testClaimRequirements(rules: ClaimRequirement[], claims: string): Promise<ClaimTestResult> {
   JSON.parse(claims);
   const { data } = await apiClient.post<ClaimTestResult>(`${BASE}/test-claim-requirements`,
-    `{"claim_requirements":${JSON.stringify(rules)},"claims":${claims}}`, { headers: { 'Content-Type': 'application/json' } });
+    `{"claim_requirements":${JSON.stringify(rules)},"claims":${claims}}`, { headers: { 'Content-Type': 'application/json' }, timeout: 10000 });
   return data;
 }
 

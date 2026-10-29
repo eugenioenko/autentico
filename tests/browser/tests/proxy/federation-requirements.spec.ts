@@ -77,6 +77,7 @@ test('admin builds, tests and persists typed requirements; invalid drafts cannot
     await page.getByLabel('Sample claims JSON', { exact: true }).fill('{');
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('Sample claims must be valid JSON.', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run test', exact: true })).toBeEnabled();
     await page.getByLabel('Sample claims JSON', { exact: true }).fill('{"email_verified":false,"hd":"mycompany.com"}');
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('Row 2 (hd): invalid pattern', { exact: true })).toBeVisible();
