@@ -1,8 +1,5 @@
-# Autentico — OAuth 2.0 / OIDC Identity Provider
+# Autentico OAuth 2.0 / OIDC Identity Provider
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/eugenioenko/autentico)](https://goreportcard.com/report/github.com/eugenioenko/autentico)
-[![Test Coverage](https://img.shields.io/badge/coverage-70.4%25-green.svg)](https://github.com/eugenioenko/autentico)
-[![Tests](https://img.shields.io/badge/tests-1856-blue.svg)](https://github.com/eugenioenko/autentico)
 [![Go Version](https://img.shields.io/badge/go-1.23+-blue.svg)](https://golang.org/dl/)
 [![License](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
