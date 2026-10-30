@@ -110,7 +110,7 @@ func generateTokens(user user.User, clientID, scope string, cfg *config.Config, 
 	// scope and can never override a claim already set above (reserved names are also
 	// rejected at write time in pkg/userclaim).
 	if containsScope(scope, "custom_claims") {
-		custom, err := userclaim.ClaimMapByUserID(user.ID)
+		custom, err := userclaim.EffectiveClaimMapByUserID(user.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not load custom claims: %w", err)
 		}
@@ -229,7 +229,7 @@ func GenerateIDToken(user user.User, sessionID string, nonce string, scope strin
 	// OIDC Core §5.1.2: additional (non-standard) claims MAY be included in the ID token.
 	// Gated behind the "custom_claims" scope; never overrides a standard claim set above.
 	if containsScope(scope, "custom_claims") {
-		custom, err := userclaim.ClaimMapByUserID(user.ID)
+		custom, err := userclaim.EffectiveClaimMapByUserID(user.ID)
 		if err != nil {
 			return "", fmt.Errorf("could not load custom claims: %w", err)
 		}

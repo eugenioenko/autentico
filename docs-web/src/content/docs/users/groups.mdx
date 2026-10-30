@@ -29,6 +29,37 @@ Example token claims:
 Add `groups` to the client's allowed scopes and include it in the authorization request to receive group claims. See [Scopes](/protocol/scopes/) for details.
 </Aside>
 
+## Custom claims inherited by members
+
+In **Admin → Groups**, choose **Manage claims** to add, replace, or remove a
+custom string claim. Members receive each claim under a literal
+`group.claim` key when the `custom_claims` scope is granted. For example,
+`role=user` on group `app1` produces:
+
+```json
+{ "app1.role": "user" }
+```
+
+Group `app2` can independently define `role=editor`, producing `app2.role`.
+These are top-level keys, not nested objects. An individual claim named
+`app1.role` overrides that inherited value. An administrator can also assign
+that individual claim without adding the user to `app1`.
+
+Group-local names may include `role`, `email`, or `sub`: they are always prefixed
+and cannot replace Autentico's built-in claims. Names follow the existing bare
+custom-claim pattern and are limited to 128 characters; values are strings of up
+to 4096 characters, including empty strings.
+
+<Aside type="caution">
+Renaming a group changes its emitted claim prefix. Individual claim names are
+not renamed automatically. Group claim and membership changes appear in new or
+refreshed tokens and current UserInfo responses; already issued JWTs retain their
+original values until expiry. Applications continue to enforce access rules.
+</Aside>
+
+The `custom_claims` scope controls inherited custom claims independently of the
+`groups` scope. See [Custom Claims](/users/custom-claims/) for individual overrides.
+
 ## Admin API endpoints
 
 All group endpoints require admin authentication.
@@ -43,6 +74,9 @@ All group endpoints require admin authentication.
 | `GET` | `/admin/api/groups/{id}/members` | List members of a group |
 | `POST` | `/admin/api/groups/{id}/members` | Add a user to a group |
 | `DELETE` | `/admin/api/groups/{id}/members/{user_id}` | Remove a user from a group |
+| `GET` | `/admin/api/groups/{id}/claims` | List group-local custom claims |
+| `POST` | `/admin/api/groups/{id}/claims` | Create or update a group-local claim |
+| `DELETE` | `/admin/api/groups/{id}/claims/{name...}` | Remove a group-local claim |
 | `GET` | `/admin/api/users/{id}/groups` | Get groups for a specific user |
 
 ### List groups
@@ -121,6 +155,20 @@ curl https://auth.example.com/admin/api/users/$USER_ID/groups \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
+### Manage group claims
+
+```bash
+curl -X POST https://auth.example.com/admin/api/groups/$GROUP_ID/claims \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"role","value":"user"}'
+```
+
+Posting an existing local name replaces its value. Lists return the local name
+(`role`), string value, and update timestamp in the same `data` envelope as user
+claims. Deletion uses the local name; percent-encode names containing slashes.
+Unknown groups return 404 on list/upsert; missing claims return 404 on deletion.
+
 ## Database tables
 
 ### `groups` table
@@ -142,3 +190,10 @@ curl https://auth.example.com/admin/api/users/$USER_ID/groups \
 | `created_at` | DATETIME | When the membership was created |
 
 A unique constraint on `(user_id, group_id)` prevents duplicate memberships. Deleting a group cascades to remove all memberships.
+
+### `group_claims` table
+
+Migration 23 adds `group_id`, `claim_name`, `claim_value`, `created_at`, and
+`updated_at`. The primary key is `(group_id, claim_name)`. Deleting a group
+cascades to its claims. Inherited values are resolved through membership rather
+than copied into `user_claims`.

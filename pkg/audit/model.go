@@ -112,6 +112,8 @@ const (
 	EventGroupDeleted           Event = "group_deleted"
 	EventGroupMemberAdded       Event = "group_member_added"
 	EventGroupMemberRemoved     Event = "group_member_removed"
+	EventGroupClaimUpserted     Event = "group_claim_upserted"
+	EventGroupClaimDeleted      Event = "group_claim_deleted"
 	EventUserClaimUpserted      Event = "user_claim_upserted"
 	EventUserClaimDeleted       Event = "user_claim_deleted"
 )

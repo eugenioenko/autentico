@@ -15,6 +15,10 @@ import (
 // collision-resistant or private claim names for non-standard claims.
 var claimNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_.:/-]*$`)
 
+// Group names allow leading digits and hyphens. Accept the complete emitted
+// group.claim key so an individual claim can override any inherited claim.
+var groupClaimNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+\.[a-zA-Z_][a-zA-Z0-9_.:/-]*$`)
+
 const maxClaimValueLength = 4096
 
 // reservedClaimNames are claim names a custom claim must never define. OIDC Core
@@ -98,16 +102,38 @@ func IsReservedClaimName(name string) bool {
 
 // ValidateUserClaimRequest validates a custom claim create/update payload.
 func ValidateUserClaimRequest(input UserClaimRequest) error {
-	if err := validation.Validate(input.Name,
-		validation.Required,
-		validation.Length(1, 128),
-		validation.Match(claimNameRegex),
-	); err != nil {
-		return fmt.Errorf("name is invalid: %w", err)
+	if err := ValidateClaimSyntax(input); err != nil {
+		return err
 	}
+	// OIDC Core §5.1.2: individual claims must not impersonate registered claims.
 	if IsReservedClaimName(input.Name) {
 		return fmt.Errorf("name is invalid: %q is a reserved claim name", input.Name)
 	}
+	return nil
+}
+
+// ValidateClaimSyntax checks the shared string-claim payload. Group claims may
+// use local names such as role, because their emitted name is always group.role.
+// Callers assigning a top-level claim must also reject reserved names.
+func ValidateClaimSyntax(input UserClaimRequest) error {
+	maxNameLength := 128
+	validName := claimNameRegex.MatchString(input.Name)
+	if groupClaimNameRegex.MatchString(input.Name) {
+		// A 100-character group name, separator, and 128-character local name.
+		maxNameLength = 229
+		validName = true
+	}
+	// OIDC Core §5.1.2: private names may be namespaced; impose bounded input.
+	if err := validation.Validate(input.Name,
+		validation.Required,
+		validation.Length(1, maxNameLength),
+	); err != nil {
+		return fmt.Errorf("name is invalid: %w", err)
+	}
+	if !validName {
+		return fmt.Errorf("name is invalid: must be a claim name or a group.claim name")
+	}
+	// OIDC Core §5.1.2: this implementation supports bounded string values.
 	if utf8.RuneCountInString(input.Value) > maxClaimValueLength {
 		return fmt.Errorf("value is invalid: must be at most %d characters", maxClaimValueLength)
 	}

@@ -33,6 +33,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/federation"
 	"github.com/eugenioenko/autentico/pkg/forwardauth"
 	"github.com/eugenioenko/autentico/pkg/group"
+	"github.com/eugenioenko/autentico/pkg/groupclaim"
 	"github.com/eugenioenko/autentico/pkg/health"
 	"github.com/eugenioenko/autentico/pkg/idpsession"
 	"github.com/eugenioenko/autentico/pkg/introspect"
@@ -249,6 +250,9 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	mux.Handle("POST /admin/api/groups/{id}/members", adminAPI(group.HandleAddMember))
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", adminAPI(group.HandleRemoveMember))
 	mux.Handle("GET /admin/api/users/{id}/groups", adminAPI(group.HandleGetUserGroups))
+	mux.Handle("GET /admin/api/groups/{id}/claims", adminAPI(groupclaim.HandleListGroupClaims))
+	mux.Handle("POST /admin/api/groups/{id}/claims", adminAPI(groupclaim.HandleUpsertGroupClaim))
+	mux.Handle("DELETE /admin/api/groups/{id}/claims/{name...}", adminAPI(groupclaim.HandleDeleteGroupClaim))
 	mux.Handle("GET /admin/api/users/{id}/claims", adminAPI(userclaim.HandleListUserClaims))
 	mux.Handle("POST /admin/api/users/{id}/claims", adminAPI(userclaim.HandleUpsertUserClaim))
 	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", adminAPI(userclaim.HandleDeleteUserClaim))

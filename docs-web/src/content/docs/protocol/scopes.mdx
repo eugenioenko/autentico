@@ -16,7 +16,7 @@ Scopes control which claims are included in the ID token and returned from the U
 | `phone` | `phone_number`, `phone_number_verified` |
 | `offline_access` | No additional claims — enables refresh token issuance so the client can obtain new access tokens without user interaction |
 | `groups` | `groups` — an array of group names the user belongs to |
-| `custom_claims` | Every custom claim assigned to the user by an admin, merged into the ID token, access token, and UserInfo response (see [Custom Claims](/users/custom-claims/)) |
+| `custom_claims` | Effective custom claims assigned to the user or inherited as `group.claim` through group membership, with individual values taking precedence; merged into the ID token, access token, and UserInfo response (see [Custom Claims](/users/custom-claims/)) |
 
 Always request `openid` to get an ID token. Add `profile` and `email` to include those claims.
 

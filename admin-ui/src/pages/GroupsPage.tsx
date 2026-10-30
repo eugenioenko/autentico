@@ -21,6 +21,7 @@ import {
   UserDeleteOutlined,
   TeamOutlined,
   ArrowLeftOutlined,
+  TagsOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { SorterResult } from "antd/es/table/interface";
@@ -33,6 +34,7 @@ import {
   useAddMember,
   useRemoveMember,
 } from "../hooks/useGroups";
+import GroupClaimsDrawer from "../components/groups/GroupClaimsDrawer";
 import { useUsers } from "../hooks/useUsers";
 import type { ListParams } from "../api/users";
 import type { Group, GroupMember } from "../types/group";
@@ -245,6 +247,7 @@ export default function GroupsPage() {
   const updateGroup = useUpdateGroup();
   const deleteGroupMutation = useDeleteGroup();
 
+  const [claimsGroup, setClaimsGroup] = useState<Group | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [membersGroup, setMembersGroup] = useState<Group | null>(null);
@@ -348,13 +351,13 @@ export default function GroupsPage() {
     {
       title: "Actions",
       key: "actions",
-      width: 120,
+      width: 160,
       render: (_, record) => (
         <Space>
           <Tooltip title="Delete group">
             <Popconfirm
               title="Delete this group?"
-              description="All memberships will be removed."
+              description="All memberships and group claims will be removed."
               onConfirm={() => handleDelete(record.id)}
               okText="Delete"
               okButtonProps={{ danger: true }}
@@ -375,6 +378,15 @@ export default function GroupsPage() {
               aria-label="Manage group members"
               icon={<TeamOutlined />}
               onClick={() => setMembersGroup(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Manage claims">
+            <Button
+              type="text"
+              size="small"
+              aria-label="Manage group claims"
+              icon={<TagsOutlined />}
+              onClick={() => setClaimsGroup(record)}
             />
           </Tooltip>
           <Tooltip title="Edit group">
@@ -445,6 +457,8 @@ export default function GroupsPage() {
         />
       </div>
 
+      <GroupClaimsDrawer group={claimsGroup} onClose={() => setClaimsGroup(null)} />
+
       {/* Create Modal */}
       <Modal
         title="Create Group"
@@ -492,6 +506,7 @@ export default function GroupsPage() {
           <Form.Item
             name="name"
             label="Name"
+            extra="Renaming the group changes the prefix of its inherited claim names."
             rules={[
               {
                 pattern: /^[a-zA-Z0-9_-]+$/,

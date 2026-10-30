@@ -36,7 +36,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const target = 22
+const target = 23
 
 var totpKey = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{42}, 32))
 

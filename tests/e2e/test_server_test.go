@@ -17,6 +17,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/deletion"
 	"github.com/eugenioenko/autentico/pkg/group"
+	"github.com/eugenioenko/autentico/pkg/groupclaim"
 	"github.com/eugenioenko/autentico/pkg/introspect"
 	"github.com/eugenioenko/autentico/pkg/key"
 	"github.com/eugenioenko/autentico/pkg/login"
@@ -204,6 +205,9 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle("POST /admin/api/groups/{id}/members", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleAddMember)))
 	mux.Handle("DELETE /admin/api/groups/{id}/members/{user_id}", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleRemoveMember)))
 	mux.Handle("GET /admin/api/users/{id}/groups", middleware.AdminAuthMiddleware(http.HandlerFunc(group.HandleGetUserGroups)))
+	mux.Handle("GET /admin/api/groups/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(groupclaim.HandleListGroupClaims)))
+	mux.Handle("POST /admin/api/groups/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(groupclaim.HandleUpsertGroupClaim)))
+	mux.Handle("DELETE /admin/api/groups/{id}/claims/{name...}", middleware.AdminAuthMiddleware(http.HandlerFunc(groupclaim.HandleDeleteGroupClaim)))
 	mux.Handle("GET /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleListUserClaims)))
 	mux.Handle("POST /admin/api/users/{id}/claims", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleUpsertUserClaim)))
 	mux.Handle("DELETE /admin/api/users/{id}/claims/{name...}", middleware.AdminAuthMiddleware(http.HandlerFunc(userclaim.HandleDeleteUserClaim)))
