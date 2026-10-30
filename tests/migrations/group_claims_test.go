@@ -25,6 +25,9 @@ func TestRoutineGroupClaimsUpgrade(t *testing.T) {
 			var value string
 			require.NoError(t, upgraded.QueryRow(`SELECT claim_value FROM user_claims WHERE user_id='user' AND claim_name='tier'`).Scan(&value))
 			require.Equal(t, "gold", value)
+			var memberCount int
+			require.NoError(t, upgraded.QueryRow(`SELECT COUNT(*) FROM user_groups WHERE user_id='user' AND group_id='group'`).Scan(&memberCount))
+			require.Equal(t, 1, memberCount)
 			_, err = upgraded.Exec(`INSERT INTO group_claims(group_id,claim_name,claim_value) VALUES('missing','role','user')`)
 			require.Error(t, err)
 			_, err = upgraded.Exec(`INSERT INTO group_claims(group_id,claim_name,claim_value) VALUES('group','role','user')`)

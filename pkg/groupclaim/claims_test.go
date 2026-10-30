@@ -15,7 +15,7 @@ import (
 )
 
 func TestValidateGroupClaims(t *testing.T) {
-	for _, name := range []string{"role", "email", "tier", "department.name", "https://app.example.com/tier", "_private"} {
+	for _, name := range []string{"role", "email", "tier", "department.name", "https://app.example.com/tier", "_private", strings.Repeat("n", 128)} {
 		require.NoError(t, ValidateGroupClaimRequest(GroupClaimRequest{Name: name, Value: ""}), name)
 	}
 	for _, name := range []string{"", "1role", "has space", "bad$", strings.Repeat("a", 129)} {
@@ -90,6 +90,10 @@ func TestGroupClaimsRejectedRequests(t *testing.T) {
 		{"POST", "", "", `{"name":"tier"}`, 400},
 		{"POST", "g1", "", `{`, 400},
 		{"POST", "g1", "", `{"name":"tier","value":true}`, 400},
+		{"POST", "g1", "", `{"name":"tier","value":123}`, 400},
+		{"POST", "g1", "", `{"name":"tier","value":[]}`, 400},
+		{"POST", "g1", "", `{"name":"tier","value":{}}`, 400},
+		{"POST", "g1", "", `{"name":123,"value":"x"}`, 400},
 		{"POST", "g1", "", `{"name":"bad name","value":"x"}`, 400},
 		{"POST", "g1", "", `{"value":"x"}`, 400},
 		{"DELETE", "", "tier", "", 400},

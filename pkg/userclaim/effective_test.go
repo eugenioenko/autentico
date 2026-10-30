@@ -68,8 +68,55 @@ func TestEffectiveClaimsProtectReservedNamesAndEmptyOverrides(t *testing.T) {
 
 func TestIndividualClaimCanOverrideEveryValidGroupPrefix(t *testing.T) {
 	for _, prefix := range []string{"app1", "123", "-team", "_team", strings.Repeat("g", 100)} {
-		name := prefix + "." + strings.Repeat("c", 128)
-		require.NoError(t, userclaim.ValidateUserClaimRequest(userclaim.UserClaimRequest{Name: name, Value: "override"}), name)
+		t.Run(prefix, func(t *testing.T) {
+			testutils.WithTestDB(t)
+			testutils.InsertTestUser(t, "alice")
+			testutils.InsertTestGroup(t, "group", prefix)
+			testutils.InsertTestGroupMembership(t, "alice", "group")
+			local := strings.Repeat("c", 128)
+			require.NoError(t, groupclaim.ValidateGroupClaimRequest(groupclaim.GroupClaimRequest{Name: local, Value: "inherited"}))
+			require.NoError(t, groupclaim.UpsertClaim("group", local, "inherited"))
+			name := prefix + "." + local
+			got, err := userclaim.EffectiveClaimMapByUserID("alice")
+			require.NoError(t, err)
+			require.Equal(t, map[string]string{name: "inherited"}, got)
+			require.NoError(t, userclaim.ValidateUserClaimRequest(userclaim.UserClaimRequest{Name: name, Value: "override"}), name)
+			require.NoError(t, userclaim.UpsertClaim("alice", name, "override"))
+			got, err = userclaim.EffectiveClaimMapByUserID("alice")
+			require.NoError(t, err)
+			require.Equal(t, map[string]string{name: "override"}, got)
+		})
 	}
 	require.Error(t, userclaim.ValidateUserClaimRequest(userclaim.UserClaimRequest{Name: "g." + strings.Repeat("c", 228)}))
+}
+
+func TestGroupClaimChangesReachAllMembersWithoutCopying(t *testing.T) {
+	testutils.WithTestDB(t)
+	for _, id := range []string{"alice", "bob", "outsider"} {
+		testutils.InsertTestUser(t, id)
+	}
+	testutils.InsertTestGroup(t, "g", "app1")
+	testutils.InsertTestGroupMembership(t, "alice", "g")
+	testutils.InsertTestGroupMembership(t, "bob", "g")
+	check := func(want map[string]map[string]string) {
+		t.Helper()
+		for id, claims := range want {
+			got, err := userclaim.EffectiveClaimMapByUserID(id)
+			require.NoError(t, err)
+			require.Equal(t, claims, got, id)
+		}
+	}
+	for _, value := range []string{"viewer", "editor"} {
+		require.NoError(t, groupclaim.UpsertClaim("g", "role", value))
+		check(map[string]map[string]string{
+			"alice": {"app1.role": value}, "bob": {"app1.role": value}, "outsider": {},
+		})
+	}
+	// Defaults remain in group_claims; no user assignments are materialized.
+	var directCount int
+	require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM user_claims`).Scan(&directCount))
+	require.Zero(t, directCount)
+	require.NoError(t, userclaim.UpsertClaim("alice", "app1.role", "owner"))
+	require.NoError(t, group.DeleteGroup("g"))
+	check(map[string]map[string]string{"alice": {"app1.role": "owner"}, "bob": {}, "outsider": {}})
 }
