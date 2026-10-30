@@ -12,6 +12,7 @@ interface UserClaimsDrawerProps {
   onClose: () => void;
 }
 
+/** Edits individual claims, including full-name overrides of inherited group claims. */
 export default function UserClaimsDrawer({
   open,
   userId,

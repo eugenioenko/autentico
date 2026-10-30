@@ -28,6 +28,10 @@ interface ClaimsDrawerProps {
   onClose: () => void;
 }
 
+/**
+ * Edits an owner's direct claim assignments, preserving drafts on failed saves.
+ * An optional group prefix changes the emitted-name preview; saves use local names.
+ */
 export default function ClaimsDrawer({
   open,
   title,
@@ -50,6 +54,7 @@ export default function ClaimsDrawer({
     setValue("");
   };
 
+  /** Upserts a trimmed name and literal value, clearing the draft after success. */
   const handleAdd = async () => {
     if (!name.trim()) return;
     try {
@@ -64,6 +69,7 @@ export default function ClaimsDrawer({
     }
   };
 
+  /** Removes the selected assignment and reports a failed removal to the admin. */
   const handleDelete = async (claimName: string) => {
     try {
       await onRemove(claimName);

@@ -6,6 +6,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// ClaimsByGroupID lists a group's local claims in name order, without token prefixes.
+// It returns an empty slice when no assignments exist and propagates storage errors.
 func ClaimsByGroupID(groupID string) ([]GroupClaimResponse, error) {
 	rows, err := db.GetDB().Query(`SELECT claim_name, claim_value, updated_at
 		FROM group_claims WHERE group_id = ? ORDER BY claim_name`, groupID)

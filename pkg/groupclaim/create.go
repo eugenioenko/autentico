@@ -7,6 +7,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// UpsertClaim saves one local claim, replacing its value if the name already exists.
+// The caller validates the payload; the database enforces group ownership.
 func UpsertClaim(groupID, name, value string) error {
 	_, err := db.GetDB().Exec(`INSERT INTO group_claims (group_id, claim_name, claim_value) VALUES (?, ?, ?)
 		ON CONFLICT(group_id, claim_name) DO UPDATE SET

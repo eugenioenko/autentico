@@ -6,6 +6,7 @@ import {
 } from "../api/groupClaims";
 import type { UserClaimRequest } from "../types/userClaim";
 
+/** Loads local claims only while a group is selected and loading is enabled. */
 export function useGroupClaims(groupId: string | null, enabled = true) {
   return useQuery({
     queryKey: ["group-claims", groupId],
@@ -14,6 +15,7 @@ export function useGroupClaims(groupId: string | null, enabled = true) {
   });
 }
 
+/** Upserts a group claim and refreshes the selected group's cached assignments. */
 export function useUpsertGroupClaim() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -32,6 +34,7 @@ export function useUpsertGroupClaim() {
   });
 }
 
+/** Removes a group claim and refreshes that group's cached assignments. */
 export function useDeleteGroupClaim() {
   const queryClient = useQueryClient();
   return useMutation({

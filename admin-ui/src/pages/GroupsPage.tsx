@@ -229,6 +229,7 @@ function GroupMembersView({
   );
 }
 
+/** Manages group details, membership, and group-local custom claim assignments. */
 export default function GroupsPage() {
   const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);

@@ -11,6 +11,7 @@ interface GroupClaimsDrawerProps {
   onClose: () => void;
 }
 
+/** Connects the shared editor to one group's local claims and emitted-name prefix. */
 export default function GroupClaimsDrawer({ group, onClose }: GroupClaimsDrawerProps) {
   const { data, isLoading, isError } = useGroupClaims(group?.id ?? null);
   const upsert = useUpsertGroupClaim();

@@ -29,9 +29,8 @@ func ClaimsByUserID(userID string) ([]UserClaimResponse, error) {
 	return claims, rows.Err()
 }
 
-// ClaimMapByUserID returns a user's custom claims as a name -> value map.
-// Used for embedding claims in tokens and the UserInfo response, mirroring
-// group.GroupNamesByUserID.
+// ClaimMapByUserID returns only directly assigned custom claims as a name -> value map.
+// Token and UserInfo callers use EffectiveClaimMapByUserID to include group defaults.
 func ClaimMapByUserID(userID string) (map[string]string, error) {
 	query := `SELECT claim_name, claim_value FROM user_claims WHERE user_id = ?`
 	rows, err := db.GetDB().Query(query, userID)

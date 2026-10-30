@@ -13,6 +13,8 @@ type GroupClaimResponse = userclaim.UserClaimResponse
 
 var localClaimNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_.:/-]*$`)
 
+// ValidateGroupClaimRequest checks bounded local names and literal string values.
+// Reserved local words are allowed because emitted keys always include a group prefix.
 func ValidateGroupClaimRequest(input GroupClaimRequest) error {
 	// OIDC Core §5.1.2: group-local names are always emitted as group.claim;
 	// role/email/etc. are safe here because they cannot replace a top-level claim.

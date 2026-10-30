@@ -6,6 +6,8 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// DeleteClaim removes one local assignment from its group.
+// It reports a missing claim separately from a storage failure.
 func DeleteClaim(groupID, name string) error {
 	result, err := db.GetDB().Exec(`DELETE FROM group_claims WHERE group_id = ? AND claim_name = ?`, groupID, name)
 	if err != nil {
