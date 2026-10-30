@@ -62,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
             icon={item.icon}
             label={item.label}
             active={location.pathname === item.to}
+            onClose={onClose}
           />
         ))}
       </nav>
