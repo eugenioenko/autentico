@@ -67,6 +67,8 @@ When retention is set to `0` or empty, audit events are not recorded at all. The
 | `group_deleted` | group | Group deleted |
 | `group_member_added` | group | User added to a group; detail includes `user_id` |
 | `group_member_removed` | group | User removed from a group; detail includes `user_id` |
+| `group_claim_upserted` | group | Group claim created or updated; detail includes local `claim_name`, never its value |
+| `group_claim_deleted` | group | Group claim deleted; detail includes local `claim_name`, never its value |
 | `user_claim_upserted` | user | Custom claim created or updated; detail includes `claim_name` |
 | `user_claim_deleted` | user | Custom claim deleted; detail includes `claim_name` |
 

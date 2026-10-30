@@ -29,9 +29,8 @@ func ClaimsByUserID(userID string) ([]UserClaimResponse, error) {
 	return claims, rows.Err()
 }
 
-// ClaimMapByUserID returns a user's custom claims as a name -> value map.
-// Used for embedding claims in tokens and the UserInfo response, mirroring
-// group.GroupNamesByUserID.
+// ClaimMapByUserID returns only directly assigned custom claims as a name -> value map.
+// Token and UserInfo callers use EffectiveClaimMapByUserID to include group defaults.
 func ClaimMapByUserID(userID string) (map[string]string, error) {
 	query := `SELECT claim_name, claim_value FROM user_claims WHERE user_id = ?`
 	rows, err := db.GetDB().Query(query, userID)
@@ -49,6 +48,39 @@ func ClaimMapByUserID(userID string) (map[string]string, error) {
 		result[name] = value
 	}
 	return result, rows.Err()
+}
+
+// EffectiveClaimMapByUserID resolves group.claim defaults followed by individual
+// overrides in one database snapshot. Direct admin claim listings stay unchanged.
+func EffectiveClaimMapByUserID(userID string) (map[string]string, error) {
+	rows, err := db.GetDB().Query(`
+		SELECT claim_name, claim_value FROM (
+			SELECT g.name || '.' || gc.claim_name AS claim_name, gc.claim_value, 0 AS priority
+			FROM group_claims gc
+			JOIN groups g ON g.id = gc.group_id
+			JOIN user_groups ug ON ug.group_id = gc.group_id
+			WHERE ug.user_id = ?
+			UNION ALL
+			SELECT claim_name, claim_value, 1 AS priority FROM user_claims WHERE user_id = ?
+		) ORDER BY priority, claim_name`, userID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve effective claims: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	claims := make(map[string]string)
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, fmt.Errorf("failed to scan effective claim: %w", err)
+		}
+		// OIDC Core §5.1.2: protect standard claims even from invalid stored rows,
+		// including standard claims absent from the current scope's response.
+		if !IsReservedClaimName(name) {
+			claims[name] = value
+		}
+	}
+	return claims, rows.Err()
 }
 
 // ClaimMapByUserIDs returns custom claims for several users at once, keyed by

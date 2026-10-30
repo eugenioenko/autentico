@@ -682,6 +682,22 @@ definitions:
       name:
         type: string
     type: object
+  groupclaim.GroupClaimRequest:
+    properties:
+      name:
+        type: string
+      value:
+        type: string
+    type: object
+  groupclaim.GroupClaimResponse:
+    properties:
+      name:
+        type: string
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
   health.HealthResponse:
     properties:
       database:
@@ -760,6 +776,10 @@ definitions:
         description: 'RFC 7662 §2.2: OPTIONAL. Human-readable resource owner identifier.'
         type: string
     type: object
+  map_string_string:
+    additionalProperties:
+      type: string
+    type: object
   model.ApiError:
     properties:
       code:
@@ -776,10 +796,26 @@ definitions:
       error:
         $ref: '#/definitions/model.ApiError'
     type: object
+  model.ApiResponse-array_groupclaim_GroupClaimResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/groupclaim.GroupClaimResponse'
+        type: array
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
   model.ApiResponse-forwardauth_App:
     properties:
       data:
         $ref: '#/definitions/forwardauth.App'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
+  model.ApiResponse-map_string_string:
+    properties:
+      data:
+        $ref: '#/definitions/map_string_string'
       error:
         $ref: '#/definitions/model.ApiError'
     type: object
@@ -2749,6 +2785,116 @@ paths:
       summary: Update a group
       tags:
       - admin-groups
+  /admin/api/groups/{id}/claims:
+    get:
+      description: Lists local names; members receive them as literal group.claim
+        keys with the custom_claims scope.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-array_groupclaim_GroupClaimResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: List custom claims for a group
+      tags:
+      - admin-group-claims
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Custom claim payload
+        in: body
+        name: claim
+        required: true
+        schema:
+          $ref: '#/definitions/groupclaim.GroupClaimRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ApiResponse-map_string_string'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Create or update a custom claim for a group
+      tags:
+      - admin-group-claims
+  /admin/api/groups/{id}/claims/{name}:
+    delete:
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Claim name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-map_string_string'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Delete a custom claim from a group
+      tags:
+      - admin-group-claims
   /admin/api/groups/{id}/members:
     get:
       parameters:

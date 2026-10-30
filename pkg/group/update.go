@@ -6,7 +6,13 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// UpdateGroup validates proposed changes before loading or modifying a group.
+// Empty fields retain their current values; invalid input leaves the group unchanged.
 func UpdateGroup(id string, req GroupUpdateRequest) error {
+	// Group custom claims §2: renames must preserve dot-free claim namespaces.
+	if err := ValidateGroupUpdateRequest(req); err != nil {
+		return err
+	}
 	g, err := GroupByID(id)
 	if err != nil {
 		return err

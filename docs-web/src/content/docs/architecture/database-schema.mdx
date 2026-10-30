@@ -3,7 +3,7 @@ title: Database Schema
 description: The SQLite database schema used by Autentico.
 ---
 
-Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 22). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
+Autentico uses a single SQLite database file. Schema versioning uses SQLite's built-in `PRAGMA user_version`. The current schema version is defined as `SchemaVersion` in `pkg/db/migrations/migrations.go` (currently version 23). Fresh databases run all migrations from scratch; existing databases run only pending ones. Routine migrations run automatically on startup; major migrations require explicit approval through `autentico migrate`. See [the v3 migration guide](/deployment/migrations/) for key preparation, backups and recovery.
 
 ## Tables
 
@@ -364,6 +364,14 @@ Custom per-user claims emitted when the `custom_claims` scope is granted. Added 
 
 Composite primary key on `(user_id, claim_name)` -- one row per pair.
 
+### `group_claims`
+
+Group-local custom claims, added in routine migration 23. Columns are `group_id`
+(foreign key to groups with `ON DELETE CASCADE`), `claim_name`, `claim_value`,
+`created_at`, and `updated_at`. The primary key is `(group_id, claim_name)`.
+Members inherit these as `group.claim` keys; individual claims with the same
+full key take precedence. Existing user rows are unchanged.
+
 ## Migrations
 
 | Version | File | Description |
@@ -388,6 +396,10 @@ Composite primary key on `(user_id, claim_name)` -- one row per pair.
 | 18 | `018_browser_mfa.go` | Records completed local MFA evidence on browser sessions |
 | 19 | `019_federation_login_flows.go` | Adds indexed browser-bound single-use federation flows without changing credentials |
 | 20 | `020_trusted_device_hashes.go` | Hashes trusted-device cookies and assigns public management IDs, preserving existing trust and expiration |
+
+| 21 | `021_forward_auth.go` | Adds protected applications and proxy sessions |
+| 22 | `022_federation_claim_requirements.go` | Adds provider admission claim requirements |
+| 23 | `023_group_claims.go` | Adds group-local custom claims inherited through memberships |
 
 ## Indexes
 

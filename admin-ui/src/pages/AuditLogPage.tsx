@@ -65,6 +65,8 @@ const EVENT_OPTIONS = [
   { label: "Group Deleted", value: "group_deleted" },
   { label: "Group Member Added", value: "group_member_added" },
   { label: "Group Member Removed", value: "group_member_removed" },
+  { label: "Group Claim Upserted", value: "group_claim_upserted" },
+  { label: "Group Claim Deleted", value: "group_claim_deleted" },
   { label: "User Claim Upserted", value: "user_claim_upserted" },
   { label: "User Claim Deleted", value: "user_claim_deleted" },
 ];
@@ -103,6 +105,8 @@ const EVENT_COLORS: Record<string, string> = {
   group_deleted: "error",
   group_member_added: "processing",
   group_member_removed: "warning",
+  group_claim_upserted: "processing",
+  group_claim_deleted: "warning",
   user_claim_upserted: "processing",
   user_claim_deleted: "warning",
 };

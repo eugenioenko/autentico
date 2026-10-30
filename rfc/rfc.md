@@ -372,7 +372,7 @@ RFC 9700 §4.8.2: reject a verifier without an original challenge before consumi
 | §5.4 | Claims in access token must respect scope | `pkg/token/generate.go` — ✅ Fixed (PR #108) |
 | §5.4 | MAY include email claims in ID token when `email` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added (issue #220) |
 | §5.4 | MAY include `given_name`, `family_name` in ID token when `profile` scope requested | `pkg/token/generate.go` `GenerateIDToken` — ✅ Added |
-| §5.1.2 | Additional (non-standard) claims MAY be used alongside standard claims; collision-resistant / private names RECOMMENDED | `pkg/userclaim` — custom claims gated behind `custom_claims` scope; every name in the IANA JWT Claims registry (identity/security/authz) is rejected on write; the name pattern also permits namespaced URIs. ✅ Added (issue #388) |
+| §5.1.2 | Additional (non-standard) claims MAY be used alongside standard claims; collision-resistant / private names RECOMMENDED | `pkg/userclaim` + `pkg/groupclaim` — individual and group-inherited (`group.claim`) custom claims gated behind `custom_claims` scope; reserved top-level names are rejected on individual writes and filtered on emission; local group names are prefixed; the name pattern also permits namespaced URIs. ✅ Added (issue #388) |
 | RFC 9068 §2.2.2 | AS MAY return arbitrary attributes in access tokens for private-subsystem / scope-gated use | `pkg/token/generate.go` `GenerateTokens` — custom claims emitted only when `custom_claims` scope granted; never override a claim already set. ✅ Added (issue #388) |
 | §5.1 | Claims with empty values are omitted, not returned as null | `pkg/token/generate.go` `GenerateIDToken` — ✅ Enforced for `given_name`, `family_name` |
 | RFC 9068 §2.2 | Access tokens SHOULD NOT carry personal data not needed for authorization | `pkg/token/generate.go` `GenerateTokens` — ✅ `given_name`/`family_name` removed from access token; available via ID token and UserInfo |
@@ -1043,3 +1043,11 @@ RFC 6265 §4.1.1 token syntax is checked for new name/prefix settings before boo
 | Local policy | OIDC Core §3.1.2.3 | Apply configured provider admission requirements before local authentication side effects | Current JSON rules apply to new and linked identities before account/link/session/code creation. Invalid policies fail closed; denials expose no comparison values. |
 
 This optional local admission policy adds no OIDC discovery capability or grant. Schema 22 is additive; existing providers default to no requirements. The admin draft tester uses the same matcher but never verifies JWTs or issues credentials. Existing sessions and other authentication methods remain outside this policy. See [the decision and limits](federation-claim-requirements.md).
+
+### Group-inherited custom claims (#586)
+
+| Requirement | Implementation |
+|---|---|
+| OIDC Core §5.1.2: additional private claims MAY accompany standard claims | Group-local string claims emit as literal `group.claim` keys; individual full-name matches override them; reserved top-level claims stay protected. |
+| OIDC Core §5.3.2 / §5.4: additional UserInfo claims and scope-controlled release | One effective resolver serves access tokens, ID tokens, and live UserInfo only under the existing `custom_claims` scope. Discovery and `groups` scope remain unchanged. |
+| Local feature contract | `rfc/group-custom-claims.md`; routine migration 23, admin CRUD/UI, value-free auditing, current-data resolution, JWT snapshot semantics. |

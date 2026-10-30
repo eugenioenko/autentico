@@ -225,6 +225,7 @@ Each feature package in `pkg/` follows a consistent pattern:
 | `pkg/token` | `/oauth2/token` — code exchange, refresh token grant, ROPC, client credentials |
 | `pkg/trusteddevice` | Trusted device tokens — MFA bypass cookie management |
 | `pkg/user` | User CRUD, bcrypt password hashing, account lockout, TOTP secret storage |
+| `pkg/groupclaim` | Group-local custom claims — admin CRUD, inherited as `group.claim` |
 | `pkg/userclaim` | Custom per-user claims — admin CRUD + merge into tokens/UserInfo when `custom_claims` scope granted |
 | `pkg/userinfo` | `/oauth2/userinfo` endpoint |
 | `pkg/utils` | Shared helpers: response writers, bearer token extraction, redirect URI validation, SHA-256 hashing, client IP |
@@ -483,3 +484,25 @@ Routine schema 22 adds `federation_providers.claim_requirements` JSON TEXT with 
 The callback checks after verified ID-token/nonce validation and before resolveUser. It reloads the provider after upstream exchange, rejects disabled/changed upstream credentials or invalid stored policy, and evaluates current rules for new and linked users. Logs expose only provider/index/category, never values or tokens. Admin responses omit requirements for malformed stored policies, expose a safe error marker and permit explicit repair; unrelated edits and echoed GET responses must not clear invalid rules. Provider create/update retain permissive top-level metadata decoding; rule objects and tester payloads remain strict. Blank/omitted client secrets preserve the existing secret on update.
 
 `POST /admin/api/federation/test-claim-requirements` is admin-only and read-only, with a 64 KiB input bound and duplicate top-level sample-key rejection. Logical errors return failed rows; malformed payloads return 400. It uses no provider network access, persistence, accounts, sessions or issuance. The UI calls Go for validation/matching, preserves boolean false and warns this is not JWT verification. The isolated real-proxy Playwright suite covers admin creation/editing/testing; the two-process functional suite covers live login and policy changes. Admission rules do not revoke existing sessions, affect other login methods, or configure issued-token claims.
+
+## Group custom claims (#586)
+
+Routine schema 23 adds `group_claims` with `(group_id, claim_name)` as its key
+and cascading group ownership. Admin GET/POST/DELETE endpoints at
+`/admin/api/groups/{id}/claims` mirror user claims. Group-local reserved words
+such as `role` are allowed because `userclaim.EffectiveClaimMapByUserID` emits
+literal `group.claim` keys. It resolves membership and direct overrides in one
+query, filters reserved top-level names, and serves access tokens, ID tokens,
+and UserInfo under `custom_claims`; the independent `groups` scope is unchanged.
+Direct user listings still show only direct claims. Individual group-prefixed
+keys allow leading digits/hyphens and up to 229 characters for any valid group
+prefix. Group local names remain 128 characters and values 4096 Unicode
+characters. Group renames change emitted prefixes; old JWTs remain snapshots.
+The shared Admin UI ClaimsDrawer supports both user and group wrappers. Group
+claim audit events target groups and include only the local claim name.
+Contract: `rfc/group-custom-claims.md`.
+
+The isolated UI regression suite runs with a freshly built binary:
+`AUTENTICO_TEST_BINARY=/absolute/path/autentico node node_modules/@playwright/test/cli.js test --config group-claims.config.ts`
+from `tests/browser`. It uses a temporary working directory, configuration,
+database, and an available port.

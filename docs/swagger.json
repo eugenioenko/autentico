@@ -2281,6 +2281,177 @@
                 }
             }
         },
+        "/admin/api/groups/{id}/claims": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Lists local names; members receive them as literal group.claim keys with the custom_claims scope.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-group-claims"
+                ],
+                "summary": "List custom claims for a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-array_groupclaim_GroupClaimResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-group-claims"
+                ],
+                "summary": "Create or update a custom claim for a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Custom claim payload",
+                        "name": "claim",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/groupclaim.GroupClaimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-map_string_string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/groups/{id}/claims/{name}": {
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-group-claims"
+                ],
+                "summary": "Delete a custom claim from a group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Claim name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-map_string_string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/groups/{id}/members": {
             "get": {
                 "security": [
@@ -5684,6 +5855,31 @@
                 }
             }
         },
+        "groupclaim.GroupClaimRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "groupclaim.GroupClaimResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "health.HealthResponse": {
             "type": "object",
             "properties": {
@@ -5797,6 +5993,12 @@
                 }
             }
         },
+        "map_string_string": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "model.ApiError": {
             "type": "object",
             "properties": {
@@ -5822,11 +6024,36 @@
                 }
             }
         },
+        "model.ApiResponse-array_groupclaim_GroupClaimResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/groupclaim.GroupClaimResponse"
+                    }
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
+                }
+            }
+        },
         "model.ApiResponse-forwardauth_App": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/forwardauth.App"
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
+                }
+            }
+        },
+        "model.ApiResponse-map_string_string": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/map_string_string"
                 },
                 "error": {
                     "$ref": "#/definitions/model.ApiError"
