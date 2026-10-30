@@ -15,13 +15,17 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--binary", required=True, type=Path)
 parser.add_argument("--runtime-image", default="debian:bookworm-slim")
-target_schema = 22
 args = parser.parse_args()
 if os.getuid() == 0:
     parser.error(
         "Run as a non-root host user to verify service startup after a root migration."
     )
 root = Path(__file__).resolve().parents[2]
+schema_source = (root / "pkg/db/migrations/migrations.go").read_text()
+schema_match = re.search(r"(?m)^var SchemaVersion = (\d+)$", schema_source)
+if schema_match is None:
+    raise RuntimeError("Could not determine the current schema version")
+target_schema = int(schema_match.group(1))
 temp = Path(tempfile.mkdtemp(prefix="autentico-445-container-"))
 data = temp / "data"
 data.mkdir()
@@ -150,6 +154,7 @@ try:
     )
     db = sqlite3.connect(dbpath)
     assert db.execute("PRAGMA user_version").fetchone()[0] == target_schema
+    assert db.execute("SELECT count(*) FROM group_claims").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM federation_login_flows").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_federation_login_flows_expiry'").fetchone()[0] == 1
     assert db.execute("SELECT count(*) FROM tokens").fetchone()[0] == 0
