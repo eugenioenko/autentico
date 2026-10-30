@@ -9,6 +9,10 @@ import (
 )
 
 func CreateGroup(name, description string) (*GroupResponse, error) {
+	// Group custom claims §2: all callers must preserve dot-free namespaces.
+	if err := ValidateGroupCreateRequest(GroupCreateRequest{Name: name, Description: description}); err != nil {
+		return nil, err
+	}
 	id := xid.New().String()
 	var createdAt, updatedAt time.Time
 

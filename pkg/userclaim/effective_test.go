@@ -120,3 +120,24 @@ func TestGroupClaimChangesReachAllMembersWithoutCopying(t *testing.T) {
 	require.NoError(t, group.DeleteGroup("g"))
 	check(map[string]map[string]string{"alice": {"app1.role": "owner"}, "bob": {}, "outsider": {}})
 }
+
+func TestGroupWritesPreventInheritedNamespaceCollisions(t *testing.T) {
+	testutils.WithTestDB(t)
+	testutils.InsertTestUser(t, "alice")
+	a, err := group.CreateGroup("a", "")
+	require.NoError(t, err)
+	other, err := group.CreateGroup("other", "")
+	require.NoError(t, err)
+	for _, id := range []string{a.ID, other.ID} {
+		require.NoError(t, group.AddMember(id, "alice"))
+	}
+	require.NoError(t, groupclaim.UpsertClaim(a.ID, "b.c", "first"))
+	require.NoError(t, groupclaim.UpsertClaim(other.ID, "c", "second"))
+	// A dotted group name would make both claims emit a.b.c with equal priority.
+	_, err = group.CreateGroup("a.b", "")
+	require.Error(t, err)
+	require.Error(t, group.UpdateGroup(other.ID, group.GroupUpdateRequest{Name: "a.b"}))
+	got, err := userclaim.EffectiveClaimMapByUserID("alice")
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"a.b.c": "first", "other.c": "second"}, got)
+}
