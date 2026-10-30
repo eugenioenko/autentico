@@ -21,7 +21,7 @@ import {
   UserDeleteOutlined,
   TeamOutlined,
   ArrowLeftOutlined,
-  TagsOutlined,
+  IdcardOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { SorterResult } from "antd/es/table/interface";
@@ -386,7 +386,7 @@ export default function GroupsPage() {
               type="text"
               size="small"
               aria-label="Manage group claims"
-              icon={<TagsOutlined />}
+              icon={<IdcardOutlined />}
               onClick={() => setClaimsGroup(record)}
             />
           </Tooltip>
