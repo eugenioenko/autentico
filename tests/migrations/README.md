@@ -63,3 +63,5 @@ creates its own temporary data and Compose project and cleans them up afterward.
 An existing compatible runtime image can be supplied with `--runtime-image`.
 
 Schema 21 adds protected applications and app-scoped ForwardAuth sessions without changing existing credentials. Black-box routine-upgrade coverage checks both WAL and rollback journals and preserves users, settings and active central sessions.
+
+Schema 22 adds checked JSON claim requirements to federation providers, defaulting existing rows to `[]`. The real-CLI upgrade regression covers WAL and rollback journals, preserves provider secrets and ordering without routine backups, and rejects malformed/non-array storage.

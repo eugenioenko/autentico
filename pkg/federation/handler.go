@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -248,6 +249,37 @@ func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if idToken.Nonce != state.FlowID {
 		slog.Warn("federation: upstream nonce mismatch", "request_id", reqid.Get(r.Context()), "provider_id", providerID)
 		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
+	// OIDC Core §3.1.3.7: evaluate only the verified ID token, after nonce
+	// checks and before resolveUser, local sessions or authorization codes.
+	var rawClaims json.RawMessage
+	if err := idToken.Claims(&rawClaims); err != nil {
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
+	claimObject, err := decodeClaimObject(rawClaims)
+	if err != nil {
+		slog.Warn("federation: invalid claim object", "provider_id", providerID, "category", "invalid_claims")
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
+	// Upstream I/O can outlive an administrator's policy change. Re-read the
+	// current rules, and reject identity/credential changes during exchange.
+	current, err := FederationProviderByID(providerID)
+	if err != nil || !current.Enabled || current.Issuer != provider.Issuer || current.ClientID != provider.ClientID || current.ClientSecret != provider.ClientSecret || current.ClaimRequirementsError != "" {
+		slog.Warn("federation: claim policy unavailable", "provider_id", providerID, "category", "invalid_provider_configuration")
+		http.Error(w, "federated login is not permitted", http.StatusForbidden)
+		return
+	}
+	result := EvaluateClaimRequirements(current.ClaimRequirements, claimObject)
+	if !result.Passed {
+		for _, row := range result.Results {
+			if !row.Passed {
+				slog.Warn("federation: claim requirement rejected", "provider_id", providerID, "rule_index", row.Index, "category", row.Reason)
+			}
+		}
+		http.Error(w, "federated login is not permitted", http.StatusForbidden)
 		return
 	}
 

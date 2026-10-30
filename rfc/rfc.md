@@ -1033,3 +1033,13 @@ The [protocol decision](forward-auth-cross-domain.md) extends the same code/PKCE
 ## Configurable cookie names (#575)
 
 RFC 6265 §4.1.1 token syntax is checked for new name/prefix settings before bootstrap publication; invalid or colliding namespaces fail startup. Configuration changes names only: RFC 6265 §§4.1.2.4–6 path, Secure and HttpOnly semantics stay intact. Existing host-prefixed browser bindings and HTTPS ForwardAuth cookies retain Secure, Path=/ and no Domain; supplied base names cannot weaken prefix requirements. Default names remain unchanged, while configured names govern setting, reading and deletion. CSRF tokens and browser-bound authorization/passkey proofs still require their matching configured cookie. ForwardAuth withholds current and historical default credential names from backend requests (RFC 6265 §8.5 cookies do not isolate ports). No OAuth grant, discovery or schema capability changes.
+
+## Federation claim admission (#579)
+
+| Keyword | Section | Requirement | Status |
+|---|---|---|---|
+| MUST | OIDC Core §3.1.3.7 | Validate the upstream ID token and requested nonce before using its claims | Existing verifier and nonce check precede the shared claim matcher. |
+| MUST | RFC 7519 §4 / OIDC Core §2 | Compare case-sensitive claim names without implicit coercion | Literal top-level lookup; strict string/boolean types; missing/null/wrong types fail even negative operators. |
+| Local policy | OIDC Core §3.1.2.3 | Apply configured provider admission requirements before local authentication side effects | Current JSON rules apply to new and linked identities before account/link/session/code creation. Invalid policies fail closed; denials expose no comparison values. |
+
+This optional local admission policy adds no OIDC discovery capability or grant. Schema 22 is additive; existing providers default to no requirements. The admin draft tester uses the same matcher but never verifies JWTs or issues credentials. Existing sessions and other authentication methods remain outside this policy. See [the decision and limits](federation-claim-requirements.md).

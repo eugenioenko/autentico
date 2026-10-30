@@ -616,6 +616,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/api/federation/test-claim-requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test draft federation claim requirements
+         * @description Read-only claims matcher using the login evaluator. Does not verify JWTs, contact providers, persist samples or issue credentials. Samples must be JSON objects; at most 32 rules and 64 KiB total input. Row indices are zero-based.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description Draft rules and sample claims */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["federation.ClaimTestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["federation.ClaimTestResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["model.ApiError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/api/federation/{id}": {
         parameters: {
             query?: never;
@@ -2594,7 +2665,30 @@ export interface components {
             requested_at?: string;
             user_id?: string;
         };
+        "federation.ClaimRequirement": {
+            claim?: string;
+            /** @enum {string} */
+            match?: "equals" | "not_equals" | "regex" | "not_regex";
+            /** @description Value must be a JSON string or boolean. Regex operators require a string. */
+            value?: unknown;
+        };
+        "federation.ClaimRuleResult": {
+            claim?: string;
+            index?: number;
+            match?: string;
+            passed?: boolean;
+            reason?: string;
+        };
+        "federation.ClaimTestRequest": {
+            claim_requirements?: components["schemas"]["federation.ClaimRequirement"][];
+            claims?: Record<string, unknown>;
+        };
+        "federation.ClaimTestResult": {
+            passed?: boolean;
+            results?: components["schemas"]["federation.ClaimRuleResult"][];
+        };
         "federation.FederationProviderRequest": {
+            claim_requirements?: components["schemas"]["federation.ClaimRequirement"][];
             client_id?: string;
             client_secret?: string;
             enabled?: boolean;
@@ -2605,6 +2699,8 @@ export interface components {
             sort_order?: number;
         };
         "federation.ProviderResponse": {
+            claim_requirements?: components["schemas"]["federation.ClaimRequirement"][];
+            claim_requirements_error?: string;
             client_id?: string;
             enabled?: boolean;
             icon_svg?: string;

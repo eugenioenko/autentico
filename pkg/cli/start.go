@@ -236,6 +236,7 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	mux.Handle("DELETE /admin/api/idp-sessions/{id}", adminAPI(idpsession.HandleForceLogoutIdpSession))
 	mux.Handle("GET /admin/api/federation", adminAPI(federation.HandleListProviders))
 	mux.Handle("POST /admin/api/federation", adminAPI(federation.HandleCreateProvider))
+	mux.Handle("POST /admin/api/federation/test-claim-requirements", adminAPI(federation.HandleTestClaimRequirements))
 	mux.Handle("GET /admin/api/federation/{id}", adminAPI(federation.HandleGetProvider))
 	mux.Handle("PUT /admin/api/federation/{id}", adminAPI(federation.HandleUpdateProvider))
 	mux.Handle("DELETE /admin/api/federation/{id}", adminAPI(federation.HandleDeleteProvider))

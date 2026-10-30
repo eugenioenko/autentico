@@ -511,8 +511,58 @@ definitions:
       verification_uri_complete:
         type: string
     type: object
+  federation.ClaimRequirement:
+    properties:
+      claim:
+        type: string
+      match:
+        enum:
+        - equals
+        - not_equals
+        - regex
+        - not_regex
+        type: string
+      value:
+        description: Value must be a JSON string or boolean. Regex operators require
+          a string.
+    type: object
+  federation.ClaimRuleResult:
+    properties:
+      claim:
+        type: string
+      index:
+        type: integer
+      match:
+        type: string
+      passed:
+        type: boolean
+      reason:
+        type: string
+    type: object
+  federation.ClaimTestRequest:
+    properties:
+      claim_requirements:
+        items:
+          $ref: '#/definitions/federation.ClaimRequirement'
+        type: array
+      claims:
+        type: object
+    type: object
+  federation.ClaimTestResult:
+    properties:
+      passed:
+        type: boolean
+      results:
+        items:
+          $ref: '#/definitions/federation.ClaimRuleResult'
+        type: array
+    type: object
   federation.FederationProviderRequest:
     properties:
+      claim_requirements:
+        items:
+          $ref: '#/definitions/federation.ClaimRequirement'
+        type: array
       client_id:
         type: string
       client_secret:
@@ -532,6 +582,12 @@ definitions:
     type: object
   federation.ProviderResponse:
     properties:
+      claim_requirements:
+        items:
+          $ref: '#/definitions/federation.ClaimRequirement'
+        type: array
+      claim_requirements_error:
+        type: string
       client_id:
         type: string
       enabled:
@@ -2504,6 +2560,45 @@ paths:
       security:
       - AdminAuth: []
       summary: Update a federation provider
+      tags:
+      - admin-federation
+  /admin/api/federation/test-claim-requirements:
+    post:
+      consumes:
+      - application/json
+      description: Read-only claims matcher using the login evaluator. Does not verify
+        JWTs, contact providers, persist samples or issue credentials. Samples must
+        be JSON objects; at most 32 rules and 64 KiB total input. Row indices are
+        zero-based.
+      parameters:
+      - description: Draft rules and sample claims
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/federation.ClaimTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/federation.ClaimTestResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: Test draft federation claim requirements
       tags:
       - admin-federation
   /admin/api/groups:

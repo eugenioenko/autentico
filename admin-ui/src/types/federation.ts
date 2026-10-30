@@ -1,4 +1,9 @@
+export type ClaimRequirement = { claim: string; match: 'equals' | 'not_equals' | 'regex' | 'not_regex'; value: string | boolean };
+export type ClaimTestResult = { passed: boolean; results: { index: number; claim: string; match: string; passed: boolean; reason: string }[] };
+
 export interface FederationProvider {
+  claim_requirements?: ClaimRequirement[];
+  claim_requirements_error?: string;
   id: string;
   name: string;
   issuer: string;
@@ -9,6 +14,7 @@ export interface FederationProvider {
 }
 
 export interface FederationProviderCreateRequest {
+  claim_requirements?: ClaimRequirement[];
   id: string;
   name: string;
   issuer: string;
@@ -20,6 +26,7 @@ export interface FederationProviderCreateRequest {
 }
 
 export interface FederationProviderUpdateRequest {
+  claim_requirements?: ClaimRequirement[];
   name: string;
   issuer: string;
   client_id: string;

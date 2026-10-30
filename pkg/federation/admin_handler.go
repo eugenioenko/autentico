@@ -2,6 +2,7 @@ package federation
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -57,8 +58,12 @@ func HandleListProviders(w http.ResponseWriter, r *http.Request) {
 // @Router /admin/api/federation [post]
 func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	var req FederationProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if !decodeProviderBody(w, r, &req, 256*1024, false) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		return
+	}
+	if err := ValidateClaimRequirements(req.ClaimRequirements); err != nil {
+		utils.WriteErrorResponse(w, 400, "invalid_request", err.Error())
 		return
 	}
 
@@ -73,13 +78,14 @@ func HandleCreateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := FederationProvider{
-		ID:           req.ID,
-		Name:         req.Name,
-		Issuer:       req.Issuer,
-		ClientID:     req.ClientID,
-		ClientSecret: req.ClientSecret,
-		Enabled:      enabled,
-		SortOrder:    req.SortOrder,
+		ClaimRequirements: req.ClaimRequirements,
+		ID:                req.ID,
+		Name:              req.Name,
+		Issuer:            req.Issuer,
+		ClientID:          req.ClientID,
+		ClientSecret:      req.ClientSecret,
+		Enabled:           enabled,
+		SortOrder:         req.SortOrder,
 	}
 	if req.IconSVG != "" {
 		p.IconSVG.String = req.IconSVG
@@ -145,8 +151,12 @@ func HandleUpdateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req FederationProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if !decodeProviderBody(w, r, &req, 256*1024, false) {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid JSON payload")
+		return
+	}
+	if err := ValidateClaimRequirements(req.ClaimRequirements); err != nil {
+		utils.WriteErrorResponse(w, 400, "invalid_request", err.Error())
 		return
 	}
 
@@ -198,23 +208,77 @@ func HandleDeleteProvider(w http.ResponseWriter, r *http.Request) {
 
 // ProviderResponse is the shared response shape for federation provider endpoints.
 type ProviderResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Issuer    string `json:"issuer"`
-	ClientID  string `json:"client_id"`
-	IconSVG   string `json:"icon_svg"`
-	Enabled   bool   `json:"enabled"`
-	SortOrder int    `json:"sort_order"`
+	ClaimRequirements      *ClaimRequirements `json:"claim_requirements,omitempty"`
+	ClaimRequirementsError string             `json:"claim_requirements_error,omitempty"`
+	ID                     string             `json:"id"`
+	Name                   string             `json:"name"`
+	Issuer                 string             `json:"issuer"`
+	ClientID               string             `json:"client_id"`
+	IconSVG                string             `json:"icon_svg"`
+	Enabled                bool               `json:"enabled"`
+	SortOrder              int                `json:"sort_order"`
 }
 
 func toProviderResponse(p FederationProvider) ProviderResponse {
-	return ProviderResponse{
-		ID:        p.ID,
-		Name:      p.Name,
-		Issuer:    p.Issuer,
-		ClientID:  p.ClientID,
-		IconSVG:   p.IconSVG.String,
-		Enabled:   p.Enabled,
-		SortOrder: p.SortOrder,
+	var requirements *ClaimRequirements
+	if p.ClaimRequirementsError == "" {
+		if p.ClaimRequirements == nil {
+			p.ClaimRequirements = ClaimRequirements{}
+		}
+		requirements = &p.ClaimRequirements
 	}
+	return ProviderResponse{
+		ClaimRequirements:      requirements,
+		ClaimRequirementsError: p.ClaimRequirementsError,
+		ID:                     p.ID,
+		Name:                   p.Name,
+		Issuer:                 p.Issuer,
+		ClientID:               p.ClientID,
+		IconSVG:                p.IconSVG.String,
+		Enabled:                p.Enabled,
+		SortOrder:              p.SortOrder,
+	}
+}
+
+func decodeProviderBody(w http.ResponseWriter, r *http.Request, into any, limit int64, strict bool) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
+	if strict {
+		dec.DisallowUnknownFields()
+	}
+	dec.UseNumber()
+	return dec.Decode(into) == nil && dec.Decode(&struct{}{}) == io.EOF
+}
+
+type ClaimTestRequest struct {
+	ClaimRequirements ClaimRequirements `json:"claim_requirements"`
+	Claims            json.RawMessage   `json:"claims" swaggertype:"object"`
+}
+
+// HandleTestClaimRequirements godoc
+// @Summary Test draft federation claim requirements
+// @Description Read-only claims matcher using the login evaluator. Does not verify JWTs, contact providers, persist samples or issue credentials. Samples must be JSON objects; at most 32 rules and 64 KiB total input. Row indices are zero-based.
+// @Tags admin-federation
+// @Accept json
+// @Produce json
+// @Security AdminAuth
+// @Param request body ClaimTestRequest true "Draft rules and sample claims"
+// @Success 200 {object} ClaimTestResult
+// @Failure 400 {object} model.ApiError
+// @Failure 401 {object} model.ApiError
+// @Failure 403 {object} model.ApiError
+// @Router /admin/api/federation/test-claim-requirements [post]
+func HandleTestClaimRequirements(w http.ResponseWriter, r *http.Request) {
+	var req ClaimTestRequest
+	// OIDC Core §3.1.3.7: this matcher is not an ID-token verifier. Only
+	// the callback may use its result to proceed with verified authentication.
+	if !decodeProviderBody(w, r, &req, maxRequirementsBytes, true) || req.ClaimRequirements == nil {
+		utils.WriteErrorResponse(w, 400, "invalid_request", "Expected draft claim_requirements array and claims object within 64 KiB")
+		return
+	}
+	claims, err := decodeClaimObject(req.Claims)
+	if err != nil {
+		utils.WriteErrorResponse(w, 400, "invalid_request", err.Error())
+		return
+	}
+	utils.WriteApiResponse(w, EvaluateClaimRequirements(req.ClaimRequirements, claims), 200)
 }

@@ -3,6 +3,8 @@ import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typogra
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useCreateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProviderCreateRequest } from "../../types/federation";
+import ClaimRequirementsEditor from './ClaimRequirementsEditor';
+import { validateClaimRequirements } from '../../api/federation';
 
 interface Props {
   open: boolean;
@@ -32,7 +34,7 @@ export default function FederationCreateForm({ open, onClose }: Props) {
       title="Add Federation Provider"
       open={open}
       onClose={onClose}
-      width={520}
+      width={760}
       extra={
         <Space>
           <Button onClick={onClose}>Cancel</Button>
@@ -70,7 +72,7 @@ export default function FederationCreateForm({ open, onClose }: Props) {
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={{ enabled: true, sort_order: 0 }}
+        initialValues={{ enabled: true, sort_order: 0, claim_requirements: [] }}
       >
         <Form.Item
           name="id"
@@ -126,6 +128,10 @@ export default function FederationCreateForm({ open, onClose }: Props) {
 
         <Form.Item name="icon_svg" label="Icon SVG" extra="Paste SVG markup for the provider button icon (optional).">
           <Input.TextArea rows={3} placeholder='<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>' />
+        </Form.Item>
+
+        <Form.Item name="claim_requirements" label="Claim requirements" validateTrigger={[]} rules={[{ validator: validateClaimRequirements }]}>
+          <ClaimRequirementsEditor />
         </Form.Item>
 
         <Form.Item name="sort_order" label="Sort Order" extra="Lower numbers appear first on the login page.">

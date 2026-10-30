@@ -9,15 +9,17 @@ import (
 
 // FederationProvider represents a registered OIDC identity provider.
 type FederationProvider struct {
-	ID           string
-	Name         string
-	Issuer       string
-	ClientID     string
-	ClientSecret string
-	IconSVG      sql.NullString
-	Enabled      bool
-	SortOrder    int
-	CreatedAt    time.Time
+	ID                     string
+	Name                   string
+	Issuer                 string
+	ClientID               string
+	ClientSecret           string
+	IconSVG                sql.NullString
+	Enabled                bool
+	SortOrder              int
+	CreatedAt              time.Time
+	ClaimRequirements      ClaimRequirements
+	ClaimRequirementsError string
 }
 
 // FederationProviderView is a safe, template-ready representation of a provider.
@@ -59,14 +61,15 @@ type FederationState struct {
 
 // FederationProviderRequest is used for admin create/update API calls.
 type FederationProviderRequest struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Issuer       string `json:"issuer"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	IconSVG      string `json:"icon_svg"`
-	Enabled      *bool  `json:"enabled"`
-	SortOrder    int    `json:"sort_order"`
+	ClaimRequirements ClaimRequirements `json:"claim_requirements,omitzero"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Issuer            string            `json:"issuer"`
+	ClientID          string            `json:"client_id"`
+	ClientSecret      string            `json:"client_secret"`
+	IconSVG           string            `json:"icon_svg"`
+	Enabled           *bool             `json:"enabled"`
+	SortOrder         int               `json:"sort_order"`
 }
 
 func (s *FederationState) authorizeParams() authzsig.AuthorizeParams {
