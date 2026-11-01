@@ -44,7 +44,7 @@ async function openClients(page: Page) {
 
 async function choose(page: Page, label: string, option: string) {
   await page.getByLabel(label, { exact: true }).click();
-  await page.locator('.ant-select-dropdown:visible').getByText(option, { exact: true }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
 }
 
 test('legacy read and list responses report effective authentication before repair, including disabled clients', async () => {
@@ -69,18 +69,18 @@ for (const clientType of ['public', 'confidential']) {
   test(`admin creates a consistent ${clientType} client and type changes reset authentication`, async ({ page }) => {
     await openClients(page);
     await page.getByRole('button', { name: /Create Client/ }).click();
-    const drawer = page.locator('.ant-drawer-open');
-    const method = drawer.locator('.ant-form-item:has(label[for="token_endpoint_auth_method"])');
-    await expect(method.locator('.ant-select')).toHaveText('None');
+    const drawer = page.getByRole('dialog', { name: 'Create Client' });
+    const method = drawer.getByLabel('Token Endpoint Auth Method', { exact: true });
+    await expect(method).toHaveText('None');
     await choose(page, 'Client Type', 'Confidential');
-    await expect(method.locator('.ant-select')).toHaveText('Client Secret Basic');
+    await expect(method).toHaveText('Client Secret Basic');
     await drawer.getByLabel('Client Secret', { exact: true }).fill('temporary-secret');
     if (clientType === 'public') {
       await choose(page, 'Client Type', 'Public');
-      await expect(method.locator('.ant-select')).toHaveText('None');
+      await expect(method).toHaveText('None');
     } else await choose(page, 'Token Endpoint Auth Method', 'Client Secret Post');
     await drawer.getByLabel('Token Endpoint Auth Method', { exact: true }).click();
-    const options = page.locator('.ant-select-dropdown:visible .ant-select-item-option-content');
+    const options = page.getByRole('option');
     await expect(options).toHaveText(clientType === 'public' ? ['None'] : ['Client Secret Basic', 'Client Secret Post']);
     await page.keyboard.press('Escape');
     const id = `browser-auth-${clientType}`;
@@ -107,11 +107,11 @@ for (const client of legacy) {
     await openClients(page);
     const row = page.getByRole('row').filter({ hasText: client.id });
     await row.getByRole('button', { name: 'Edit client', exact: true }).click();
-    const drawer = page.locator('.ant-drawer-open');
-    await expect(drawer.locator('.ant-form-item:has(label[for="token_endpoint_auth_method"]) .ant-select'))
+    const drawer = page.getByRole('dialog', { name: /^Edit Client/ });
+    await expect(drawer.getByLabel('Token Endpoint Auth Method', { exact: true }))
       .toHaveText(client.type === 'public' ? 'None' : 'Client Secret Basic');
     await drawer.getByLabel('Token Endpoint Auth Method', { exact: true }).click();
-    await expect(page.locator('.ant-select-dropdown:visible .ant-select-item-option-content'))
+    await expect(page.getByRole('option'))
       .toHaveText(client.type === 'public' ? ['None'] : ['Client Secret Basic', 'Client Secret Post']);
     await page.keyboard.press('Escape');
     await drawer.getByLabel('Client Name', { exact: true }).fill(`${client.id} repaired`);

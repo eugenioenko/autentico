@@ -1,19 +1,6 @@
-import { useState, useCallback, useRef } from "react";
-import {
-  Typography,
-  Table,
-  Tag,
-  Popconfirm,
-  Dropdown,
-  Drawer,
-  Descriptions,
-  Input,
-  Tooltip,
-  App,
-} from "antd";
-import { MoreOutlined } from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SorterResult } from "antd/es/table/interface";
+import { useState, useMemo } from "react";
+import { Badge, Button, Dialog, Drawer, IconButton, Inline, Menu, Stack, Text, VisuallyHidden, toast } from "@yarcl/react";
+import { IconDots } from "@tabler/icons-react";
 import {
   useDeletionRequests,
   useApproveDeletionRequest,
@@ -21,244 +8,184 @@ import {
 } from "../../hooks/useDeletionRequests";
 import type { DeletionRequestResponse } from "../../api/deletion";
 import type { ListParams } from "../../api/users";
-import { useTableScrollY } from "../../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../../constants/table";
 import CopyText from "../CopyText";
-
-const { Text } = Typography;
+import DescriptionList from "../DescriptionList";
+import SearchInput from "../SearchInput";
+import { DataTable, dataColumns } from "../DataTable";
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleString();
 }
 
-export default function DeletionRequestsTab() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
+type PendingAction = { kind: "approve" | "dismiss"; request: DeletionRequestResponse };
 
+const ACTION_COPY = {
+  approve: {
+    title: "Approve deletion?",
+    description: "This will permanently delete the user account. This action cannot be undone.",
+    confirmLabel: "Delete",
+  },
+  dismiss: {
+    title: "Dismiss request?",
+    description: "The user account will be kept and the request removed.",
+    confirmLabel: "Dismiss",
+  },
+} as const;
+
+export default function DeletionRequestsTab() {
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "requested_at",
     order: "asc",
   });
-  const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading } = useDeletionRequests(listParams);
   const approve = useApproveDeletionRequest();
   const cancel = useAdminCancelDeletionRequest();
 
-  const [detailRequest, setDetailRequest] =
-    useState<DeletionRequestResponse | null>(null);
+  const [detailRequest, setDetailRequest] = useState<DeletionRequestResponse | null>(null);
+  const [pending, setPending] = useState<PendingAction | null>(null);
 
-  const handleApprove = async (id: string) => {
+  const handleConfirm = async () => {
+    if (!pending) return;
+    const { kind, request } = pending;
     try {
-      await approve.mutateAsync(id);
-      message.success("User deleted successfully");
+      if (kind === "approve") {
+        await approve.mutateAsync(request.id);
+        toast({ title: "User deleted successfully", color: "success" });
+      } else {
+        await cancel.mutateAsync(request.id);
+        toast({ title: "Request dismissed", color: "success" });
+      }
+      setPending(null);
     } catch {
-      message.error("Failed to approve deletion");
+      toast({ title: kind === "approve" ? "Failed to approve deletion" : "Failed to dismiss request", color: "danger" });
     }
   };
 
-  const handleCancel = async (id: string) => {
-    try {
-      await cancel.mutateAsync(id);
-      message.success("Request dismissed");
-    } catch {
-      message.error("Failed to dismiss request");
-    }
-  };
-
-  const handleSearch = useCallback((value: string) => {
-    setListParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
+  const columns = useMemo(() => {
+    const col = dataColumns<DeletionRequestResponse>();
+    return col.columns([
+      col.accessor("username", {
+        header: "Username",
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.accessor("email", {
+        header: "Email",
+        cell: (info) => <CopyText text={info.getValue() ?? ""} />,
+      }),
+      col.accessor("reason", {
+        header: "Reason",
+        enableSorting: false,
+        meta: { width: 250 },
+        cell: (info) =>
+          info.getValue() ? (
+            <Text truncate title={info.getValue()}>
+              {info.getValue()}
+            </Text>
+          ) : (
+            <Badge variant="soft" color="neutral">
+              No reason
+            </Badge>
+          ),
+      }),
+      col.accessor("requested_at", {
+        header: "Requested",
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.display({
+        id: "actions",
+        header: () => <VisuallyHidden>Actions</VisuallyHidden>,
+        meta: { width: 50 },
+        cell: ({ row }) => (
+          <Menu placement="bottom-end">
+            <Menu.Trigger>
+              <IconButton variant="ghost" color="neutral" size="sm" aria-label="More actions">
+                <IconDots />
+              </IconButton>
+            </Menu.Trigger>
+            <Menu.Content>
+              <Menu.Item onSelect={() => setDetailRequest(row.original)}>View details</Menu.Item>
+              <Menu.Item color="danger" onSelect={() => setPending({ kind: "approve", request: row.original })}>
+                Approve deletion
+              </Menu.Item>
+              <Menu.Item onSelect={() => setPending({ kind: "dismiss", request: row.original })}>Dismiss request</Menu.Item>
+            </Menu.Content>
+          </Menu>
+        ),
+      }),
+    ]);
   }, []);
 
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter:
-        | SorterResult<DeletionRequestResponse>
-        | SorterResult<DeletionRequestResponse>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : "requested_at",
-        order: s.order === "ascend" ? "asc" : "desc",
-      }));
-    },
-    []
-  );
-
-  const columns: ColumnsType<DeletionRequestResponse> = [
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-      sorter: true,
-      ellipsis: true,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      sorter: true,
-      ellipsis: true,
-      render: (email: string) => (
-        <CopyText text={email} />
-      ),
-    },
-    {
-      title: "Reason",
-      dataIndex: "reason",
-      key: "reason",
-      ellipsis: true,
-      width: 250,
-      render: (reason?: string) =>
-        reason ? (
-          <Text ellipsis style={{ maxWidth: 220 }}>
-            {reason}
-          </Text>
-        ) : (
-          <Tag>No reason</Tag>
-        ),
-    },
-    {
-      title: "Requested",
-      dataIndex: "requested_at",
-      key: "requested_at",
-      sorter: true,
-      defaultSortOrder: "ascend",
-      render: formatDate,
-    },
-    {
-      title: "",
-      key: "actions",
-      width: 50,
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: "view",
-                label: "View details",
-                onClick: () => setDetailRequest(record),
-              },
-              {
-                key: "approve",
-                label: (
-                  <Popconfirm
-                    title="Approve deletion?"
-                    description="This will permanently delete the user account. This action cannot be undone."
-                    onConfirm={() => handleApprove(record.id)}
-                    okText="Delete"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <span style={{ color: "#ff4d4f" }}>Approve deletion</span>
-                  </Popconfirm>
-                ),
-              },
-              {
-                key: "dismiss",
-                label: (
-                  <Popconfirm
-                    title="Dismiss request?"
-                    description="The user account will be kept and the request removed."
-                    onConfirm={() => handleCancel(record.id)}
-                    okText="Dismiss"
-                  >
-                    <span>Dismiss request</span>
-                  </Popconfirm>
-                ),
-              },
-            ],
-          }}
-          trigger={["click"]}
-        >
-          <Tooltip title="More actions">
-            <MoreOutlined
-              role="button"
-              aria-label="More actions"
-              style={{ fontSize: 16, cursor: "pointer" }}
-            />
-          </Tooltip>
-        </Dropdown>
-      ),
-    },
-  ];
+  const pendingCopy = pending ? ACTION_COPY[pending.kind] : null;
 
   return (
-    <>
-      <div style={{ marginBottom: 16, flexShrink: 0 }}>
-        <Input.Search
+    <Stack gap="md">
+      <Inline gap="sm">
+        <SearchInput
           placeholder="Search username, email, or reason..."
-          allowClear
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          onSearch={handleSearch}
-          style={{ width: 320 }}
+          onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
         />
-      </div>
+      </Inline>
 
-      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden" }}>
-        <Table<DeletionRequestResponse>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} requests`,
-          }}
-          locale={{ emptyText: "No pending deletion requests" }}
-        />
-      </div>
+      <DataTable
+        caption="Deletion requests"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(r) => r.id}
+        loading={isLoading}
+        emptyTitle="No pending deletion requests"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} requests`,
+        }}
+      />
 
       <Drawer
         title="Deletion Request"
         open={!!detailRequest}
-        onClose={() => setDetailRequest(null)}
-        width={480}
+        onOpenChange={(next) => !next && setDetailRequest(null)}
+        side="right"
+        size="md"
       >
         {detailRequest && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Username">
-              {detailRequest.username}
-            </Descriptions.Item>
-            <Descriptions.Item label="Email">
-              {detailRequest.email}
-            </Descriptions.Item>
-            <Descriptions.Item label="User ID">
+          <DescriptionList>
+            <DescriptionList.Item label="Username">{detailRequest.username}</DescriptionList.Item>
+            <DescriptionList.Item label="Email">{detailRequest.email}</DescriptionList.Item>
+            <DescriptionList.Item label="User ID">
               <CopyText text={detailRequest.user_id} />
-            </Descriptions.Item>
-            <Descriptions.Item label="Reason">
-              {detailRequest.reason ?? "No reason provided"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Requested at">
-              {formatDate(detailRequest.requested_at)}
-            </Descriptions.Item>
-          </Descriptions>
+            </DescriptionList.Item>
+            <DescriptionList.Item label="Reason">{detailRequest.reason ?? "No reason provided"}</DescriptionList.Item>
+            <DescriptionList.Item label="Requested at">{formatDate(detailRequest.requested_at)}</DescriptionList.Item>
+          </DescriptionList>
         )}
       </Drawer>
-    </>
+
+      <Dialog
+        title={pendingCopy?.title ?? ""}
+        description={pendingCopy?.description}
+        open={!!pending}
+        onOpenChange={(next) => !next && setPending(null)}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" color="neutral" onClick={() => setPending(null)}>
+              Cancel
+            </Button>
+            <Button
+              color={pending?.kind === "approve" ? "danger" : "primary"}
+              loading={approve.isPending || cancel.isPending}
+              onClick={handleConfirm}
+            >
+              {pendingCopy?.confirmLabel}
+            </Button>
+          </>
+        }
+      />
+    </Stack>
   );
 }

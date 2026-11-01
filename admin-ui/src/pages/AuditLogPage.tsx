@@ -1,34 +1,23 @@
-import { useState, useCallback, useRef } from "react";
-import {
-  Typography,
-  Table,
-  Tag,
-  Space,
-  Select,
-  Input,
-  Alert,
-  Button,
-  Drawer,
-  Descriptions,
-  DatePicker,
-  Tooltip,
-} from "antd";
-import { EyeOutlined } from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SorterResult } from "antd/es/table/interface";
-import type { Dayjs } from "dayjs";
+import { useState, useMemo } from "react";
+import { Alert, Badge, Combobox, Drawer, IconButton, Stack, Text, Tooltip, VisuallyHidden, type Color, type DateRange } from "@yarcl/react";
+import { IconEye } from "@tabler/icons-react";
 import { useAuditLogs } from "../hooks/useAuditLogs";
 import { useSettings } from "../hooks/useSettings";
 import type { AuditLogEntry } from "../types/audit";
 import type { ListParams } from "../api/users";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
+import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
+import DescriptionList from "../components/DescriptionList";
+import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
+import { DataTable, dataColumns } from "../components/DataTable";
+import "./AuditLogPage.css";
 
-const { Text } = Typography;
+const ALL_EVENTS = "__all__";
 
 const EVENT_OPTIONS = [
-  { label: "All Events", value: "" },
+  { label: "All Events", value: ALL_EVENTS },
   { label: "Login Success", value: "login_success" },
   { label: "Login Failed", value: "login_failed" },
   { label: "MFA Success", value: "mfa_success" },
@@ -54,9 +43,9 @@ const EVENT_OPTIONS = [
   { label: "Settings Updated", value: "settings_updated" },
   { label: "Settings Imported", value: "settings_imported" },
   { label: "Protected App Created", value: "protected_app_created" },
-{ label: "Protected App Updated", value: "protected_app_updated" },
-{ label: "Protected App Deleted", value: "protected_app_deleted" },
-{ label: "Federation Created", value: "federation_created" },
+  { label: "Protected App Updated", value: "protected_app_updated" },
+  { label: "Protected App Deleted", value: "protected_app_deleted" },
+  { label: "Federation Created", value: "federation_created" },
   { label: "Federation Updated", value: "federation_updated" },
   { label: "Federation Deleted", value: "federation_deleted" },
   { label: "Deletion Approved", value: "deletion_approved" },
@@ -71,43 +60,43 @@ const EVENT_OPTIONS = [
   { label: "User Claim Deleted", value: "user_claim_deleted" },
 ];
 
-const EVENT_COLORS: Record<string, string> = {
+const EVENT_COLORS: Record<string, Color> = {
   login_success: "success",
-  login_failed: "error",
+  login_failed: "danger",
   mfa_success: "success",
-  mfa_failed: "error",
+  mfa_failed: "danger",
   passkey_login_success: "success",
-  passkey_login_failed: "error",
+  passkey_login_failed: "danger",
   password_changed: "warning",
   password_reset_requested: "warning",
   password_reset_completed: "warning",
-  user_created: "processing",
-  user_updated: "processing",
-  user_deactivated: "error",
-  user_unlocked: "processing",
-  mfa_enrolled: "processing",
+  user_created: "info",
+  user_updated: "info",
+  user_deactivated: "danger",
+  user_unlocked: "info",
+  mfa_enrolled: "info",
   mfa_disabled: "warning",
-  passkey_added: "processing",
+  passkey_added: "info",
   passkey_removed: "warning",
-  logout: "default",
-  session_revoked: "default",
-  client_created: "processing",
-  client_updated: "processing",
-  client_deleted: "error",
-  settings_updated: "processing",
-  settings_imported: "processing",
-  federation_created: "processing",
-  federation_updated: "processing",
-  federation_deleted: "error",
-  deletion_approved: "error",
-  group_created: "processing",
-  group_updated: "processing",
-  group_deleted: "error",
-  group_member_added: "processing",
+  logout: "neutral",
+  session_revoked: "neutral",
+  client_created: "info",
+  client_updated: "info",
+  client_deleted: "danger",
+  settings_updated: "info",
+  settings_imported: "info",
+  federation_created: "info",
+  federation_updated: "info",
+  federation_deleted: "danger",
+  deletion_approved: "danger",
+  group_created: "info",
+  group_updated: "info",
+  group_deleted: "danger",
+  group_member_added: "info",
   group_member_removed: "warning",
-  group_claim_upserted: "processing",
+  group_claim_upserted: "info",
   group_claim_deleted: "warning",
-  user_claim_upserted: "processing",
+  user_claim_upserted: "info",
   user_claim_deleted: "warning",
 };
 
@@ -119,10 +108,19 @@ function formatEvent(event: string): string {
   return event.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function AuditLogPage() {
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
+function EventBadge({ event }: { event: string }) {
+  return (
+    <Badge variant="soft" color={EVENT_COLORS[event] ?? "neutral"}>
+      {formatEvent(event)}
+    </Badge>
+  );
+}
 
+function Empty() {
+  return <Text muted>—</Text>;
+}
+
+export default function AuditLogPage() {
   const { data: settings } = useSettings();
   const auditRetention = settings?.audit_log_retention ?? "0";
   const isDisabled = auditRetention === "0" || auditRetention === "";
@@ -133,303 +131,179 @@ export default function AuditLogPage() {
     sort: "created_at",
     order: "desc",
   });
-  const [searchValue, setSearchValue] = useState("");
-  const [eventFilter, setEventFilter] = useState("");
-  const [dateRange, setDateRange] = useState<
-    [Dayjs | null, Dayjs | null] | null
-  >(null);
-  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(
-    null
-  );
+  const [eventFilter, setEventFilter] = useState(ALL_EVENTS);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
 
   const { data, isLoading, error } = useAuditLogs(listParams);
 
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter:
-        | SorterResult<AuditLogEntry>
-        | SorterResult<AuditLogEntry>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : prev.sort,
-        order: s.order === "ascend" ? "asc" : "desc",
-      }));
-    },
-    []
-  );
+  const eventLabel = EVENT_OPTIONS.find((o) => o.value === eventFilter)?.label;
 
-  const handleSearch = useCallback((value: string) => {
-    setListParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
+  const handleEventFilter = (value: string | null) => {
+    const next = value ?? ALL_EVENTS;
+    setEventFilter(next);
+    setListParams((prev) => ({ ...prev, event: next === ALL_EVENTS ? undefined : next, offset: 0 }));
+  };
+
+  const handleDateRange = (range: DateRange | null) => {
+    setDateRange(range);
+    setListParams((prev) => ({ ...prev, offset: 0, ...dateRangeParams(range, "created_at") }));
+  };
+
+  const columns = useMemo(() => {
+    const col = dataColumns<AuditLogEntry>();
+    return col.columns([
+      col.accessor("event", {
+        header: "Event",
+        meta: { width: 200 },
+        cell: (info) => <EventBadge event={info.getValue()} />,
+      }),
+      col.accessor("actor_username", {
+        header: "Actor",
+        enableSorting: false,
+        meta: { width: 160 },
+        cell: (info) => (info.getValue() ? <CopyText text={info.getValue()} /> : <Empty />),
+      }),
+      col.display({
+        id: "target",
+        header: "Target",
+        meta: { width: 200 },
+        cell: ({ row }) => {
+          const record = row.original;
+          if (!record.target_type && !record.target_id) return <Empty />;
+          if (!record.target_id) return <Text truncate>{record.target_type}</Text>;
+          return (
+            <CopyText text={record.target_id}>
+              {record.target_type}: {record.target_id}
+            </CopyText>
+          );
+        },
+      }),
+      col.accessor("ip_address", {
+        header: "IP",
+        enableSorting: false,
+        meta: { width: 130 },
+        cell: (info) => info.getValue() || <Empty />,
+      }),
+      col.accessor("detail", {
+        header: "Detail",
+        enableSorting: false,
+        cell: (info) =>
+          info.getValue() ? (
+            <Text textStyle="code" truncate className="audit-detail-cell" title={info.getValue()}>
+              {info.getValue()}
+            </Text>
+          ) : (
+            <Empty />
+          ),
+      }),
+      col.accessor("created_at", {
+        header: "Time",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.display({
+        id: "actions",
+        header: () => <VisuallyHidden>Actions</VisuallyHidden>,
+        meta: { width: 50 },
+        cell: ({ row }) => (
+          <Tooltip content="View details">
+            <IconButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              aria-label="View audit entry details"
+              onClick={() => setSelectedEntry(row.original)}
+            >
+              <IconEye />
+            </IconButton>
+          </Tooltip>
+        ),
+      }),
+    ]);
   }, []);
 
-  const handleEventFilter = useCallback((value: string) => {
-    setEventFilter(value);
-    setListParams((prev) => ({
-      ...prev,
-      event: value || undefined,
-      offset: 0,
-    }));
-  }, []);
-
-  const handleDateRange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null) => {
-      setDateRange(dates);
-      setListParams((prev) => {
-        const next: ListParams = { ...prev, offset: 0 };
-        if (dates && dates[0]) {
-          next.created_at_from = dates[0].startOf("day").toISOString();
-        } else {
-          delete next.created_at_from;
-        }
-        if (dates && dates[1]) {
-          next.created_at_to = dates[1].endOf("day").toISOString();
-        } else {
-          delete next.created_at_to;
-        }
-        return next;
-      });
-    },
-    []
-  );
-
-  const columns: ColumnsType<AuditLogEntry> = [
-    {
-      title: "Event",
-      dataIndex: "event",
-      key: "event",
-      width: 200,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "event"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: (event: string) => (
-        <Tag color={EVENT_COLORS[event] || "default"}>{formatEvent(event)}</Tag>
-      ),
-    },
-    {
-      title: "Actor",
-      dataIndex: "actor_username",
-      key: "actor_username",
-      width: 160,
-      render: (username: string) =>
-        username ? (
-          <CopyText text={username} />
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: "Target",
-      key: "target",
-      width: 200,
-      ellipsis: true,
-      render: (_: unknown, record: AuditLogEntry) => {
-        if (!record.target_type && !record.target_id)
-          return <Text type="secondary">—</Text>;
-        if (!record.target_id)
-          return <Text>{record.target_type}</Text>;
-        return (
-          <CopyText text={record.target_id}>
-            {record.target_type}: {record.target_id}
-          </CopyText>
-        );
-      },
-    },
-    {
-      title: "IP",
-      dataIndex: "ip_address",
-      key: "ip_address",
-      width: 130,
-      render: (ip: string) => ip || <Text type="secondary">—</Text>,
-    },
-    {
-      title: "Detail",
-      dataIndex: "detail",
-      key: "detail",
-      ellipsis: true,
-      render: (detail: string) =>
-        detail ? (
-          <Text code style={{ fontSize: 11 }}>
-            {detail}
-          </Text>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: "Time",
-      dataIndex: "created_at",
-      key: "created_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "created_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "",
-      key: "actions",
-      width: 50,
-      render: (_: unknown, record: AuditLogEntry) => (
-        <Tooltip title="View details">
-          <Button
-            type="text"
-            size="small"
-            aria-label="View audit entry details"
-            icon={<EyeOutlined />}
-            onClick={() => setSelectedEntry(record)}
-          />
-        </Tooltip>
-      ),
-    },
-  ];
-
-  if (error) return <Alert type="error" message="Failed to load audit logs" />;
+  if (error) return <Alert color="danger" title="Failed to load audit logs" />;
 
   return (
-    <>
-      <Space
-        style={{
-          justifyContent: "space-between",
-          width: "100%",
-          flexShrink: 0,
-        }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Audit Log
-        </Typography.Title>
-        <Space>
-          <Select
-            style={{ width: 200 }}
-            aria-label="Filter audit events"
-            options={EVENT_OPTIONS}
-            value={eventFilter}
-            onChange={handleEventFilter}
-          />
-          <DatePicker.RangePicker
-            value={dateRange}
-            onChange={handleDateRange}
-            allowClear
-          />
-          <Input.Search
-            placeholder="Search actor, target, IP..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 250 }}
-          />
-        </Space>
-      </Space>
+    <Stack gap="md">
+      <PageHeader
+        title="Audit Log"
+        actions={
+          <>
+            <Combobox
+              className="audit-event-filter"
+              aria-label="Filter audit events"
+              placeholder="All Events"
+              options={EVENT_OPTIONS}
+              value={eventFilter}
+              onValueChange={handleEventFilter}
+              filter={(option, text) =>
+                !text || text === eventLabel || option.label.toLowerCase().includes(text.toLowerCase())
+              }
+            />
+            <DateRangeFilter label="Date range" value={dateRange} onChange={handleDateRange} />
+            <SearchInput
+              placeholder="Search actor, target, IP..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
+          </>
+        }
+      />
 
       {isDisabled && (
-        <Alert
-          type="info"
-          showIcon
-          message="Audit logging is disabled"
-          description='To start recording events, set the audit log retention in Settings > Security & Validation > Audit Log (e.g. 720h for 30 days, or -1 to keep forever).'
-          style={{ marginTop: 16, flexShrink: 0 }}
-        />
+        <Alert color="info" title="Audit logging is disabled">
+          To start recording events, set the audit log retention in Settings &gt; Security &amp; Validation &gt; Audit Log
+          (e.g. 720h for 30 days, or -1 to keep forever).
+        </Alert>
       )}
 
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
-      >
-        <Table<AuditLogEntry>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} events`,
-          }}
-        />
-      </div>
+      <DataTable
+        caption="Audit log"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(e) => e.id}
+        loading={isLoading}
+        emptyTitle="No audit events found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} events`,
+        }}
+      />
 
       <Drawer
         title="Event Detail"
         open={!!selectedEntry}
-        onClose={() => setSelectedEntry(null)}
-        width={480}
+        onOpenChange={(next) => !next && setSelectedEntry(null)}
+        side="right"
+        size="md"
       >
         {selectedEntry && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="ID">
-              {selectedEntry.id}
-            </Descriptions.Item>
-            <Descriptions.Item label="Event">
-              <Tag color={EVENT_COLORS[selectedEntry.event] || "default"}>
-                {formatEvent(selectedEntry.event)}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Time">
-              {formatDate(selectedEntry.created_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Actor ID">
-              {selectedEntry.actor_id || "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Actor Username">
-              {selectedEntry.actor_username || "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Target Type">
-              {selectedEntry.target_type || "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Target ID">
-              {selectedEntry.target_id || "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="IP Address">
-              {selectedEntry.ip_address || "—"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Detail">
+          <DescriptionList>
+            <DescriptionList.Item label="ID">{selectedEntry.id}</DescriptionList.Item>
+            <DescriptionList.Item label="Event">
+              <EventBadge event={selectedEntry.event} />
+            </DescriptionList.Item>
+            <DescriptionList.Item label="Time">{formatDate(selectedEntry.created_at)}</DescriptionList.Item>
+            <DescriptionList.Item label="Actor ID">{selectedEntry.actor_id || "—"}</DescriptionList.Item>
+            <DescriptionList.Item label="Actor Username">{selectedEntry.actor_username || "—"}</DescriptionList.Item>
+            <DescriptionList.Item label="Target Type">{selectedEntry.target_type || "—"}</DescriptionList.Item>
+            <DescriptionList.Item label="Target ID">{selectedEntry.target_id || "—"}</DescriptionList.Item>
+            <DescriptionList.Item label="IP Address">{selectedEntry.ip_address || "—"}</DescriptionList.Item>
+            <DescriptionList.Item label="Detail">
               {selectedEntry.detail ? (
-                <pre
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-all",
-                  }}
-                >
+                <Text as="div" textStyle="code" whiteSpace="pre-wrap" wrap="anywhere">
                   {JSON.stringify(JSON.parse(selectedEntry.detail), null, 2)}
-                </pre>
+                </Text>
               ) : (
                 "—"
               )}
-            </Descriptions.Item>
-          </Descriptions>
+            </DescriptionList.Item>
+          </DescriptionList>
         )}
       </Drawer>
-    </>
+    </Stack>
   );
 }

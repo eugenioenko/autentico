@@ -1,0 +1,40 @@
+.admin-navbar {
+  width: 100%;
+}
+
+.admin-logo {
+  width: var(--yarcl-size-md-height);
+  height: var(--yarcl-size-md-height);
+  flex-shrink: 0;
+}
+
+[data-part="sidebar-header"] {
+  border-bottom: none;
+}
+
+[data-part="sidebar"] {
+  color-scheme: dark;
+  color: var(--yarcl-neutral-text);
+}
+
+.admin-brand {
+  min-width: 0;
+}
+
+.yarcl-app-layout[data-desktop] .admin-navbar-brand {
+  display: none;
+}
+
+.admin-main {
+  padding-inline: var(--yarcl-space-xl);
+}
+
+@media (--yarcl-max-lg) {
+  .admin-main {
+    padding-inline: var(--yarcl-space-md);
+  }
+
+  .admin-collapse {
+    display: none;
+  }
+}

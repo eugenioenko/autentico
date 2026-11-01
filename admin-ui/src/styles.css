@@ -1,4 +1,3 @@
-/* CSS Reset for body and html */
 html,
 body {
   margin: 0;
@@ -13,13 +12,37 @@ body {
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.ant-table-cell {
-  white-space: nowrap;
+.copy-text {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.field-tip {
+  display: inline-flex;
+  color: var(--yarcl-neutral-muted);
+  cursor: help;
+}
+
+.field-tip svg {
+  width: 1em;
+  height: 1em;
+}
+
+.search-input-icon {
+  color: var(--yarcl-neutral-muted);
+  margin-inline-start: var(--yarcl-space-sm);
+}
+
+.confirm-content {
+  max-width: 18rem;
+}
+
+.page-loading {
+  display: grid;
+  place-items: center;
+  min-height: 50vh;
 }

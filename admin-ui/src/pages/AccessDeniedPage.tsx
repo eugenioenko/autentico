@@ -1,28 +1,18 @@
-import { Button, Result, ConfigProvider, theme } from "antd";
+import { Button, EmptyState } from "@yarcl/react";
+import { IconShieldX } from "@tabler/icons-react";
+import "./AuthScreen.css";
 
 export default function AccessDeniedPage() {
   return (
-    <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
-          background: "#f0f2f5",
-        }}
-      >
-        <Result
-          status="403"
-          title="Unauthorized"
-          subTitle="Your account does not have administrator privileges."
-          extra={
-            <Button type="primary" href="/account/">
-              Go to Account Portal
-            </Button>
-          }
-        />
-      </div>
-    </ConfigProvider>
+    <div className="auth-screen">
+      <EmptyState
+        headingLevel={1}
+        color="danger"
+        icon={<IconShieldX aria-hidden="true" />}
+        title="Unauthorized"
+        description="Your account does not have administrator privileges."
+        actions={<Button href="/account/">Go to Account Portal</Button>}
+      />
+    </div>
   );
 }

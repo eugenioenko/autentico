@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useSearchParams, Navigate } from "react-router-dom";
-import { Alert, Spin, Space, Typography } from "antd";
+import { Alert, Button, Spinner, Stack, Text } from "@yarcl/react";
 import { useAuth } from "oidc-js-react";
+import "./AuthScreen.css";
 
 export default function LoginPage() {
   const { isAuthenticated, actions } = useAuth();
@@ -18,29 +19,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
-        background: "#f0f2f5",
-      }}
-    >
+    <div className="auth-screen">
       {errorParam ? (
-        <Space direction="vertical" align="center" size="large">
-          <Alert
-            message="Authentication Failed"
-            description={decodeURIComponent(errorParam)}
-            type="error"
-            showIcon
-          />
-          <Typography.Link onClick={() => actions.login()}>
+        <Stack gap="lg" align="center" className="auth-screen-content">
+          <Alert color="danger" title="Authentication Failed">
+            {decodeURIComponent(errorParam)}
+          </Alert>
+          <Button variant="ghost" onClick={() => actions.login()}>
             Try again
-          </Typography.Link>
-        </Space>
+          </Button>
+        </Stack>
       ) : (
-        <Spin size="large" tip="Redirecting to login..." />
+        <Stack gap="sm" align="center">
+          <Spinner size="lg" label="Redirecting to login..." />
+          <Text muted>Redirecting to login...</Text>
+        </Stack>
       )}
     </div>
   );

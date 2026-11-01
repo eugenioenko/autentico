@@ -1,0 +1,20 @@
+.claim-rule {
+  padding-bottom: var(--yarcl-space-sm);
+  border-bottom: var(--yarcl-border-width) solid var(--yarcl-neutral-border);
+}
+
+.claim-rule-claim {
+  width: 10rem;
+}
+
+.claim-rule-operator {
+  width: 8.5rem;
+}
+
+.claim-rule-type {
+  width: 7rem;
+}
+
+.claim-rule-value {
+  width: 12rem;
+}

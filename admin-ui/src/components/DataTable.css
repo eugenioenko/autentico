@@ -1,0 +1,17 @@
+.data-table-frame {
+  position: relative;
+  transition: opacity var(--yarcl-motion-fast) var(--yarcl-motion-easing);
+}
+
+.data-table-frame[data-loading] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.data-table-frame td {
+  white-space: nowrap;
+}
+
+.data-table-clickable {
+  cursor: pointer;
+}

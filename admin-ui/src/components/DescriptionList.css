@@ -1,0 +1,31 @@
+.description-list {
+  margin: 0;
+  border: var(--yarcl-border-width) solid var(--yarcl-neutral-border);
+  border-radius: var(--yarcl-radius-md);
+  overflow: hidden;
+}
+
+.description-list-item {
+  display: grid;
+  grid-template-columns: minmax(8rem, 35%) 1fr;
+}
+
+.description-list-item + .description-list-item {
+  border-top: var(--yarcl-border-width) solid var(--yarcl-neutral-border);
+}
+
+.description-list dt,
+.description-list dd {
+  margin: 0;
+  padding: var(--yarcl-space-sm) var(--yarcl-space-md);
+  font-size: var(--yarcl-text-caption-size);
+  line-height: var(--yarcl-text-caption-line-height);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.description-list dt {
+  color: var(--yarcl-neutral-muted);
+  font-weight: var(--yarcl-text-label-weight);
+  background: color-mix(in srgb, var(--yarcl-neutral-border) 25%, transparent);
+}

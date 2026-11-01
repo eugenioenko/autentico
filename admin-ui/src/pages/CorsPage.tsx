@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { Typography, Input, Button, Alert, Space, Spin, Card, App } from "antd";
-import { SaveOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, IconButton, Inline, Input, Spinner, Stack, Text, toast } from "@yarcl/react";
+import { IconDeviceFloppy, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
-
-const { Title, Paragraph, Text } = Typography;
+import PageHeader from "../components/PageHeader";
+import "./CorsPage.css";
 
 export default function CorsPage() {
-  const { message } = App.useApp();
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const [origins, setOrigins] = useState<string[]>([]);
@@ -44,86 +43,78 @@ export default function CorsPage() {
       await updateSettings.mutateAsync({
         cors_allowed_origins: cleaned.join(","),
       });
-      message.success("CORS settings saved");
+      toast({ title: "CORS settings saved", color: "success" });
     } catch {
-      message.error("Failed to save CORS settings");
+      toast({ title: "Failed to save CORS settings", color: "danger" });
     }
   };
 
   if (isLoading) {
-    return <Spin />;
+    return (
+      <div className="page-loading">
+        <Spinner size="lg" label="Loading" />
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: 720, flex: 1, overflow: "auto" }}>
-      <Title level={3}>CORS (Cross-Origin Resource Sharing)</Title>
-      <Paragraph type="secondary">
-        Configure which origins are allowed to make cross-origin requests to
-        Autentico. Use <Text code>*</Text> to allow all origins. Remove all
-        entries to disable CORS entirely.
-      </Paragraph>
+    <Stack gap="md" className="cors-page">
+      <PageHeader
+        title="CORS (Cross-Origin Resource Sharing)"
+        description={
+          <>
+            Configure which origins are allowed to make cross-origin requests to Autentico. Use{" "}
+            <Text as="code" textStyle="code">
+              *
+            </Text>{" "}
+            to allow all origins. Remove all entries to disable CORS entirely.
+          </>
+        }
+      />
 
       <Card>
-        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          <div>
-            <Text strong>Allowed Origins</Text>
-          </div>
+        <Stack gap="md">
+          <Text textStyle="label">Allowed Origins</Text>
 
           {origins.map((origin, index) => (
-            <Space key={index} style={{ width: "100%" }}>
+            <Inline key={index} gap="xs" wrap={false}>
               <Input
-                style={{ width: 480 }}
+                className="cors-origin-input"
+                aria-label={`Allowed origin ${index + 1}`}
                 value={origin}
                 onChange={(e) => handleChange(index, e.target.value)}
                 placeholder="https://app.example.com"
               />
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => handleRemove(index)}
-              />
-            </Space>
+              <IconButton variant="outline" color="danger" aria-label="Remove origin" onClick={() => handleRemove(index)}>
+                <IconTrash />
+              </IconButton>
+            </Inline>
           ))}
 
-          <Button
-            type="dashed"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            style={{ width: "100%" }}
-          >
+          <Button variant="outline" color="neutral" startIcon={<IconPlus />} onClick={handleAdd}>
             Add Origin
           </Button>
 
           {hasWildcard && (
-            <Alert
-              type="warning"
-              showIcon
-              message="Wildcard origin enabled"
-              description="Using * allows any website to make cross-origin requests to your Autentico instance. This is suitable for development but not recommended for production."
-            />
+            <Alert color="warning" title="Wildcard origin enabled">
+              Using * allows any website to make cross-origin requests to your Autentico instance. This is suitable for
+              development but not recommended for production.
+            </Alert>
           )}
 
           {origins.length === 0 && (
-            <Alert
-              type="info"
-              showIcon
-              message="CORS is disabled"
-              description="No origins are configured. Cross-origin browser requests will be blocked unless a reverse proxy handles CORS."
-            />
+            <Alert color="info" title="CORS is disabled">
+              No origins are configured. Cross-origin browser requests will be blocked unless a reverse proxy handles CORS.
+            </Alert>
           )}
 
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              loading={updateSettings.isPending}
-              onClick={handleSave}
-            >
+          <Inline justify="end">
+            <Button startIcon={<IconDeviceFloppy />} loading={updateSettings.isPending} onClick={handleSave}>
               Save
             </Button>
-          </div>
-        </Space>
+          </Inline>
+        </Stack>
       </Card>
-    </div>
+    </Stack>
   );
 }

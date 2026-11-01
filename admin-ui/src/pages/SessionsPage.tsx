@@ -1,30 +1,6 @@
-import { useState, useCallback, useRef } from "react";
-import {
-  Typography,
-  Table,
-  Button,
-  Tag,
-  Space,
-  Popconfirm,
-  Input,
-  Select,
-  Alert,
-  Drawer,
-  Descriptions,
-  DatePicker,
-  Tooltip,
-  App,
-} from "antd";
-import {
-  LogoutOutlined,
-  ArrowLeftOutlined,
-  UnorderedListOutlined,
-  InfoCircleOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SorterResult } from "antd/es/table/interface";
-import type { Dayjs } from "dayjs";
+import { useState, useMemo } from "react";
+import { Alert, Badge, Button, Drawer, IconButton, Inline, Select, Stack, Text, Tooltip, toast, type DateRange } from "@yarcl/react";
+import { IconArrowLeft, IconInfoCircle, IconList, IconLogout, IconTrash } from "@tabler/icons-react";
 import {
   useIdpSessions,
   useForceLogoutIdpSession,
@@ -32,91 +8,67 @@ import {
   useDeactivateOAuthSession,
 } from "../hooks/useIdpSessions";
 import type { ListParams } from "../api/users";
-import type {
-  IdpSessionResponse,
-  OAuthSessionResponse,
-} from "../types/idpSession";
+import type { IdpSessionResponse, OAuthSessionResponse } from "../types/idpSession";
 import { describeUserAgent } from "../lib/utils";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
+import ConfirmIconButton from "../components/ConfirmIconButton";
+import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
+import DescriptionList from "../components/DescriptionList";
+import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
+import { DataTable, dataColumns } from "../components/DataTable";
 
 function formatDate(date: string | null): string {
   if (!date) return "—";
   return new Date(date).toLocaleString();
 }
 
-
-function statusTag(status: string) {
-  const color =
-    status === "active" ? "green" : status === "expired" ? "orange" : "red";
-  return <Tag color={color}>{status}</Tag>;
+function StatusBadge({ status }: { status: string }) {
+  const color = status === "active" ? "success" : status === "expired" ? "warning" : "danger";
+  return (
+    <Badge variant="soft" color={color}>
+      {status}
+    </Badge>
+  );
 }
 
-function OAuthSessionDetailDrawer({
-  session,
-  onClose,
-}: {
-  session: OAuthSessionResponse | null;
-  onClose: () => void;
-}) {
+function DeviceCell({ session }: { session: IdpSessionResponse }) {
   return (
-    <Drawer
-      title="Session Details"
-      open={!!session}
-      onClose={onClose}
-      width={480}
-    >
+    <Stack gap="xs">
+      <Text textStyle="label">{describeUserAgent(session.user_agent)}</Text>
+      <Text textStyle="caption" muted>
+        {session.ip_address || "Unknown IP"}
+      </Text>
+    </Stack>
+  );
+}
+
+function OAuthSessionDetailDrawer({ session, onClose }: { session: OAuthSessionResponse | null; onClose: () => void }) {
+  return (
+    <Drawer title="Session Details" open={!!session} onOpenChange={(next) => !next && onClose()} side="right" size="md">
       {session && (
-        <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Session ID">{session.id}</Descriptions.Item>
-          <Descriptions.Item label="User ID">
-            {session.user_id}
-          </Descriptions.Item>
-          <Descriptions.Item label="Status">
-            {statusTag(session.status)}
-          </Descriptions.Item>
-          <Descriptions.Item label="User Agent">
-            {session.user_agent || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="IP Address">
-            {session.ip_address || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Location">
-            {session.location || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Device ID">
-            {session.device_id || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Created">
-            {formatDate(session.created_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Expires">
-            {formatDate(session.expires_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Last Active">
-            {formatDate(session.last_activity_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Deactivated">
-            {formatDate(session.deactivated_at)}
-          </Descriptions.Item>
-        </Descriptions>
+        <DescriptionList>
+          <DescriptionList.Item label="Session ID">{session.id}</DescriptionList.Item>
+          <DescriptionList.Item label="User ID">{session.user_id}</DescriptionList.Item>
+          <DescriptionList.Item label="Status">
+            <StatusBadge status={session.status} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="User Agent">{session.user_agent || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="IP Address">{session.ip_address || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Location">{session.location || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Device ID">{session.device_id || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Created">{formatDate(session.created_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Expires">{formatDate(session.expires_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Last Active">{formatDate(session.last_activity_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Deactivated">{formatDate(session.deactivated_at)}</DescriptionList.Item>
+        </DescriptionList>
       )}
     </Drawer>
   );
 }
 
-function SessionsView({
-  idpSession,
-  onBack,
-}: {
-  idpSession: IdpSessionResponse;
-  onBack: () => void;
-}) {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
-
+function SessionsView({ idpSession, onBack }: { idpSession: IdpSessionResponse; onBack: () => void }) {
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
@@ -124,536 +76,310 @@ function SessionsView({
     order: "desc",
   });
 
-  const { data, isLoading } = useIdpSessionSessions(
-    idpSession.id,
-    listParams
-  );
-  const deactivate = useDeactivateOAuthSession();
-  const [detailSession, setDetailSession] =
-    useState<OAuthSessionResponse | null>(null);
+  const { data, isLoading } = useIdpSessionSessions(idpSession.id, listParams);
+  const { mutateAsync: deactivate } = useDeactivateOAuthSession();
+  const [detailSession, setDetailSession] = useState<OAuthSessionResponse | null>(null);
 
-  const handleDeactivate = async (id: string) => {
-    try {
-      await deactivate.mutateAsync(id);
-      message.success("Session deactivated");
-    } catch {
-      message.error("Failed to deactivate session");
-    }
-  };
+  const columns = useMemo(() => {
+    const handleDeactivate = async (id: string) => {
+      try {
+        await deactivate(id);
+        toast({ title: "Session deactivated", color: "success" });
+      } catch {
+        toast({ title: "Failed to deactivate session", color: "danger" });
+      }
+    };
 
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter:
-        | SorterResult<OAuthSessionResponse>
-        | SorterResult<OAuthSessionResponse>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : prev.sort,
-        order: s.order === "descend" ? "desc" : "asc",
-      }));
-    },
-    []
-  );
-
-  const columns: ColumnsType<OAuthSessionResponse> = [
-    {
-      title: "Session ID",
-      dataIndex: "id",
-      key: "id",
-      width: 160,
-      render: (id: string) => (
-        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
-      ),
-    },
-    {
-      title: "IP Address",
-      dataIndex: "ip_address",
-      key: "ip_address",
-      width: 140,
-      render: (ip: string) => ip || "—",
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 110,
-      render: statusTag,
-    },
-    {
-      title: "Created",
-      dataIndex: "created_at",
-      key: "created_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "created_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Expires",
-      dataIndex: "expires_at",
-      key: "expires_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "expires_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 80,
-      render: (_, record) => (
-        <Space>
-          {record.status === "active" && (
-            <Tooltip title="Deactivate session">
-              <Popconfirm
+    const col = dataColumns<OAuthSessionResponse>();
+    return col.columns([
+      col.accessor("id", {
+        header: "Session ID",
+        enableSorting: false,
+        meta: { width: 160 },
+        cell: (info) => <CopyText text={info.getValue()}>{info.getValue().slice(0, 12) + "..."}</CopyText>,
+      }),
+      col.accessor("ip_address", {
+        header: "IP Address",
+        enableSorting: false,
+        meta: { width: 140 },
+        cell: (info) => info.getValue() || "—",
+      }),
+      col.accessor("status", {
+        header: "Status",
+        enableSorting: false,
+        meta: { width: 110 },
+        cell: (info) => <StatusBadge status={info.getValue()} />,
+      }),
+      col.accessor("created_at", {
+        header: "Created",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.accessor("expires_at", {
+        header: "Expires",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        meta: { width: 80 },
+        cell: ({ row }) => (
+          <Inline gap="xs" wrap={false}>
+            {row.original.status === "active" && (
+              <ConfirmIconButton
+                tooltip="Deactivate session"
+                aria-label="Deactivate session"
+                color="danger"
+                icon={<IconTrash />}
                 title="Deactivate this session?"
-                onConfirm={() => handleDeactivate(record.id)}
-                okText="Deactivate"
-                okButtonProps={{ danger: true }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  aria-label="Deactivate session"
-                  icon={<DeleteOutlined />}
-                />
-              </Popconfirm>
+                confirmLabel="Deactivate"
+                onConfirm={() => handleDeactivate(row.original.id)}
+              />
+            )}
+            <Tooltip content="View details">
+              <IconButton variant="ghost" color="neutral" size="sm" aria-label="View session details" onClick={() => setDetailSession(row.original)}>
+                <IconInfoCircle />
+              </IconButton>
             </Tooltip>
-          )}
-          <Tooltip title="View details">
-            <Button
-              type="text"
-              size="small"
-              aria-label="View session details"
-              icon={<InfoCircleOutlined />}
-              onClick={() => setDetailSession(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+          </Inline>
+        ),
+      }),
+    ]);
+  }, [deactivate]);
 
   return (
-    <>
-      <Space
-        style={{
-          justifyContent: "space-between",
-          width: "100%",
-          flexShrink: 0,
-        }}
-      >
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-            Back to Sessions
-          </Button>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Sessions for {idpSession.username || idpSession.user_id}
-          </Typography.Title>
-        </Space>
-      </Space>
-
-      <Typography.Text
-        type="secondary"
-        style={{ display: "block", marginTop: 8, flexShrink: 0 }}
-      >
-        {describeUserAgent(idpSession.user_agent)} — {idpSession.ip_address}
-      </Typography.Text>
-
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
-      >
-        <Table<OAuthSessionResponse>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} sessions`,
-          }}
-          size="small"
-        />
-      </div>
-
-      <OAuthSessionDetailDrawer
-        session={detailSession}
-        onClose={() => setDetailSession(null)}
+    <Stack gap="md">
+      <Inline>
+        <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
+          Back to Sessions
+        </Button>
+      </Inline>
+      <PageHeader
+        title={`Sessions for ${idpSession.username || idpSession.user_id}`}
+        description={`${describeUserAgent(idpSession.user_agent)} — ${idpSession.ip_address}`}
       />
-    </>
+
+      <DataTable
+        caption="OAuth sessions"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(s) => s.id}
+        loading={isLoading}
+        emptyTitle="No sessions found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} sessions`,
+        }}
+      />
+
+      <OAuthSessionDetailDrawer session={detailSession} onClose={() => setDetailSession(null)} />
+    </Stack>
   );
 }
 
-function IdpSessionDetailDrawer({
-  session,
-  onClose,
-}: {
-  session: IdpSessionResponse | null;
-  onClose: () => void;
-}) {
+function IdpSessionDetailDrawer({ session, onClose }: { session: IdpSessionResponse | null; onClose: () => void }) {
   return (
-    <Drawer
-      title="Device Session Details"
-      open={!!session}
-      onClose={onClose}
-      width={480}
-    >
+    <Drawer title="Device Session Details" open={!!session} onOpenChange={(next) => !next && onClose()} side="right" size="md">
       {session && (
-        <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Session ID">{session.id}</Descriptions.Item>
-          <Descriptions.Item label="User ID">
-            {session.user_id}
-          </Descriptions.Item>
-          <Descriptions.Item label="Username">
-            {session.username}
-          </Descriptions.Item>
-          <Descriptions.Item label="Email">
-            {session.email || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="User Agent">
-            {session.user_agent || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="IP Address">
-            {session.ip_address || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Active Apps">
-            {session.active_apps_count}
-          </Descriptions.Item>
-          <Descriptions.Item label="Last Active">
-            {formatDate(session.last_activity_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Signed In">
-            {formatDate(session.created_at)}
-          </Descriptions.Item>
-        </Descriptions>
+        <DescriptionList>
+          <DescriptionList.Item label="Session ID">{session.id}</DescriptionList.Item>
+          <DescriptionList.Item label="User ID">{session.user_id}</DescriptionList.Item>
+          <DescriptionList.Item label="Username">{session.username}</DescriptionList.Item>
+          <DescriptionList.Item label="Email">{session.email || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="User Agent">{session.user_agent || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="IP Address">{session.ip_address || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Active Apps">{session.active_apps_count}</DescriptionList.Item>
+          <DescriptionList.Item label="Last Active">{formatDate(session.last_activity_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Signed In">{formatDate(session.created_at)}</DescriptionList.Item>
+        </DescriptionList>
       )}
     </Drawer>
   );
 }
 
-export default function SessionsPage() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
+const DATE_FIELDS = [
+  { label: "Last Active", value: "last_activity_at" },
+  { label: "Signed In", value: "created_at" },
+];
 
+const DATE_FIELD_LABELS: Record<string, string> = {
+  last_activity_at: "Last active between",
+  created_at: "Signed in between",
+};
+
+export default function SessionsPage() {
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "last_activity_at",
     order: "desc",
   });
-  const [searchValue, setSearchValue] = useState("");
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [dateField, setDateField] = useState<string>("last_activity_at");
 
   const { data, isLoading, error } = useIdpSessions(listParams);
-  const forceLogout = useForceLogoutIdpSession();
+  const { mutateAsync: forceLogout } = useForceLogoutIdpSession();
 
-  const [sessionsIdp, setSessionsIdp] = useState<IdpSessionResponse | null>(
-    null
-  );
-  const [detailSession, setDetailSession] =
-    useState<IdpSessionResponse | null>(null);
+  const [sessionsIdp, setSessionsIdp] = useState<IdpSessionResponse | null>(null);
+  const [detailSession, setDetailSession] = useState<IdpSessionResponse | null>(null);
 
-  const handleForceLogout = async (id: string) => {
-    try {
-      await forceLogout.mutateAsync(id);
-      message.success("Device signed out");
-    } catch {
-      message.error("Failed to sign out device");
-    }
-  };
-
-  const handleDateRange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null, field: string) => {
-      setDateRange(dates);
-      setListParams((prev) => {
-        const next: ListParams = { ...prev, offset: 0 };
-        delete next.created_at_from;
-        delete next.created_at_to;
-        delete next.last_activity_at_from;
-        delete next.last_activity_at_to;
-        if (dates && dates[0]) {
-          next[`${field}_from`] = dates[0].startOf("day").toISOString();
-        }
-        if (dates && dates[1]) {
-          next[`${field}_to`] = dates[1].endOf("day").toISOString();
-        }
-        return next;
-      });
-    },
-    []
-  );
-
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter:
-        | SorterResult<IdpSessionResponse>
-        | SorterResult<IdpSessionResponse>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : prev.sort,
-        order: s.order === "descend" ? "desc" : "asc",
-      }));
-    },
-    []
-  );
-
-  const handleSearch = useCallback((value: string) => {
+  const handleDateRange = (range: DateRange | null, field: string) => {
+    setDateRange(range);
     setListParams((prev) => ({
       ...prev,
-      search: value || undefined,
       offset: 0,
+      ...dateRangeParams(null, "created_at"),
+      ...dateRangeParams(null, "last_activity_at"),
+      ...dateRangeParams(range, field),
     }));
-  }, []);
+  };
 
-  if (sessionsIdp) {
-    return (
-      <SessionsView
-        idpSession={sessionsIdp}
-        onBack={() => setSessionsIdp(null)}
-      />
-    );
-  }
+  const columns = useMemo(() => {
+    const handleForceLogout = async (id: string) => {
+      try {
+        await forceLogout(id);
+        toast({ title: "Device signed out", color: "success" });
+      } catch {
+        toast({ title: "Failed to sign out device", color: "danger" });
+      }
+    };
 
-  const columns: ColumnsType<IdpSessionResponse> = [
-    {
-      title: "Session ID",
-      dataIndex: "id",
-      key: "id",
-      width: 140,
-      render: (id: string) => (
-        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
-      ),
-    },
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-      width: 140,
-      ellipsis: true,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      ellipsis: true,
-      render: (email: string) => (
-        <CopyText text={email} />
-      ),
-    },
-    {
-      title: "Device",
-      key: "device",
-      width: 200,
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>
-            {describeUserAgent(record.user_agent)}
-          </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {record.ip_address || "Unknown IP"}
-          </Typography.Text>
-        </div>
-      ),
-    },
-    {
-      title: "Sessions",
-      key: "sessions",
-      width: 90,
-      render: (_, record) => (
-        <Tag color={record.active_apps_count > 0 ? "blue" : "default"}>
-          {record.active_apps_count}
-        </Tag>
-      ),
-    },
-    {
-      title: "Signed In",
-      dataIndex: "created_at",
-      key: "created_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "created_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Last Active",
-      dataIndex: "last_activity_at",
-      key: "last_activity_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "last_activity_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Force sign out device">
-            <Popconfirm
+    const col = dataColumns<IdpSessionResponse>();
+    return col.columns([
+      col.accessor("id", {
+        header: "Session ID",
+        enableSorting: false,
+        meta: { width: 140 },
+        cell: (info) => <CopyText text={info.getValue()}>{info.getValue().slice(0, 12) + "..."}</CopyText>,
+      }),
+      col.accessor("username", {
+        header: "Username",
+        enableSorting: false,
+        meta: { width: 140 },
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.accessor("email", {
+        header: "Email",
+        enableSorting: false,
+        cell: (info) => <CopyText text={info.getValue() ?? ""} />,
+      }),
+      col.display({
+        id: "device",
+        header: "Device",
+        meta: { width: 200 },
+        cell: ({ row }) => <DeviceCell session={row.original} />,
+      }),
+      col.accessor("active_apps_count", {
+        id: "sessions",
+        header: "Sessions",
+        enableSorting: false,
+        meta: { width: 90 },
+        cell: (info) => (
+          <Badge variant="soft" color={info.getValue() > 0 ? "info" : "neutral"}>
+            {info.getValue()}
+          </Badge>
+        ),
+      }),
+      col.accessor("created_at", {
+        header: "Signed In",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.accessor("last_activity_at", {
+        header: "Last Active",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        meta: { width: 120 },
+        cell: ({ row }) => (
+          <Inline gap="xs" wrap={false}>
+            <ConfirmIconButton
+              tooltip="Force sign out device"
+              aria-label="Force sign out device"
+              color="danger"
+              icon={<IconLogout />}
               title="Force sign out this device?"
               description="This will revoke all sessions and tokens from this device."
-              onConfirm={() => handleForceLogout(record.id)}
-              okText="Sign Out"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                aria-label="Force sign out device"
-                icon={<LogoutOutlined />}
-              />
-            </Popconfirm>
-          </Tooltip>
-          <Tooltip title="View OAuth sessions">
-            <Button
-              type="text"
-              size="small"
-              aria-label="View OAuth sessions for device"
-              icon={<UnorderedListOutlined />}
-              onClick={() => setSessionsIdp(record)}
+              confirmLabel="Sign Out"
+              onConfirm={() => handleForceLogout(row.original.id)}
             />
-          </Tooltip>
-          <Tooltip title="View details">
-            <Button
-              type="text"
-              size="small"
-              aria-label="View device details"
-              icon={<InfoCircleOutlined />}
-              onClick={() => setDetailSession(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+            <Tooltip content="View OAuth sessions">
+              <IconButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                aria-label="View OAuth sessions for device"
+                onClick={() => setSessionsIdp(row.original)}
+              >
+                <IconList />
+              </IconButton>
+            </Tooltip>
+            <Tooltip content="View details">
+              <IconButton variant="ghost" color="neutral" size="sm" aria-label="View device details" onClick={() => setDetailSession(row.original)}>
+                <IconInfoCircle />
+              </IconButton>
+            </Tooltip>
+          </Inline>
+        ),
+      }),
+    ]);
+  }, [forceLogout]);
+
+  if (sessionsIdp) {
+    return <SessionsView idpSession={sessionsIdp} onBack={() => setSessionsIdp(null)} />;
+  }
 
   if (error) {
-    return <Alert type="error" message="Failed to load sessions" />;
+    return <Alert color="danger" title="Failed to load sessions" />;
   }
 
   return (
-    <>
-      <Space
-        style={{
-          justifyContent: "space-between",
-          width: "100%",
-          flexShrink: 0,
-        }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Sessions
-        </Typography.Title>
-        <Space>
-          <Select
-            value={dateField}
-            onChange={(v) => {
-              setDateField(v);
-              if (dateRange) handleDateRange(dateRange, v);
-            }}
-            options={[
-              { label: "Last Active", value: "last_activity_at" },
-              { label: "Signed In", value: "created_at" },
-            ]}
-            style={{ width: 130 }}
-          />
-          <DatePicker.RangePicker
-            value={dateRange}
-            onChange={(dates) => handleDateRange(dates, dateField)}
-            allowClear
-          />
-          <Input.Search
-            placeholder="Search username, email, IP..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 250 }}
-          />
-        </Space>
-      </Space>
-
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
-      >
-        <Table<IdpSessionResponse>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} sessions`,
-          }}
-        />
-      </div>
-
-      <IdpSessionDetailDrawer
-        session={detailSession}
-        onClose={() => setDetailSession(null)}
+    <Stack gap="md">
+      <PageHeader
+        title="Sessions"
+        actions={
+          <>
+            <Select
+              aria-label="Date field"
+              options={DATE_FIELDS}
+              value={dateField}
+              onValueChange={(v) => {
+                if (!v) return;
+                setDateField(v);
+                if (dateRange) handleDateRange(dateRange, v);
+              }}
+            />
+            <DateRangeFilter label={DATE_FIELD_LABELS[dateField]} value={dateRange} onChange={(range) => handleDateRange(range, dateField)} />
+            <SearchInput
+              placeholder="Search username, email, IP..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
+          </>
+        }
       />
-    </>
+
+      <DataTable
+        caption="Sessions"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(s) => s.id}
+        loading={isLoading}
+        emptyTitle="No sessions found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} sessions`,
+        }}
+      />
+
+      <IdpSessionDetailDrawer session={detailSession} onClose={() => setDetailSession(null)} />
+    </Stack>
   );
 }

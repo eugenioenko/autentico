@@ -1,0 +1,13 @@
+.claims-drawer-add {
+  width: 100%;
+}
+
+.claims-drawer-name {
+  flex: 2 1 0;
+  min-width: 0;
+}
+
+.claims-drawer-value {
+  flex: 3 1 0;
+  min-width: 0;
+}

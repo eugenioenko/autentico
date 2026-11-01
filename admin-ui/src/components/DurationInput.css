@@ -1,0 +1,12 @@
+.duration-input {
+  max-width: 25rem;
+}
+
+.duration-input-number {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.duration-input-unit {
+  flex: 0 0 8rem;
+}

@@ -11,7 +11,7 @@ async function api(path: string, body?: unknown, method = body === undefined ? '
 }
 async function select(page: Page, label: string, option: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
-  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(option, { exact: true }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
 }
 
 test('production tester enforces authentication, strict types and bounded unambiguous JSON without saving', async () => {
@@ -77,7 +77,7 @@ test('admin builds, tests and persists typed requirements; invalid drafts cannot
     await page.getByLabel('Provider ID', { exact: true }).fill(id);
     await page.getByLabel('Display Name', { exact: true }).fill('Requirements browser');
     await page.getByLabel('Issuer URL', { exact: true }).fill('https://issuer.example.invalid');
-    await page.locator('input#client_id').fill('browser-client');
+    await page.getByLabel('Client ID', { exact: true }).fill('browser-client');
     await page.getByLabel('Client Secret', { exact: true }).fill('private-secret');
     await page.getByRole('switch').uncheck();
     await page.getByRole('button', { name: 'Add requirement', exact: true }).click();

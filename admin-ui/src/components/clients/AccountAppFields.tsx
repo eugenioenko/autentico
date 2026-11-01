@@ -1,67 +1,71 @@
-import { Form, Input, Switch, Space } from "antd";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
+import type { Control } from "react-hook-form";
+import { Input, Stack, Switch, Textarea } from "@yarcl/react";
+import { FormField } from "../FormField";
 import { appTip } from "./clientTips";
+import type { ClientFormValues } from "./clientForm";
 
 const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
-function validateWebUri(_: unknown, value?: string) {
-  if (!value) return Promise.resolve();
+function validateWebUri(value?: string) {
+  if (!value) return true;
   try {
     const u = new URL(value);
     if (u.username || u.password) throw new Error();
-    if (u.protocol === "https:") return Promise.resolve();
-    if (u.protocol === "http:" && LOOPBACK_HOSTS.includes(u.hostname)) {
-      return Promise.resolve();
-    }
+    if (u.protocol === "https:") return true;
+    if (u.protocol === "http:" && LOOPBACK_HOSTS.includes(u.hostname)) return true;
   } catch {
-    return Promise.reject(new Error("Must be a valid URL"));
+    return "Must be a valid URL";
   }
-  return Promise.reject(
-    new Error("Must use https (http is only allowed for localhost)"),
-  );
+  return "Must use https (http is only allowed for localhost)";
 }
 
-export default function AccountAppFields() {
+export default function AccountAppFields({ control }: { control: Control<ClientFormValues> }) {
   return (
-    <Space direction="vertical" style={{ width: "100%" }}>
-      <Form.Item
-        label="Show in Account Dashboard"
-        name="show_in_account"
-        valuePropName="checked"
-        tooltip={{ title: appTip("show_in_account"), icon: <ExclamationCircleOutlined /> }}
-      >
-        <Switch />
-      </Form.Item>
+    <Stack gap="md">
+      <FormField control={control} name="show_in_account" label="Show in Account Dashboard" tooltip={appTip("show_in_account")}>
+        {(field) => (
+          <Switch
+            name={field.name}
+            ref={field.ref}
+            checked={!!field.value}
+            onChange={(e) => field.onChange(e.target.checked)}
+            onBlur={field.onBlur}
+          />
+        )}
+      </FormField>
 
-      <Form.Item
-        label="Application URL"
+      <FormField
+        control={control}
         name="client_uri"
-        rules={[{ validator: validateWebUri }]}
-        tooltip={{ title: appTip("client_uri"), icon: <ExclamationCircleOutlined /> }}
+        label="Application URL"
+        tooltip={appTip("client_uri")}
+        rules={{ validate: validateWebUri }}
       >
-        <Input placeholder="https://app.example.com" />
-      </Form.Item>
+        {(field) => <Input {...field} value={field.value ?? ""} placeholder="https://app.example.com" />}
+      </FormField>
 
-      <Form.Item
-        label="Logo URL"
+      <FormField
+        control={control}
         name="logo_uri"
-        rules={[{ validator: validateWebUri }]}
-        tooltip={{ title: appTip("logo_uri"), icon: <ExclamationCircleOutlined /> }}
+        label="Logo URL"
+        tooltip={appTip("logo_uri")}
+        rules={{ validate: validateWebUri }}
       >
-        <Input placeholder="https://app.example.com/logo.png" />
-      </Form.Item>
+        {(field) => <Input {...field} value={field.value ?? ""} placeholder="https://app.example.com/logo.png" />}
+      </FormField>
 
-      <Form.Item
-        label="Description"
+      <FormField
+        control={control}
         name="description"
-        rules={[
-          { max: 1000, message: "At most 1000 characters" },
-          { pattern: /^[^<>]*$/, message: "Must not contain < or >" },
-        ]}
-        tooltip={{ title: appTip("description"), icon: <ExclamationCircleOutlined /> }}
+        label="Description"
+        tooltip={appTip("description")}
+        rules={{
+          maxLength: { value: 1000, message: "At most 1000 characters" },
+          pattern: { value: /^[^<>]*$/, message: "Must not contain < or >" },
+        }}
       >
-        <Input.TextArea rows={2} />
-      </Form.Item>
-    </Space>
+        {(field) => <Textarea {...field} value={field.value ?? ""} rows={2} />}
+      </FormField>
+    </Stack>
   );
 }
