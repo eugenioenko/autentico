@@ -16,7 +16,7 @@ export default defineConfig({
     surface: { light: "#ffffff", dark: "#1a1a1a" },
     text: { light: "#1f1f1f", dark: "#e6e6e6" },
     muted: { light: "#666666", dark: "#8c8c8c" },
-    border: { light: "#e5e5e5", dark: "#262626" },
+    border: { light: "#e5e5e5", dark: "#303030" },
   },
   typography: {
     ...defaults.typography,
