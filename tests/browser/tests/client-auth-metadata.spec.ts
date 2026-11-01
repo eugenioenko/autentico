@@ -74,7 +74,7 @@ for (const clientType of ['public', 'confidential']) {
     await expect(method).toHaveText('None');
     await choose(page, 'Client Type', 'Confidential');
     await expect(method).toHaveText('Client Secret Basic');
-    await drawer.getByLabel('Client Secret', { exact: true }).fill('temporary-secret');
+    await drawer.getByRole('textbox', { name: 'Client Secret', exact: true }).fill('temporary-secret');
     if (clientType === 'public') {
       await choose(page, 'Client Type', 'Public');
       await expect(method).toHaveText('None');
@@ -84,8 +84,8 @@ for (const clientType of ['public', 'confidential']) {
     await expect(options).toHaveText(clientType === 'public' ? ['None'] : ['Client Secret Basic', 'Client Secret Post']);
     await page.keyboard.press('Escape');
     const id = `browser-auth-${clientType}`;
-    await drawer.getByLabel('Client Name', { exact: true }).fill(id);
-    await drawer.getByLabel('Client ID', { exact: true }).fill(id);
+    await drawer.getByRole('textbox', { name: 'Client Name', exact: true }).fill(id);
+    await drawer.getByRole('textbox', { name: 'Client ID', exact: true }).fill(id);
     await drawer.getByPlaceholder('https://example.com/callback', { exact: true }).fill(`${BASE_URL}/callback`);
     const submitted = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/admin/api/clients'));
     await drawer.getByRole('button', { name: 'Create', exact: true }).click();
@@ -114,7 +114,7 @@ for (const client of legacy) {
     await expect(page.getByRole('option'))
       .toHaveText(client.type === 'public' ? ['None'] : ['Client Secret Basic', 'Client Secret Post']);
     await page.keyboard.press('Escape');
-    await drawer.getByLabel('Client Name', { exact: true }).fill(`${client.id} repaired`);
+    await drawer.getByRole('textbox', { name: 'Client Name', exact: true }).fill(`${client.id} repaired`);
     const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith(`/admin/api/clients/${client.id}`));
     await drawer.getByRole('button', { name: 'Save', exact: true }).click();
     const response = await saved;

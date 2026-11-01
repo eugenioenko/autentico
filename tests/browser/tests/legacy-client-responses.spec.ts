@@ -44,7 +44,7 @@ for (const client of legacyClients) {
     await row.getByRole('button', { name: 'Edit client', exact: true }).click();
     const drawer = page.getByRole('dialog', { name: /^Edit Client/ });
     await expect(drawer.getByText(/This client has unsupported response types/)).toBeVisible();
-    await drawer.getByLabel('Client Name', { exact: true }).fill(`${client.id} repaired`);
+    await drawer.getByRole('textbox', { name: 'Client Name', exact: true }).fill(`${client.id} repaired`);
     await drawer.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(drawer.getByText('Only Code is supported. Remove unsupported response types before saving.')).toBeVisible();
     expect(updates).toBe(0);
