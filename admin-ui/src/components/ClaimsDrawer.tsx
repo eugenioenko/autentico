@@ -60,7 +60,7 @@ export default function ClaimsDrawer({
   };
 
   const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleAdd();
+    if (e.key === "Enter" && !isSaving) handleAdd();
   };
 
   const columns = useMemo(() => {

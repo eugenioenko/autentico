@@ -18,7 +18,7 @@ import {
   type TableFeatures,
 } from "@tanstack/react-table";
 import { EmptyState, Inline, Pagination, Select, Skeleton, Stack, Table, Text, type CellAlign } from "@yarcl/react";
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import type { ListParams } from "../api/users";
 import { useFillHeight } from "../hooks/useFillHeight";
@@ -102,11 +102,16 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
     if (server) server.onParamsChange({ ...server.params, offset: 0, [key]: value });
     else setClientFilters((prev) => ({ ...prev, [key]: value }));
   };
-  const rowsData = server
-    ? data
-    : data.filter((row) =>
-        Object.entries(clientFilters).every(([key, value]) => value === undefined || String((row as Record<string, unknown>)[key]) === value),
-      );
+  const hasServer = server !== null;
+  const rowsData = useMemo(
+    () =>
+      hasServer
+        ? data
+        : data.filter((row) =>
+            Object.entries(clientFilters).every(([key, value]) => value === undefined || String((row as Record<string, unknown>)[key]) === value),
+          ),
+    [hasServer, data, clientFilters],
+  );
 
   const table = useTable({
     features,

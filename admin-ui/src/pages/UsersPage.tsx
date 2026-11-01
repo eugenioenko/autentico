@@ -57,6 +57,7 @@ export default function UsersPage() {
     order: "desc",
   });
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   const { data, isLoading, error } = useUsers(listParams);
   const { data: groups } = useGroups();
@@ -293,6 +294,8 @@ export default function UsersPage() {
                 <DateRangeFilter label="Created between" value={dateRange} onChange={handleDateRange} />
                 <SearchInput
                   placeholder="Search users..."
+                  value={searchText}
+                  onValueChange={setSearchText}
                   onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
                 />
                 <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>

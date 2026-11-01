@@ -85,7 +85,7 @@ export default function CorsPage() {
                 onChange={(e) => handleChange(index, e.target.value)}
                 placeholder="https://app.example.com"
               />
-              <IconButton variant="outline" color="danger" aria-label="Remove origin" onClick={() => handleRemove(index)}>
+              <IconButton variant="outline" color="danger" aria-label={`Remove origin ${origin || index + 1}`} onClick={() => handleRemove(index)}>
                 <IconTrash />
               </IconButton>
             </Inline>

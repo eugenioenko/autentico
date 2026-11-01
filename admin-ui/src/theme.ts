@@ -6,15 +6,15 @@ export type ThemeChoice = Scheme | "system";
 const STORAGE_KEY = "autentico-admin-theme";
 const darkQuery = () => window.matchMedia("(prefers-color-scheme: dark)");
 const listeners = new Set<() => void>();
+let memoryChoice: ThemeChoice = "system";
 
 function readChoice(): ThemeChoice {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark") return stored;
+    return stored === "light" || stored === "dark" ? stored : "system";
   } catch {
-    return "system";
+    return memoryChoice;
   }
-  return "system";
 }
 
 function apply(choice: ThemeChoice) {
@@ -28,6 +28,7 @@ export function applyStoredTheme() {
 }
 
 function store(choice: ThemeChoice) {
+  memoryChoice = choice;
   try {
     if (choice === "system") localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, choice);

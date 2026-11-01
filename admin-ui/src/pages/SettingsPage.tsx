@@ -18,7 +18,7 @@ import {
   toast,
 } from "@yarcl/react";
 import { IconDeviceFloppy, IconDownload, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
-import { Controller, FormProvider, useForm, useFormContext, useWatch, type RegisterOptions } from "react-hook-form";
+import { Controller, FormProvider, useForm, useFormContext, useWatch, type FieldErrors, type RegisterOptions } from "react-hook-form";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -540,6 +540,15 @@ export default function SettingsPage() {
     }
   };
 
+  const onInvalid = (errors: FieldErrors<SettingsValues>) => {
+    const name = Object.keys(errors)[0];
+    const panel = name ? document.getElementsByName(name)[0]?.closest('[role="tabpanel"]') : null;
+    const tab = panel ? document.getElementById(panel.getAttribute("aria-labelledby") ?? "")?.dataset.value : undefined;
+    if (tab) setActiveTab(tab);
+    if (name) requestAnimationFrame(() => form.setFocus(name));
+    toast({ title: "Fix the highlighted fields before saving", color: "danger" });
+  };
+
   const previewColumns = useMemo(() => {
     const col = dataColumns<PreviewRow>();
     return col.columns([
@@ -586,7 +595,7 @@ export default function SettingsPage() {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate>
         <Stack gap="md">
           <PageHeader title="System Settings" />
           <Tabs value={activeTab} onValueChange={setActiveTab}>
