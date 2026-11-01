@@ -77,7 +77,7 @@ export default function CorsPage() {
           <Text textStyle="label">Allowed Origins</Text>
 
           {origins.map((origin, index) => (
-            <Inline key={index} gap="xs" wrap={false}>
+            <Inline key={index} gap="sm" wrap={false}>
               <Input
                 className="cors-origin-input"
                 aria-label={`Allowed origin ${index + 1}`}

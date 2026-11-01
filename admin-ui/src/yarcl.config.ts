@@ -12,11 +12,11 @@ export default defineConfig({
     brand: { light: "#c2410c", dark: "#ff7b00", on: { light: "#ffffff", dark: "#1c1917" } },
   },
   neutrals: {
-    bg: { light: "#f5f5f5", dark: "#0f0f0f" },
+    bg: { light: "#fafafa", dark: "#0f0f0f" },
     surface: { light: "#ffffff", dark: "#1a1a1a" },
     text: { light: "#1f1f1f", dark: "#e6e6e6" },
     muted: { light: "#666666", dark: "#8c8c8c" },
-    border: { light: "#d9d9d9", dark: "#303030" },
+    border: { light: "#e5e5e5", dark: "#303030" },
   },
   typography: {
     ...defaults.typography,
