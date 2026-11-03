@@ -1,0 +1,29 @@
+.data-table-frame {
+  position: relative;
+  transition: opacity var(--yarcl-motion-fast) var(--yarcl-motion-easing);
+}
+
+.data-table-frame[data-loading] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.data-table-frame td {
+  white-space: nowrap;
+}
+
+.data-table-frame th {
+  color: light-dark(var(--yarcl-neutral-text), var(--yarcl-neutral-muted));
+  background: light-dark(
+    color-mix(in oklab, var(--yarcl-neutral-text) 4%, var(--yarcl-neutral-surface)),
+    color-mix(in oklab, var(--yarcl-neutral-text) 6%, var(--yarcl-neutral-surface))
+  );
+}
+
+.data-table-frame .yarcl-table-wrap {
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.data-table-clickable {
+  cursor: pointer;
+}

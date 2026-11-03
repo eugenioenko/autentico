@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Drawer, Select, Table, Button, Space, Typography, Popconfirm, Tooltip, App } from "antd";
-import { UserDeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { useMemo, useState } from "react";
+import { Button, Combobox, Drawer, Inline, Stack, Text, VisuallyHidden, toast } from "@yarcl/react";
+import { IconPlus, IconUserMinus } from "@tabler/icons-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroups, useAddMember, useRemoveMember } from "../../hooks/useGroups";
 import { getUserGroups } from "../../api/groups";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Group } from "../../types/group";
+import { DataTable, dataColumns } from "../DataTable";
+import ConfirmIconButton from "../ConfirmIconButton";
+import "./UserGroupsDrawer.css";
 
 interface UserGroupsDrawerProps {
   open: boolean;
@@ -15,10 +17,9 @@ interface UserGroupsDrawerProps {
 }
 
 export default function UserGroupsDrawer({ open, userId, username, onClose }: UserGroupsDrawerProps) {
-  const { message } = App.useApp();
   const { data: allGroups } = useGroups();
   const addMember = useAddMember();
-  const removeMember = useRemoveMember();
+  const { mutateAsync: removeMember } = useRemoveMember();
   const queryClient = useQueryClient();
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
@@ -29,113 +30,102 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
     enabled: !!userId && open,
   });
 
+  const handleClose = () => {
+    onClose();
+    setSelectedGroupIds([]);
+  };
+
   const handleAddSelected = async () => {
     if (!userId || selectedGroupIds.length === 0) return;
     setAdding(true);
     try {
-      await Promise.all(
-        selectedGroupIds.map((groupId) => addMember.mutateAsync({ groupId, userId }))
-      );
+      await Promise.all(selectedGroupIds.map((groupId) => addMember.mutateAsync({ groupId, userId })));
       queryClient.invalidateQueries({ queryKey: ["user-groups", userId] });
-      message.success(`Added to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? "s" : ""}`);
+      toast({
+        title: `Added to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? "s" : ""}`,
+        color: "success",
+      });
       setSelectedGroupIds([]);
     } catch {
-      message.error("Failed to add groups");
+      toast({ title: "Failed to add groups", color: "danger" });
     } finally {
       setAdding(false);
-    }
-  };
-
-  const handleRemove = async (groupId: string) => {
-    if (!userId) return;
-    try {
-      await removeMember.mutateAsync({ groupId, userId });
-      queryClient.invalidateQueries({ queryKey: ["user-groups", userId] });
-      message.success("Group removed");
-    } catch {
-      message.error("Failed to remove group");
     }
   };
 
   const memberGroupIds = new Set((userGroups ?? []).map((g) => g.id));
   const availableGroups = (allGroups?.items ?? []).filter((g) => !memberGroupIds.has(g.id));
 
-  const columns: ColumnsType<Group> = [
-    { title: "Name", dataIndex: "name", key: "name" },
-    { title: "Description", dataIndex: "description", key: "description", ellipsis: true },
-    {
-      title: "",
-      key: "actions",
-      width: 50,
-      render: (_, record) => (
-        <Tooltip title="Remove from group">
-          <Popconfirm
+  const columns = useMemo(() => {
+    const handleRemove = async (groupId: string) => {
+      if (!userId) return;
+      try {
+        await removeMember({ groupId, userId });
+        queryClient.invalidateQueries({ queryKey: ["user-groups", userId] });
+        toast({ title: "Group removed", color: "success" });
+      } catch {
+        toast({ title: "Failed to remove group", color: "danger" });
+      }
+    };
+
+    const col = dataColumns<Group>();
+    return col.columns([
+      col.accessor("name", { header: "Name" }),
+      col.accessor("description", {
+        header: "Description",
+        enableSorting: false,
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.display({
+        id: "actions",
+        header: () => <VisuallyHidden>Actions</VisuallyHidden>,
+        meta: { width: 50 },
+        cell: ({ row }) => (
+          <ConfirmIconButton
+            tooltip="Remove from group"
+            aria-label="Remove from group"
+            color="danger"
+            icon={<IconUserMinus />}
             title="Remove from this group?"
-            onConfirm={() => handleRemove(record.id)}
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              aria-label="Remove from group"
-              icon={<UserDeleteOutlined />}
-            />
-          </Popconfirm>
-        </Tooltip>
-      ),
-    },
-  ];
+            confirmLabel="Remove"
+            onConfirm={() => handleRemove(row.original.id)}
+          />
+        ),
+      }),
+    ]);
+  }, [userId, removeMember, queryClient]);
 
   return (
-    <Drawer
-      title={`Groups for ${username}`}
-      open={open}
-      onClose={() => { onClose(); setSelectedGroupIds([]); }}
-      width={480}
-    >
-      <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-            Add to groups
-          </Typography.Text>
-          <Space.Compact style={{ width: "100%" }}>
-            <Select
-              mode="multiple"
-              style={{ width: "100%" }}
+    <Drawer title={`Groups for ${username}`} open={open} onOpenChange={(next) => !next && handleClose()} side="right" size="md">
+      <Stack gap="md">
+        <Stack gap="xs">
+          <Text muted>Add to groups</Text>
+          <Inline gap="xs" wrap={false} align="start">
+            <Combobox
+              multiple
+              className="user-groups-picker"
+              aria-label="Add to groups"
               placeholder="Select groups to add"
-              showSearch
-              optionFilterProp="label"
               value={selectedGroupIds}
-              onChange={setSelectedGroupIds}
-              options={availableGroups.map((g) => ({
-                value: g.id,
-                label: g.name,
-              }))}
+              onValueChange={setSelectedGroupIds}
+              options={availableGroups.map((g) => ({ value: g.id, label: g.name }))}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddSelected}
-              loading={adding}
-              disabled={selectedGroupIds.length === 0}
-            >
+            <Button startIcon={<IconPlus />} onClick={handleAddSelected} loading={adding} disabled={selectedGroupIds.length === 0}>
               Add
             </Button>
-          </Space.Compact>
-        </div>
+          </Inline>
+        </Stack>
 
-        <Table<Group>
+        <DataTable
+          caption={`Groups for ${username}`}
+          data={userGroups ?? []}
           columns={columns}
-          dataSource={userGroups ?? []}
-          rowKey="id"
+          getRowId={(g) => g.id}
           loading={isLoading}
-          pagination={false}
-          size="small"
-          locale={{ emptyText: "Not a member of any group" }}
+          pageSize={false}
+          emptyTitle="Not a member of any group"
         />
-      </Space>
+      </Stack>
     </Drawer>
   );
 }

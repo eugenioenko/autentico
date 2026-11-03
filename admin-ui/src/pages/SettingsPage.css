@@ -1,0 +1,34 @@
+.settings-tab {
+  max-width: 50rem;
+  padding-top: var(--yarcl-space-lg);
+}
+
+.settings-control {
+  max-width: 25rem;
+}
+
+.settings-number {
+  width: 10rem;
+}
+
+.settings-code {
+  font-family: var(--yarcl-font-mono, monospace);
+}
+
+.settings-link-label {
+  flex: 0 0 10rem;
+}
+
+.settings-link-url {
+  flex: 0 1 20rem;
+  min-width: 0;
+}
+
+.settings-save-bar {
+  position: sticky;
+  bottom: calc(var(--yarcl-app-padding) * -1);
+  margin-bottom: calc(var(--yarcl-app-padding) * -1);
+  padding-block: var(--yarcl-space-md) calc(var(--yarcl-space-md) + var(--yarcl-app-padding));
+  border-top: var(--yarcl-border-width) solid var(--yarcl-neutral-border);
+  background: var(--yarcl-neutral-bg);
+}

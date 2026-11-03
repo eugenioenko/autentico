@@ -1,10 +1,9 @@
 import { lazy, Suspense, useMemo } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App, ConfigProvider, theme } from "antd";
+import { Toaster } from "@yarcl/react";
 import { AuthProvider, RequireAuth, useAuth } from "oidc-js-react";
 import type { OidcConfig } from "oidc-js-react";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import AuthBridge from "./components/AuthBridge";
 import AdminLayout from "./layouts/AdminLayout";
 
@@ -89,55 +88,34 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ThemedApp() {
-  const { mode } = useTheme();
-  return (
-    <ConfigProvider
-      theme={{
-        algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        ...(mode === "dark" && {
-          components: {
-            Layout: { bodyBg: "#0f0f0f" },
-          },
-        }),
-      }}
-    >
-      <App>
-        <BrowserRouter basename={BASENAME}>
-          <AuthWrapper>
-            <Routes>
-              <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
-              <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
-              <Route path="/access-denied" element={<Suspense fallback={null}><AccessDeniedPage /></Suspense>} />
-              <Route element={<ProtectedRoute />}>
-                <Route element={<AdminLayout />}>
-                  <Route index element={<DashboardPage />} />
-                  <Route path="clients" element={<ClientsPage />} />
-<Route path="protected-apps" element={<ProtectedAppsPage />} />
-                  <Route path="users" element={<UsersPage />} />
-                  <Route path="groups" element={<GroupsPage />} />
-                  <Route path="sessions" element={<SessionsPage />} />
-                  <Route path="tokens" element={<TokensPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="cors" element={<CorsPage />} />
-                  <Route path="federation" element={<FederationPage />} />
-                  <Route path="audit-log" element={<AuditLogPage />} />
-                </Route>
-              </Route>
-            </Routes>
-          </AuthWrapper>
-        </BrowserRouter>
-      </App>
-    </ConfigProvider>
-  );
-}
-
 export default function AppRoot() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ThemedApp />
-      </ThemeProvider>
+      <BrowserRouter basename={BASENAME}>
+        <AuthWrapper>
+          <Routes>
+            <Route path="/login" element={<Suspense fallback={null}><LoginPage /></Suspense>} />
+            <Route path="/callback" element={<Suspense fallback={null}><CallbackPage /></Suspense>} />
+            <Route path="/access-denied" element={<Suspense fallback={null}><AccessDeniedPage /></Suspense>} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="clients" element={<ClientsPage />} />
+<Route path="protected-apps" element={<ProtectedAppsPage />} />
+                <Route path="users" element={<UsersPage />} />
+                <Route path="groups" element={<GroupsPage />} />
+                <Route path="sessions" element={<SessionsPage />} />
+                <Route path="tokens" element={<TokensPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="cors" element={<CorsPage />} />
+                <Route path="federation" element={<FederationPage />} />
+                <Route path="audit-log" element={<AuditLogPage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </AuthWrapper>
+      </BrowserRouter>
+      <Toaster placement="bottom-right" />
     </QueryClientProvider>
   );
 }

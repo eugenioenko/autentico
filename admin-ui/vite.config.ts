@@ -1,9 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import yarcl from "@yarcl/react/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), yarcl({ config: "src/yarcl.config.ts", emitTokens: false })],
   base: "/admin/",
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
   server: {
     proxy: {
       "/oauth2": "http://localhost:9999",

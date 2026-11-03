@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
-import { Drawer, Form, Input, InputNumber, Switch, Alert, Space, Button, Typography, App } from "antd";
+import { useEffect, useId, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Alert, Button, Drawer, Inline, Input, NumberInput, Stack, Switch, Text, Textarea, toast } from "@yarcl/react";
 import { useUpdateFederationProvider } from "../../hooks/useFederation";
 import type { FederationProvider, FederationProviderUpdateRequest } from "../../types/federation";
-import ClaimRequirementsEditor from './ClaimRequirementsEditor';
-import { validateClaimRequirements } from '../../api/federation';
+import { FormField } from "../FormField";
+import PasswordInput from "../PasswordInput";
+import CopyText from "../CopyText";
+import { urlRule } from "../../lib/validation";
+import ClaimRequirementsField, { claimRequirementsError } from "./ClaimRequirementsField";
 
 interface Props {
   open: boolean;
@@ -11,16 +15,18 @@ interface Props {
   onClose: () => void;
 }
 
+const EMPTY: FederationProviderUpdateRequest = { name: "", issuer: "", client_id: "", claim_requirements: [] };
+
 export default function FederationEditForm({ open, provider, onClose }: Props) {
-  const { message } = App.useApp();
-  const [form] = Form.useForm();
+  const formId = useId();
+  const { control, handleSubmit, reset, setError, setValue } = useForm<FederationProviderUpdateRequest>({ defaultValues: EMPTY });
   const updateProvider = useUpdateFederationProvider();
   const [rulesTouched, setRulesTouched] = useState(false);
 
   useEffect(() => {
     if (provider) {
       setRulesTouched(false);
-      form.setFieldsValue({
+      reset({
         claim_requirements: provider.claim_requirements ?? [],
         name: provider.name,
         issuer: provider.issuer,
@@ -31,115 +37,128 @@ export default function FederationEditForm({ open, provider, onClose }: Props) {
         sort_order: provider.sort_order,
       });
     }
-  }, [provider, form]);
+  }, [provider, reset]);
 
-  const handleSubmit = async (values: FederationProviderUpdateRequest) => {
+  const onSubmit = async (values: FederationProviderUpdateRequest) => {
     if (!provider) return;
-    if (provider.claim_requirements_error && !rulesTouched) delete values.claim_requirements;
+    const rulesError = await claimRequirementsError(values.claim_requirements);
+    if (rulesError) {
+      setError("claim_requirements", { message: rulesError });
+      return;
+    }
+    const data = { ...values };
+    if (provider.claim_requirements_error && !rulesTouched) delete data.claim_requirements;
     try {
-      await updateProvider.mutateAsync({ id: provider.id, data: values });
-      message.success("Federation provider updated");
+      await updateProvider.mutateAsync({ id: provider.id, data });
+      toast({ title: "Federation provider updated", color: "success" });
       onClose();
     } catch {
-      message.error("Failed to update federation provider");
+      toast({ title: "Failed to update federation provider", color: "danger" });
     }
   };
 
-  const callbackURL = provider
-    ? `${window.location.origin}/oauth2/federation/${provider.id}/callback`
-    : "";
+  const callbackURL = provider ? `${window.location.origin}/oauth2/federation/${provider.id}/callback` : "";
 
   return (
     <Drawer
       title="Edit Federation Provider"
       open={open}
-      onClose={onClose}
-      width={760}
-      extra={
-        <Space>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="primary"
-            onClick={() => form.submit()}
-            loading={updateProvider.isPending}
-          >
+      onOpenChange={(next) => !next && onClose()}
+      side="right"
+      size="lg"
+      footer={
+        <>
+          <Button variant="ghost" color="neutral" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} loading={updateProvider.isPending}>
             Save
           </Button>
-        </Space>
+        </>
       }
     >
-      {provider && (
-        <Alert
-          type="info"
-          style={{ marginBottom: 20 }}
-          message="Redirect URI for this provider"
-          description={
-            <Space direction="vertical" size={4}>
-              <Typography.Text>
-                Register this redirect URI in your identity provider's developer console:
-              </Typography.Text>
-              <Typography.Text code copyable>
-                {callbackURL}
-              </Typography.Text>
-            </Space>
-          }
-        />
-      )}
+      <Stack gap="lg">
+        {provider && (
+          <Alert color="info" title="Redirect URI for this provider">
+            <Stack gap="xs">
+              <Text>Register this redirect URI in your identity provider's developer console:</Text>
+              <CopyText text={callbackURL} code />
+            </Stack>
+          </Alert>
+        )}
 
-      {provider?.claim_requirements_error && <Alert type="error" title="Stored claim requirements are invalid" description="Login is blocked. Replace the requirements or explicitly clear them to repair this provider. Other edits preserve the invalid policy." />}
-      <Form form={form} layout="vertical" onFinish={handleSubmit} onValuesChange={changed => { if ('claim_requirements' in changed) setRulesTouched(true); }}>
-        <Form.Item
-          name="name"
-          label="Display Name"
-          rules={[{ required: true, message: "Name is required" }]}
-        >
-          <Input />
-        </Form.Item>
+        {provider?.claim_requirements_error && (
+          <Alert color="danger" title="Stored claim requirements are invalid">
+            Login is blocked. Replace the requirements or explicitly clear them to repair this provider. Other edits preserve the
+            invalid policy.
+          </Alert>
+        )}
 
-        <Form.Item
-          name="issuer"
-          label="Issuer URL"
-          rules={[
-            { required: true, message: "Issuer is required" },
-            { type: "url", message: "Must be a valid URL" },
-          ]}
-        >
-          <Input />
-        </Form.Item>
+        <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+          <Stack gap="md">
+            <FormField control={control} name="name" label="Display Name" rules={{ required: "Name is required" }}>
+              {(field) => <Input {...field} />}
+            </FormField>
 
-        <Form.Item
-          name="client_id"
-          label="Client ID"
-          rules={[{ required: true, message: "Client ID is required" }]}
-        >
-          <Input />
-        </Form.Item>
+            <FormField control={control} name="issuer" label="Issuer URL" rules={{ required: "Issuer is required", pattern: urlRule() }}>
+              {(field) => <Input {...field} />}
+            </FormField>
 
-        <Form.Item
-          name="client_secret"
-          label="Client Secret"
-          extra="Leave empty to keep the existing secret."
-        >
-          <Input.Password placeholder="Leave empty to keep unchanged" />
-        </Form.Item>
+            <FormField control={control} name="client_id" label="Client ID" rules={{ required: "Client ID is required" }}>
+              {(field) => <Input {...field} />}
+            </FormField>
 
-        <Form.Item name="icon_svg" label="Icon SVG">
-          <Input.TextArea rows={3} />
-        </Form.Item>
+            <FormField control={control} name="client_secret" label="Client Secret" description="Leave empty to keep the existing secret.">
+              {(field) => <PasswordInput {...field} value={field.value ?? ""} placeholder="Leave empty to keep unchanged" />}
+            </FormField>
 
-        <Form.Item name="claim_requirements" label="Claim requirements" validateTrigger={[]} rules={[{ validator: validateClaimRequirements }]}>
-          <ClaimRequirementsEditor />
-        </Form.Item>
-        {provider?.claim_requirements_error && <Button onClick={() => { form.setFieldValue('claim_requirements', []); setRulesTouched(true); }}>Clear invalid requirements</Button>}
+            <FormField control={control} name="icon_svg" label="Icon SVG">
+              {(field) => <Textarea {...field} value={field.value ?? ""} rows={3} />}
+            </FormField>
 
-        <Form.Item name="sort_order" label="Sort Order" extra="Lower numbers appear first on the login page.">
-          <InputNumber min={0} style={{ width: "100%" }} />
-        </Form.Item>
+            <ClaimRequirementsField control={control} name="claim_requirements" onEdit={() => setRulesTouched(true)} />
+            {provider?.claim_requirements_error && (
+              <Inline>
+                <Button
+                  variant="outline"
+                  color="neutral"
+                  onClick={() => {
+                    setValue("claim_requirements", []);
+                    setRulesTouched(true);
+                  }}
+                >
+                  Clear invalid requirements
+                </Button>
+              </Inline>
+            )}
 
-        <Form.Item name="enabled" label="Enabled" valuePropName="checked">
-          <Switch />
-        </Form.Item>
-      </Form>
+            <FormField control={control} name="sort_order" label="Sort Order" description="Lower numbers appear first on the login page.">
+              {(field) => (
+                <NumberInput
+                  name={field.name}
+                  ref={field.ref}
+                  min={0}
+                  value={field.value ?? null}
+                  onValueChange={(v) => field.onChange(v ?? undefined)}
+                  onBlur={field.onBlur}
+                />
+              )}
+            </FormField>
+
+            <FormField control={control} name="enabled" label="Enabled">
+              {(field) => (
+                <Switch
+                  name={field.name}
+                  ref={field.ref}
+                  checked={!!field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  onBlur={field.onBlur}
+                />
+              )}
+            </FormField>
+          </Stack>
+        </form>
+      </Stack>
     </Drawer>
   );
 }

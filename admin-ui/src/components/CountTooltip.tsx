@@ -1,15 +1,17 @@
-import { Tag, Tooltip } from "antd";
+import { Badge, Tooltip, type Color } from "@yarcl/react";
 
 interface CountTooltipProps {
   items: string[];
-  color?: string;
+  color?: Color;
 }
 
-export default function CountTooltip({ items, color = "blue" }: CountTooltipProps) {
-  if (items.length === 0) return <Tag>0</Tag>;
+export default function CountTooltip({ items, color = "info" }: CountTooltipProps) {
+  if (items.length === 0) return <Badge variant="soft" color="neutral">0</Badge>;
   return (
-    <Tooltip title={items.join(", ")}>
-      <Tag color={color}>{items.length}</Tag>
+    <Tooltip content={items.join(", ")}>
+      <Badge variant="soft" color={color} tabIndex={0}>
+        {items.length}
+      </Badge>
     </Tooltip>
   );
 }

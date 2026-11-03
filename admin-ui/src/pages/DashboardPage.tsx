@@ -1,21 +1,51 @@
-import { Card, Col, Row, Statistic, Button, Space, Typography, Spin } from "antd";
+import { Button, Card, Grid, Heading, Inline, Spinner, Stack, Text } from "@yarcl/react";
 import {
-  UserOutlined,
-  AppstoreOutlined,
-  DesktopOutlined,
-  KeyOutlined,
-  LoginOutlined,
-  PlusOutlined,
-  CopyOutlined,
-  CheckOutlined,
-  DeleteOutlined,
-  WarningOutlined,
-  LockOutlined,
-} from "@ant-design/icons";
-import { useState } from "react";
+  IconAlertTriangle,
+  IconApps,
+  IconCheck,
+  IconCopy,
+  IconDeviceDesktop,
+  IconKey,
+  IconLock,
+  IconLogin,
+  IconPlus,
+  IconTrash,
+  IconUser,
+} from "@tabler/icons-react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
 import { useAuth } from "oidc-js-react";
+import PageHeader from "../components/PageHeader";
+import { RouterLink } from "../components/RouterLink";
+import "./DashboardPage.css";
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: ReactNode;
+  alert?: boolean;
+  children?: ReactNode;
+}
+
+function StatCard({ title, value, icon, alert, children }: StatCardProps) {
+  return (
+    <Card>
+      <Stack gap="xs">
+        <Text textStyle="caption" muted>
+          {title}
+        </Text>
+        <Inline gap="sm" align="center" wrap={false} className="dashboard-stat-value">
+          {icon}
+          <Text textStyle="display" color={alert ? "danger" : undefined}>
+            {value}
+          </Text>
+        </Inline>
+        {children}
+      </Stack>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = useStats();
@@ -31,123 +61,82 @@ export default function DashboardPage() {
   };
 
   if (isLoading) {
-    return <Spin style={{ display: "block", marginTop: 80 }} />;
+    return (
+      <div className="page-loading">
+        <Spinner size="lg" label="Loading" />
+      </div>
+    );
   }
 
+  const failedLogins = stats?.failed_logins_24h ?? 0;
+  const lockedAccounts = stats?.locked_accounts ?? 0;
+  const pendingDeletions = stats?.pending_deletion_requests ?? 0;
+
   return (
-    <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <Typography.Title level={4} style={{ margin: 0 }} data-testid="admin-dashboard">
-        Dashboard
-      </Typography.Title>
+    <Stack gap="lg" data-testid="admin-dashboard">
+      <PageHeader title="Dashboard" />
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Total Users"
-              value={stats?.total_users ?? 0}
-              prefix={<UserOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Active Clients"
-              value={stats?.active_clients ?? 0}
-              prefix={<AppstoreOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Active Devices"
-              value={stats?.active_devices ?? 0}
-              prefix={<DesktopOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Active Tokens"
-              value={stats?.active_tokens ?? 0}
-              prefix={<KeyOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Recent Logins (24h)"
-              value={stats?.recent_logins ?? 0}
-              prefix={<LoginOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Failed Logins (24h)"
-              value={stats?.failed_logins_24h ?? 0}
-              prefix={<WarningOutlined />}
-              valueStyle={(stats?.failed_logins_24h ?? 0) > 0 ? { color: "#cf1322" } : undefined}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Locked Accounts"
-              value={stats?.locked_accounts ?? 0}
-              prefix={<LockOutlined />}
-              valueStyle={(stats?.locked_accounts ?? 0) > 0 ? { color: "#cf1322" } : undefined}
-            />
-          </Card>
-        </Col>
-        {(stats?.pending_deletion_requests ?? 0) > 0 && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card
-              style={{ cursor: "pointer" }}
-              onClick={() => navigate("/users?tab=deletions")}
-            >
-              <Statistic
-                title="Pending Deletions"
-                value={stats?.pending_deletion_requests ?? 0}
-                prefix={<DeleteOutlined />}
-                valueStyle={{ color: "#cf1322" }}
-              />
-            </Card>
-          </Col>
+      <Grid columns={{ base: 1, sm: 2, lg: 4 }} gap="md">
+        <StatCard title="Total Users" value={stats?.total_users ?? 0} icon={<IconUser aria-hidden="true" />} />
+        <StatCard title="Active Clients" value={stats?.active_clients ?? 0} icon={<IconApps aria-hidden="true" />} />
+        <StatCard title="Active Devices" value={stats?.active_devices ?? 0} icon={<IconDeviceDesktop aria-hidden="true" />} />
+        <StatCard title="Active Tokens" value={stats?.active_tokens ?? 0} icon={<IconKey aria-hidden="true" />} />
+        <StatCard title="Recent Logins (24h)" value={stats?.recent_logins ?? 0} icon={<IconLogin aria-hidden="true" />} />
+        <StatCard
+          title="Failed Logins (24h)"
+          value={failedLogins}
+          alert={failedLogins > 0}
+          icon={<IconAlertTriangle aria-hidden="true" />}
+        />
+        <StatCard
+          title="Locked Accounts"
+          value={lockedAccounts}
+          alert={lockedAccounts > 0}
+          icon={<IconLock aria-hidden="true" />}
+        />
+        {pendingDeletions > 0 && (
+          <StatCard title="Pending Deletions" value={pendingDeletions} alert icon={<IconTrash aria-hidden="true" />}>
+            <RouterLink to="/users?tab=deletions">Review requests</RouterLink>
+          </StatCard>
         )}
-      </Row>
+      </Grid>
 
-      <Card title="Quick Actions">
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <Space>
+      <Card>
+        <Stack gap="md">
+          <Heading level={2} textStyle="subheading">
+            Quick Actions
+          </Heading>
+          <Stack gap="sm" align="start">
+            <Inline gap="sm">
+              <Button
+                variant="outline"
+                color="neutral"
+                startIcon={<IconPlus />}
+                onClick={() => navigate("/users", { state: { create: true } })}
+              >
+                Create User
+              </Button>
+              <Button
+                variant="outline"
+                color="neutral"
+                startIcon={<IconPlus />}
+                onClick={() => navigate("/clients", { state: { create: true } })}
+              >
+                Create Client
+              </Button>
+            </Inline>
+            <Text muted>Access token for API / Swagger:</Text>
             <Button
-              icon={<PlusOutlined />}
-              onClick={() => navigate("/users", { state: { create: true } })}
+              variant="outline"
+              color={copied ? "success" : "neutral"}
+              startIcon={copied ? <IconCheck /> : <IconCopy />}
+              onClick={handleCopyToken}
             >
-              Create User
+              {copied ? "Copied!" : "Copy access token"}
             </Button>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => navigate("/clients", { state: { create: true } })}
-            >
-              Create Client
-            </Button>
-          </Space>
-          <Typography.Text type="secondary">Access token for API / Swagger:</Typography.Text>
-          <Button
-            icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-            onClick={handleCopyToken}
-          >
-            {copied ? "Copied!" : "Copy access token"}
-          </Button>
-        </Space>
+          </Stack>
+        </Stack>
       </Card>
-    </Space>
+    </Stack>
   );
 }

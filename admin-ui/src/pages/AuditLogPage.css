@@ -1,0 +1,8 @@
+.audit-event-filter {
+  width: 14rem;
+}
+
+.audit-detail-cell {
+  display: block;
+  max-width: 20rem;
+}

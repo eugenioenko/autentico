@@ -1,0 +1,11 @@
+.auth-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--yarcl-space-md);
+  background: var(--yarcl-neutral-bg);
+}
+
+.auth-screen-content {
+  max-width: 32rem;
+}

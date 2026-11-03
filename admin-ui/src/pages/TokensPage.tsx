@@ -1,341 +1,190 @@
-import { useState, useCallback, useRef } from "react";
-import {
-  Typography,
-  Table,
-  Button,
-  Tag,
-  Space,
-  Popconfirm,
-  Input,
-  Drawer,
-  Descriptions,
-  DatePicker,
-  Alert,
-  Tooltip,
-  App,
-} from "antd";
-import { DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SorterResult } from "antd/es/table/interface";
-import type { Dayjs } from "dayjs";
+import { useState, useMemo } from "react";
+import { Alert, Badge, Drawer, IconButton, Inline, Stack, Text, Tooltip, toast, type DateRange } from "@yarcl/react";
+import { IconInfoCircle, IconTrash } from "@tabler/icons-react";
 import { useTokens, useRevokeToken } from "../hooks/useTokens";
 import type { ListParams } from "../api/users";
 import type { AdminTokenResponse } from "../types/token";
 import GrantChips from "../components/GrantChips";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
+import ConfirmIconButton from "../components/ConfirmIconButton";
+import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
+import DescriptionList from "../components/DescriptionList";
+import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
+import { DataTable, dataColumns } from "../components/DataTable";
 
 function formatDate(date: string | null): string {
   if (!date) return "—";
   return new Date(date).toLocaleString();
 }
 
-function statusTag(status: string) {
-  const color =
-    status === "active" ? "green" : status === "expired" ? "orange" : "red";
-  return <Tag color={color}>{status}</Tag>;
+function StatusBadge({ status }: { status: string }) {
+  const color = status === "active" ? "success" : status === "expired" ? "warning" : "danger";
+  return (
+    <Badge variant="soft" color={color}>
+      {status}
+    </Badge>
+  );
 }
 
-function TokenDetailDrawer({
-  token,
-  onClose,
-}: {
-  token: AdminTokenResponse | null;
-  onClose: () => void;
-}) {
+function TokenDetailDrawer({ token, onClose }: { token: AdminTokenResponse | null; onClose: () => void }) {
   return (
-    <Drawer title="Token Details" open={!!token} onClose={onClose} width={480}>
+    <Drawer title="Token Details" open={!!token} onOpenChange={(next) => !next && onClose()} side="right" size="md">
       {token && (
-        <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Token ID">{token.id}</Descriptions.Item>
-          <Descriptions.Item label="Status">
-            {statusTag(token.status)}
-          </Descriptions.Item>
-          <Descriptions.Item label="User ID">
-            {token.user_id || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Username">
-            {token.username || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Email">
-            {token.email || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Grant Type">
+        <DescriptionList>
+          <DescriptionList.Item label="Token ID">{token.id}</DescriptionList.Item>
+          <DescriptionList.Item label="Status">
+            <StatusBadge status={token.status} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="User ID">{token.user_id || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Username">{token.username || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Email">{token.email || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Grant Type">
             <GrantChips grants={[token.grant_type]} />
-          </Descriptions.Item>
-          <Descriptions.Item label="Scope">
-            {token.scope || "—"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Issued At">
-            {formatDate(token.issued_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Access Token Expires">
-            {formatDate(token.access_token_expires_at)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Revoked At">
-            {formatDate(token.revoked_at)}
-          </Descriptions.Item>
-        </Descriptions>
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Scope">{token.scope || "—"}</DescriptionList.Item>
+          <DescriptionList.Item label="Issued At">{formatDate(token.issued_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Access Token Expires">{formatDate(token.access_token_expires_at)}</DescriptionList.Item>
+          <DescriptionList.Item label="Revoked At">{formatDate(token.revoked_at)}</DescriptionList.Item>
+        </DescriptionList>
       )}
     </Drawer>
   );
 }
 
 export default function TokensPage() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
-
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "issued_at",
     order: "desc",
   });
-  const [searchValue, setSearchValue] = useState("");
-  const [dateRange, setDateRange] = useState<
-    [Dayjs | null, Dayjs | null] | null
-  >(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
 
   const { data, isLoading, error } = useTokens(listParams);
-  const revoke = useRevokeToken();
-  const [detailToken, setDetailToken] = useState<AdminTokenResponse | null>(
-    null
-  );
+  const { mutateAsync: revoke } = useRevokeToken();
+  const [detailToken, setDetailToken] = useState<AdminTokenResponse | null>(null);
 
-  const handleRevoke = async (id: string) => {
-    try {
-      await revoke.mutateAsync(id);
-      message.success("Token revoked");
-    } catch {
-      message.error("Failed to revoke token");
-    }
+  const handleDateRange = (range: DateRange | null) => {
+    setDateRange(range);
+    setListParams((prev) => ({ ...prev, offset: 0, ...dateRangeParams(range, "issued_at") }));
   };
 
-  const handleDateRange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null) => {
-      setDateRange(dates);
-      setListParams((prev) => {
-        const next: ListParams = { ...prev, offset: 0 };
-        delete next.issued_at_from;
-        delete next.issued_at_to;
-        if (dates && dates[0]) {
-          next.issued_at_from = dates[0].startOf("day").toISOString();
-        }
-        if (dates && dates[1]) {
-          next.issued_at_to = dates[1].endOf("day").toISOString();
-        }
-        return next;
-      });
-    },
-    []
-  );
+  const columns = useMemo(() => {
+    const handleRevoke = async (id: string) => {
+      try {
+        await revoke(id);
+        toast({ title: "Token revoked", color: "success" });
+      } catch {
+        toast({ title: "Failed to revoke token", color: "danger" });
+      }
+    };
 
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter:
-        | SorterResult<AdminTokenResponse>
-        | SorterResult<AdminTokenResponse>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : prev.sort,
-        order: s.order === "descend" ? "desc" : "asc",
-      }));
-    },
-    []
-  );
-
-  const handleSearch = useCallback((value: string) => {
-    setListParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
-  }, []);
-
-  const columns: ColumnsType<AdminTokenResponse> = [
-    {
-      title: "Token ID",
-      dataIndex: "id",
-      key: "id",
-      width: 140,
-      render: (id: string) => (
-        <CopyText text={id}>{id.slice(0, 12) + "..."}</CopyText>
-      ),
-    },
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-      width: 140,
-      ellipsis: true,
-      render: (username: string) => username || "—",
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      ellipsis: true,
-      render: (email: string) =>
-        email ? (
-          <CopyText text={email} />
-        ) : (
-          "—"
-        ),
-    },
-    {
-      title: "Grant",
-      dataIndex: "grant_type",
-      key: "grant_type",
-      width: 100,
-      render: (grant: string) => <GrantChips grants={[grant]} />,
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 100,
-      render: statusTag,
-    },
-    {
-      title: "Expires",
-      dataIndex: "access_token_expires_at",
-      key: "access_token_expires_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "access_token_expires_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Issued At",
-      dataIndex: "issued_at",
-      key: "issued_at",
-      width: 180,
-      sorter: true,
-      sortOrder:
-        listParams.sort === "issued_at"
-          ? listParams.order === "desc"
-            ? "descend"
-            : "ascend"
-          : undefined,
-      render: formatDate,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 80,
-      render: (_, record) => (
-        <Space>
-          {record.status === "active" && (
-            <Tooltip title="Revoke token">
-              <Popconfirm
+    const col = dataColumns<AdminTokenResponse>();
+    return col.columns([
+      col.accessor("id", {
+        header: "Token ID",
+        enableSorting: false,
+        meta: { width: 140 },
+        cell: (info) => <CopyText text={info.getValue()}>{info.getValue().slice(0, 12) + "..."}</CopyText>,
+      }),
+      col.accessor("username", {
+        header: "Username",
+        enableSorting: false,
+        meta: { width: 140 },
+        cell: (info) => <Text truncate>{info.getValue() || "—"}</Text>,
+      }),
+      col.accessor("email", {
+        header: "Email",
+        enableSorting: false,
+        cell: (info) => (info.getValue() ? <CopyText text={info.getValue()} /> : "—"),
+      }),
+      col.accessor("grant_type", {
+        header: "Grant",
+        enableSorting: false,
+        meta: { width: 100 },
+        cell: (info) => <GrantChips grants={[info.getValue()]} />,
+      }),
+      col.accessor("status", {
+        header: "Status",
+        enableSorting: false,
+        meta: { width: 100 },
+        cell: (info) => <StatusBadge status={info.getValue()} />,
+      }),
+      col.accessor("access_token_expires_at", {
+        header: "Expires",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.accessor("issued_at", {
+        header: "Issued At",
+        meta: { width: 180 },
+        cell: (info) => formatDate(info.getValue()),
+      }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        meta: { width: 80 },
+        cell: ({ row }) => (
+          <Inline gap="xs" wrap={false}>
+            {row.original.status === "active" && (
+              <ConfirmIconButton
+                tooltip="Revoke token"
+                aria-label="Revoke token"
+                color="danger"
+                icon={<IconTrash />}
                 title="Revoke this token?"
-                onConfirm={() => handleRevoke(record.id)}
-                okText="Revoke"
-                okButtonProps={{ danger: true }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  aria-label="Revoke token"
-                  icon={<DeleteOutlined />}
-                />
-              </Popconfirm>
+                confirmLabel="Revoke"
+                onConfirm={() => handleRevoke(row.original.id)}
+              />
+            )}
+            <Tooltip content="View details">
+              <IconButton variant="ghost" color="neutral" size="sm" aria-label="View token details" onClick={() => setDetailToken(row.original)}>
+                <IconInfoCircle />
+              </IconButton>
             </Tooltip>
-          )}
-          <Tooltip title="View details">
-            <Button
-              type="text"
-              size="small"
-              aria-label="View token details"
-              icon={<InfoCircleOutlined />}
-              onClick={() => setDetailToken(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+          </Inline>
+        ),
+      }),
+    ]);
+  }, [revoke]);
 
   if (error) {
-    return <Alert type="error" message="Failed to load tokens" />;
+    return <Alert color="danger" title="Failed to load tokens" />;
   }
 
   return (
-    <>
-      <Space
-        style={{
-          justifyContent: "space-between",
-          width: "100%",
-          flexShrink: 0,
-        }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Tokens
-        </Typography.Title>
-        <Space>
-          <DatePicker.RangePicker
-            value={dateRange}
-            onChange={(dates) => handleDateRange(dates)}
-            allowClear
-          />
-          <Input.Search
-            placeholder="Search username, email..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 250 }}
-          />
-        </Space>
-      </Space>
-
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
-      >
-        <Table<AdminTokenResponse>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} tokens`,
-          }}
-          size="small"
-        />
-      </div>
-
-      <TokenDetailDrawer
-        token={detailToken}
-        onClose={() => setDetailToken(null)}
+    <Stack gap="md">
+      <PageHeader
+        title="Tokens"
+        actions={
+          <>
+            <DateRangeFilter label="Issued between" value={dateRange} onChange={handleDateRange} />
+            <SearchInput
+              placeholder="Search username, email..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
+          </>
+        }
       />
-    </>
+
+      <DataTable
+        caption="Tokens"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(t) => t.id}
+        loading={isLoading}
+        emptyTitle="No tokens found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} tokens`,
+        }}
+      />
+
+      <TokenDetailDrawer token={detailToken} onClose={() => setDetailToken(null)} />
+    </Stack>
   );
 }

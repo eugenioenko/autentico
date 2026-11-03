@@ -1,18 +1,11 @@
-import { useEffect } from "react";
-import {
-  Drawer,
-  Form,
-  Input,
-  Select,
-  Button,
-  Space,
-  Switch,
-  Divider,
-  Typography,
-  App,
-} from "antd";
+import { useEffect, useId } from "react";
+import { useForm } from "react-hook-form";
+import { Button, Divider, Drawer, Input, Select, Stack, Switch, Text, toast } from "@yarcl/react";
 import { useUpdateUser } from "../../hooks/useUsers";
 import type { UserResponseExt, UserUpdateRequest } from "../../types/user";
+import { FormField } from "../FormField";
+import PasswordInput from "../PasswordInput";
+import { emailRule } from "../../lib/validation";
 
 interface UserEditFormProps {
   open: boolean;
@@ -25,212 +18,208 @@ const ROLE_OPTIONS = [
   { label: "Admin", value: "admin" },
 ];
 
-export default function UserEditForm({
-  open,
-  user,
-  onClose,
-}: UserEditFormProps) {
-  const { message } = App.useApp();
-  const [form] = Form.useForm();
+type Values = Required<UserUpdateRequest>;
+
+type TextFieldName = {
+  [K in keyof Values]: Values[K] extends string ? K : never;
+}[keyof Values];
+
+interface TextFieldDef {
+  name: TextFieldName;
+  label: string;
+  placeholder?: string;
+}
+
+const PROFILE_FIELDS: TextFieldDef[] = [
+  { name: "given_name", label: "First Name" },
+  { name: "middle_name", label: "Middle Name" },
+  { name: "family_name", label: "Last Name" },
+  { name: "nickname", label: "Nickname" },
+  { name: "gender", label: "Gender" },
+  { name: "birthdate", label: "Birthdate", placeholder: "YYYY-MM-DD" },
+  { name: "website", label: "Website", placeholder: "https://..." },
+  { name: "phone_number", label: "Phone Number" },
+];
+
+const PROFILE_URL_FIELDS: TextFieldDef[] = [
+  { name: "picture", label: "Profile Picture URL", placeholder: "https://..." },
+  { name: "profile", label: "Profile Page URL", placeholder: "https://..." },
+  { name: "locale", label: "Locale", placeholder: "en-US" },
+  { name: "zoneinfo", label: "Timezone", placeholder: "America/New_York" },
+];
+
+const ADDRESS_FIELDS: TextFieldDef[] = [
+  { name: "address_street", label: "Street" },
+  { name: "address_locality", label: "City" },
+  { name: "address_region", label: "State / Region" },
+  { name: "address_postal_code", label: "Postal Code" },
+  { name: "address_country", label: "Country" },
+];
+
+const EMPTY: Values = {
+  username: "",
+  password: "",
+  email: "",
+  role: "user",
+  is_email_verified: false,
+  totp_verified: false,
+  given_name: "",
+  middle_name: "",
+  family_name: "",
+  nickname: "",
+  gender: "",
+  birthdate: "",
+  website: "",
+  profile: "",
+  phone_number: "",
+  phone_number_verified: false,
+  picture: "",
+  locale: "",
+  zoneinfo: "",
+  address_street: "",
+  address_locality: "",
+  address_region: "",
+  address_postal_code: "",
+  address_country: "",
+};
+
+function toValues(user: UserResponseExt): Values {
+  const values = { ...EMPTY };
+  for (const key of Object.keys(EMPTY) as (keyof Values)[]) {
+    if (key === "password") continue;
+    const value = user[key as keyof UserResponseExt];
+    if (value !== undefined && value !== null) (values as Record<string, unknown>)[key] = value;
+  }
+  return values;
+}
+
+export default function UserEditForm({ open, user, onClose }: UserEditFormProps) {
+  const formId = useId();
+  const { control, handleSubmit, reset } = useForm<Values>({ defaultValues: EMPTY });
   const updateUser = useUpdateUser();
 
   useEffect(() => {
-    if (user && open) {
-      form.setFieldsValue({
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        is_email_verified: user.is_email_verified,
-        totp_verified: user.totp_verified,
-        given_name: user.given_name,
-        middle_name: user.middle_name,
-        family_name: user.family_name,
-        nickname: user.nickname,
-        gender: user.gender,
-        birthdate: user.birthdate,
-        website: user.website,
-        profile: user.profile,
-        phone_number: user.phone_number,
-        phone_number_verified: user.phone_number_verified,
-        picture: user.picture,
-        locale: user.locale,
-        zoneinfo: user.zoneinfo,
-        address_street: user.address_street,
-        address_locality: user.address_locality,
-        address_region: user.address_region,
-        address_postal_code: user.address_postal_code,
-        address_country: user.address_country,
-      });
-    }
-  }, [user, open, form]);
+    if (user && open) reset(toValues(user));
+  }, [user, open, reset]);
 
-  const handleSubmit = async (values: UserUpdateRequest) => {
+  const onSubmit = async (values: Values) => {
     if (!user?.id) return;
     try {
       await updateUser.mutateAsync({ id: user.id, data: values });
-      message.success("User updated successfully");
+      toast({ title: "User updated successfully", color: "success" });
       onClose();
     } catch {
-      message.error("Failed to update user");
+      toast({ title: "Failed to update user", color: "danger" });
     }
   };
+
+  const textFields = (fields: TextFieldDef[]) =>
+    fields.map(({ name, label, placeholder }) => (
+      <FormField key={name} control={control} name={name} label={label}>
+        {(field) => <Input {...field} value={field.value ?? ""} placeholder={placeholder} />}
+      </FormField>
+    ));
 
   return (
     <Drawer
       title={`Edit User: ${user?.username ?? ""}`}
       open={open}
-      onClose={onClose}
-      width={480}
-      extra={
-        <Space>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="primary"
-            onClick={() => form.submit()}
-            loading={updateUser.isPending}
-          >
+      onOpenChange={(next) => !next && onClose()}
+      side="right"
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" color="neutral" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} loading={updateUser.isPending}>
             Save
           </Button>
-        </Space>
+        </>
       }
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Form.Item
-          name="username"
-          label="Username"
-          rules={[{ required: true, message: "Username is required" }]}
-        >
-          <Input />
-        </Form.Item>
+      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Stack gap="md">
+          <FormField control={control} name="username" label="Username" rules={{ required: "Username is required" }}>
+            {(field) => <Input {...field} />}
+          </FormField>
 
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[{ type: "email", message: "Must be a valid email" }]}
-        >
-          <Input />
-        </Form.Item>
+          <FormField control={control} name="email" label="Email" rules={{ pattern: emailRule() }}>
+            {(field) => <Input {...field} type="email" value={field.value ?? ""} />}
+          </FormField>
 
-        <Form.Item name="role" label="Role">
-          <Select options={ROLE_OPTIONS} />
-        </Form.Item>
+          <FormField control={control} name="role" label="Role">
+            {(field) => (
+              <Select
+                options={ROLE_OPTIONS}
+                value={field.value ?? null}
+                onValueChange={(v) => field.onChange(v ?? "user")}
+                onBlur={field.onBlur}
+              />
+            )}
+          </FormField>
 
-        <Form.Item
-          name="password"
-          label="New Password"
-          extra="Leave empty to keep current password"
-        >
-          <Input.Password placeholder="Enter new password" autoComplete="new-password" />
-        </Form.Item>
+          <FormField control={control} name="password" label="New Password" description="Leave empty to keep current password">
+            {(field) => <PasswordInput {...field} value={field.value ?? ""} placeholder="Enter new password" />}
+          </FormField>
 
-        <Divider />
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Profile
-        </Typography.Text>
+          <Divider />
+          <Text muted>Profile</Text>
 
-        <Form.Item name="given_name" label="First Name">
-          <Input />
-        </Form.Item>
+          {textFields(PROFILE_FIELDS)}
 
-        <Form.Item name="middle_name" label="Middle Name">
-          <Input />
-        </Form.Item>
+          <FormField control={control} name="phone_number_verified" label="Phone Verified">
+            {(field) => (
+              <Switch
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                checked={!!field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+            )}
+          </FormField>
 
-        <Form.Item name="family_name" label="Last Name">
-          <Input />
-        </Form.Item>
+          {textFields(PROFILE_URL_FIELDS)}
 
-        <Form.Item name="nickname" label="Nickname">
-          <Input />
-        </Form.Item>
+          <Divider />
+          <Text muted>Address</Text>
 
-        <Form.Item name="gender" label="Gender">
-          <Input />
-        </Form.Item>
+          {textFields(ADDRESS_FIELDS)}
 
-        <Form.Item name="birthdate" label="Birthdate">
-          <Input placeholder="YYYY-MM-DD" />
-        </Form.Item>
+          <Divider />
+          <Text muted>Status & Security</Text>
 
-        <Form.Item name="website" label="Website">
-          <Input placeholder="https://..." />
-        </Form.Item>
+          <FormField control={control} name="is_email_verified" label="Email Verified">
+            {(field) => (
+              <Switch
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                checked={!!field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+            )}
+          </FormField>
 
-        <Form.Item name="phone_number" label="Phone Number">
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          name="phone_number_verified"
-          label="Phone Verified"
-          valuePropName="checked"
-        >
-          <Switch />
-        </Form.Item>
-
-        <Form.Item name="picture" label="Profile Picture URL">
-          <Input placeholder="https://..." />
-        </Form.Item>
-
-        <Form.Item name="profile" label="Profile Page URL">
-          <Input placeholder="https://..." />
-        </Form.Item>
-
-        <Form.Item name="locale" label="Locale">
-          <Input placeholder="en-US" />
-        </Form.Item>
-
-        <Form.Item name="zoneinfo" label="Timezone">
-          <Input placeholder="America/New_York" />
-        </Form.Item>
-
-        <Divider />
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Address
-        </Typography.Text>
-
-        <Form.Item name="address_street" label="Street">
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="address_locality" label="City">
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="address_region" label="State / Region">
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="address_postal_code" label="Postal Code">
-          <Input />
-        </Form.Item>
-
-        <Form.Item name="address_country" label="Country">
-          <Input />
-        </Form.Item>
-
-        <Divider />
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-          Status & Security
-        </Typography.Text>
-
-        <Form.Item
-          name="is_email_verified"
-          label="Email Verified"
-          valuePropName="checked"
-        >
-          <Switch />
-        </Form.Item>
-
-        <Form.Item
-          name="totp_verified"
-          label="MFA Enrolled"
-          valuePropName="checked"
-          extra="Turning this off will reset the user's MFA setup."
-        >
-          <Switch />
-        </Form.Item>
-      </Form>
+          <FormField
+            control={control}
+            name="totp_verified"
+            label="MFA Enrolled"
+            description="Turning this off will reset the user's MFA setup."
+          >
+            {(field) => (
+              <Switch
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                checked={!!field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+            )}
+          </FormField>
+        </Stack>
+      </form>
     </Drawer>
   );
 }

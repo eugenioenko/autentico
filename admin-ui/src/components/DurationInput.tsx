@@ -1,4 +1,6 @@
-import { InputNumber, Select, Space } from "antd";
+import { useId } from "react";
+import { Inline, NumberInput, Select } from "@yarcl/react";
+import "./DurationInput.css";
 
 const units = [
   { value: "s", label: "Seconds" },
@@ -21,9 +23,13 @@ function format(num: number | null, unit: string): string {
 interface Props {
   value?: string;
   onChange?: (v: string) => void;
+  onBlur?: () => void;
+  id?: string;
+  "aria-label"?: string;
 }
 
-export default function DurationInput({ value, onChange }: Props) {
+export default function DurationInput({ value, onChange, onBlur, id, "aria-label": ariaLabel }: Props) {
+  const unitId = useId();
   const { num, unit } = parse(value);
 
   const fire = (nextNum: number | null, nextUnit: string) => {
@@ -31,19 +37,24 @@ export default function DurationInput({ value, onChange }: Props) {
   };
 
   return (
-    <Space.Compact style={{ display: "flex", maxWidth: 400 }}>
-      <InputNumber
+    <Inline gap="xs" wrap={false} className="duration-input">
+      <NumberInput
+        id={id}
+        aria-label={ariaLabel}
+        className="duration-input-number"
         min={0}
         value={num}
-        onChange={(v) => fire(v, unit)}
-        style={{ flex: 1 }}
+        onValueChange={(v) => fire(v, unit)}
+        onBlur={onBlur}
       />
       <Select
+        id={unitId}
+        aria-label="Unit"
+        className="duration-input-unit"
         value={unit}
-        onChange={(u) => fire(num, u)}
+        onValueChange={(u) => fire(num, u ?? unit)}
         options={units}
-        style={{ width: 130 }}
       />
-    </Space.Compact>
+    </Inline>
   );
 }

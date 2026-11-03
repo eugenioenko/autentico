@@ -1,30 +1,21 @@
-import { useState, useCallback, useRef } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
-  Typography,
-  Table,
-  Button,
-  Space,
-  Popconfirm,
   Alert,
-  Modal,
-  Form,
+  Button,
+  Combobox,
+  Dialog,
+  Field,
+  IconButton,
+  Inline,
   Input,
-  AutoComplete,
-  Tag,
+  Stack,
+  Text,
+  Textarea,
   Tooltip,
-  App,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  UserDeleteOutlined,
-  TeamOutlined,
-  ArrowLeftOutlined,
-  IdcardOutlined,
-} from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SorterResult } from "antd/es/table/interface";
+  toast,
+} from "@yarcl/react";
+import { IconArrowLeft, IconEdit, IconId, IconPlus, IconTrash, IconUserMinus, IconUsersGroup } from "@tabler/icons-react";
 import {
   useGroups,
   useCreateGroup,
@@ -38,210 +29,205 @@ import GroupClaimsDrawer from "../components/groups/GroupClaimsDrawer";
 import { useUsers } from "../hooks/useUsers";
 import type { ListParams } from "../api/users";
 import type { Group, GroupMember } from "../types/group";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
+import { DataTable, dataColumns } from "../components/DataTable";
+import { FormField } from "../components/FormField";
+import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
+import ConfirmIconButton from "../components/ConfirmIconButton";
 
-function GroupMembersView({
-  group,
-  onBack,
-}: {
-  group: Group;
-  onBack: () => void;
-}) {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
+const NAME_PATTERN = { value: /^[a-zA-Z0-9_-]+$/, message: "Only letters, numbers, hyphens, and underscores" };
+const NAME_MAX = { value: 100, message: "Max 100 characters" };
 
+function GroupMembersView({ group, onBack }: { group: Group; onBack: () => void }) {
   const { data: members, isLoading } = useGroupMembers(group.id);
   const addMember = useAddMember();
   const removeMember = useRemoveMember();
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
-  const [userSearch, setUserSearch] = useState("");
-  const [userSearchParams, setUserSearchParams] = useState<ListParams>({
-    limit: 20,
-    offset: 0,
-  });
-  const { data: usersData } = useUsers(userSearchParams);
+  const [userSearchParams, setUserSearchParams] = useState<ListParams>({ limit: 20, offset: 0 });
+  const { data: usersData, isFetching: usersLoading } = useUsers(userSearchParams);
 
   const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
   const userOptions = (usersData?.items ?? [])
-    .filter((u) => !memberUserIds.has(u.id) && !selectedUserIds.includes(u.id))
-    .map((u) => ({
-      value: u.id,
-      label: `${u.username} (${u.email})`,
-    }));
+    .filter((u) => !memberUserIds.has(u.id))
+    .map((u) => ({ value: u.id, label: `${u.username} (${u.email})` }));
 
   const handleUserSearch = (value: string) => {
-    setUserSearch(value);
-    setUserSearchParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
-  };
-
-  const handleSelectUser = (userId: string) => {
-    if (!selectedUserIds.includes(userId)) {
-      setSelectedUserIds((prev) => [...prev, userId]);
-    }
-    setUserSearch("");
+    setUserSearchParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }));
   };
 
   const handleAddSelected = async () => {
     if (selectedUserIds.length === 0) return;
     setAdding(true);
     try {
-      await Promise.all(
-        selectedUserIds.map((userId) =>
-          addMember.mutateAsync({ groupId: group.id, userId })
-        )
-      );
-      message.success(
-        `Added ${selectedUserIds.length} member${selectedUserIds.length > 1 ? "s" : ""}`
-      );
+      await Promise.all(selectedUserIds.map((userId) => addMember.mutateAsync({ groupId: group.id, userId })));
+      toast({
+        title: `Added ${selectedUserIds.length} member${selectedUserIds.length > 1 ? "s" : ""}`,
+        color: "success",
+      });
       setSelectedUserIds([]);
     } catch {
-      message.error("Failed to add members");
+      toast({ title: "Failed to add members", color: "danger" });
     } finally {
       setAdding(false);
     }
   };
 
-  const handleRemove = async (userId: string) => {
-    try {
-      await removeMember.mutateAsync({ groupId: group.id, userId });
-      message.success("Member removed");
-    } catch {
-      message.error("Failed to remove member");
-    }
-  };
-
-  const selectedUsers = selectedUserIds.map((id) => {
-    const user = usersData?.items?.find((u) => u.id === id);
-    return { id, label: user ? user.username : id };
-  });
-
-  const columns: ColumnsType<GroupMember> = [
-    { title: "Username", dataIndex: "username", key: "username" },
-    { title: "Email", dataIndex: "email", key: "email" },
-    {
-      title: "Added",
-      dataIndex: "created_at",
-      key: "created_at",
-      render: (val: string) => new Date(val).toLocaleDateString(),
-    },
-    {
-      title: "",
-      key: "actions",
-      width: 50,
-      render: (_, record) => (
-        <Tooltip title="Remove member">
-          <Popconfirm
+  const columns = useMemo(() => {
+    const handleRemove = async (userId: string) => {
+      try {
+        await removeMember.mutateAsync({ groupId: group.id, userId });
+        toast({ title: "Member removed", color: "success" });
+      } catch {
+        toast({ title: "Failed to remove member", color: "danger" });
+      }
+    };
+    const col = dataColumns<GroupMember>();
+    return col.columns([
+      col.accessor("username", { header: "Username" }),
+      col.accessor("email", { header: "Email" }),
+      col.accessor("created_at", {
+        header: "Added",
+        cell: (info) => new Date(info.getValue()).toLocaleDateString(),
+      }),
+      col.display({
+        id: "actions",
+        header: "",
+        meta: { align: "end", width: 50 },
+        cell: ({ row }) => (
+          <ConfirmIconButton
+            tooltip="Remove member"
+            aria-label="Remove member"
+            icon={<IconUserMinus />}
+            color="danger"
             title="Remove this member?"
-            onConfirm={() => handleRemove(record.user_id)}
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              aria-label="Remove member"
-              icon={<UserDeleteOutlined />}
-            />
-          </Popconfirm>
-        </Tooltip>
-      ),
-    },
-  ];
+            confirmLabel="Remove"
+            onConfirm={() => handleRemove(row.original.user_id)}
+          />
+        ),
+      }),
+    ]);
+  }, [group.id, removeMember]);
 
   return (
-    <>
-      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-            Back to Groups
-          </Button>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Members of {group.name}
-          </Typography.Title>
-        </Space>
-      </Space>
+    <Stack gap="md">
+      <Inline>
+        <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
+          Back to Groups
+        </Button>
+      </Inline>
+      <PageHeader title={`Members of ${group.name}`} description={group.description || undefined} />
 
-      {group.description && (
-        <Typography.Text type="secondary" style={{ display: "block", marginTop: 8, flexShrink: 0 }}>
-          {group.description}
-        </Typography.Text>
-      )}
-
-      <div style={{ marginTop: 12, flexShrink: 0 }}>
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-          Add members
-        </Typography.Text>
-        <Space.Compact style={{ maxWidth: 480 }}>
-          <AutoComplete
-            style={{ width: 320 }}
+      <Inline gap="xs" wrap={false} align="end">
+        <Field label="Add members">
+          <Combobox
+            multiple
+            filter={false}
             placeholder="Search users to add"
             options={userOptions}
-            value={userSearch}
-            onSearch={handleUserSearch}
-            onSelect={handleSelectUser}
-            allowClear
+            loading={usersLoading}
+            value={selectedUserIds}
+            onValueChange={setSelectedUserIds}
+            onInputValueChange={handleUserSearch}
           />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddSelected}
-            loading={adding}
-            disabled={selectedUserIds.length === 0}
-          >
-            Add{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
-          </Button>
-        </Space.Compact>
-        {selectedUsers.length > 0 && (
-          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
-            {selectedUsers.map((u) => (
-              <Tag
-                key={u.id}
-                closable
-                onClose={() => setSelectedUserIds((prev) => prev.filter((id) => id !== u.id))}
-              >
-                {u.label}
-              </Tag>
-            ))}
-          </div>
-        )}
-      </div>
+        </Field>
+        <Button startIcon={<IconPlus />} onClick={handleAddSelected} loading={adding} disabled={selectedUserIds.length === 0}>
+          Add{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
+        </Button>
+      </Inline>
 
-      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
-        <Table<GroupMember>
-          columns={columns}
-          dataSource={members ?? []}
-          rowKey="user_id"
-          loading={isLoading}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={false}
-          size="small"
-        />
-      </div>
-    </>
+      <DataTable
+        caption={`Members of ${group.name}`}
+        data={members ?? []}
+        columns={columns}
+        getRowId={(m) => m.user_id}
+        loading={isLoading}
+        pageSize={false}
+        emptyTitle="No members"
+      />
+    </Stack>
+  );
+}
+
+interface GroupFormValues {
+  name: string;
+  description: string;
+}
+
+interface GroupDialogProps {
+  mode: "create" | "edit";
+  open: boolean;
+  group?: Group | null;
+  submitting: boolean;
+  onSubmit: (values: GroupFormValues) => Promise<boolean>;
+  onClose: () => void;
+}
+
+const EMPTY_GROUP: GroupFormValues = { name: "", description: "" };
+
+function GroupDialog({ mode, open, group, submitting, onSubmit, onClose }: GroupDialogProps) {
+  const formId = useId();
+  const { control, handleSubmit, reset } = useForm<GroupFormValues>({ defaultValues: EMPTY_GROUP });
+  const isCreate = mode === "create";
+
+  useEffect(() => {
+    if (open) reset(group ? { name: group.name, description: group.description ?? "" } : EMPTY_GROUP);
+  }, [open, group, reset]);
+
+  const submit = async (values: GroupFormValues) => {
+    if (await onSubmit(values)) reset(EMPTY_GROUP);
+  };
+
+  return (
+    <Dialog
+      title={isCreate ? "Create Group" : "Edit Group"}
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      size="md"
+      footer={
+        <>
+          <Button variant="ghost" color="neutral" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} loading={submitting}>
+            {isCreate ? "Create" : "Save"}
+          </Button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit(submit)} noValidate>
+        <Stack gap="md">
+          <FormField
+            control={control}
+            name="name"
+            label="Name"
+            description={isCreate ? undefined : "Renaming the group changes the prefix of its inherited claim names."}
+            rules={{
+              ...(isCreate ? { required: "Name is required" } : {}),
+              pattern: NAME_PATTERN,
+              maxLength: NAME_MAX,
+            }}
+          >
+            {(field) => <Input {...field} placeholder={isCreate ? "e.g. admins" : undefined} />}
+          </FormField>
+          <FormField control={control} name="description" label="Description">
+            {(field) => <Textarea {...field} rows={3} placeholder={isCreate ? "Optional description" : undefined} />}
+          </FormField>
+        </Stack>
+      </form>
+    </Dialog>
   );
 }
 
 /** Manages group details, membership, and group-local custom claim assignments. */
 export default function GroupsPage() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
-
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "name",
     order: "asc",
   });
-  const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading, error } = useGroups(listParams);
   const createGroup = useCreateGroup();
@@ -253,276 +239,159 @@ export default function GroupsPage() {
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [membersGroup, setMembersGroup] = useState<Group | null>(null);
 
-  const [createForm] = Form.useForm();
-  const [editForm] = Form.useForm();
-
-  const handleCreate = async (values: { name: string; description?: string }) => {
+  const handleCreate = async (values: GroupFormValues) => {
     try {
-      await createGroup.mutateAsync(values);
-      message.success("Group created");
+      await createGroup.mutateAsync({ name: values.name, description: values.description || undefined });
+      toast({ title: "Group created", color: "success" });
       setCreateOpen(false);
-      createForm.resetFields();
+      return true;
     } catch {
-      message.error("Failed to create group");
+      toast({ title: "Failed to create group", color: "danger" });
+      return false;
     }
   };
 
-  const handleUpdate = async (values: { name?: string; description?: string }) => {
-    if (!editGroup) return;
+  const handleUpdate = async (values: GroupFormValues) => {
+    if (!editGroup) return false;
     try {
       await updateGroup.mutateAsync({ id: editGroup.id, data: values });
-      message.success("Group updated");
+      toast({ title: "Group updated", color: "success" });
       setEditGroup(null);
-      editForm.resetFields();
+      return true;
     } catch {
-      message.error("Failed to update group");
+      toast({ title: "Failed to update group", color: "danger" });
+      return false;
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteGroupMutation.mutateAsync(id);
-      message.success("Group deleted");
-    } catch {
-      message.error("Failed to delete group");
-    }
-  };
-
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      _filters: Record<string, unknown>,
-      sorter: SorterResult<Group> | SorterResult<Group>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      setListParams((prev) => ({
-        ...prev,
-        offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : "name",
-        order: s.order === "descend" ? "desc" : "asc",
-      }));
-    },
-    []
-  );
-
-  const handleSearch = useCallback((value: string) => {
-    setListParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
-  }, []);
-
-  if (membersGroup) {
-    return (
-      <GroupMembersView
-        group={membersGroup}
-        onBack={() => setMembersGroup(null)}
-      />
-    );
-  }
-
-  const columns: ColumnsType<Group> = [
-    {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: true,
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-      ellipsis: true,
-    },
-    {
-      title: "Members",
-      dataIndex: "member_count",
-      key: "member_count",
-      width: 100,
-    },
-    {
-      title: "Created",
-      dataIndex: "created_at",
-      key: "created_at",
-      sorter: true,
-      render: (val: string) => new Date(val).toLocaleDateString(),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 160,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Delete group">
-            <Popconfirm
+  const columns = useMemo(() => {
+    const handleDelete = async (id: string) => {
+      try {
+        await deleteGroupMutation.mutateAsync(id);
+        toast({ title: "Group deleted", color: "success" });
+      } catch {
+        toast({ title: "Failed to delete group", color: "danger" });
+      }
+    };
+    const col = dataColumns<Group>();
+    return col.columns([
+      col.accessor("name", { header: "Name" }),
+      col.accessor("description", {
+        header: "Description",
+        enableSorting: false,
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.accessor("member_count", { header: "Members", enableSorting: false, meta: { width: 100 } }),
+      col.accessor("created_at", {
+        header: "Created",
+        cell: (info) => new Date(info.getValue()).toLocaleDateString(),
+      }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        meta: { width: 160 },
+        cell: ({ row }) => (
+          <Inline gap="xs" wrap={false}>
+            <ConfirmIconButton
+              tooltip="Delete group"
+              aria-label="Delete group"
+              icon={<IconTrash />}
+              color="danger"
               title="Delete this group?"
               description="All memberships and group claims will be removed."
-              onConfirm={() => handleDelete(record.id)}
-              okText="Delete"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                aria-label="Delete group"
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
-          </Tooltip>
-          <Tooltip title="Manage members">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Manage group members"
-              icon={<TeamOutlined />}
-              onClick={() => setMembersGroup(record)}
+              confirmLabel="Delete"
+              onConfirm={() => handleDelete(row.original.id)}
             />
-          </Tooltip>
-          <Tooltip title="Manage claims">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Manage group claims"
-              icon={<IdcardOutlined />}
-              onClick={() => setClaimsGroup(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit group">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Edit group"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setEditGroup(record);
-                editForm.setFieldsValue({
-                  name: record.name,
-                  description: record.description,
-                });
-              }}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+            <Tooltip content="Manage members">
+              <IconButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                aria-label="Manage group members"
+                onClick={() => setMembersGroup(row.original)}
+              >
+                <IconUsersGroup />
+              </IconButton>
+            </Tooltip>
+            <Tooltip content="Manage claims">
+              <IconButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                aria-label="Manage group claims"
+                onClick={() => setClaimsGroup(row.original)}
+              >
+                <IconId />
+              </IconButton>
+            </Tooltip>
+            <Tooltip content="Edit group">
+              <IconButton variant="ghost" color="neutral" size="sm" aria-label="Edit group" onClick={() => setEditGroup(row.original)}>
+                <IconEdit />
+              </IconButton>
+            </Tooltip>
+          </Inline>
+        ),
+      }),
+    ]);
+  }, [deleteGroupMutation]);
+
+  if (membersGroup) {
+    return <GroupMembersView group={membersGroup} onBack={() => setMembersGroup(null)} />;
+  }
 
   if (error) {
-    return <Alert type="error" message="Failed to load groups" />;
+    return <Alert color="danger" title="Failed to load groups" />;
   }
 
   return (
-    <>
-      <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Groups
-        </Typography.Title>
-        <Space>
-          <Input.Search
-            placeholder="Search groups..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 250 }}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
-          >
-            Create Group
-          </Button>
-        </Space>
-      </Space>
+    <Stack gap="md">
+      <PageHeader
+        title="Groups"
+        actions={
+          <>
+            <SearchInput
+              placeholder="Search groups..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
+            <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+              Create Group
+            </Button>
+          </>
+        }
+      />
 
-      <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
-        <Table<Group>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} groups`,
-          }}
-        />
-      </div>
+      <DataTable
+        caption="Groups"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(g) => g.id}
+        loading={isLoading}
+        emptyTitle="No groups found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} groups`,
+        }}
+      />
 
       <GroupClaimsDrawer group={claimsGroup} onClose={() => setClaimsGroup(null)} />
 
-      {/* Create Modal */}
-      <Modal
-        title="Create Group"
+      <GroupDialog
+        mode="create"
         open={createOpen}
-        onCancel={() => {
-          setCreateOpen(false);
-          createForm.resetFields();
-        }}
-        onOk={() => createForm.submit()}
-        confirmLoading={createGroup.isPending}
-      >
-        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[
-              { required: true, message: "Name is required" },
-              {
-                pattern: /^[a-zA-Z0-9_-]+$/,
-                message: "Only letters, numbers, hyphens, and underscores",
-              },
-              { max: 100, message: "Max 100 characters" },
-            ]}
-          >
-            <Input placeholder="e.g. admins" />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} placeholder="Optional description" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        title="Edit Group"
+        submitting={createGroup.isPending}
+        onSubmit={handleCreate}
+        onClose={() => setCreateOpen(false)}
+      />
+      <GroupDialog
+        mode="edit"
         open={!!editGroup}
-        onCancel={() => {
-          setEditGroup(null);
-          editForm.resetFields();
-        }}
-        onOk={() => editForm.submit()}
-        confirmLoading={updateGroup.isPending}
-      >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          <Form.Item
-            name="name"
-            label="Name"
-            extra="Renaming the group changes the prefix of its inherited claim names."
-            rules={[
-              {
-                pattern: /^[a-zA-Z0-9_-]+$/,
-                message: "Only letters, numbers, hyphens, and underscores",
-              },
-              { max: 100, message: "Max 100 characters" },
-            ]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+        group={editGroup}
+        submitting={updateGroup.isPending}
+        onSubmit={handleUpdate}
+        onClose={() => setEditGroup(null)}
+      />
+    </Stack>
   );
 }

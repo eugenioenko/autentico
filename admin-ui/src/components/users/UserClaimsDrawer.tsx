@@ -1,3 +1,4 @@
+import { Text } from "@yarcl/react";
 import ClaimsDrawer from "../ClaimsDrawer";
 import {
   useUserClaims,
@@ -29,8 +30,11 @@ export default function UserClaimsDrawer({
       title={`Custom claims for ${username}`}
       description={
         <>
-          Emitted into tokens and UserInfo with the <code>custom_claims</code> scope.
-          Individual claims override inherited group claims with the same full name.
+          Emitted into tokens and UserInfo with the{" "}
+          <Text as="code" textStyle="code">
+            custom_claims
+          </Text>{" "}
+          scope. Individual claims override inherited group claims with the same full name.
         </>
       }
       claims={data ?? []}

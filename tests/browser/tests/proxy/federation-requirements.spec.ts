@@ -11,7 +11,7 @@ async function api(path: string, body?: unknown, method = body === undefined ? '
 }
 async function select(page: Page, label: string, option: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
-  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(option, { exact: true }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
 }
 
 test('production tester enforces authentication, strict types and bounded unambiguous JSON without saving', async () => {
@@ -74,37 +74,37 @@ test('admin builds, tests and persists typed requirements; invalid drafts cannot
     await page.locator('button[type=submit]').click();
     await page.waitForURL(fixture.auth + '/admin/federation');
     await page.getByRole('button', { name: /Add Provider/ }).click();
-    await page.getByLabel('Provider ID', { exact: true }).fill(id);
-    await page.getByLabel('Display Name', { exact: true }).fill('Requirements browser');
-    await page.getByLabel('Issuer URL', { exact: true }).fill('https://issuer.example.invalid');
-    await page.locator('input#client_id').fill('browser-client');
-    await page.getByLabel('Client Secret', { exact: true }).fill('private-secret');
+    await page.getByRole('textbox', { name: 'Provider ID', exact: true }).fill(id);
+    await page.getByRole('textbox', { name: 'Display Name', exact: true }).fill('Requirements browser');
+    await page.getByRole('textbox', { name: 'Issuer URL', exact: true }).fill('https://issuer.example.invalid');
+    await page.getByRole('textbox', { name: 'Client ID', exact: true }).fill('browser-client');
+    await page.getByRole('textbox', { name: 'Client Secret', exact: true }).fill('private-secret');
     await page.getByRole('switch').uncheck();
     await page.getByRole('button', { name: 'Add requirement', exact: true }).click();
-    await page.getByLabel('Rule 1 claim', { exact: true }).fill('email_verified');
+    await page.getByRole('textbox', { name: 'Rule 1 claim', exact: true }).fill('email_verified');
     await select(page, 'Rule 1 type', 'Boolean'); await select(page, 'Rule 1 value', 'false');
     await page.getByRole('button', { name: 'Add requirement', exact: true }).click();
-    await page.getByLabel('Rule 2 claim', { exact: true }).fill('hd');
+    await page.getByRole('textbox', { name: 'Rule 2 claim', exact: true }).fill('hd');
     await select(page, 'Rule 2 operator', 'regex');
-    await page.getByLabel('Rule 2 value', { exact: true }).fill('[');
+    await page.getByRole('textbox', { name: 'Rule 2 value', exact: true }).fill('[');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(page.getByText('Row 2: invalid pattern', { exact: true })).toBeVisible();
     expect((await api(`${base}/${id}`)).status).toBe(404);
     await page.getByRole('button', { name: 'Test rules', exact: true }).click();
-    await page.getByLabel('Sample claims JSON', { exact: true }).fill('{');
+    await page.getByRole('textbox', { name: 'Sample claims JSON', exact: true }).fill('{');
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('Sample claims must be valid JSON.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Run test', exact: true })).toBeEnabled();
-    await page.getByLabel('Sample claims JSON', { exact: true }).fill('{"email_verified":false,"hd":"mycompany.com"}');
+    await page.getByRole('textbox', { name: 'Sample claims JSON', exact: true }).fill('{"email_verified":false,"hd":"mycompany.com"}');
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('Row 2 (hd): invalid pattern', { exact: true })).toBeVisible();
     await page.getByRole('dialog', { name: 'Test claim requirements', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
-    await page.getByLabel('Rule 2 value', { exact: true }).fill('^mycompany\\.com$');
+    await page.getByRole('textbox', { name: 'Rule 2 value', exact: true }).fill('^mycompany\\.com$');
     await page.getByRole('button', { name: 'Test rules', exact: true }).click();
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('All requirements pass', { exact: true })).toBeVisible();
     expect((await api(`${base}/${id}`)).status).toBe(404);
-    await page.getByLabel('Sample claims JSON', { exact: true }).fill('{"email_verified":"false","hd":"mycompany.com"}');
+    await page.getByRole('textbox', { name: 'Sample claims JSON', exact: true }).fill('{"email_verified":"false","hd":"mycompany.com"}');
     await page.getByRole('button', { name: 'Run test', exact: true }).click();
     await expect(page.getByText('Row 1 (email_verified): wrong type', { exact: true })).toBeVisible();
     await page.getByRole('dialog', { name: 'Test claim requirements', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();

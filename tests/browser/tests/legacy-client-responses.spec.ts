@@ -42,25 +42,23 @@ for (const client of legacyClients) {
     await page.goto(`${BASE_URL}/admin/clients`);
     const row = page.getByRole('row').filter({ hasText: client.id });
     await row.getByRole('button', { name: 'Edit client', exact: true }).click();
-    const drawer = page.locator('.ant-drawer-open');
+    const drawer = page.getByRole('dialog', { name: /^Edit Client/ });
     await expect(drawer.getByText(/This client has unsupported response types/)).toBeVisible();
-    await drawer.getByLabel('Client Name', { exact: true }).fill(`${client.id} repaired`);
+    await drawer.getByRole('textbox', { name: 'Client Name', exact: true }).fill(`${client.id} repaired`);
     await drawer.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(drawer.getByText('Only Code is supported. Remove unsupported response types before saving.')).toBeVisible();
     expect(updates).toBe(0);
-    const field = drawer.locator('.ant-form-item:has(label[for="response_types"])');
+    const select = drawer.getByLabel('Response Types', { exact: true });
     for (const unsupported of client.types.filter(value => value !== 'code')) {
-      await field.locator('.ant-select-selection-item').filter({ hasText: unsupported }).locator('.ant-select-selection-item-remove').click();
+      await drawer.getByRole('button', { name: `Remove ${unsupported}`, exact: true }).click();
     }
     if (!client.types.includes('code')) {
       await drawer.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(drawer.getByText('Select Code explicitly to replace the legacy response types.')).toBeVisible();
       expect(updates).toBe(0);
-      const select = field.getByRole('combobox');
-      await select.focus();
-      await select.press('ArrowDown');
-      await select.press('Enter');
-      await expect(field.locator('.ant-select-selection-item')).toHaveText('Code');
+      await select.click();
+      await page.getByRole('option', { name: 'Code', exact: true }).click();
+      await expect(drawer.getByRole('button', { name: 'Remove Code', exact: true })).toBeVisible();
     }
     const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith(`/admin/api/clients/${client.id}`));
     await drawer.getByRole('button', { name: 'Save', exact: true }).click();

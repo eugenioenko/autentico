@@ -1,3 +1,4 @@
+import { Text } from "@yarcl/react";
 import ClaimsDrawer from "../ClaimsDrawer";
 import {
   useGroupClaims,
@@ -24,7 +25,11 @@ export default function GroupClaimsDrawer({ group, onClose }: GroupClaimsDrawerP
       prefix={group?.name}
       description={
         <>
-          Members inherit these claims with the <code>custom_claims</code> scope.
+          Members inherit these claims with the{" "}
+          <Text as="code" textStyle="code">
+            custom_claims
+          </Text>{" "}
+          scope.
           Individual claims with the same full name override group values.
           Renaming this group changes its emitted claim names.
         </>

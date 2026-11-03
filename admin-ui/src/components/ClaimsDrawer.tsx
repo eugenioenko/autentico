@@ -1,18 +1,10 @@
-import { useState, type ReactNode } from "react";
-import {
-  Drawer,
-  Input,
-  Table,
-  Button,
-  Space,
-  Typography,
-  Popconfirm,
-  Tooltip,
-  App,
-} from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Button, Drawer, Inline, Input, Stack, Text, toast } from "@yarcl/react";
+import { IconPlus, IconTrash } from "@tabler/icons-react";
 import type { UserClaim as CustomClaim } from "../types/userClaim";
+import { DataTable, dataColumns } from "./DataTable";
+import ConfirmIconButton from "./ConfirmIconButton";
+import "./ClaimsDrawer.css";
 
 interface ClaimsDrawerProps {
   open: boolean;
@@ -45,7 +37,6 @@ export default function ClaimsDrawer({
   onRemove,
   onClose,
 }: ClaimsDrawerProps) {
-  const { message } = App.useApp();
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
 
@@ -54,139 +45,126 @@ export default function ClaimsDrawer({
     setValue("");
   };
 
-  /** Upserts a trimmed name and literal value, clearing the draft after success. */
   const handleAdd = async () => {
     if (!name.trim()) return;
     try {
       await onSave(name.trim(), value);
-      message.success("Claim saved");
+      toast({ title: "Claim saved", color: "success" });
       reset();
     } catch (err) {
       const detail =
-        (err as { response?: { data?: { error_description?: string } } })
-          ?.response?.data?.error_description ?? "Failed to save claim";
-      message.error(detail);
+        (err as { response?: { data?: { error_description?: string } } })?.response?.data?.error_description ??
+        "Failed to save claim";
+      toast({ title: detail, color: "danger" });
     }
   };
 
-  /** Removes the selected assignment and reports a failed removal to the admin. */
-  const handleDelete = async (claimName: string) => {
-    try {
-      await onRemove(claimName);
-      message.success("Claim removed");
-    } catch {
-      message.error("Failed to remove claim");
-    }
+  const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isSaving) handleAdd();
   };
 
-  const columns: ColumnsType<CustomClaim> = [
-    {
-      title: prefix ? "Emitted name" : "Name",
-      dataIndex: "name",
-      key: "name",
-      ellipsis: true,
-      render: (claimName: string) => prefix ? `${prefix}.${claimName}` : claimName,
-    },
-    { title: "Value", dataIndex: "value", key: "value", ellipsis: true },
-    {
-      title: "",
-      key: "actions",
-      width: 50,
-      render: (_, record) => (
-        <Tooltip title="Remove claim">
-          <Popconfirm
+  const columns = useMemo(() => {
+    const handleDelete = async (claimName: string) => {
+      try {
+        await onRemove(claimName);
+        toast({ title: "Claim removed", color: "success" });
+      } catch {
+        toast({ title: "Failed to remove claim", color: "danger" });
+      }
+    };
+    const col = dataColumns<CustomClaim>();
+    return col.columns([
+      col.accessor("name", {
+        header: prefix ? "Emitted name" : "Name",
+        cell: (info) => (
+          <Text truncate>{prefix ? `${prefix}.${info.getValue()}` : info.getValue()}</Text>
+        ),
+      }),
+      col.accessor("value", {
+        header: "Value",
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.display({
+        id: "actions",
+        header: "",
+        meta: { align: "end", width: 50 },
+        cell: ({ row }) => (
+          <ConfirmIconButton
+            tooltip="Remove claim"
+            aria-label={`Remove claim ${row.original.name}`}
+            icon={<IconTrash />}
+            color="danger"
             title="Remove this claim?"
-            onConfirm={() => handleDelete(record.name)}
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              aria-label={`Remove claim ${record.name}`}
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
-        </Tooltip>
-      ),
-    },
-  ];
+            confirmLabel="Remove"
+            onConfirm={() => handleDelete(row.original.name)}
+          />
+        ),
+      }),
+    ]);
+  }, [prefix, onRemove]);
 
   return (
     <Drawer
       title={title}
       open={open}
-      onClose={() => {
-        onClose();
-        reset();
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+          reset();
+        }
       }}
-      width={560}
+      side="right"
+      size="md"
     >
-      <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-        <div>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginBottom: 8 }}
-          >
-            Add claim
-          </Typography.Text>
-          <Space.Compact style={{ width: "100%" }}>
+      <Stack gap="md">
+        <Stack gap="xs">
+          <Text muted>Add claim</Text>
+          <Inline gap="xs" wrap={false} className="claims-drawer-add">
             <Input
-              style={{ width: "40%" }}
+              className="claims-drawer-name"
               aria-label="Claim name"
               placeholder="name"
               maxLength={prefix ? 128 : 229}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onPressEnter={handleAdd}
+              onKeyDown={onEnter}
             />
             <Input
-              style={{ width: "60%" }}
+              className="claims-drawer-value"
               aria-label="Claim value"
               placeholder="value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              onPressEnter={handleAdd}
+              onKeyDown={onEnter}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAdd}
-              loading={isSaving}
-              disabled={!name.trim()}
-            >
+            <Button startIcon={<IconPlus />} onClick={handleAdd} loading={isSaving} disabled={!name.trim()}>
               Add
             </Button>
-          </Space.Compact>
-          <Typography.Text
-            type="secondary"
-            style={{ display: "block", marginTop: 8, fontSize: 12 }}
-          >
+          </Inline>
+          <Text textStyle="caption" muted>
             {description}
-          </Typography.Text>
-        </div>
+          </Text>
+        </Stack>
 
         {prefix && name.trim() && (
-          <Typography.Text type="secondary">
-            Emitted name: <code>{prefix}.{name.trim()}</code>
-          </Typography.Text>
+          <Text muted>
+            Emitted name:{" "}
+            <Text as="code" textStyle="code">
+              {prefix}.{name.trim()}
+            </Text>
+          </Text>
         )}
-        {error && (
-          <Typography.Text type="danger">
-            Failed to load claims. Close and reopen to retry.
-          </Typography.Text>
-        )}
-        <Table<CustomClaim>
+        {error && <Text color="danger">Failed to load claims. Close and reopen to retry.</Text>}
+        <DataTable
+          caption="Custom claims"
+          data={claims ?? []}
           columns={columns}
-          dataSource={claims ?? []}
-          rowKey="name"
+          getRowId={(c) => c.name}
           loading={isLoading}
-          pagination={false}
-          size="small"
-          locale={{ emptyText: "No custom claims" }}
+          pageSize={false}
+          emptyTitle="No custom claims"
         />
-      </Space>
+      </Stack>
     </Drawer>
   );
 }

@@ -29,18 +29,14 @@ test('group and claim event filters query the API and show audit entries', async
   await page.waitForURL(`${BASE_URL}/admin/audit-log`);
   for (const [label, event] of options) {
     await page.getByLabel('Filter audit events').click();
-    // The event menu virtualizes its long list; the new event types are at the end.
-    await page.locator('.ant-select-dropdown:visible .ant-select-dropdown-list-holder').evaluate(element => {
-      element.scrollTop = element.scrollHeight;
-    });
     const response = page.waitForResponse(response =>
       response.url().includes('/admin/api/audit-logs?') && new URL(response.url()).searchParams.get('event') === event);
-    await page.locator('.ant-select-dropdown:visible').getByText(label, { exact: true }).click();
+    await page.getByRole('option', { name: label, exact: true }).click();
     expect((await response).status()).toBe(200);
     if (event === 'group_created') {
       const row = page.getByRole('row').filter({ hasText: 'Group Created' });
       await expect(row).toContainText('admin');
       await expect(row).toContainText('group:');
-    } else await expect(page.locator('.ant-empty-description')).toBeVisible();
+    } else await expect(page.getByText('No audit events found', { exact: true })).toBeVisible();
   }
 });

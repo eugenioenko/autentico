@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Spin } from "antd";
+import { Spinner, Stack, Text } from "@yarcl/react";
 import { useAuth } from "oidc-js-react";
 import apiClient from "../api/client";
+import "./AuthScreen.css";
 
 export default function CallbackPage() {
   const navigate = useNavigate();
@@ -39,15 +40,11 @@ export default function CallbackPage() {
   }, [isAuthenticated, isLoading, tokens, navigate]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
-      }}
-    >
-      <Spin size="large" tip="Signing in..." />
+    <div className="auth-screen">
+      <Stack gap="sm" align="center">
+        <Spinner size="lg" label="Signing in..." />
+        <Text muted>Signing in...</Text>
+      </Stack>
     </div>
   );
 }

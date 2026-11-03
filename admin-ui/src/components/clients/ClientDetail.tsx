@@ -1,5 +1,6 @@
-import { Drawer, Descriptions, Tag, Space, Typography } from "antd";
+import { Badge, Drawer, Heading, Inline, Stack, Text } from "@yarcl/react";
 import type { ClientInfoResponse } from "../../types/client";
+import DescriptionList from "../DescriptionList";
 
 interface ClientDetailProps {
   open: boolean;
@@ -7,137 +8,113 @@ interface ClientDetailProps {
   onClose: () => void;
 }
 
-export default function ClientDetail({
-  open,
-  client,
-  onClose,
-}: ClientDetailProps) {
+function Chips({ items }: { items: string[] | undefined }) {
+  return (
+    <Inline gap="xs">
+      {items?.map((item) => (
+        <Badge key={item} variant="soft" color="neutral">
+          {item}
+        </Badge>
+      ))}
+    </Inline>
+  );
+}
+
+function UriList({ uris }: { uris: string[] }) {
+  return (
+    <Stack gap="xs">
+      {uris.map((uri) => (
+        <span key={uri}>{uri}</span>
+      ))}
+    </Stack>
+  );
+}
+
+export default function ClientDetail({ open, client, onClose }: ClientDetailProps) {
   if (!client) return null;
 
-  return (
-    <Drawer
-      title={`Client: ${client.client_name}`}
-      open={open}
-      onClose={onClose}
-      width={520}
-    >
-      <Descriptions column={1} bordered size="small">
-        <Descriptions.Item label="Client ID">
-          {client.client_id}
-        </Descriptions.Item>
-        <Descriptions.Item label="Client Name">
-          {client.client_name}
-        </Descriptions.Item>
-        <Descriptions.Item label="Client Type">
-          <Tag color={client.client_type === "confidential" ? "blue" : "green"}>
-            {client.client_type}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Status">
-          <Tag color={client.is_active ? "success" : "error"}>
-            {client.is_active ? "Active" : "Inactive"}
-          </Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="Redirect URIs">
-          <Space direction="vertical" size={4}>
-            {client.redirect_uris?.map((uri) => (
-              <span key={uri}>{uri}</span>
-            ))}
-          </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="Post-Logout Redirect URIs">
-          {client.post_logout_redirect_uris && client.post_logout_redirect_uris.length > 0 ? (
-            <Space direction="vertical" size={4}>
-              {client.post_logout_redirect_uris.map((uri) => (
-                <span key={uri}>{uri}</span>
-              ))}
-            </Space>
-          ) : (
-            <span style={{ color: "#999" }}>None</span>
-          )}
-        </Descriptions.Item>
-        <Descriptions.Item label="Grant Types">
-          <Space size={[0, 4]} wrap>
-            {client.grant_types?.map((gt) => (
-              <Tag key={gt}>{gt}</Tag>
-            ))}
-          </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="Response Types">
-          <Space size={[0, 4]} wrap>
-            {client.response_types?.map((rt) => (
-              <Tag key={rt}>{rt}</Tag>
-            ))}
-          </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="Scopes">
-          <Space size={[0, 4]} wrap>
-            {client.scopes?.split(" ").filter(Boolean).map((s) => (
-              <Tag key={s}>{s}</Tag>
-            ))}
-          </Space>
-        </Descriptions.Item>
-        <Descriptions.Item label="Auth Method">
-          {client.token_endpoint_auth_method}
-        </Descriptions.Item>
-      </Descriptions>
+  const hasOverrides =
+    client.access_token_expiration ||
+    client.refresh_token_expiration ||
+    client.authorization_code_expiration ||
+    client.allowed_audiences?.length ||
+    client.allow_self_signup !== undefined ||
+    client.sso_session_idle_timeout ||
+    client.trust_device_enabled !== undefined ||
+    client.trust_device_expiration;
 
-      {(client.access_token_expiration ||
-        client.refresh_token_expiration ||
-        client.authorization_code_expiration ||
-        client.allowed_audiences?.length ||
-        client.allow_self_signup !== undefined ||
-        client.sso_session_idle_timeout ||
-        client.trust_device_enabled !== undefined ||
-        client.trust_device_expiration) && (
-        <>
-          <Typography.Title level={5} style={{ marginTop: 24 }}>
-            Overrides
-          </Typography.Title>
-          <Descriptions column={1} bordered size="small">
-            {client.access_token_expiration && (
-              <Descriptions.Item label="Access Token TTL">
-                {client.access_token_expiration}
-              </Descriptions.Item>
+  return (
+    <Drawer title={`Client: ${client.client_name}`} open={open} onOpenChange={(next) => !next && onClose()} side="right" size="md">
+      <Stack gap="lg">
+        <DescriptionList>
+          <DescriptionList.Item label="Client ID">{client.client_id}</DescriptionList.Item>
+          <DescriptionList.Item label="Client Name">{client.client_name}</DescriptionList.Item>
+          <DescriptionList.Item label="Client Type">
+            <Badge variant="soft" color={client.client_type === "confidential" ? "info" : "success"}>
+              {client.client_type}
+            </Badge>
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Status">
+            <Badge variant="soft" color={client.is_active ? "success" : "danger"}>
+              {client.is_active ? "Active" : "Inactive"}
+            </Badge>
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Redirect URIs">
+            <UriList uris={client.redirect_uris ?? []} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Post-Logout Redirect URIs">
+            {client.post_logout_redirect_uris && client.post_logout_redirect_uris.length > 0 ? (
+              <UriList uris={client.post_logout_redirect_uris} />
+            ) : (
+              <Text muted>None</Text>
             )}
-            {client.refresh_token_expiration && (
-              <Descriptions.Item label="Refresh Token TTL">
-                {client.refresh_token_expiration}
-              </Descriptions.Item>
-            )}
-            {client.authorization_code_expiration && (
-              <Descriptions.Item label="Auth Code TTL">
-                {client.authorization_code_expiration}
-              </Descriptions.Item>
-            )}
-            {client.allowed_audiences?.length ? (
-              <Descriptions.Item label="Allowed Audiences">
-                {client.allowed_audiences.join(", ")}
-              </Descriptions.Item>
-            ) : null}
-            {client.allow_self_signup !== undefined && (
-              <Descriptions.Item label="Self Signup">
-                {client.allow_self_signup ? "Allowed" : "Disabled"}
-              </Descriptions.Item>
-            )}
-            {client.sso_session_idle_timeout && (
-              <Descriptions.Item label="SSO Idle Timeout">
-                {client.sso_session_idle_timeout}
-              </Descriptions.Item>
-            )}
-            {client.trust_device_enabled !== undefined && (
-              <Descriptions.Item label="Trust Device">
-                {client.trust_device_enabled ? "Enabled" : "Disabled"}
-              </Descriptions.Item>
-            )}
-            {client.trust_device_expiration && (
-              <Descriptions.Item label="Trust Device TTL">
-                {client.trust_device_expiration}
-              </Descriptions.Item>
-            )}
-          </Descriptions>
-        </>
-      )}
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Grant Types">
+            <Chips items={client.grant_types} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Response Types">
+            <Chips items={client.response_types} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Scopes">
+            <Chips items={client.scopes?.split(" ").filter(Boolean)} />
+          </DescriptionList.Item>
+          <DescriptionList.Item label="Auth Method">{client.token_endpoint_auth_method}</DescriptionList.Item>
+        </DescriptionList>
+
+        {hasOverrides && (
+          <Stack gap="sm">
+            <Heading level={3} textStyle="subheading">
+              Overrides
+            </Heading>
+            <DescriptionList>
+              {client.access_token_expiration && (
+                <DescriptionList.Item label="Access Token TTL">{client.access_token_expiration}</DescriptionList.Item>
+              )}
+              {client.refresh_token_expiration && (
+                <DescriptionList.Item label="Refresh Token TTL">{client.refresh_token_expiration}</DescriptionList.Item>
+              )}
+              {client.authorization_code_expiration && (
+                <DescriptionList.Item label="Auth Code TTL">{client.authorization_code_expiration}</DescriptionList.Item>
+              )}
+              {client.allowed_audiences?.length ? (
+                <DescriptionList.Item label="Allowed Audiences">{client.allowed_audiences.join(", ")}</DescriptionList.Item>
+              ) : null}
+              {client.allow_self_signup !== undefined && (
+                <DescriptionList.Item label="Self Signup">{client.allow_self_signup ? "Allowed" : "Disabled"}</DescriptionList.Item>
+              )}
+              {client.sso_session_idle_timeout && (
+                <DescriptionList.Item label="SSO Idle Timeout">{client.sso_session_idle_timeout}</DescriptionList.Item>
+              )}
+              {client.trust_device_enabled !== undefined && (
+                <DescriptionList.Item label="Trust Device">{client.trust_device_enabled ? "Enabled" : "Disabled"}</DescriptionList.Item>
+              )}
+              {client.trust_device_expiration && (
+                <DescriptionList.Item label="Trust Device TTL">{client.trust_device_expiration}</DescriptionList.Item>
+              )}
+            </DescriptionList>
+          </Stack>
+        )}
+      </Stack>
     </Drawer>
   );
 }

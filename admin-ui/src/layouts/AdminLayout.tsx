@@ -1,204 +1,174 @@
-import { useState, Suspense } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Layout, Menu, Button, Typography, theme, Avatar, Dropdown, ConfigProvider } from "antd";
+import { Suspense, useState, type ReactNode } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import {
-  DashboardOutlined,
-  AppstoreOutlined,
-  UserOutlined,
-  DesktopOutlined,
-  KeyOutlined,
-  FileSearchOutlined,
-  FileTextOutlined,
-  ApiOutlined,
-  GlobalOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  DownOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
+  IconApi,
+  IconApps,
+  IconBook,
+  IconChevronDown,
+  IconDeviceDesktop,
+  IconFileSearch,
+  IconFileText,
+  IconKey,
+  IconLayoutDashboard,
+  IconIndentDecrease,
+  IconIndentIncrease,
+  IconLogout,
+  IconSettings,
+  IconShieldLock,
+  IconUser,
+  IconUsers,
+  IconUsersGroup,
+  IconWorld,
+} from "@tabler/icons-react";
+import { AppLayout, Avatar, Button, IconButton, Inline, Menu, NavItem, NavSection, Spinner, Stack, Text } from "@yarcl/react";
 import { useAuth } from "oidc-js-react";
-import { useTheme } from "../context/ThemeContext";
-import ThemeToggle from "../components/ThemeToggle";
+import ColorSchemeToggle from "../components/ColorSchemeToggle";
+import { RouterNavItem } from "../components/RouterLink";
+import "./AdminLayout.css";
 
-const { Header, Sider, Content } = Layout;
-const { Text } = Typography;
+interface NavEntry {
+  to: string;
+  icon: ReactNode;
+  label: string;
+}
 
-const menuItems: any[] = [
-  { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/users", icon: <UserOutlined />, label: "Users" },
-  { key: "/groups", icon: <TeamOutlined />, label: "Groups" },
-  { key: "/sessions", icon: <DesktopOutlined />, label: "Sessions" },
-  { key: "/tokens", icon: <KeyOutlined />, label: "Tokens" },
-  { key: "/clients", icon: <AppstoreOutlined />, label: "Clients" },
-{ key: "/protected-apps", icon: <GlobalOutlined />, label: "Protected Apps" },
-  { key: "/federation", icon: <GlobalOutlined />, label: "Federation" },
-  { key: "/audit-log", icon: <FileSearchOutlined />, label: "Audit Log" },
-  { key: "/cors", icon: <ApiOutlined />, label: "CORS" },
-  { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
-  { type: "divider" },
-  {
-    type: "group",
-    label: "Resources",
-    children: [
-      { key: "/account", icon: <UserOutlined />, label: "Profile" },
-      { key: "/docs", icon: <FileTextOutlined />, label: "API Docs" },
-      { key: "/swagger", icon: <FileTextOutlined />, label: "Swagger UI" },
-      { key: "/autentico-docs", icon: <FileTextOutlined />, label: "Autentico Docs" },
-    ],
-  },
+const adminItems: NavEntry[] = [
+  { to: "/", icon: <IconLayoutDashboard />, label: "Dashboard" },
+  { to: "/users", icon: <IconUser />, label: "Users" },
+  { to: "/groups", icon: <IconUsersGroup />, label: "Groups" },
+  { to: "/sessions", icon: <IconDeviceDesktop />, label: "Sessions" },
+  { to: "/tokens", icon: <IconKey />, label: "Tokens" },
+  { to: "/clients", icon: <IconApps />, label: "Clients" },
+  { to: "/protected-apps", icon: <IconShieldLock />, label: "Protected Apps" },
+  { to: "/federation", icon: <IconWorld />, label: "Federation" },
+  { to: "/audit-log", icon: <IconFileSearch />, label: "Audit Log" },
+  { to: "/cors", icon: <IconApi />, label: "CORS" },
+  { to: "/settings", icon: <IconSettings />, label: "Settings" },
 ];
+
+const resourceItems = [
+  { href: "/account/", icon: <IconUsers />, label: "Profile" },
+  { href: "/api-docs/", icon: <IconFileText />, label: "API Docs" },
+  { href: "/swagger/index.html", icon: <IconFileText />, label: "Swagger UI" },
+  { href: "https://getautentico.dev/", icon: <IconBook />, label: "Autentico Docs" },
+];
+
+function isActive(pathname: string, to: string) {
+  return to === "/" ? pathname === "/" : pathname.startsWith(to);
+}
+
+function UserMenu() {
+  const { user } = useAuth();
+  const username = (user?.claims?.preferred_username ?? user?.claims?.email ?? "User") as string;
+  const picture = user?.claims?.picture as string | undefined;
+  return (
+    <Menu placement="bottom-end">
+      <Menu.Trigger>
+        <Button variant="ghost" color="neutral" data-testid="user-menu" endIcon={<IconChevronDown aria-hidden="true" />}>
+          <Inline as="span" gap="sm" wrap={false}>
+            <Avatar size="sm" src={picture} name={username} color="brand" />
+            <Text as="span" inherit>
+              {username}
+            </Text>
+          </Inline>
+        </Button>
+      </Menu.Trigger>
+      <Menu.Content aria-label="Account">
+        <Menu.Item onSelect={() => window.open("/account/", "_blank")}>
+          <Inline as="span" gap="sm" wrap={false}>
+            <IconUser aria-hidden="true" />
+            Profile
+          </Inline>
+        </Menu.Item>
+        <Menu.Separator />
+        <Menu.Item color="danger" onSelect={() => (window.location.href = "/oauth2/logout")}>
+          <Inline as="span" gap="sm" wrap={false}>
+            <IconLogout aria-hidden="true" />
+            Logout
+          </Inline>
+        </Menu.Item>
+      </Menu.Content>
+    </Menu>
+  );
+}
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user } = useAuth();
-  const { mode } = useTheme();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
+  const { pathname } = useLocation();
 
-  const selectedKey =
-    menuItems.find(
-      (item) => item.key && item.key !== "/" && location.pathname.startsWith(item.key)
-    )?.key ?? "/";
+  const navigation = (
+    <>
+      <Stack gap="xs">
+        {adminItems.map((item) => (
+          <RouterNavItem key={item.to} to={item.to} icon={item.icon} active={isActive(pathname, item.to)}>
+            {item.label}
+          </RouterNavItem>
+        ))}
+      </Stack>
+      <NavSection title="Resources" collapsed={collapsed}>
+        {resourceItems.map((item) => (
+          <NavItem key={item.href} href={item.href} target="_blank" rel="noreferrer" icon={item.icon}>
+            {item.label}
+          </NavItem>
+        ))}
+      </NavSection>
+    </>
+  );
 
-  const handleLogout = () => {
-    window.location.href = "/oauth2/logout";
-  };
+  const brand = (
+    <Inline gap="sm" align="center" wrap={false} className="admin-brand">
+      <img src="/admin/favicon.svg" alt="" className="admin-logo" />
+      {!collapsed && (
+        <Text as="span" textStyle="subheading">
+          Autentico
+        </Text>
+      )}
+    </Inline>
+  );
 
-  const userDropdownItems = [
-    {
-      key: "account",
-      label: "Profile",
-      icon: <UserOutlined />,
-      onClick: () => window.open("/account/", "_blank"),
-    },
-    {
-      type: "divider" as const,
-    },
-    {
-      key: "logout",
-      label: "Logout",
-      icon: <LogoutOutlined />,
-      danger: true,
-      onClick: handleLogout,
-    },
-  ];
-
-  const username = (user?.claims?.preferred_username ?? user?.claims?.email ?? "User") as string;
-  const siderBg = mode === "dark" ? "#1a1a1a" : "#141414";
+  const navbar = (
+    <Inline gap="md" justify="between" align="center" wrap={false} className="admin-navbar">
+      <Inline gap="sm" align="center" wrap={false}>
+        <IconButton
+          variant="ghost"
+          color="neutral"
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+          className="admin-collapse"
+          onClick={() => setCollapsed((c) => !c)}
+        >
+          {collapsed ? <IconIndentIncrease /> : <IconIndentDecrease />}
+        </IconButton>
+        <div className="admin-navbar-brand">{brand}</div>
+      </Inline>
+      <Inline gap="sm" align="center" wrap={false}>
+        <ColorSchemeToggle />
+        <UserMenu />
+      </Inline>
+    </Inline>
+  );
 
   return (
-    <Layout style={{ height: "100dvh", overflow: "hidden" }}>
-      <ConfigProvider
-        theme={{
-          components: {
-            Menu: {
-              darkItemBg: siderBg,
-              darkSubMenuItemBg: siderBg,
-              darkItemSelectedBg: "rgba(255, 255, 255, 0.1)",
-              darkItemSelectedColor: "#ffffff",
-              darkItemColor: "rgba(255, 255, 255, 0.55)",
-              darkItemHoverColor: "rgba(255, 255, 255, 0.85)",
-              darkItemHoverBg: "rgba(255, 255, 255, 0.06)",
-              darkGroupTitleColor: "rgba(255, 255, 255, 0.45)",
-            },
-          },
-        }}
+    <AppLayout
+      desktopBreakpoint="lg"
+      sidebarWidth="sidebar"
+      navigationLabel="Admin"
+      menuLabel="Open navigation"
+      skipLabel="Skip to content"
+      collapsed={collapsed}
+      navigation={navigation}
+      navbar={navbar}
+      sidebarHeader={brand}
+      mainProps={{ className: "admin-main" }}
+    >
+      <Suspense
+        fallback={
+          <div className="page-loading">
+            <Spinner size="lg" label="Loading" />
+          </div>
+        }
       >
-        <Sider trigger={null} collapsible collapsed={collapsed} breakpoint="lg" onBreakpoint={setCollapsed} style={{ background: siderBg, overflow: "auto" }}>
-          <div
-            style={{
-              height: 64,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              color: "white",
-              fontWeight: 600,
-              fontSize: 18,
-              padding: "0 16px",
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src="/admin/favicon.svg"
-              alt="Autentico Logo"
-              style={{ width: 32, height: 32, flexShrink: 0 }}
-            />
-            {!collapsed && <span style={{ whiteSpace: "nowrap" }}>Autentico</span>}
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            items={menuItems}
-            onClick={({ key }) => {
-              if (key === "/account") {
-                window.open("/account/", "_blank");
-              } else if (key === "/docs") {
-                window.open("/api-docs/", "_blank");
-              } else if (key === "/swagger") {
-                window.open("/swagger/index.html", "_blank");
-              } else if (key === "/autentico-docs") {
-                window.open("https://getautentico.dev/", "_blank");
-              } else {
-                navigate(key);
-              }
-            }}
-          />
-        </Sider>
-      </ConfigProvider>
-      <Layout style={{ overflow: "hidden" }}>
-        <Header
-          style={{
-            padding: "0 24px",
-            background: colorBgContainer,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <ThemeToggle />
-            <Dropdown menu={{ items: userDropdownItems }} trigger={["click"]} placement="bottomRight">
-              <div data-testid="user-menu" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                <Avatar
-                  src={user?.claims?.picture as string | undefined}
-                  icon={!user?.claims?.picture && <UserOutlined />}
-                  style={{ backgroundColor: "#ff7b00" }}
-                />
-                <Text>{username}</Text>
-                <DownOutlined style={{ fontSize: 11, opacity: 0.6 }} />
-              </div>
-            </Dropdown>
-          </div>
-        </Header>
-        <Content
-          style={{
-            margin: 24,
-            padding: 24,
-            background: colorBgContainer,
-            borderRadius: borderRadiusLG,
-            overflow: "hidden",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Suspense fallback={null}>
-            <Outlet />
-          </Suspense>
-        </Content>
-      </Layout>
-    </Layout>
+        <Outlet />
+      </Suspense>
+    </AppLayout>
   );
 }

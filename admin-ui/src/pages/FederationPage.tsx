@@ -1,44 +1,37 @@
-import { useState, useCallback, useRef } from "react";
-import {
-  Typography,
-  Table,
-  Button,
-  Tag,
-  Space,
-  Popconfirm,
-  Alert,
-  Input,
-  Tooltip,
-  App,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { FilterValue, SorterResult } from "antd/es/table/interface";
+import { useMemo, useState } from "react";
+import { Alert, Badge, Button, IconButton, Inline, Stack, Tooltip, toast } from "@yarcl/react";
+import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useFederationProviders, useDeleteFederationProvider } from "../hooks/useFederation";
 import type { FederationProvider } from "../types/federation";
 import type { ListParams } from "../api/users";
 import FederationCreateForm from "../components/federation/FederationCreateForm";
 import FederationEditForm from "../components/federation/FederationEditForm";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
+import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
+import ConfirmIconButton from "../components/ConfirmIconButton";
+import { DataTable, dataColumns, type DataFilter } from "../components/DataTable";
+
+const filters: DataFilter[] = [
+  {
+    key: "enabled",
+    label: "Status",
+    allLabel: "All statuses",
+    options: [
+      { value: "1", label: "Enabled" },
+      { value: "0", label: "Disabled" },
+    ],
+  },
+];
 
 export default function FederationPage() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
-
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "sort_order",
     order: "asc",
   });
-  const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading, error } = useFederationProviders(listParams);
   const deleteProvider = useDeleteFederationProvider();
@@ -46,226 +39,102 @@ export default function FederationPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editProvider, setEditProvider] = useState<FederationProvider | null>(null);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteProvider.mutateAsync(id);
-      message.success("Provider deleted");
-    } catch {
-      message.error("Failed to delete provider");
-    }
-  };
-
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      filters: Record<string, FilterValue | null>,
-      sorter: SorterResult<FederationProvider> | SorterResult<FederationProvider>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      const newParams: ListParams = {
-        ...listParams,
-        offset:
-          ((pagination.current ?? 1) - 1) *
-          (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : "sort_order",
-        order: s.order === "ascend" ? "asc" : "desc",
-      };
-
-      if (filters.enabled?.length) {
-        newParams.enabled = filters.enabled[0] as string;
-      } else {
-        delete newParams.enabled;
+  const columns = useMemo(() => {
+    const handleDelete = async (id: string) => {
+      try {
+        await deleteProvider.mutateAsync(id);
+        toast({ title: "Provider deleted", color: "success" });
+      } catch {
+        toast({ title: "Failed to delete provider", color: "danger" });
       }
-
-      setListParams(newParams);
-    },
-    [listParams]
-  );
-
-  const handleSearch = useCallback((value: string) => {
-    setListParams((prev) => ({
-      ...prev,
-      search: value || undefined,
-      offset: 0,
-    }));
-  }, []);
-
-  const sortOrder = (field: string) =>
-    listParams.sort === field
-      ? listParams.order === "desc"
-        ? ("descend" as const)
-        : ("ascend" as const)
-      : undefined;
-
-  const columns: ColumnsType<FederationProvider> = [
-    {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: true,
-      sortOrder: sortOrder("name"),
-      ellipsis: true,
-      render: (name: string) => (
-        <CopyText text={name} />
-      ),
-    },
-    {
-      title: "Issuer",
-      dataIndex: "issuer",
-      key: "issuer",
-      sorter: true,
-      sortOrder: sortOrder("issuer"),
-      ellipsis: true,
-      render: (issuer: string) => (
-        <CopyText text={issuer} />
-      ),
-    },
-    {
-      title: "Client ID",
-      dataIndex: "client_id",
-      key: "client_id",
-      sorter: true,
-      sortOrder: sortOrder("client_id"),
-      ellipsis: true,
-      render: (id: string) => (
-        <CopyText text={id} />
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "enabled",
-      key: "enabled",
-      sorter: true,
-      sortOrder: sortOrder("enabled"),
-      width: 100,
-      filters: [
-        { text: "Enabled", value: "1" },
-        { text: "Disabled", value: "0" },
-      ],
-      filterMultiple: false,
-      render: (enabled: boolean) => (
-        <Tag color={enabled ? "success" : "default"}>
-          {enabled ? "Enabled" : "Disabled"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Order",
-      dataIndex: "sort_order",
-      key: "sort_order",
-      sorter: true,
-      sortOrder: sortOrder("sort_order"),
-      width: 80,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 100,
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Delete provider">
-            <Popconfirm
+    };
+    const col = dataColumns<FederationProvider>();
+    return col.columns([
+      col.accessor("name", { header: "Name", cell: (info) => <CopyText text={info.getValue()} /> }),
+      col.accessor("issuer", { header: "Issuer", cell: (info) => <CopyText text={info.getValue()} /> }),
+      col.accessor("client_id", { header: "Client ID", cell: (info) => <CopyText text={info.getValue()} /> }),
+      col.accessor("enabled", {
+        header: "Status",
+        meta: { width: 100 },
+        cell: (info) => (
+          <Badge variant="soft" color={info.getValue() ? "success" : "neutral"}>
+            {info.getValue() ? "Enabled" : "Disabled"}
+          </Badge>
+        ),
+      }),
+      col.accessor("sort_order", { header: "Order", meta: { width: 80 } }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        meta: { width: 100 },
+        cell: ({ row }) => (
+          <Inline gap="xs" wrap={false}>
+            <ConfirmIconButton
+              tooltip="Delete provider"
+              aria-label="Delete provider"
+              icon={<IconTrash />}
+              color="danger"
               title="Delete this provider?"
               description="Users who signed in via this provider will keep their accounts but won't be able to log in with it again."
-              onConfirm={() => handleDelete(record.id)}
-              okText="Delete"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                aria-label="Delete provider"
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
-          </Tooltip>
-          <Tooltip title="Edit provider">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Edit provider"
-              icon={<EditOutlined />}
-              onClick={() => setEditProvider(record)}
+              confirmLabel="Delete"
+              onConfirm={() => handleDelete(row.original.id)}
             />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
+            <Tooltip content="Edit provider">
+              <IconButton
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                aria-label="Edit provider"
+                onClick={() => setEditProvider(row.original)}
+              >
+                <IconEdit />
+              </IconButton>
+            </Tooltip>
+          </Inline>
+        ),
+      }),
+    ]);
+  }, [deleteProvider]);
 
   if (error) {
-    return <Alert type="error" message="Failed to load federation providers" />;
+    return <Alert color="danger" title="Failed to load federation providers" />;
   }
 
   return (
-    <>
-      <Space
-        style={{
-          justifyContent: "space-between",
-          width: "100%",
-          flexShrink: 0,
+    <Stack gap="md">
+      <PageHeader
+        title="Federation Providers"
+        actions={
+          <>
+            <SearchInput
+              placeholder="Search name, issuer, or client ID..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
+            <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+              Add Provider
+            </Button>
+          </>
+        }
+      />
+
+      <DataTable
+        caption="Federation providers"
+        data={data?.items ?? []}
+        columns={columns}
+        getRowId={(p) => p.id}
+        loading={isLoading}
+        filters={filters}
+        emptyTitle="No federation providers found"
+        server={{
+          params: listParams,
+          onParamsChange: setListParams,
+          total: data?.total ?? 0,
+          totalLabel: (total) => `${total} providers`,
         }}
-      >
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Federation Providers
-        </Typography.Title>
-        <Space>
-          <Input.Search
-            placeholder="Search name, issuer, or client ID..."
-            allowClear
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 300 }}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
-          >
-            Add Provider
-          </Button>
-        </Space>
-      </Space>
-
-      <div
-        ref={tableContainerRef}
-        style={{ flex: 1, overflow: "hidden", marginTop: 16 }}
-      >
-        <Table<FederationProvider>
-          columns={columns}
-          dataSource={data?.items ?? []}
-          rowKey="id"
-          loading={isLoading}
-          onChange={handleTableChange}
-          scroll={scrollY ? { y: scrollY } : undefined}
-          pagination={{
-            current:
-              Math.floor(
-                (listParams.offset ?? 0) /
-                  (listParams.limit ?? DEFAULT_PAGE_SIZE)
-              ) + 1,
-            pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-            total: data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZE_OPTIONS,
-            showTotal: (total) => `${total} providers`,
-          }}
-        />
-      </div>
-
-      <FederationCreateForm
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
       />
 
-      <FederationEditForm
-        open={!!editProvider}
-        provider={editProvider}
-        onClose={() => setEditProvider(null)}
-      />
-    </>
+      <FederationCreateForm open={createOpen} onClose={() => setCreateOpen(false)} />
+      <FederationEditForm open={!!editProvider} provider={editProvider} onClose={() => setEditProvider(null)} />
+    </Stack>
   );
 }

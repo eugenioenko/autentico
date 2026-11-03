@@ -1,31 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Table,
-  Button,
-  Tag,
-  Space,
-  Popconfirm,
-  Alert,
-  Tooltip,
-  Input,
-  DatePicker,
-  Badge,
-  Tabs,
-  App,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  StopOutlined,
-  UnlockOutlined,
-  TeamOutlined,
-  LaptopOutlined,
-  IdcardOutlined,
-} from "@ant-design/icons";
-import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { FilterValue, SorterResult } from "antd/es/table/interface";
-import type { Dayjs } from "dayjs";
+import { Alert, Badge, Button, IconButton, Inline, Stack, Tabs, Text, Tooltip, toast, type DateRange } from "@yarcl/react";
+import { IconBan, IconDeviceLaptop, IconEdit, IconId, IconLockOpen, IconPlus, IconUsersGroup } from "@tabler/icons-react";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
 import { useGroups } from "../hooks/useGroups";
 import { useDeletionRequests } from "../hooks/useDeletionRequests";
@@ -37,34 +13,57 @@ import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserClaimsDrawer from "../components/users/UserClaimsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
 import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
-import { useTableScrollY } from "../hooks/useTableScrollY";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
+import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
 import CopyText from "../components/CopyText";
+import ConfirmIconButton from "../components/ConfirmIconButton";
+import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
+import SearchInput from "../components/SearchInput";
+import { DataTable, dataColumns, type DataFilter } from "../components/DataTable";
 
 function isLocked(record: UserResponseExt): boolean {
   return !!record.locked_until && new Date(record.locked_until) > new Date();
 }
 
-export default function UsersPage() {
-  const { message } = App.useApp();
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const scrollY = useTableScrollY(tableContainerRef);
+function StatusBadge({ user }: { user: UserResponseExt }) {
+  if (isLocked(user)) {
+    return (
+      <Badge variant="soft" color="warning">
+        Locked
+      </Badge>
+    );
+  }
+  if (user.failed_login_attempts && user.failed_login_attempts > 0) {
+    return (
+      <Tooltip content={`${user.failed_login_attempts} failed attempt(s)`}>
+        <Badge variant="soft" color="warning" tabIndex={0}>
+          {user.failed_login_attempts} failed
+        </Badge>
+      </Tooltip>
+    );
+  }
+  return (
+    <Badge variant="soft" color="success">
+      Active
+    </Badge>
+  );
+}
 
+export default function UsersPage() {
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
     sort: "created_at",
     order: "desc",
   });
-  const [searchValue, setSearchValue] = useState("");
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   const { data, isLoading, error } = useUsers(listParams);
   const { data: groups } = useGroups();
   const { data: deletionRequests } = useDeletionRequests();
-  const deleteUser = useDeleteUser();
-  const unlockUserMutation = useUnlockUser();
+  const { mutateAsync: deleteUser } = useDeleteUser();
+  const { mutateAsync: unlockUser } = useUnlockUser();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -84,374 +83,250 @@ export default function UsersPage() {
     }
   }, [location.state]);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteUser.mutateAsync(id);
-      message.success("User deactivated");
-    } catch {
-      message.error("Failed to deactivate user");
-    }
-  };
-
-  const handleUnlock = async (id: string) => {
-    try {
-      await unlockUserMutation.mutateAsync(id);
-      message.success("User unlocked");
-    } catch {
-      message.error("Failed to unlock user");
-    }
-  };
-
-  const handleTableChange = useCallback(
-    (
-      pagination: TablePaginationConfig,
-      filters: Record<string, FilterValue | null>,
-      sorter: SorterResult<UserResponseExt> | SorterResult<UserResponseExt>[]
-    ) => {
-      const s = Array.isArray(sorter) ? sorter[0] : sorter;
-      const newParams: ListParams = {
-        ...listParams,
-        offset: ((pagination.current ?? 1) - 1) * (pagination.pageSize ?? DEFAULT_PAGE_SIZE),
-        limit: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
-        sort: s.field ? String(s.field) : "created_at",
-        order: s.order === "ascend" ? "asc" : "desc",
-      };
-
-      if (filters.role?.length) {
-        newParams.role = filters.role[0] as string;
-      } else {
-        delete newParams.role;
-      }
-
-      if (filters.verified?.length) {
-        newParams.is_email_verified = filters.verified[0] as string;
-      } else {
-        delete newParams.is_email_verified;
-      }
-
-      if (filters.mfa?.length) {
-        newParams.totp_verified = filters.mfa[0] as string;
-      } else {
-        delete newParams.totp_verified;
-      }
-
-      if (filters.groups?.length) {
-        newParams.group = filters.groups[0] as string;
-      } else {
-        delete newParams.group;
-      }
-
-      setListParams(newParams);
-    },
-    [listParams]
+  const filters = useMemo<DataFilter[]>(
+    () => [
+      {
+        key: "role",
+        label: "Role",
+        allLabel: "All roles",
+        options: [
+          { value: "admin", label: "Admin" },
+          { value: "user", label: "User" },
+        ],
+      },
+      {
+        key: "totp_verified",
+        label: "MFA",
+        allLabel: "Any MFA",
+        options: [
+          { value: "1", label: "Enrolled" },
+          { value: "0", label: "No" },
+        ],
+      },
+      {
+        key: "is_email_verified",
+        label: "Verified",
+        allLabel: "Any verification",
+        options: [
+          { value: "1", label: "Yes" },
+          { value: "0", label: "No" },
+        ],
+      },
+      {
+        key: "group",
+        label: "Groups",
+        allLabel: "All groups",
+        options: (groups?.items ?? []).map((g) => ({ value: g.name, label: g.name })),
+      },
+    ],
+    [groups],
   );
 
-  const handleSearch = useCallback(
-    (value: string) => {
-      setListParams((prev) => ({
-        ...prev,
-        search: value || undefined,
-        offset: 0,
-      }));
-    },
-    []
-  );
+  const columns = useMemo(() => {
+    const handleDelete = async (id: string) => {
+      try {
+        await deleteUser(id);
+        toast({ title: "User deactivated", color: "success" });
+      } catch {
+        toast({ title: "Failed to deactivate user", color: "danger" });
+      }
+    };
 
-  const handleDateRange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null) => {
-      setDateRange(dates);
-      setListParams((prev) => {
-        const next: ListParams = { ...prev, offset: 0 };
-        if (dates && dates[0]) {
-          next.created_at_from = dates[0].startOf("day").toISOString();
-        } else {
-          delete next.created_at_from;
-        }
-        if (dates && dates[1]) {
-          next.created_at_to = dates[1].endOf("day").toISOString();
-        } else {
-          delete next.created_at_to;
-        }
-        return next;
-      });
-    },
-    []
-  );
+    const handleUnlock = async (id: string) => {
+      try {
+        await unlockUser(id);
+        toast({ title: "User unlocked", color: "success" });
+      } catch {
+        toast({ title: "Failed to unlock user", color: "danger" });
+      }
+    };
+
+    const col = dataColumns<UserResponseExt>();
+    return col.columns([
+      col.accessor("username", {
+        header: "Username",
+        cell: (info) => <Text truncate>{info.getValue()}</Text>,
+      }),
+      col.accessor("email", {
+        header: "Email",
+        cell: (info) => <CopyText text={info.getValue() ?? ""} />,
+      }),
+      col.accessor("role", {
+        header: "Role",
+        cell: (info) => (
+          <Badge variant="soft" color={info.getValue() === "admin" ? "danger" : "info"}>
+            {info.getValue()}
+          </Badge>
+        ),
+      }),
+      col.accessor("totp_verified", {
+        id: "mfa",
+        header: "MFA",
+        enableSorting: false,
+        cell: (info) => (
+          <Badge variant="soft" color={info.getValue() ? "success" : "neutral"}>
+            {info.getValue() ? "Enrolled" : "No"}
+          </Badge>
+        ),
+      }),
+      col.accessor("is_email_verified", {
+        id: "verified",
+        header: "Verified",
+        enableSorting: false,
+        cell: (info) => (
+          <Badge variant="soft" color={info.getValue() ? "success" : "warning"}>
+            {info.getValue() ? "Yes" : "No"}
+          </Badge>
+        ),
+      }),
+      col.display({
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => <StatusBadge user={row.original} />,
+      }),
+      col.display({
+        id: "groups",
+        header: "Groups",
+        meta: { width: 80 },
+        cell: ({ row }) => <CountTooltip items={row.original.groups ?? []} />,
+      }),
+      col.accessor("created_at", {
+        header: "Created",
+        cell: (info) => (info.getValue() ? new Date(info.getValue()).toLocaleDateString() : "-"),
+      }),
+      col.display({
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const record = row.original;
+          return (
+            <Inline gap="xs" wrap={false}>
+              <ConfirmIconButton
+                tooltip="Deactivate user"
+                aria-label="Deactivate user"
+                color="danger"
+                icon={<IconBan />}
+                title="Deactivate this user?"
+                description="The user will no longer be able to log in."
+                confirmLabel="Deactivate"
+                onConfirm={() => handleDelete(record.id)}
+              />
+              <Tooltip content="Manage groups">
+                <IconButton variant="ghost" color="neutral" size="sm" aria-label="Manage user groups" onClick={() => setGroupsUser(record)}>
+                  <IconUsersGroup />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content="Custom claims">
+                <IconButton
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  aria-label={`Custom claims for ${record.username}`}
+                  onClick={() => setClaimsUser(record)}
+                >
+                  <IconId />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content="View sessions">
+                <IconButton variant="ghost" color="neutral" size="sm" aria-label="View user sessions" onClick={() => setSessionsUser(record)}>
+                  <IconDeviceLaptop />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content="Edit user">
+                <IconButton variant="ghost" color="neutral" size="sm" aria-label="Edit user" onClick={() => setEditUser(record)}>
+                  <IconEdit />
+                </IconButton>
+              </Tooltip>
+              {isLocked(record) && (
+                <ConfirmIconButton
+                  tooltip="Unlock user"
+                  aria-label="Unlock user"
+                  icon={<IconLockOpen />}
+                  title="Unlock this user?"
+                  description="This will reset failed login attempts and remove the lockout."
+                  confirmLabel="Unlock"
+                  confirmColor="primary"
+                  onConfirm={() => handleUnlock(record.id)}
+                />
+              )}
+            </Inline>
+          );
+        },
+      }),
+    ]);
+  }, [deleteUser, unlockUser]);
+
+  if (error) {
+    return <Alert color="danger" title="Failed to load users" />;
+  }
+
+  const deletionCount = deletionRequests?.total ?? 0;
 
   const handleTabChange = (key: string) => {
     navigate(key === "users" ? "/users" : `/users?tab=${key}`, { replace: true });
   };
 
-  const columns: ColumnsType<UserResponseExt> = [
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-      sorter: true,
-      ellipsis: true,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      sorter: true,
-      ellipsis: true,
-      render: (email: string) => (
-        <CopyText text={email} />
-      ),
-    },
-    {
-      title: "Role",
-      dataIndex: "role",
-      key: "role",
-      sorter: true,
-      filters: [
-        { text: "Admin", value: "admin" },
-        { text: "User", value: "user" },
-      ],
-      filterMultiple: false,
-      render: (role: string) => (
-        <Tag color={role === "admin" ? "red" : "blue"}>{role}</Tag>
-      ),
-    },
-    {
-      title: "MFA",
-      dataIndex: "totp_verified",
-      key: "mfa",
-      filters: [
-        { text: "Enrolled", value: "1" },
-        { text: "No", value: "0" },
-      ],
-      filterMultiple: false,
-      render: (verified: boolean) => (
-        <Tag color={verified ? "success" : "default"}>
-          {verified ? "Enrolled" : "No"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Verified",
-      dataIndex: "is_email_verified",
-      key: "verified",
-      filters: [
-        { text: "Yes", value: "1" },
-        { text: "No", value: "0" },
-      ],
-      filterMultiple: false,
-      render: (verified: boolean) => (
-        <Tag color={verified ? "success" : "warning"}>
-          {verified ? "Yes" : "No"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Status",
-      key: "status",
-      render: (_, record) => {
-        if (isLocked(record)) {
-          return <Tag color="orange">Locked</Tag>;
-        }
-        if (record.failed_login_attempts && record.failed_login_attempts > 0) {
-          return (
-            <Tooltip
-              title={`${record.failed_login_attempts} failed attempt(s)`}
-            >
-              <Tag color="gold">{record.failed_login_attempts} failed</Tag>
-            </Tooltip>
-          );
-        }
-        return <Tag color="green">Active</Tag>;
-      },
-    },
-    {
-      title: "Groups",
-      key: "groups",
-      filters: (groups?.items ?? []).map((g) => ({ text: g.name, value: g.name })),
-      filterMultiple: false,
-      width: 80,
-      render: (_, record) => (
-        <CountTooltip items={record.groups ?? []} />
-      ),
-    },
-    {
-      title: "Created",
-      dataIndex: "created_at",
-      key: "created_at",
-      sorter: true,
-      render: (date: string) =>
-        date ? new Date(date).toLocaleDateString() : "-",
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      render: (_, record) => (
-        <Space>
-          <Tooltip title="Deactivate user">
-            <Popconfirm
-              title="Deactivate this user?"
-              description="The user will no longer be able to log in."
-              onConfirm={() => handleDelete(record.id!)}
-              okText="Deactivate"
-              okButtonProps={{ danger: true }}
-            >
-              <Button
-                type="text"
-                size="small"
-                danger
-                aria-label="Deactivate user"
-                icon={<StopOutlined />}
-              />
-            </Popconfirm>
-          </Tooltip>
-          <Tooltip title="Manage groups">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Manage user groups"
-              icon={<TeamOutlined />}
-              onClick={() => setGroupsUser(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Custom claims">
-            <Button
-              type="text"
-              size="small"
-              icon={<IdcardOutlined />}
-              aria-label={`Custom claims for ${record.username}`}
-              onClick={() => setClaimsUser(record)}
-            />
-          </Tooltip>
-          <Tooltip title="View sessions">
-            <Button
-              type="text"
-              size="small"
-              aria-label="View user sessions"
-              icon={<LaptopOutlined />}
-              onClick={() => setSessionsUser(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit user">
-            <Button
-              type="text"
-              size="small"
-              aria-label="Edit user"
-              icon={<EditOutlined />}
-              onClick={() => setEditUser(record)}
-            />
-          </Tooltip>
-          {isLocked(record) && (
-            <Tooltip title="Unlock user">
-              <Popconfirm
-                title="Unlock this user?"
-                description="This will reset failed login attempts and remove the lockout."
-                onConfirm={() => handleUnlock(record.id!)}
-                okText="Unlock"
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  aria-label="Unlock user"
-                  icon={<UnlockOutlined />}
-                />
-              </Popconfirm>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  if (error) {
-    return <Alert type="error" message="Failed to load users" />;
-  }
-
-  const deletionCount = deletionRequests?.total ?? 0;
-
-  const tabItems = [
-    {
-      key: "users",
-      label: "Users",
-    },
-    {
-      key: "deletions",
-      label: (
-        <Badge count={deletionCount} size="small" offset={[8, 0]}>
-          Deletion Requests
-        </Badge>
-      ),
-    },
-  ];
+  const handleDateRange = (range: DateRange | null) => {
+    setDateRange(range);
+    setListParams((prev) => ({ ...prev, offset: 0, ...dateRangeParams(range, "created_at") }));
+  };
 
   return (
-    <>
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={tabItems}
-        style={{ flexShrink: 0 }}
-      />
+    <Stack gap="md">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <Tabs.List aria-label="Users">
+          <Tabs.Trigger value="users">Users</Tabs.Trigger>
+          <Tabs.Trigger value="deletions">
+            <Inline as="span" gap="xs" wrap={false}>
+              Deletion Requests
+              {deletionCount > 0 && (
+                <Badge variant="solid" color="danger" size="sm">
+                  {deletionCount}
+                </Badge>
+              )}
+            </Inline>
+          </Tabs.Trigger>
+        </Tabs.List>
+        <Tabs.Panel value="users">
+          {activeTab === "users" && (
+            <Stack gap="md">
+              <Inline gap="sm" justify="end" align="center">
+                <DateRangeFilter label="Created between" value={dateRange} onChange={handleDateRange} />
+                <SearchInput
+                  placeholder="Search users..."
+                  value={searchText}
+                  onValueChange={setSearchText}
+                  onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+                />
+                <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+                  Create User
+                </Button>
+              </Inline>
 
-      {activeTab === "users" && (
-        <>
-          <Space style={{ justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
-            <div />
-            <Space>
-              <DatePicker.RangePicker
-                value={dateRange}
-                onChange={handleDateRange}
-                allowClear
+              <DataTable
+                caption="Users"
+                data={data?.items ?? []}
+                columns={columns}
+                getRowId={(u) => u.id}
+                loading={isLoading}
+                filters={filters}
+                emptyTitle="No users found"
+                server={{
+                  params: listParams,
+                  onParamsChange: setListParams,
+                  total: data?.total ?? 0,
+                  totalLabel: (total) => `${total} users`,
+                }}
               />
-              <Input.Search
-                placeholder="Search users..."
-                allowClear
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                onSearch={handleSearch}
-                style={{ width: 250 }}
-              />
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateOpen(true)}
-              >
-                Create User
-              </Button>
-            </Space>
-          </Space>
+            </Stack>
+          )}
+        </Tabs.Panel>
+        <Tabs.Panel value="deletions">{activeTab === "deletions" && <DeletionRequestsTab />}</Tabs.Panel>
+      </Tabs>
 
-          <div ref={tableContainerRef} style={{ flex: 1, overflow: "hidden", marginTop: 16 }}>
-            <Table<UserResponseExt>
-              columns={columns}
-              dataSource={data?.items ?? []}
-              rowKey="id"
-              loading={isLoading}
-              onChange={handleTableChange}
-              scroll={scrollY ? { y: scrollY } : undefined}
-              pagination={{
-                current: Math.floor((listParams.offset ?? 0) / (listParams.limit ?? DEFAULT_PAGE_SIZE)) + 1,
-                pageSize: listParams.limit ?? DEFAULT_PAGE_SIZE,
-                total: data?.total ?? 0,
-                showSizeChanger: true,
-                pageSizeOptions: PAGE_SIZE_OPTIONS,
-                showTotal: (total) => `${total} users`,
-              }}
-            />
-          </div>
-        </>
-      )}
+      <UserCreateForm open={createOpen} onClose={() => setCreateOpen(false)} />
 
-      {activeTab === "deletions" && <DeletionRequestsTab />}
-
-      <UserCreateForm
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-      />
-
-      <UserEditForm
-        open={!!editUser}
-        user={editUser}
-        onClose={() => setEditUser(null)}
-      />
+      <UserEditForm open={!!editUser} user={editUser} onClose={() => setEditUser(null)} />
 
       <UserGroupsDrawer
         open={!!groupsUser}
@@ -472,6 +347,6 @@ export default function UsersPage() {
         username={sessionsUser?.username ?? ""}
         onClose={() => setSessionsUser(null)}
       />
-    </>
+    </Stack>
   );
 }

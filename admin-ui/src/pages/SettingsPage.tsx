@@ -1,55 +1,43 @@
 import {
-  Typography,
-  Form,
-  Input,
+  Alert,
+  Badge,
   Button,
   Checkbox,
-  ConfigProvider,
-  Select,
-  Tooltip,
-  Space,
   Divider,
-  Spin,
-  Alert,
+  Heading,
+  IconButton,
+  Inline,
+  Input,
+  NumberInput,
+  Select,
+  Spinner,
+  Stack,
   Tabs,
-  InputNumber,
-  Table,
-  Tag,
-  App,
-} from "antd";
-import {
-  SaveOutlined,
-  ExclamationCircleOutlined,
-  DownloadOutlined,
-  UploadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+  Text,
+  Textarea,
+  toast,
+} from "@yarcl/react";
+import { IconDeviceFloppy, IconDownload, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
+import { Controller, FormProvider, useForm, useFormContext, useWatch, type FieldErrors, type RegisterOptions } from "react-hook-form";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "../api/client";
 import DurationInput from "../components/DurationInput";
 import RetentionInput from "../components/RetentionInput";
+import { FormField, InfoTip } from "../components/FormField";
+import FieldGroup from "../components/FieldGroup";
+import PageHeader from "../components/PageHeader";
+import PasswordInput from "../components/PasswordInput";
+import { DataTable, dataColumns } from "../components/DataTable";
 import { makeTip } from "../lib/tips";
+import "./SettingsPage.css";
 
-const { Title, Text } = Typography;
+type SettingValue = string | number | boolean | null | undefined;
+type SettingsValues = Record<string, SettingValue>;
 
-const boolProp = (value: unknown) => ({ checked: value === true || value === "true" });
-
-const tabTheme = {
-  components: {
-    Checkbox: { controlInteractiveSize: 24 },
-  },
-};
-
-function TabContent({ children }: { children: React.ReactNode }) {
-  return (
-    <ConfigProvider theme={tabTheme}>
-      <div style={{ maxWidth: 800, paddingTop: 24 }}>{children}</div>
-    </ConfigProvider>
-  );
-}
+const isOn = (value: SettingValue) => value === true || value === "true";
+const asText = (value: SettingValue) => (value == null ? "" : String(value));
 
 interface PreviewRow {
   key: string;
@@ -122,6 +110,220 @@ const tip = makeTip({
   magic_link_expiration: "How long a magic link remains valid (e.g. 15m, 30m).",
 }, "https://getautentico.dev/configuration/runtime-settings");
 
+const AUTH_MODE_OPTIONS = [
+  { value: "password", label: "Password Only" },
+  { value: "password_and_passkey", label: "Password & Passkey" },
+  { value: "passkey_only", label: "Passkey Only" },
+];
+
+const EMAIL_FIELD_OPTIONS = [
+  { value: "hidden", label: "Hidden" },
+  { value: "optional", label: "Optional" },
+  { value: "required", label: "Required" },
+  { value: "is_username", label: "Username is Email" },
+];
+
+const PASSKEY_LOGIN_MODE_OPTIONS = [
+  { value: "username_first", label: "Username First" },
+  { value: "discoverable", label: "Discoverable" },
+  { value: "conditional", label: "Conditional (Autofill)" },
+  { value: "passkey_only", label: "Passkey Only" },
+];
+
+const MFA_METHOD_OPTIONS = [
+  { value: "totp", label: "TOTP (Authenticator App)" },
+  { value: "email", label: "Email OTP" },
+  { value: "both", label: "Both (Prefer TOTP)" },
+];
+
+const VISIBILITY_OPTIONS = [
+  { value: "hidden", label: "Hidden" },
+  { value: "optional", label: "Optional" },
+  { value: "required", label: "Required" },
+];
+
+const PROFILE_FIELDS: [name: string, label: string][] = [
+  ["profile_field_given_name", "First Name"],
+  ["profile_field_family_name", "Last Name"],
+  ["profile_field_middle_name", "Middle Name"],
+  ["profile_field_nickname", "Nickname"],
+  ["profile_field_phone", "Phone Number"],
+  ["profile_field_picture", "Profile Picture"],
+  ["profile_field_website", "Website"],
+  ["profile_field_profile", "Profile Page URL"],
+  ["profile_field_gender", "Gender"],
+  ["profile_field_birthdate", "Birthdate"],
+  ["profile_field_locale", "Locale"],
+  ["profile_field_address", "Address"],
+];
+
+const authModeDescriptions: Record<string, string> = {
+  password: "Users log in with username and password only. Passkey options are disabled on the login page.",
+  password_and_passkey: "Users can log in with either password or passkey. Both options are shown on the login page.",
+  passkey_only: "Users log in with passkeys only. Password and username fields are hidden from the login page.",
+};
+const passkeyLoginModeDescriptions: Record<string, string> = {
+  username_first: "User enters their username first, then authenticates with their registered passkey.",
+  discoverable: "A \"Sign in with passkey\" button lets users log in without entering a username. The browser shows all passkeys registered for this site.",
+  conditional: "The browser automatically surfaces registered passkeys in the username field's autofill dropdown when the login page loads.",
+  passkey_only: "Only passkey login is available — no username or password fields are shown. Requires Authentication Mode set to Passkey Only to fully hide the username field.",
+};
+
+function validateLogoutUrl(value: SettingValue) {
+  const url = asText(value);
+  const message = "Use a path starting with / or an https URL";
+  if (!url) return true;
+  if (url.startsWith("/") && !url.startsWith("//")) return true;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:") return true;
+    if (u.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)) return true;
+  } catch {
+    return message;
+  }
+  return message;
+}
+
+type Rules = Omit<RegisterOptions<SettingsValues, string>, "valueAsNumber" | "valueAsDate" | "setValueAs" | "disabled">;
+
+function TextSetting({
+  name,
+  label,
+  placeholder,
+  autoComplete,
+  password,
+  rules,
+}: {
+  name: string;
+  label: string;
+  placeholder?: string;
+  autoComplete?: string;
+  password?: boolean;
+  rules?: Rules;
+}) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <FormField control={control} name={name} label={label} tooltip={tip(name)} rules={rules}>
+      {(field) => {
+        const props = {
+          className: "settings-control",
+          name: field.name,
+          ref: field.ref,
+          value: asText(field.value),
+          onChange: (e: ChangeEvent<HTMLInputElement>) => field.onChange(e.target.value),
+          onBlur: field.onBlur,
+          placeholder,
+          autoComplete,
+        };
+        return password ? <PasswordInput {...props} /> : <Input {...props} />;
+      }}
+    </FormField>
+  );
+}
+
+function TextareaSetting({ name, label, placeholder, rows, code }: { name: string; label: string; placeholder?: string; rows: number; code?: boolean }) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <FormField control={control} name={name} label={label} tooltip={tip(name)}>
+      {(field) => (
+        <Textarea
+          className={code ? "settings-code" : undefined}
+          name={field.name}
+          ref={field.ref}
+          value={asText(field.value)}
+          onChange={(e) => field.onChange(e.target.value)}
+          onBlur={field.onBlur}
+          rows={rows}
+          placeholder={placeholder}
+        />
+      )}
+    </FormField>
+  );
+}
+
+function SelectSetting({ name, label, options }: { name: string; label: string; options: { value: string; label: string }[] }) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <FormField control={control} name={name} label={label} tooltip={tip(name)}>
+      {(field) => (
+        <Select
+          className="settings-control"
+          options={options}
+          value={field.value == null ? null : String(field.value)}
+          onValueChange={field.onChange}
+          onBlur={field.onBlur}
+        />
+      )}
+    </FormField>
+  );
+}
+
+function NumberSetting({ name, label, min }: { name: string; label: string; min: number }) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <FormField control={control} name={name} label={label} tooltip={tip(name)}>
+      {(field) => {
+        const num = field.value == null || field.value === "" ? null : Number(field.value);
+        return (
+          <NumberInput
+            className="settings-number"
+            name={field.name}
+            ref={field.ref}
+            min={min}
+            value={num === null || Number.isNaN(num) ? null : num}
+            onValueChange={field.onChange}
+            onBlur={field.onBlur}
+          />
+        );
+      }}
+    </FormField>
+  );
+}
+
+function DurationSetting({ name, label }: { name: string; label: string }) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <FormField control={control} name={name} label={label} tooltip={tip(name)}>
+      {(field) => <DurationInput value={asText(field.value)} onChange={field.onChange} onBlur={field.onBlur} />}
+    </FormField>
+  );
+}
+
+function CheckSetting({ name, label }: { name: string; label: string }) {
+  const { control } = useFormContext<SettingsValues>();
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <Inline gap="xs" align="center">
+          <Checkbox
+            name={field.name}
+            ref={field.ref}
+            checked={isOn(field.value)}
+            onChange={(e) => field.onChange(e.target.checked)}
+            onBlur={field.onBlur}
+          >
+            {label}
+          </Checkbox>
+          <InfoTip content={tip(name)} />
+        </Inline>
+      )}
+    />
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Stack gap="md">
+      <Heading level={3} textStyle="subheading">
+        {title}
+      </Heading>
+      {children}
+    </Stack>
+  );
+}
+
 interface FooterLink {
   label: string;
   url: string;
@@ -129,7 +331,11 @@ interface FooterLink {
 
 function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
   const links: FooterLink[] = (() => {
-    try { return JSON.parse(value || "[]"); } catch { return []; }
+    try {
+      return JSON.parse(value || "[]");
+    } catch {
+      return [];
+    }
   })();
 
   const update = (next: FooterLink[]) => onChange?.(JSON.stringify(next));
@@ -141,62 +347,83 @@ function FooterLinksEditor({ value, onChange }: { value?: string; onChange?: (v:
   };
 
   return (
-    <Space direction="vertical" size="small" style={{ width: "100%" }}>
+    <Stack gap="sm">
       {links.map((link, i) => (
-        <Space key={i} style={{ width: "100%" }}>
+        <Inline key={i} gap="sm" wrap={false}>
           <Input
-            style={{ width: 160 }}
+            className="settings-link-label"
+            aria-label={`Link ${i + 1} label`}
             value={link.label}
             onChange={(e) => handleChange(i, "label", e.target.value)}
             placeholder="Label"
           />
           <Input
-            style={{ width: 320 }}
+            className="settings-link-url"
+            aria-label={`Link ${i + 1} URL`}
             value={link.url}
             onChange={(e) => handleChange(i, "url", e.target.value)}
             placeholder="https://..."
           />
-          <Button icon={<DeleteOutlined />} danger onClick={() => update(links.filter((_, j) => j !== i))} />
-        </Space>
+          <IconButton
+            variant="outline"
+            color="danger"
+            aria-label={`Remove link ${i + 1}`}
+            onClick={() => update(links.filter((_, j) => j !== i))}
+          >
+            <IconTrash />
+          </IconButton>
+        </Inline>
       ))}
-      <Button type="dashed" icon={<PlusOutlined />} onClick={() => update([...links, { label: "", url: "" }])} style={{ width: "100%" }}>
+      <Button variant="outline" color="neutral" startIcon={<IconPlus />} onClick={() => update([...links, { label: "", url: "" }])}>
         Add Link
       </Button>
-    </Space>
+    </Stack>
+  );
+}
+
+function EmptyValue({ value }: { value: string }) {
+  return value ? (
+    <>{value}</>
+  ) : (
+    <Text as="em" muted>
+      empty
+    </Text>
   );
 }
 
 export default function SettingsPage() {
-  const { message } = App.useApp();
   const { data: settings, isLoading, error } = useSettings();
   const updateSettings = useUpdateSettings();
   const queryClient = useQueryClient();
-  const [form] = Form.useForm();
-  const pkceEnforced = Form.useWatch("pkce_enforce_s256", form);
-  const mfaMethod = Form.useWatch("mfa_method", form);
-  const smtpHost = Form.useWatch("smtp_host", form);
+  const form = useForm<SettingsValues>({ shouldUnregister: true });
+  const {
+    control,
+    reset,
+    handleSubmit,
+    formState: { dirtyFields },
+  } = form;
+  const [pkceEnforced, mfaMethod, smtpHost, requireEmailVerification, magicLinkEnabled, authMode, passkeyLoginMode, profileFieldEmail] =
+    useWatch({
+      control,
+      name: [
+        "pkce_enforce_s256",
+        "mfa_method",
+        "smtp_host",
+        "require_email_verification",
+        "magic_link_enabled",
+        "auth_mode",
+        "passkey_login_mode",
+        "profile_field_email",
+      ],
+    });
   const emailMfaWithoutSmtp = (mfaMethod === "email" || mfaMethod === "both") && !smtpHost;
-  const requireEmailVerification = Form.useWatch("require_email_verification", form);
-  const emailVerifyWithoutSmtp = (requireEmailVerification === true || requireEmailVerification === "true") && !smtpHost;
-  const magicLinkEnabled = Form.useWatch("magic_link_enabled", form);
-  const magicLinkWithoutSmtp = (magicLinkEnabled === true || magicLinkEnabled === "true") && !smtpHost;
-  const authMode = Form.useWatch("auth_mode", form);
-  const passkeyLoginMode = Form.useWatch("passkey_login_mode", form);
-  const profileFieldEmail = Form.useWatch("profile_field_email", form);
-  const passkeyModeWithoutPasskeys = passkeyLoginMode && passkeyLoginMode !== "username_first" && authMode === "password";
-  const passkeyOnlyWithPasswordFallback = passkeyLoginMode === "passkey_only" && authMode === "password_and_passkey";
+  const emailVerifyWithoutSmtp = isOn(requireEmailVerification) && !smtpHost;
+  const magicLinkWithoutSmtp = isOn(magicLinkEnabled) && !smtpHost;
+  const authModeKey = asText(authMode);
+  const passkeyLoginModeKey = asText(passkeyLoginMode);
+  const passkeyModeWithoutPasskeys = passkeyLoginModeKey && passkeyLoginModeKey !== "username_first" && authModeKey === "password";
+  const passkeyOnlyWithPasswordFallback = passkeyLoginModeKey === "passkey_only" && authModeKey === "password_and_passkey";
 
-  const authModeDescriptions: Record<string, string> = {
-    password: "Users log in with username and password only. Passkey options are disabled on the login page.",
-    password_and_passkey: "Users can log in with either password or passkey. Both options are shown on the login page.",
-    passkey_only: "Users log in with passkeys only. Password and username fields are hidden from the login page.",
-  };
-  const passkeyLoginModeDescriptions: Record<string, string> = {
-    username_first: "User enters their username first, then authenticates with their registered passkey.",
-    discoverable: "A \"Sign in with passkey\" button lets users log in without entering a username. The browser shows all passkeys registered for this site.",
-    conditional: "The browser automatically surfaces registered passkeys in the username field's autofill dropdown when the login page loads.",
-    passkey_only: "Only passkey login is available — no username or password fields are shown. Requires Authentication Mode set to Passkey Only to fully hide the username field.",
-  };
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [backupText, setBackupText] = useState("");
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -219,13 +446,13 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      message.error("Failed to export settings");
+      toast({ title: "Failed to export settings", color: "danger" });
     } finally {
       setExportLoading(false);
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -242,7 +469,7 @@ export default function SettingsPage() {
     try {
       parsed = JSON.parse(backupText);
     } catch {
-      message.error("Invalid JSON — check the pasted content");
+      toast({ title: "Invalid JSON — check the pasted content", color: "danger" });
       return;
     }
     setPreviewLoading(true);
@@ -251,7 +478,7 @@ export default function SettingsPage() {
       setPreviewData(res.data.data as PreviewResponse);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      message.error(axiosErr.response?.data?.error_description ?? "Preview failed");
+      toast({ title: axiosErr.response?.data?.error_description ?? "Preview failed", color: "danger" });
     } finally {
       setPreviewLoading(false);
     }
@@ -262,19 +489,19 @@ export default function SettingsPage() {
     try {
       parsed = JSON.parse(backupText);
     } catch {
-      message.error("Invalid JSON");
+      toast({ title: "Invalid JSON", color: "danger" });
       return;
     }
     setApplyLoading(true);
     try {
       await apiClient.post("/admin/api/settings/import/apply", parsed);
-      message.success("Settings imported successfully");
+      toast({ title: "Settings imported successfully", color: "success" });
       setPreviewData(null);
       setBackupText("");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      message.error(axiosErr.response?.data?.error_description ?? "Import failed");
+      toast({ title: axiosErr.response?.data?.error_description ?? "Import failed", color: "danger" });
     } finally {
       setApplyLoading(false);
     }
@@ -284,25 +511,21 @@ export default function SettingsPage() {
     setTestingSmtp(true);
     try {
       await apiClient.post("/admin/api/settings/test-smtp");
-      message.success("Test email sent — check your inbox");
+      toast({ title: "Test email sent — check your inbox", color: "success" });
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error_description?: string } } };
-      const msg = axiosErr.response?.data?.error_description ?? "Failed to send test email";
-      message.error(msg);
+      toast({ title: axiosErr.response?.data?.error_description ?? "Failed to send test email", color: "danger" });
     } finally {
       setTestingSmtp(false);
     }
   };
 
   useEffect(() => {
-    if (settings) {
-      form.setFieldsValue(settings);
-    }
-  }, [settings, form]);
+    if (settings) reset(settings);
+  }, [settings, reset]);
 
-  const onFinish = async (values: any) => {
+  const onSubmit = async (values: SettingsValues) => {
     try {
-      // Convert booleans to strings if they are switches
       const processed: Record<string, string> = {};
       Object.entries(values).forEach(([k, v]) => {
         if (v === true) processed[k] = "true";
@@ -311,913 +534,420 @@ export default function SettingsPage() {
       });
 
       await updateSettings.mutateAsync(processed);
-      message.success("Settings updated successfully");
+      toast({ title: "Settings updated successfully", color: "success" });
     } catch {
-      message.error("Failed to update settings");
+      toast({ title: "Failed to update settings", color: "danger" });
     }
   };
 
-  if (isLoading) return <Spin size="large" />;
-  if (error) return <Alert type="error" message="Failed to load settings" />;
+  const onInvalid = (errors: FieldErrors<SettingsValues>) => {
+    const name = Object.keys(errors)[0];
+    const panel = name ? document.getElementsByName(name)[0]?.closest('[role="tabpanel"]') : null;
+    const tab = panel ? document.getElementById(panel.getAttribute("aria-labelledby") ?? "")?.dataset.value : undefined;
+    if (tab) setActiveTab(tab);
+    if (name) requestAnimationFrame(() => form.setFocus(name));
+    toast({ title: "Fix the highlighted fields before saving", color: "danger" });
+  };
+
+  const previewColumns = useMemo(() => {
+    const col = dataColumns<PreviewRow>();
+    return col.columns([
+      col.accessor("key", {
+        header: "Setting",
+        meta: { width: "35%" },
+        cell: (info) => (
+          <Text as="code" textStyle="code">
+            {info.getValue()}
+          </Text>
+        ),
+      }),
+      col.accessor("current", {
+        header: "Current Value",
+        meta: { width: "32%" },
+        cell: (info) => (
+          <Text textStyle="caption" muted>
+            <EmptyValue value={info.getValue()} />
+          </Text>
+        ),
+      }),
+      col.accessor("incoming", {
+        header: "New Value",
+        meta: { width: "32%" },
+        cell: ({ row, getValue }) => {
+          const changed = row.original.current !== row.original.incoming;
+          return (
+            <Text textStyle={changed ? "label" : "caption"} color={changed ? "warning" : undefined}>
+              <EmptyValue value={getValue()} />
+            </Text>
+          );
+        },
+      }),
+    ]);
+  }, []);
+
+  if (isLoading)
+    return (
+      <div className="page-loading">
+        <Spinner size="lg" label="Loading" />
+      </div>
+    );
+  if (error) return <Alert color="danger" title="Failed to load settings" />;
 
   return (
-    <div className="settings-page" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <style>{`.settings-page input, .settings-page .ant-select, .settings-page .ant-input-password { max-width: 400px; }`}</style>
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        initialValues={settings}
-        style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}
-      >
-      <div style={{ flex: 1, overflow: "auto", padding: "0 0 16px" }}>
-      <Space direction="vertical" size="large" style={{ display: "flex" }}>
-      <Title level={2} style={{ marginBottom: 0 }}>System Settings</Title>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: "1",
-              label: "Login & Registration",
-              children: (
-                <TabContent>
-                  <Form.Item
-                    label="Authentication Mode"
-                    name="auth_mode"
-                    tooltip={{ title: tip("auth_mode"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="password">Password Only</Select.Option>
-                      <Select.Option value="password_and_passkey">Password & Passkey</Select.Option>
-                      <Select.Option value="passkey_only">Passkey Only</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  {authMode && authModeDescriptions[authMode] && form.isFieldTouched("auth_mode") && (
-                    <Alert
-                      type="info"
-                      showIcon
-                      message={authModeDescriptions[authMode]}
-                      style={{ marginBottom: 16 }}
-                    />
-                  )}
+    <FormProvider {...form}>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate>
+        <Stack gap="md">
+          <PageHeader title="System Settings" />
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs.List aria-label="Settings sections">
+              <Tabs.Trigger value="1">Login & Registration</Tabs.Trigger>
+              <Tabs.Trigger value="2">MFA & Trusted Devices</Tabs.Trigger>
+              <Tabs.Trigger value="3">Sessions & Tokens</Tabs.Trigger>
+              <Tabs.Trigger value="4">Security</Tabs.Trigger>
+              <Tabs.Trigger value="5">SMTP</Tabs.Trigger>
+              <Tabs.Trigger value="6">Profile Fields</Tabs.Trigger>
+              <Tabs.Trigger value="7">Branding</Tabs.Trigger>
+              <Tabs.Trigger value="8">Backup</Tabs.Trigger>
+            </Tabs.List>
 
-                  <Form.Item
-                    label="Email Field Behavior"
-                    name="profile_field_email"
-                    tooltip={{ title: tip("profile_field_email"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                      <Select.Option value="is_username">Username is Email</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  {profileFieldEmail === "is_username" && form.isFieldTouched("profile_field_email") && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="Compatibility warning"
-                      description="When enabled, the username field is replaced by the email field. Existing users must have valid email addresses as their usernames for login to work. Users with non-email usernames will be unable to log in."
-                      style={{ marginBottom: 16 }}
-                    />
-                  )}
+            <Tabs.Panel value="1">
+              <Stack gap="md" className="settings-tab">
+                <SelectSetting name="auth_mode" label="Authentication Mode" options={AUTH_MODE_OPTIONS} />
+                {authModeDescriptions[authModeKey] && dirtyFields.auth_mode && (
+                  <Alert color="info" title={authModeDescriptions[authModeKey]} />
+                )}
 
-                  <Form.Item name="allow_self_signup" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Allow Self Signup{' '}
-                      <Tooltip title={tip("allow_self_signup")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <SelectSetting name="profile_field_email" label="Email Field Behavior" options={EMAIL_FIELD_OPTIONS} />
+                {profileFieldEmail === "is_username" && dirtyFields.profile_field_email && (
+                  <Alert color="warning" title="Compatibility warning">
+                    When enabled, the username field is replaced by the email field. Existing users must have valid email addresses as
+                    their usernames for login to work. Users with non-email usernames will be unable to log in.
+                  </Alert>
+                )}
 
-                  <Form.Item name="allow_username_change" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Allow Username Change{' '}
-                      <Tooltip title={tip("allow_username_change")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <CheckSetting name="allow_self_signup" label="Allow Self Signup" />
+                <CheckSetting name="allow_username_change" label="Allow Username Change" />
+                <CheckSetting name="allow_email_change" label="Allow Email Change" />
+                <CheckSetting name="allow_self_service_deletion" label="Allow Self-Service Deletion" />
 
-                  <Form.Item name="allow_email_change" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Allow Email Change{' '}
-                      <Tooltip title={tip("allow_email_change")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Divider />
 
-                  <Form.Item name="allow_self_service_deletion" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Allow Self-Service Deletion{' '}
-                      <Tooltip title={tip("allow_self_service_deletion")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
-
-                  <Divider />
-
-                  <Title level={5} style={{ marginTop: 0 }}>Email Verification</Title>
-                  <Form.Item name="require_email_verification" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Require Email Verification{' '}
-                      <Tooltip title={tip("require_email_verification")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Section title="Email Verification">
+                  <CheckSetting name="require_email_verification" label="Require Email Verification" />
                   {emailVerifyWithoutSmtp && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="SMTP not configured"
-                      description="Email verification requires a configured SMTP server. Go to the SMTP tab to set it up."
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Alert color="warning" title="SMTP not configured">
+                      Email verification requires a configured SMTP server. Go to the SMTP tab to set it up.
+                    </Alert>
                   )}
-                  <Form.Item
-                    label="Verification Link Expiration"
-                    name="email_verification_expiration"
-                    tooltip={{ title: tip("email_verification_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
+                  <DurationSetting name="email_verification_expiration" label="Verification Link Expiration" />
+                </Section>
 
-                  <Divider />
+                <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Magic Link Login</Title>
-                  <Form.Item name="magic_link_enabled" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Magic Link Enabled{' '}
-                      <Tooltip title={tip("magic_link_enabled")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Section title="Magic Link Login">
+                  <CheckSetting name="magic_link_enabled" label="Magic Link Enabled" />
                   {magicLinkWithoutSmtp && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="SMTP not configured"
-                      description="Magic link login requires a configured SMTP server. Make sure SMTP is properly configured."
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Alert color="warning" title="SMTP not configured">
+                      Magic link login requires a configured SMTP server. Make sure SMTP is properly configured.
+                    </Alert>
                   )}
-                  <Form.Item
-                    label="Magic Link Expiration"
-                    name="magic_link_expiration"
-                    tooltip={{ title: tip("magic_link_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
+                  <DurationSetting name="magic_link_expiration" label="Magic Link Expiration" />
+                </Section>
 
-                  <Divider />
+                <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Passkeys</Title>
-                  <Form.Item
-                    label="Passkey RP Name"
-                    name="passkey_rp_name"
-                    tooltip={{ title: tip("passkey_rp_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input />
-                  </Form.Item>
-                  <Form.Item
-                    label="Passkey Login Mode"
-                    name="passkey_login_mode"
-                    tooltip={{ title: tip("passkey_login_mode"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="username_first">Username First</Select.Option>
-                      <Select.Option value="discoverable">Discoverable</Select.Option>
-                      <Select.Option value="conditional">Conditional (Autofill)</Select.Option>
-                      <Select.Option value="passkey_only">Passkey Only</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  {passkeyLoginMode && passkeyLoginModeDescriptions[passkeyLoginMode] && form.isFieldTouched("passkey_login_mode") && (
-                    <Alert
-                      type="info"
-                      showIcon
-                      message={passkeyLoginModeDescriptions[passkeyLoginMode]}
-                      style={{ marginBottom: 16 }}
-                    />
+                <Section title="Passkeys">
+                  <TextSetting name="passkey_rp_name" label="Passkey RP Name" />
+                  <SelectSetting name="passkey_login_mode" label="Passkey Login Mode" options={PASSKEY_LOGIN_MODE_OPTIONS} />
+                  {passkeyLoginModeDescriptions[passkeyLoginModeKey] && dirtyFields.passkey_login_mode && (
+                    <Alert color="info" title={passkeyLoginModeDescriptions[passkeyLoginModeKey]} />
                   )}
                   {passkeyModeWithoutPasskeys && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="Passkey login is disabled"
-                      description="Authentication Mode is set to Password Only. Set it to Password & Passkey or Passkey Only for this setting to take effect."
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Alert color="warning" title="Passkey login is disabled">
+                      Authentication Mode is set to Password Only. Set it to Password & Passkey or Passkey Only for this setting to
+                      take effect.
+                    </Alert>
                   )}
                   {passkeyOnlyWithPasswordFallback && (
-                    <Alert
-                      type="info"
-                      showIcon
-                      message="Password login is still enabled"
-                      description="The username field will remain visible for password fallback. Set Authentication Mode to Passkey Only to fully hide it."
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Alert color="info" title="Password login is still enabled">
+                      The username field will remain visible for password fallback. Set Authentication Mode to Passkey Only to fully
+                      hide it.
+                    </Alert>
                   )}
-                </TabContent>
-              ),
-            },
-            {
-              key: "2",
-              label: "MFA & Trusted Devices",
-              children: (
-                <TabContent>
-                  <Form.Item name="require_mfa" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Require MFA{' '}
-                      <Tooltip title={tip("require_mfa")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                </Section>
+              </Stack>
+            </Tabs.Panel>
 
-                  <Form.Item
-                    label="MFA Method"
-                    name="mfa_method"
-                    tooltip={{ title: tip("mfa_method"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="totp">TOTP (Authenticator App)</Select.Option>
-                      <Select.Option value="email">Email OTP</Select.Option>
-                      <Select.Option value="both">Both (Prefer TOTP)</Select.Option>
-                    </Select>
-                  </Form.Item>
-                  {emailMfaWithoutSmtp && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="SMTP not configured"
-                      description="Email OTP requires a configured SMTP server. Go to the SMTP tab to set it up, otherwise email MFA will fail at login."
-                      style={{ marginBottom: 16 }}
-                    />
-                  )}
+            <Tabs.Panel value="2">
+              <Stack gap="md" className="settings-tab">
+                <CheckSetting name="require_mfa" label="Require MFA" />
+                <SelectSetting name="mfa_method" label="MFA Method" options={MFA_METHOD_OPTIONS} />
+                {emailMfaWithoutSmtp && (
+                  <Alert color="warning" title="SMTP not configured">
+                    Email OTP requires a configured SMTP server. Go to the SMTP tab to set it up, otherwise email MFA will fail at
+                    login.
+                  </Alert>
+                )}
 
-                  <Divider />
+                <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Trusted Devices</Title>
-                  <Form.Item name="trust_device_enabled" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Trust Device Enabled{' '}
-                      <Tooltip title={tip("trust_device_enabled")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Section title="Trusted Devices">
+                  <CheckSetting name="trust_device_enabled" label="Trust Device Enabled" />
+                  <DurationSetting name="trust_device_expiration" label="Trust Device Expiration" />
+                </Section>
+              </Stack>
+            </Tabs.Panel>
 
-                  <Form.Item
-                    label="Trust Device Expiration"
-                    name="trust_device_expiration"
-                    tooltip={{ title: tip("trust_device_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
+            <Tabs.Panel value="3">
+              <Stack gap="md" className="settings-tab">
+                <Section title="SSO Sessions">
+                  <CheckSetting name="sso_enabled" label="SSO Enabled" />
+                  <DurationSetting name="sso_session_idle_timeout" label="SSO Session Idle Timeout" />
+                  <DurationSetting name="sso_session_max_age" label="SSO Session Max Age" />
+                </Section>
 
-                </TabContent>
-              ),
-            },
-            {
-              key: "3",
-              label: "Sessions & Tokens",
-              children: (
-                <TabContent>
-                  <Title level={5} style={{ marginTop: 0 }}>SSO Sessions</Title>
-                  <Form.Item name="sso_enabled" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      SSO Enabled{' '}
-                      <Tooltip title={tip("sso_enabled")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
-                  <Form.Item
-                    label="SSO Session Idle Timeout"
-                    name="sso_session_idle_timeout"
-                    tooltip={{ title: tip("sso_session_idle_timeout"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
-                  <Form.Item
-                    label="SSO Session Max Age"
-                    name="sso_session_max_age"
-                    tooltip={{ title: tip("sso_session_max_age"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
+                <Divider />
 
-                  <Divider />
+                <Section title="Token Expiration">
+                  <DurationSetting name="access_token_expiration" label="Access Token" />
+                  <DurationSetting name="refresh_token_expiration" label="Refresh Token" />
+                  <DurationSetting name="authorization_code_expiration" label="Auth Code" />
+                </Section>
+              </Stack>
+            </Tabs.Panel>
 
-                  <Title level={5} style={{ marginTop: 0 }}>Token Expiration</Title>
-                  <Form.Item
-                    label="Access Token"
-                    name="access_token_expiration"
-                    tooltip={{ title: tip("access_token_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
-                  <Form.Item
-                    label="Refresh Token"
-                    name="refresh_token_expiration"
-                    tooltip={{ title: tip("refresh_token_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
-                  <Form.Item
-                    label="Auth Code"
-                    name="authorization_code_expiration"
-                    tooltip={{ title: tip("authorization_code_expiration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
-                </TabContent>
-              ),
-            },
-            {
-              key: "4",
-              label: "Security",
-              children: (
-                <TabContent>
-                  <Title level={5} style={{ marginTop: 0 }}>User Validation</Title>
-                  <Space size="large">
-                    <Form.Item
-                      label="Min Username"
-                      name="validation_min_username_length"
-                      tooltip={{ title: tip("validation_min_username_length"), icon: <ExclamationCircleOutlined /> }}
-                    >
-                      <InputNumber min={1} />
-                    </Form.Item>
-                    <Form.Item
-                      label="Max Username"
-                      name="validation_max_username_length"
-                      tooltip={{ title: tip("validation_max_username_length"), icon: <ExclamationCircleOutlined /> }}
-                    >
-                      <InputNumber min={1} />
-                    </Form.Item>
-                  </Space>
+            <Tabs.Panel value="4">
+              <Stack gap="md" className="settings-tab">
+                <Section title="User Validation">
+                  <Inline gap="lg" align="start">
+                    <NumberSetting name="validation_min_username_length" label="Min Username" min={1} />
+                    <NumberSetting name="validation_max_username_length" label="Max Username" min={1} />
+                  </Inline>
+                  <Inline gap="lg" align="start">
+                    <NumberSetting name="validation_min_password_length" label="Min Password" min={1} />
+                    <NumberSetting name="validation_max_password_length" label="Max Password" min={1} />
+                  </Inline>
+                </Section>
 
-                  <Space size="large">
-                    <Form.Item
-                      label="Min Password"
-                      name="validation_min_password_length"
-                      tooltip={{ title: tip("validation_min_password_length"), icon: <ExclamationCircleOutlined /> }}
-                    >
-                      <InputNumber min={1} />
-                    </Form.Item>
-                    <Form.Item
-                      label="Max Password"
-                      name="validation_max_password_length"
-                      tooltip={{ title: tip("validation_max_password_length"), icon: <ExclamationCircleOutlined /> }}
-                    >
-                      <InputNumber min={1} />
-                    </Form.Item>
-                  </Space>
+                <Divider />
 
-                  <Divider />
+                <Section title="Account Lockout">
+                  <NumberSetting name="account_lockout_max_attempts" label="Max Failed Attempts" min={0} />
+                  <DurationSetting name="account_lockout_duration" label="Lockout Duration" />
+                </Section>
 
-                  <Title level={5} style={{ marginTop: 0 }}>Account Lockout</Title>
-                  <Form.Item
-                    label="Max Failed Attempts"
-                    name="account_lockout_max_attempts"
-                    tooltip={{ title: tip("account_lockout_max_attempts"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <InputNumber min={0} />
-                  </Form.Item>
-                  <Form.Item
-                    label="Lockout Duration"
-                    name="account_lockout_duration"
-                    tooltip={{ title: tip("account_lockout_duration"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <DurationInput />
-                  </Form.Item>
+                <Divider />
 
-                  <Divider />
-
-                  <Title level={5} style={{ marginTop: 0 }}>PKCE</Title>
-                  <Form.Item name="pkce_enforce_s256" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Enforce S256 Code Challenge{' '}
-                      <Tooltip title={tip("pkce_enforce_s256")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Section title="PKCE">
+                  <CheckSetting name="pkce_enforce_s256" label="Enforce S256 Code Challenge" />
                   {(pkceEnforced === false || pkceEnforced === "false") && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="Security Warning"
-                      description={
-                        <>
-                          Clients may now use{" "}
-                          <code>code_challenge_method=plain</code>, which provides no
-                          security benefit — the verifier equals the challenge and is
-                          visible in the authorization request. Only disable for
-                          backward compatibility with legacy clients that cannot
-                          support S256 (RFC 7636).
-                        </>
-                      }
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Alert color="warning" title="Security Warning">
+                      Clients may now use{" "}
+                      <Text as="code" textStyle="code">
+                        code_challenge_method=plain
+                      </Text>
+                      , which provides no security benefit — the verifier equals the challenge and is visible in the authorization
+                      request. Only disable for backward compatibility with legacy clients that cannot support S256 (RFC 7636).
+                    </Alert>
                   )}
+                </Section>
 
-                  <Divider />
+                <Divider />
 
-                  <Title level={5} style={{ marginTop: 0 }}>Audit Log</Title>
-                  <Form.Item
-                    label="Audit Log Retention"
-                    name="audit_log_retention"
-                    tooltip={{ title: tip("audit_log_retention"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <RetentionInput />
-                  </Form.Item>
-                </TabContent>
-              ),
-            },
-            {
-              key: "5",
-              label: "SMTP",
-              children: (
-                <TabContent>
-                  <Form.Item
-                    label="SMTP Host"
-                    name="smtp_host"
-                    tooltip={{ title: tip("smtp_host"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="smtp.example.com" />
-                  </Form.Item>
-                  <Form.Item
-                    label="SMTP Port"
-                    name="smtp_port"
-                    tooltip={{ title: tip("smtp_port"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="587" />
-                  </Form.Item>
-                  <Form.Item
-                    label="SMTP Username"
-                    name="smtp_username"
-                    tooltip={{ title: tip("smtp_username"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input autoComplete="off" />
-                  </Form.Item>
-                  <Form.Item
-                    label="SMTP Password"
-                    name="smtp_password"
-                    tooltip={{ title: tip("smtp_password"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input.Password placeholder="Leave empty to keep current" autoComplete="new-password" />
-                  </Form.Item>
-                  <Form.Item
-                    label="SMTP From Address"
-                    name="smtp_from"
-                    tooltip={{ title: tip("smtp_from"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="noreply@example.com" />
-                  </Form.Item>
-                  <Form.Item label=" " colon={false}>
-                    <Button onClick={handleTestSmtp} loading={testingSmtp} disabled={!smtpHost}>
-                      Send Test Email
+                <Section title="Audit Log">
+                  <FormField control={control} name="audit_log_retention" label="Audit Log Retention" tooltip={tip("audit_log_retention")}>
+                    {(field) => <RetentionInput value={asText(field.value)} onChange={field.onChange} onBlur={field.onBlur} />}
+                  </FormField>
+                </Section>
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="5">
+              <Stack gap="md" className="settings-tab">
+                <TextSetting name="smtp_host" label="SMTP Host" placeholder="smtp.example.com" />
+                <TextSetting name="smtp_port" label="SMTP Port" placeholder="587" />
+                <TextSetting name="smtp_username" label="SMTP Username" autoComplete="off" />
+                <TextSetting name="smtp_password" label="SMTP Password" placeholder="Leave empty to keep current" password />
+                <TextSetting name="smtp_from" label="SMTP From Address" placeholder="noreply@example.com" />
+                <Inline>
+                  <Button variant="outline" color="neutral" onClick={handleTestSmtp} loading={testingSmtp} disabled={!smtpHost}>
+                    Send Test Email
+                  </Button>
+                </Inline>
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="6">
+              <Stack gap="md" className="settings-tab">
+                <Text muted>
+                  Control which profile fields are shown on the signup form and the self-service account portal.{" "}
+                  <strong>Hidden</strong> fields are never displayed. <strong>Optional</strong> fields are shown but not required.{" "}
+                  <strong>Required</strong> fields must be filled during regular signup.
+                </Text>
+
+                <CheckSetting name="signup_show_optional_fields" label="Show Optional Fields on Signup" />
+                <CheckSetting name="federation_copy_name_claims" label="Copy Names on Federated Signup" />
+
+                <Divider />
+
+                {PROFILE_FIELDS.map(([name, label]) => (
+                  <SelectSetting key={name} name={name} label={label} options={VISIBILITY_OPTIONS} />
+                ))}
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="7">
+              <Stack gap="md" className="settings-tab">
+                <Text muted>
+                  Customize the appearance of login, signup, account pages, and transactional emails. Set a page title, logo, brand
+                  color, and tagline. Use custom CSS to further match your brand. Footer links appear below the login form and in
+                  emails. Changes apply to all user-facing pages and emails served by the identity provider.
+                </Text>
+
+                <TextSetting name="theme_title" label="Page Title" />
+                <TextSetting name="theme_logo_url" label="Logo URL" placeholder="https://..." />
+                <TextareaSetting
+                  name="theme_css_inline"
+                  label="Custom CSS"
+                  rows={8}
+                  code
+                  placeholder=":root { --color-primary-bg: #ff7b00; }"
+                />
+                <TextSetting name="theme_brand_color" label="Brand Color" placeholder="#18181b" />
+                <TextSetting name="theme_tagline" label="Tagline" placeholder="Simple. Safe. Self-hosted." />
+                <TextareaSetting
+                  name="email_footer_text"
+                  label="Email Footer Text"
+                  rows={3}
+                  placeholder={"Copyright 2026 Acme Corp.\n123 Main Street, Springfield"}
+                />
+
+                <Divider />
+
+                <Controller
+                  control={control}
+                  name="footer_links"
+                  render={({ field }) => (
+                    <FieldGroup label="Footer Links" tooltip={tip("footer_links")}>
+                      <FooterLinksEditor value={asText(field.value)} onChange={field.onChange} />
+                    </FieldGroup>
+                  )}
+                />
+
+                <Divider />
+
+                <TextSetting
+                  name="logout_success_url"
+                  label="Signed-Out Page Link"
+                  placeholder="/account/"
+                  rules={{ validate: validateLogoutUrl }}
+                />
+                <TextSetting
+                  name="logout_success_label"
+                  label="Signed-Out Page Link Label"
+                  placeholder="Go to your profile"
+                  rules={{ maxLength: { value: 100, message: "At most 100 characters" } }}
+                />
+              </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="8">
+              <Stack gap="md" className="settings-tab">
+                <Stack gap="sm">
+                  <Heading level={3} textStyle="subheading">
+                    Export
+                  </Heading>
+                  <Text muted>Download all settings as a JSON file.</Text>
+                  <Inline>
+                    <Button variant="outline" color="neutral" startIcon={<IconDownload />} loading={exportLoading} onClick={handleExport}>
+                      Download Settings
                     </Button>
-                  </Form.Item>
-                </TabContent>
-              ),
-            },
-            {
-              key: "6",
-              label: "Profile Fields",
-              children: (
-                <TabContent>
-                  <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
-                    Control which profile fields are shown on the signup form and the
-                    self-service account portal. <strong>Hidden</strong> fields are never
-                    displayed. <strong>Optional</strong> fields are shown but not required.{" "}
-                    <strong>Required</strong> fields must be filled during regular signup.
-                  </Text>
+                  </Inline>
+                </Stack>
 
-                  <Form.Item name="signup_show_optional_fields" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Show Optional Fields on Signup{' '}
-                      <Tooltip title={tip("signup_show_optional_fields")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
+                <Divider />
 
-                  <Form.Item name="federation_copy_name_claims" valuePropName="checked" getValueProps={boolProp}>
-                    <Checkbox>
-                      Copy Names on Federated Signup{' '}
-                      <Tooltip title={tip("federation_copy_name_claims")}><ExclamationCircleOutlined /></Tooltip>
-                    </Checkbox>
-                  </Form.Item>
-
-                  <Divider />
-
-                  <Form.Item
-                    label="First Name"
-                    name="profile_field_given_name"
-                    tooltip={{ title: tip("profile_field_given_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Last Name"
-                    name="profile_field_family_name"
-                    tooltip={{ title: tip("profile_field_family_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Middle Name"
-                    name="profile_field_middle_name"
-                    tooltip={{ title: tip("profile_field_middle_name"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Nickname"
-                    name="profile_field_nickname"
-                    tooltip={{ title: tip("profile_field_nickname"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Phone Number"
-                    name="profile_field_phone"
-                    tooltip={{ title: tip("profile_field_phone"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Profile Picture"
-                    name="profile_field_picture"
-                    tooltip={{ title: tip("profile_field_picture"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Website"
-                    name="profile_field_website"
-                    tooltip={{ title: tip("profile_field_website"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Profile Page URL"
-                    name="profile_field_profile"
-                    tooltip={{ title: tip("profile_field_profile"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Gender"
-                    name="profile_field_gender"
-                    tooltip={{ title: tip("profile_field_gender"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Birthdate"
-                    name="profile_field_birthdate"
-                    tooltip={{ title: tip("profile_field_birthdate"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Locale"
-                    name="profile_field_locale"
-                    tooltip={{ title: tip("profile_field_locale"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Address"
-                    name="profile_field_address"
-                    tooltip={{ title: tip("profile_field_address"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Select>
-                      <Select.Option value="hidden">Hidden</Select.Option>
-                      <Select.Option value="optional">Optional</Select.Option>
-                      <Select.Option value="required">Required</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </TabContent>
-              ),
-            },
-            {
-              key: "7",
-              label: "Branding",
-              children: (
-                <TabContent>
-                  <Text type="secondary" style={{ display: "block", marginBottom: 20 }}>
-                    Customize the appearance of login, signup, account pages, and
-                    transactional emails. Set a page title, logo, brand color, and
-                    tagline. Use custom CSS to further match your brand. Footer links
-                    appear below the login form and in emails. Changes apply to all
-                    user-facing pages and emails served by the identity provider.
-                  </Text>
-
-                  <Form.Item
-                    label="Page Title"
-                    name="theme_title"
-                    tooltip={{ title: tip("theme_title"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input />
-                  </Form.Item>
-                  <Form.Item
-                    label="Logo URL"
-                    name="theme_logo_url"
-                    tooltip={{ title: tip("theme_logo_url"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="https://..." />
-                  </Form.Item>
-                  <Form.Item
-                    label="Custom CSS"
-                    name="theme_css_inline"
-                    tooltip={{ title: tip("theme_css_inline"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input.TextArea
-                      rows={8}
-                      autoSize={{ minRows: 8, maxRows: 24 }}
-                      placeholder=":root { --color-primary-bg: #ff7b00; }"
-                      style={{ fontFamily: "monospace", fontSize: 13 }}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    label="Brand Color"
-                    name="theme_brand_color"
-                    tooltip={{ title: tip("theme_brand_color"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="#18181b" />
-                  </Form.Item>
-                  <Form.Item
-                    label="Tagline"
-                    name="theme_tagline"
-                    tooltip={{ title: tip("theme_tagline"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="Simple. Safe. Self-hosted." />
-                  </Form.Item>
-                  <Form.Item
-                    label="Email Footer Text"
-                    name="email_footer_text"
-                    tooltip={{ title: tip("email_footer_text"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input.TextArea
-                      rows={3}
-                      autoSize={{ minRows: 2, maxRows: 6 }}
-                      placeholder={"Copyright 2026 Acme Corp.\n123 Main Street, Springfield"}
-                    />
-                  </Form.Item>
-                  <Divider />
-                  <Form.Item
-                    label="Footer Links"
-                    name="footer_links"
-                    tooltip={{ title: tip("footer_links"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <FooterLinksEditor />
-                  </Form.Item>
-                  <Divider />
-                  <Form.Item
-                    label="Signed-Out Page Link"
-                    name="logout_success_url"
-                    rules={[
-                      {
-                        validator: (_, value?: string) => {
-                          if (!value) return Promise.resolve();
-                          if (value.startsWith("/") && !value.startsWith("//")) return Promise.resolve();
-                          try {
-                            const u = new URL(value);
-                            if (u.protocol === "https:") return Promise.resolve();
-                            if (u.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)) {
-                              return Promise.resolve();
-                            }
-                          } catch {
-                            return Promise.reject(new Error("Use a path starting with / or an https URL"));
-                          }
-                          return Promise.reject(new Error("Use a path starting with / or an https URL"));
-                        },
-                      },
-                    ]}
-                    tooltip={{ title: tip("logout_success_url"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="/account/" />
-                  </Form.Item>
-                  <Form.Item
-                    label="Signed-Out Page Link Label"
-                    name="logout_success_label"
-                    rules={[{ max: 100, message: "At most 100 characters" }]}
-                    tooltip={{ title: tip("logout_success_label"), icon: <ExclamationCircleOutlined /> }}
-                  >
-                    <Input placeholder="Go to your profile" />
-                  </Form.Item>
-                </TabContent>
-              ),
-            },
-            {
-              key: "8",
-              label: "Backup",
-              children: (
-                <TabContent>
-                  <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-                    <div>
-                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Export</Title>
-                      <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                        Download all settings as a JSON file.
-                      </Text>
-                      <Button
-                        icon={<DownloadOutlined />}
-                        loading={exportLoading}
-                        onClick={handleExport}
-                      >
-                        Download Settings
-                      </Button>
-                    </div>
-
-                    <Divider />
-
-                    <div>
-                      <Title level={5} style={{ marginTop: 0, marginBottom: 4 }}>Import</Title>
-                      <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                        Paste a settings JSON file below or upload one. Preview changes before applying.
-                      </Text>
-                      <Space style={{ marginBottom: 8 }}>
-                        <input
-                          type="file"
-                          accept=".json,application/json"
-                          ref={fileInputRef}
-                          style={{ display: "none" }}
-                          onChange={handleFileUpload}
-                        />
-                        <Button
-                          icon={<UploadOutlined />}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          Upload File
-                        </Button>
-                      </Space>
-                      <Input.TextArea
-                        value={backupText}
-                        onChange={(e) => {
-                          setBackupText(e.target.value);
-                          setPreviewData(null);
-                        }}
-                        placeholder='Paste settings JSON here or upload a file…'
-                        rows={8}
-                        style={{ fontFamily: "monospace", fontSize: 12 }}
-                      />
-                      <div style={{ marginTop: 12, textAlign: "right" }}>
-                        <Space>
-                          <Button
-                            onClick={handlePreview}
-                            loading={previewLoading}
-                            disabled={!backupText.trim()}
-                          >
-                            Preview Import
-                          </Button>
-                          {previewData && (
-                            <Button
-                              type="primary"
-                              onClick={handleApply}
-                              loading={applyLoading}
-                            >
-                              Apply Import
-                            </Button>
-                          )}
-                        </Space>
-                      </div>
-                    </div>
-
+                <Stack gap="sm">
+                  <Heading level={3} textStyle="subheading">
+                    Import
+                  </Heading>
+                  <Text muted>Paste a settings JSON file below or upload one. Preview changes before applying.</Text>
+                  <Inline>
+                    <input type="file" accept=".json,application/json" ref={fileInputRef} hidden onChange={handleFileUpload} />
+                    <Button
+                      variant="outline"
+                      color="neutral"
+                      startIcon={<IconUpload />}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Upload File
+                    </Button>
+                  </Inline>
+                  <Textarea
+                    className="settings-code"
+                    aria-label="Settings JSON"
+                    value={backupText}
+                    onChange={(e) => {
+                      setBackupText(e.target.value);
+                      setPreviewData(null);
+                    }}
+                    placeholder="Paste settings JSON here or upload a file…"
+                    rows={8}
+                  />
+                  <Inline gap="sm" justify="end">
+                    <Button
+                      variant="outline"
+                      color="neutral"
+                      onClick={handlePreview}
+                      loading={previewLoading}
+                      disabled={!backupText.trim()}
+                    >
+                      Preview Import
+                    </Button>
                     {previewData && (
-                      <>
-                        {previewData.unknown.length > 0 && (
-                          <Alert
-                            type="warning"
-                            showIcon
-                            message="Unknown keys will be skipped"
-                            description={
-                              <Space wrap>
-                                {previewData.unknown.map((k) => (
-                                  <Tag key={k}>{k}</Tag>
-                                ))}
-                              </Space>
-                            }
-                          />
-                        )}
-                        <Table
-                          dataSource={previewData.rows}
-                          rowKey="key"
-                          size="small"
-                          pagination={false}
-                          rowClassName={(row) =>
-                            row.current !== row.incoming ? "ant-table-row-changed" : ""
-                          }
-                          columns={[
-                            {
-                              title: "Setting",
-                              dataIndex: "key",
-                              key: "key",
-                              width: "35%",
-                              render: (v: string) => <code style={{ fontSize: 12 }}>{v}</code>,
-                            },
-                            {
-                              title: "Current Value",
-                              dataIndex: "current",
-                              key: "current",
-                              width: "32%",
-                              render: (v: string) => (
-                                <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>
-                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
-                                </span>
-                              ),
-                            },
-                            {
-                              title: "New Value",
-                              dataIndex: "incoming",
-                              key: "incoming",
-                              width: "32%",
-                              render: (v: string, row: PreviewRow) => (
-                                <span
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: row.current !== row.incoming ? 600 : undefined,
-                                    color:
-                                      row.current !== row.incoming
-                                        ? "var(--ant-color-warning-text)"
-                                        : undefined,
-                                  }}
-                                >
-                                  {v || <em style={{ opacity: 0.4 }}>empty</em>}
-                                </span>
-                              ),
-                            },
-                          ]}
-                        />
-                      </>
+                      <Button onClick={handleApply} loading={applyLoading}>
+                        Apply Import
+                      </Button>
                     )}
-                  </Space>
-                </TabContent>
-              ),
-            },
-          ]}
-        />
+                  </Inline>
+                </Stack>
 
-    </Space>
-    </div>
+                {previewData && (
+                  <>
+                    {previewData.unknown.length > 0 && (
+                      <Alert color="warning" title="Unknown keys will be skipped">
+                        <Inline gap="xs">
+                          {previewData.unknown.map((k) => (
+                            <Badge key={k} variant="soft" color="neutral">
+                              {k}
+                            </Badge>
+                          ))}
+                        </Inline>
+                      </Alert>
+                    )}
+                    <DataTable
+                      caption="Import preview"
+                      data={previewData.rows}
+                      columns={previewColumns}
+                      getRowId={(row) => row.key}
+                      pageSize={false}
+                      emptyTitle="No settings in this file"
+                    />
+                  </>
+                )}
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
 
-        {activeTab !== "8" && (
-          <div style={{ borderTop: "1px solid var(--ant-color-border)", padding: "16px 0", textAlign: "right" }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={updateSettings.isPending}
-              size="large"
-            >
-              Save All Settings
-            </Button>
-          </div>
-        )}
-      </Form>
-    </div>
+          {activeTab !== "8" && (
+            <Inline justify="end" className="settings-save-bar">
+              <Button type="submit" size="md" startIcon={<IconDeviceFloppy />} loading={updateSettings.isPending}>
+                Save All Settings
+              </Button>
+            </Inline>
+          )}
+        </Stack>
+      </form>
+    </FormProvider>
   );
 }
