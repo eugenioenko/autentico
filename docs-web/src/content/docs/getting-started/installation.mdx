@@ -102,6 +102,20 @@ make build
 
 The compiled binary is at `./autentico`.
 
+## Local development data
+
+Run `make fresh` to reset the local database and configuration, rebuild, and start a development server. It enables HTTP development cookies and disables rate limiting. In a second terminal, run:
+
+```bash
+make seed
+```
+
+This dependency-free Node.js script uses the normal APIs to create an admin plus 100 named users, 12 groups with memberships and claims, 24 OAuth clients, 6 disabled sample federation providers, 12 protected apps, 15 CORS origins, pending deletion requests, and real sign-ins, sessions, tokens, consent grants, MFA enrollments, and audit history. Protected apps also create their associated OAuth clients automatically. Placeholder URLs and emails use `.test` domains.
+
+Sign in at `http://localhost:9999/admin/` with **admin / Password123!**. Generated users share that password; **alex.anderson** is a sample password-only account. Eight other accounts have TOTP enabled for UI testing.
+
+Repeat runs reuse named records and sample sessions; the script's own admin sign-in and API updates append normal audit history. It accepts only loopback origins. Use `make seed BASE_URL=http://localhost:19999` for a local server on another port, configured with the same application URL. Run `make test-seed` to verify seeding against a temporary database.
+
 ## CLI reference
 
 | Command | Description |

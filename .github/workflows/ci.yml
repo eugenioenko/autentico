@@ -96,6 +96,12 @@ jobs:
         run: go mod tidy
       - name: Run tests
         run: go test -p 1 -v ./...
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+      - name: Test local development seeder
+        run: make test-seed
 
   static-analysis:
     runs-on: ubuntu-latest

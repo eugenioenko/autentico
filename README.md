@@ -322,6 +322,20 @@ The server starts on port 9999 and prints the key URLs (server, admin, well-know
 
 If this is a fresh database, the startup output shows an **ONBOARDING** URL (e.g., `http://localhost:9999/onboard/`). Open it and fill in your administrator credentials. The URL is shown on every startup until onboarding is complete.
 
+### Local development sample data
+
+Run `make fresh` to reset the local database and `.env`, rebuild, and start the server with HTTP development cookies and rate limiting disabled. In another terminal:
+
+```bash
+make seed
+```
+
+The Node.js script uses the normal APIs to create an admin plus 100 users with realistic names and profiles, 12 groups with memberships and claims, 24 OAuth clients, 6 disabled federation providers, 12 protected apps, 15 CORS origins, 8 pending deletion requests, real sessions and tokens (including revoked ones), consent grants, 8 TOTP enrollments, and audit history. Protected apps also create their associated OAuth clients. Sample URLs and emails use `.test` domains.
+
+Sign in at `http://localhost:9999/admin/` with **admin / Password123!**. Sample user **alex.anderson** and the other generated users share that password; eight accounts also have TOTP enabled for UI testing. Repeat runs reuse named records and sample sessions, while the seeder's admin sign-in and API updates append normal audit history.
+
+Use `make seed BASE_URL=http://localhost:19999` for another local port (the server's application URL must match). The script accepts loopback origins only. `make test-seed` runs unit checks and seeds an isolated real server twice to check the data and repeat-run behavior. No extra Node.js packages are needed.
+
 ---
 
 ## Configuration
