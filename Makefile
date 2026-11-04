@@ -109,8 +109,16 @@ docker-compose:
 # Fresh start: wipe local DB, rebuild, init, and launch
 fresh: build
 	rm -f ./autentico.db ./autentico.db-shm ./autentico.db-wal .env
-	./$(APP_NAME) init
-	./$(APP_NAME) start
+	./$(APP_NAME) init --dev
+	AUTENTICO_RATE_LIMIT_RPS=0 AUTENTICO_RATE_LIMIT_RPM=0 ./$(APP_NAME) start
+
+# Populate a running local instance (run in another terminal after make fresh)
+.PHONY: seed test-seed
+seed:
+	node scripts/seed.mjs "$(BASE_URL)"
+
+test-seed:
+	node --test scripts/seed.test.mjs
 
 # Stress tests — run via Docker (no k6 install required)
 # Uses --network=host so k6 can reach a locally running server.

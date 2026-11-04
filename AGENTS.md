@@ -12,6 +12,9 @@ Autentico is a self-contained OAuth 2.0 / OpenID Connect Identity Provider built
 make build                    # Admin UI + account UI + Go binary
 make build-go                 # Go binary only (uses pre-built UI assets)
 make run                      # go run main.go start
+make fresh                    # Reset local DB/config, rebuild, and start the development server
+make seed                     # Populate the running local server from another terminal
+make test-seed                # Manual local checks for the development seeder
 make test                     # go test -p 1 -v ./...  (sequential: SQLite)
 go test ./pkg/token/...       # One package
 go test -run TestName ./pkg/user/...
