@@ -4,7 +4,7 @@ import {
   Alert,
   Button,
   Combobox,
-  Dialog,
+  Drawer,
   Field,
   IconButton,
   Inline,
@@ -155,7 +155,7 @@ interface GroupFormValues {
   description: string;
 }
 
-interface GroupDialogProps {
+interface GroupDrawerProps {
   mode: "create" | "edit";
   open: boolean;
   group?: Group | null;
@@ -166,7 +166,7 @@ interface GroupDialogProps {
 
 const EMPTY_GROUP: GroupFormValues = { name: "", description: "" };
 
-function GroupDialog({ mode, open, group, submitting, onSubmit, onClose }: GroupDialogProps) {
+function GroupDrawer({ mode, open, group, submitting, onSubmit, onClose }: GroupDrawerProps) {
   const formId = useId();
   const { control, handleSubmit, reset } = useForm<GroupFormValues>({ defaultValues: EMPTY_GROUP });
   const isCreate = mode === "create";
@@ -180,8 +180,9 @@ function GroupDialog({ mode, open, group, submitting, onSubmit, onClose }: Group
   };
 
   return (
-    <Dialog
+    <Drawer
       title={isCreate ? "Create Group" : "Edit Group"}
+      side="right"
       open={open}
       onOpenChange={(next) => !next && onClose()}
       size="md"
@@ -216,7 +217,7 @@ function GroupDialog({ mode, open, group, submitting, onSubmit, onClose }: Group
           </FormField>
         </Stack>
       </form>
-    </Dialog>
+    </Drawer>
   );
 }
 
@@ -373,14 +374,14 @@ export default function GroupsPage() {
 
       <GroupClaimsDrawer group={claimsGroup} onClose={() => setClaimsGroup(null)} />
 
-      <GroupDialog
+      <GroupDrawer
         mode="create"
         open={createOpen}
         submitting={createGroup.isPending}
         onSubmit={handleCreate}
         onClose={() => setCreateOpen(false)}
       />
-      <GroupDialog
+      <GroupDrawer
         mode="edit"
         open={!!editGroup}
         group={editGroup}
