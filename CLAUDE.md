@@ -16,9 +16,6 @@ go build -o autentico main.go
 
 # Run
 make run                      # go run main.go start
-make fresh                    # reset local DB/config, rebuild, start with HTTP dev cookies and no rate limits
-make seed                     # in another terminal: populate the running local server with sample data
-make test-seed                # test seeding and reruns against an isolated real server (Node.js, Go)
 
 # Test
 make test                     # go test -p 1 -v ./...
