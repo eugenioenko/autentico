@@ -69,6 +69,7 @@ type DataTableProps<T extends object> = {
   emptyDescription?: ReactNode;
   filters?: DataFilter[];
   toolbar?: ReactNode;
+  actions?: ReactNode;
   onRowClick?: (row: T) => void;
 } & ({ server?: undefined; pageSize?: number | false } | { server: ServerList });
 
@@ -90,7 +91,7 @@ function serverOptions({ params, onParamsChange }: ServerList) {
 }
 
 export function DataTable<T extends object>(props: DataTableProps<T>) {
-  const { data, columns, caption, getRowId, loading, emptyTitle = "No data", emptyDescription, filters = [], toolbar, onRowClick } = props;
+  const { data, columns, caption, getRowId, loading, emptyTitle = "No data", emptyDescription, filters = [], toolbar, actions, onRowClick } = props;
   const server = props.server ?? null;
   const clientPageSize = props.server ? false : props.pageSize ?? DEFAULT_PAGE_SIZE;
   const [clientFilters, setClientFilters] = useState<Record<string, string | undefined>>({});
@@ -136,21 +137,24 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
   const footerRef = useRef<HTMLDivElement>(null);
   const maxHeight = useFillHeight(frameRef, footerRef, [rows.length, total > 0, filters.length]);
 
-  const showToolbar = filters.length > 0 || toolbar;
+  const showToolbar = filters.length > 0 || toolbar || actions;
   return (
-    <Stack gap="sm" className="data-table">
+    <Stack gap="md" className="data-table">
       {showToolbar && (
-        <Inline gap="sm" align="end">
-          {filters.map((f) => (
-            <Select
-              key={f.key}
-              aria-label={f.label}
-              options={[{ value: ALL, label: f.allLabel ?? `All ${f.label.toLowerCase()}` }, ...f.options]}
-              value={filterValues[f.key] ?? ALL}
-              onValueChange={(v) => setFilter(f.key, !v || v === ALL ? undefined : v)}
-            />
-          ))}
-          {toolbar}
+        <Inline gap="sm" align="end" justify="between">
+          <Inline gap="sm" align="end" style={{ flex: 1, minWidth: 0 }}>
+            {toolbar}
+            {filters.map((f) => (
+              <Select
+                key={f.key}
+                aria-label={f.label}
+                options={[{ value: ALL, label: f.allLabel ?? `All ${f.label.toLowerCase()}` }, ...f.options]}
+                value={filterValues[f.key] ?? ALL}
+                onValueChange={(v) => setFilter(f.key, !v || v === ALL ? undefined : v)}
+              />
+            ))}
+          </Inline>
+          {actions}
         </Inline>
       )}
       <div ref={frameRef} className="data-table-frame" data-loading={loading && rows.length > 0 ? "" : undefined} aria-busy={loading || undefined}>

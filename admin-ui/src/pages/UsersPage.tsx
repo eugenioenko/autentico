@@ -290,19 +290,6 @@ export default function UsersPage() {
         <Tabs.Panel value="users">
           {activeTab === "users" && (
             <Stack gap="md">
-              <Inline gap="sm" justify="end" align="center">
-                <DateRangeFilter label="Created between" value={dateRange} onChange={handleDateRange} />
-                <SearchInput
-                  placeholder="Search users..."
-                  value={searchText}
-                  onValueChange={setSearchText}
-                  onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-                />
-                <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
-                  Create User
-                </Button>
-              </Inline>
-
               <DataTable
                 caption="Users"
                 data={data?.items ?? []}
@@ -310,6 +297,22 @@ export default function UsersPage() {
                 getRowId={(u) => u.id}
                 loading={isLoading}
                 filters={filters}
+                actions={
+                  <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+                    Create User
+                  </Button>
+                }
+                toolbar={
+                  <>
+                    <SearchInput
+                      placeholder="Search users..."
+                      value={searchText}
+                      onValueChange={setSearchText}
+                      onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+                    />
+                    <DateRangeFilter label="Created between" value={dateRange} onChange={handleDateRange} />
+                  </>
+                }
                 emptyTitle="No users found"
                 server={{
                   params: listParams,
