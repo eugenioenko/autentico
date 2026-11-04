@@ -34,7 +34,7 @@
 }
 
 .admin-main {
-  padding-inline: var(--yarcl-space-xl);
+  padding-inline: var(--yarcl-space-lg);
 }
 
 @media (--yarcl-max-lg) {
