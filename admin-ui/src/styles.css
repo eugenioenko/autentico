@@ -51,6 +51,10 @@ body {
   -webkit-appearance: none;
 }
 
+.yarcl-listbox {
+  padding: var(--yarcl-space-sm);
+}
+
 .confirm-content {
   max-width: 18rem;
 }
