@@ -6,7 +6,6 @@ import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import apiClient from "../api/client";
 import ConfirmIconButton from "../components/ConfirmIconButton";
 import CopyText from "../components/CopyText";
-import PageHeader from "../components/PageHeader";
 import { FormField } from "../components/FormField";
 import { DataTable, dataColumns } from "../components/DataTable";
 import { urlRule } from "../lib/validation";
@@ -87,9 +86,8 @@ export default function ProtectedAppsPage() {
   }, [edit, removeApp]);
 
   return <Stack gap="md">
-    <PageHeader title="Protected Applications" actions={<Button startIcon={<IconPlus />} onClick={() => edit(null)}>Add Application</Button>} />
     {isError && <Alert color="danger" title="Unable to load protected applications" />}
-    <DataTable caption="Protected applications" data={data ?? []} columns={columns} getRowId={(app) => app.id} loading={isLoading} emptyTitle="No protected applications" />
+    <DataTable actions={<Button startIcon={<IconPlus />} onClick={() => edit(null)}>Add Application</Button>} caption="Protected applications" data={data ?? []} columns={columns} getRowId={(app) => app.id} loading={isLoading} emptyTitle="No protected applications" />
     <Drawer
       side="right"
       size="md"

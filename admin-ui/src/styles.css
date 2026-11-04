@@ -47,8 +47,21 @@ body {
   margin-inline-start: var(--yarcl-space-sm);
 }
 
+.search-input input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.yarcl-listbox {
+  padding: var(--yarcl-space-sm);
+  gap: var(--yarcl-space-xs);
+}
+
 .confirm-content {
   max-width: 18rem;
+}
+
+.admin-back-button {
+  color: var(--yarcl-neutral-text);
 }
 
 .page-loading {

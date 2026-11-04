@@ -11,7 +11,6 @@ import ClientDetail from "../components/clients/ClientDetail";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import GrantChips from "../components/GrantChips";
 import CopyText from "../components/CopyText";
-import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import { DataTable, dataColumns, type DataFilter } from "../components/DataTable";
 
@@ -118,22 +117,18 @@ export default function ClientsPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Clients"
-        actions={
-          <>
-            <SearchInput
-              placeholder="Search name or client ID..."
-              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-            />
-            <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
-              Create Client
-            </Button>
-          </>
-        }
-      />
-
       <DataTable
+        toolbar={
+          <SearchInput
+            placeholder="Search name or client ID..."
+            onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+          />
+        }
+        actions={
+          <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+            Create Client
+          </Button>
+        }
         caption="Clients"
         data={data?.items ?? []}
         columns={columns}

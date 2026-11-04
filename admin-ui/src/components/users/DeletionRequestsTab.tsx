@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Badge, Button, Dialog, Drawer, IconButton, Inline, Menu, Stack, Text, VisuallyHidden, toast } from "@yarcl/react";
-import { IconDots } from "@tabler/icons-react";
+import { IconDotsVertical } from "@tabler/icons-react";
 import {
   useDeletionRequests,
   useApproveDeletionRequest,
@@ -98,12 +98,11 @@ export default function DeletionRequestsTab() {
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <Menu placement="bottom-end">
             <Menu.Trigger>
               <IconButton variant="ghost" color="neutral" size="sm" aria-label="More actions">
-                <IconDots />
+                <IconDotsVertical />
               </IconButton>
             </Menu.Trigger>
             <Menu.Content>

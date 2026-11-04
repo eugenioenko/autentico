@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Card, IconButton, Inline, Input, Spinner, Stack, Text, toast } from "@yarcl/react";
 import { IconDeviceFloppy, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useSettings, useUpdateSettings } from "../hooks/useSettings";
-import PageHeader from "../components/PageHeader";
 import "./CorsPage.css";
 
 export default function CorsPage() {
@@ -59,18 +58,11 @@ export default function CorsPage() {
 
   return (
     <Stack gap="md" className="cors-page">
-      <PageHeader
-        title="CORS (Cross-Origin Resource Sharing)"
-        description={
-          <>
-            Configure which origins are allowed to make cross-origin requests to Autentico. Use{" "}
-            <Text as="code" textStyle="code">
-              *
-            </Text>{" "}
-            to allow all origins. Remove all entries to disable CORS entirely.
-          </>
-        }
-      />
+      <Text muted>
+        Configure which origins are allowed to make cross-origin requests to Autentico. Use{" "}
+        <Text as="code" textStyle="code">*</Text>{" "}
+        to allow all origins. Remove all entries to disable CORS entirely.
+      </Text>
 
       <Card>
         <Stack gap="md">

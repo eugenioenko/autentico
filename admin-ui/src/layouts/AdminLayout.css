@@ -21,12 +21,20 @@
   min-width: 0;
 }
 
-.yarcl-app-layout[data-desktop] .admin-navbar-brand {
-  display: none;
+.admin-navbar-start {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-page-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-main {
-  padding-inline: var(--yarcl-space-xl);
+  padding-inline: var(--yarcl-space-lg);
 }
 
 @media (--yarcl-max-lg) {

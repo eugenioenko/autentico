@@ -1,5 +1,5 @@
 import { Suspense, useState, type ReactNode } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { matchPath, Outlet, useLocation } from "react-router-dom";
 import {
   IconApi,
   IconApps,
@@ -20,9 +20,11 @@ import {
   IconUsersGroup,
   IconWorld,
 } from "@tabler/icons-react";
-import { AppLayout, Avatar, Button, IconButton, Inline, Menu, NavItem, NavSection, Spinner, Stack, Text } from "@yarcl/react";
+import { AppLayout, Avatar, Button, Heading, IconButton, Inline, Menu, NavItem, NavSection, Spinner, Stack, Text } from "@yarcl/react";
 import { useAuth } from "oidc-js-react";
 import ColorSchemeToggle from "../components/ColorSchemeToggle";
+import { useGroup } from "../hooks/useGroups";
+import { useUser } from "../hooks/useUsers";
 import { RouterNavItem } from "../components/RouterLink";
 import "./AdminLayout.css";
 
@@ -30,6 +32,7 @@ interface NavEntry {
   to: string;
   icon: ReactNode;
   label: string;
+  title?: string;
 }
 
 const adminItems: NavEntry[] = [
@@ -39,11 +42,11 @@ const adminItems: NavEntry[] = [
   { to: "/sessions", icon: <IconDeviceDesktop />, label: "Sessions" },
   { to: "/tokens", icon: <IconKey />, label: "Tokens" },
   { to: "/clients", icon: <IconApps />, label: "Clients" },
-  { to: "/protected-apps", icon: <IconShieldLock />, label: "Protected Apps" },
-  { to: "/federation", icon: <IconWorld />, label: "Federation" },
+  { to: "/protected-apps", icon: <IconShieldLock />, label: "Protected Apps", title: "Protected Applications" },
+  { to: "/federation", icon: <IconWorld />, label: "Federation", title: "Federation Providers" },
   { to: "/audit-log", icon: <IconFileSearch />, label: "Audit Log" },
   { to: "/cors", icon: <IconApi />, label: "CORS" },
-  { to: "/settings", icon: <IconSettings />, label: "Settings" },
+  { to: "/settings", icon: <IconSettings />, label: "Settings", title: "System Settings" },
 ];
 
 const resourceItems = [
@@ -95,6 +98,16 @@ function UserMenu() {
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { pathname } = useLocation();
+  const currentPage = adminItems.find((item) => isActive(pathname, item.to));
+  const groupRoute = matchPath("/groups/:groupId/members", pathname);
+  const deviceRoute = matchPath("/sessions/:userId/devices/:sessionId", pathname);
+  const { data: group } = useGroup(groupRoute?.params.groupId ?? null);
+  const { data: sessionUser } = useUser(deviceRoute?.params.userId ?? "");
+  const pageTitle = groupRoute
+    ? group ? `Members of ${group.name}` : "Group Members"
+    : deviceRoute
+      ? sessionUser ? `OAuth Sessions for ${sessionUser.username}` : "OAuth Sessions"
+      : currentPage?.title ?? currentPage?.label ?? "Autentico";
 
   const navigation = (
     <>
@@ -128,7 +141,7 @@ export default function AdminLayout() {
 
   const navbar = (
     <Inline gap="md" justify="between" align="center" wrap={false} className="admin-navbar">
-      <Inline gap="sm" align="center" wrap={false}>
+      <Inline gap="sm" align="center" wrap={false} className="admin-navbar-start">
         <IconButton
           variant="ghost"
           color="neutral"
@@ -138,7 +151,9 @@ export default function AdminLayout() {
         >
           {collapsed ? <IconIndentIncrease /> : <IconIndentDecrease />}
         </IconButton>
-        <div className="admin-navbar-brand">{brand}</div>
+        <Heading level={1} textStyle="subheading" className="admin-page-title">
+          {pageTitle}
+        </Heading>
       </Inline>
       <Inline gap="sm" align="center" wrap={false}>
         <ColorSchemeToggle />

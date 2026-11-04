@@ -16,7 +16,6 @@ import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStats } from "../hooks/useStats";
 import { useAuth } from "oidc-js-react";
-import PageHeader from "../components/PageHeader";
 import { RouterLink } from "../components/RouterLink";
 import "./DashboardPage.css";
 
@@ -74,7 +73,7 @@ export default function DashboardPage() {
 
   return (
     <Stack gap="lg" data-testid="admin-dashboard">
-      <PageHeader title="Dashboard" />
+
 
       <Grid columns={{ base: 1, sm: 2, lg: 4 }} gap="md">
         <StatCard title="Total Users" value={stats?.total_users ?? 0} icon={<IconUser aria-hidden="true" />} />

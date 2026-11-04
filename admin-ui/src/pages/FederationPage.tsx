@@ -8,7 +8,6 @@ import FederationCreateForm from "../components/federation/FederationCreateForm"
 import FederationEditForm from "../components/federation/FederationEditForm";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
-import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import ConfirmIconButton from "../components/ConfirmIconButton";
 import { DataTable, dataColumns, type DataFilter } from "../components/DataTable";
@@ -66,7 +65,6 @@ export default function FederationPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 100 },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             <ConfirmIconButton
@@ -102,22 +100,18 @@ export default function FederationPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Federation Providers"
-        actions={
-          <>
-            <SearchInput
-              placeholder="Search name, issuer, or client ID..."
-              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-            />
-            <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
-              Add Provider
-            </Button>
-          </>
-        }
-      />
-
       <DataTable
+        toolbar={
+          <SearchInput
+            placeholder="Search name, issuer, or client ID..."
+            onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+          />
+        }
+        actions={
+          <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+            Add Provider
+          </Button>
+        }
         caption="Federation providers"
         data={data?.items ?? []}
         columns={columns}

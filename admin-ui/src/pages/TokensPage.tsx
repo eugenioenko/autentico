@@ -10,7 +10,6 @@ import CopyText from "../components/CopyText";
 import ConfirmIconButton from "../components/ConfirmIconButton";
 import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
 import DescriptionList from "../components/DescriptionList";
-import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import { DataTable, dataColumns } from "../components/DataTable";
 
@@ -125,7 +124,6 @@ export default function TokensPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 80 },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             {row.original.status === "active" && (
@@ -156,20 +154,16 @@ export default function TokensPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Tokens"
-        actions={
+      <DataTable
+        toolbar={
           <>
-            <DateRangeFilter label="Issued between" value={dateRange} onChange={handleDateRange} />
             <SearchInput
               placeholder="Search username, email..."
               onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
             />
+            <DateRangeFilter label="Issued between" value={dateRange} onChange={handleDateRange} />
           </>
         }
-      />
-
-      <DataTable
         caption="Tokens"
         data={data?.items ?? []}
         columns={columns}

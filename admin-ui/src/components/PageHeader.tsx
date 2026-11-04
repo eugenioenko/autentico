@@ -11,7 +11,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
   return (
     <Inline gap="md" justify="between" align="center">
       <Stack gap="xs">
-        <Heading level={1} textStyle="heading">
+        <Heading level={2} textStyle="heading">
           {title}
         </Heading>
         {description && <Text muted>{description}</Text>}

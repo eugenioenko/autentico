@@ -79,7 +79,6 @@ export default function UserGroupsDrawer({ open, userId, username, onClose }: Us
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <ConfirmIconButton
             tooltip="Remove from group"

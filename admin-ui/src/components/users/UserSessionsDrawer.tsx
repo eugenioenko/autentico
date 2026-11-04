@@ -84,7 +84,6 @@ export default function UserSessionsDrawer({ open, userId, username, onClose }: 
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <ConfirmIconButton
             tooltip="Force sign out device"

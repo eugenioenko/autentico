@@ -9,7 +9,6 @@ import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
 import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
 import DescriptionList from "../components/DescriptionList";
-import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import { DataTable, dataColumns } from "../components/DataTable";
 import "./AuditLogPage.css";
@@ -205,7 +204,6 @@ export default function AuditLogPage() {
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <Tooltip content="View details">
             <IconButton
@@ -227,10 +225,20 @@ export default function AuditLogPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Audit Log"
-        actions={
+      {isDisabled && (
+        <Alert color="info" title="Audit logging is disabled">
+          To start recording events, set the audit log retention in Settings &gt; Security &amp; Validation &gt; Audit Log
+          (e.g. 720h for 30 days, or -1 to keep forever).
+        </Alert>
+      )}
+
+      <DataTable
+        toolbar={
           <>
+            <SearchInput
+              placeholder="Search actor, target, IP..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
             <Combobox
               className="audit-event-filter"
               aria-label="Filter audit events"
@@ -243,22 +251,8 @@ export default function AuditLogPage() {
               }
             />
             <DateRangeFilter label="Date range" value={dateRange} onChange={handleDateRange} />
-            <SearchInput
-              placeholder="Search actor, target, IP..."
-              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-            />
           </>
         }
-      />
-
-      {isDisabled && (
-        <Alert color="info" title="Audit logging is disabled">
-          To start recording events, set the audit log retention in Settings &gt; Security &amp; Validation &gt; Audit Log
-          (e.g. 720h for 30 days, or -1 to keep forever).
-        </Alert>
-      )}
-
-      <DataTable
         caption="Audit log"
         data={data?.items ?? []}
         columns={columns}

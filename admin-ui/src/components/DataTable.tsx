@@ -17,7 +17,7 @@ import {
   type SortingState,
   type TableFeatures,
 } from "@tanstack/react-table";
-import { EmptyState, Inline, Pagination, Select, Skeleton, Stack, Table, Text, type CellAlign } from "@yarcl/react";
+import { EmptyState, Inline, Pagination, Select, Skeleton, Stack, Table, Text, VisuallyHidden, type CellAlign } from "@yarcl/react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import type { ListParams } from "../api/users";
@@ -69,6 +69,7 @@ type DataTableProps<T extends object> = {
   emptyDescription?: ReactNode;
   filters?: DataFilter[];
   toolbar?: ReactNode;
+  actions?: ReactNode;
   onRowClick?: (row: T) => void;
 } & ({ server?: undefined; pageSize?: number | false } | { server: ServerList });
 
@@ -90,7 +91,7 @@ function serverOptions({ params, onParamsChange }: ServerList) {
 }
 
 export function DataTable<T extends object>(props: DataTableProps<T>) {
-  const { data, columns, caption, getRowId, loading, emptyTitle = "No data", emptyDescription, filters = [], toolbar, onRowClick } = props;
+  const { data, columns, caption, getRowId, loading, emptyTitle = "No data", emptyDescription, filters = [], toolbar, actions, onRowClick } = props;
   const server = props.server ?? null;
   const clientPageSize = props.server ? false : props.pageSize ?? DEFAULT_PAGE_SIZE;
   const [clientFilters, setClientFilters] = useState<Record<string, string | undefined>>({});
@@ -136,21 +137,24 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
   const footerRef = useRef<HTMLDivElement>(null);
   const maxHeight = useFillHeight(frameRef, footerRef, [rows.length, total > 0, filters.length]);
 
-  const showToolbar = filters.length > 0 || toolbar;
+  const showToolbar = filters.length > 0 || toolbar || actions;
   return (
-    <Stack gap="sm" className="data-table">
+    <Stack gap="md" className="data-table">
       {showToolbar && (
-        <Inline gap="sm" align="end">
-          {filters.map((f) => (
-            <Select
-              key={f.key}
-              aria-label={f.label}
-              options={[{ value: ALL, label: f.allLabel ?? `All ${f.label.toLowerCase()}` }, ...f.options]}
-              value={filterValues[f.key] ?? ALL}
-              onValueChange={(v) => setFilter(f.key, !v || v === ALL ? undefined : v)}
-            />
-          ))}
-          {toolbar}
+        <Inline gap="sm" align="end" justify="between">
+          <Inline gap="sm" align="end" style={{ flex: 1, minWidth: 0 }}>
+            {toolbar}
+            {filters.map((f) => (
+              <Select
+                key={f.key}
+                aria-label={f.label}
+                options={[{ value: ALL, label: f.allLabel ?? `All ${f.label.toLowerCase()}` }, ...f.options]}
+                value={filterValues[f.key] ?? ALL}
+                onValueChange={(v) => setFilter(f.key, !v || v === ALL ? undefined : v)}
+              />
+            ))}
+          </Inline>
+          {actions}
         </Inline>
       )}
       <div ref={frameRef} className="data-table-frame" data-loading={loading && rows.length > 0 ? "" : undefined} aria-busy={loading || undefined}>
@@ -161,16 +165,17 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
                   const meta = header.column.columnDef.meta;
+                  const isActions = header.column.id === "actions";
                   return (
                     <Table.HeaderCell
                       key={header.id}
-                      align={meta?.align}
-                      style={meta?.width !== undefined ? { width: meta.width } : undefined}
+                      align={isActions ? "end" : meta?.align}
+                      style={isActions ? { width: "1%" } : meta?.width !== undefined ? { width: meta.width } : undefined}
                       sortable={header.column.getCanSort()}
                       sortDirection={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
                       onSort={(direction) => header.column.toggleSorting(direction === "descending")}
                     >
-                      {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                      {header.isPlaceholder ? null : isActions ? <VisuallyHidden>Actions</VisuallyHidden> : <table.FlexRender header={header} />}
                     </Table.HeaderCell>
                   );
                 })}
@@ -194,11 +199,18 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                     className={onRowClick ? "data-table-clickable" : undefined}
                   >
-                    {row.getAllCells().map((cell) => (
-                      <Table.Cell key={cell.id} align={cell.column.columnDef.meta?.align}>
-                        <table.FlexRender cell={cell} />
-                      </Table.Cell>
-                    ))}
+                    {row.getAllCells().map((cell) => {
+                      const isActions = cell.column.id === "actions";
+                      return (
+                        <Table.Cell key={cell.id} align={isActions ? "end" : cell.column.columnDef.meta?.align}>
+                          {isActions ? (
+                            <Inline gap="xs" wrap={false} justify="end">
+                              <table.FlexRender cell={cell} />
+                            </Inline>
+                          ) : <table.FlexRender cell={cell} />}
+                        </Table.Cell>
+                      );
+                    })}
                   </Table.Row>
                 ))}
           </Table.Body>

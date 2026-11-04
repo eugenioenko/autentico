@@ -40,8 +40,8 @@ export async function listIdpSessionSessions(
   }
   const qs = query.toString();
   const url = qs
-    ? `${BASE}/${idpSessionId}/sessions?${qs}`
-    : `${BASE}/${idpSessionId}/sessions`;
+    ? `${BASE}/${encodeURIComponent(idpSessionId)}/sessions?${qs}`
+    : `${BASE}/${encodeURIComponent(idpSessionId)}/sessions`;
   const { data } = await apiClient.get<{
     data: ListResponse<OAuthSessionResponse>;
   }>(url);
@@ -52,7 +52,7 @@ export async function listUserIdpSessions(
   userId: string
 ): Promise<IdpSessionResponse[]> {
   const { data } = await apiClient.get<{ data: IdpSessionResponse[] }>(
-    `/admin/api/users/${userId}/idp-sessions`
+    `/admin/api/users/${encodeURIComponent(userId)}/idp-sessions`
   );
   return data.data;
 }

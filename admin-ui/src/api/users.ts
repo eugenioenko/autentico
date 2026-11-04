@@ -39,7 +39,7 @@ export async function listUsers(
 }
 
 export async function getUser(id: string): Promise<UserResponseExt> {
-  const { data } = await apiClient.get<{ data: UserResponseExt }>(`${BASE}/${id}`);
+  const { data } = await apiClient.get<{ data: UserResponseExt }>(`${BASE}/${encodeURIComponent(id)}`);
   return data.data;
 }
 
