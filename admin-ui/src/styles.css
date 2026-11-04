@@ -60,6 +60,10 @@ body {
   max-width: 18rem;
 }
 
+.admin-back-button {
+  color: var(--yarcl-neutral-muted);
+}
+
 .page-loading {
   display: grid;
   place-items: center;

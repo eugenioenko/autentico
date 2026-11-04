@@ -94,7 +94,7 @@ function GroupMembersView({ group, onBack }: { group: Group; onBack: () => void 
   return (
     <Stack gap="md">
       <Inline gap="md" align="center">
-        <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
+        <Button className="admin-back-button" variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
           Back to Groups
         </Button>
         {group.description && <Text muted>{group.description}</Text>}

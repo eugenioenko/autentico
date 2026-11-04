@@ -145,7 +145,7 @@ function SessionsView({ idpSession, onBack }: { idpSession: IdpSessionResponse; 
   return (
     <Stack gap="md">
       <Inline gap="md" align="center">
-        <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
+        <Button className="admin-back-button" variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
           Back to Sessions
         </Button>
         <Text muted>{describeUserAgent(idpSession.user_agent)} — {idpSession.ip_address}</Text>
