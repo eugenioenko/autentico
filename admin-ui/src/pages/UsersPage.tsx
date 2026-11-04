@@ -197,6 +197,7 @@ export default function UsersPage() {
       col.display({
         id: "actions",
         header: "Actions",
+        meta: { width: "1%" },
         cell: ({ row }) => {
           const record = row.original;
           return (
