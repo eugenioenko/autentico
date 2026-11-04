@@ -93,12 +93,12 @@ function GroupMembersView({ group, onBack }: { group: Group; onBack: () => void 
 
   return (
     <Stack gap="md">
-      <Inline>
+      <Inline gap="md" align="center">
         <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
           Back to Groups
         </Button>
+        {group.description && <Text muted>{group.description}</Text>}
       </Inline>
-      {group.description && <Text muted>{group.description}</Text>}
 
       <Inline gap="xs" wrap={false} align="end">
         <Field label="Add members">
