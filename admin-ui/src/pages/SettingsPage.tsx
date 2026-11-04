@@ -27,7 +27,6 @@ import DurationInput from "../components/DurationInput";
 import RetentionInput from "../components/RetentionInput";
 import { FormField, InfoTip } from "../components/FormField";
 import FieldGroup from "../components/FieldGroup";
-import PageHeader from "../components/PageHeader";
 import PasswordInput from "../components/PasswordInput";
 import { DataTable, dataColumns } from "../components/DataTable";
 import { makeTip } from "../lib/tips";
@@ -597,7 +596,7 @@ export default function SettingsPage() {
     <FormProvider {...form}>
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate>
         <Stack gap="md">
-          <PageHeader title="System Settings" />
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <Tabs.List aria-label="Settings sections">
               <Tabs.Trigger value="1">Login & Registration</Tabs.Trigger>

@@ -345,22 +345,18 @@ export default function GroupsPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Groups"
-        actions={
-          <>
-            <SearchInput
-              placeholder="Search groups..."
-              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-            />
-            <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
-              Create Group
-            </Button>
-          </>
-        }
-      />
-
       <DataTable
+        toolbar={
+          <SearchInput
+            placeholder="Search groups..."
+            onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+          />
+        }
+        actions={
+          <Button startIcon={<IconPlus />} onClick={() => setCreateOpen(true)}>
+            Create Group
+          </Button>
+        }
         caption="Groups"
         data={data?.items ?? []}
         columns={columns}

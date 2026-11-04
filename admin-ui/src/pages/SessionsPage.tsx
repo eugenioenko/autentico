@@ -341,10 +341,13 @@ export default function SessionsPage() {
 
   return (
     <Stack gap="md">
-      <PageHeader
-        title="Sessions"
-        actions={
+      <DataTable
+        toolbar={
           <>
+            <SearchInput
+              placeholder="Search username, email, IP..."
+              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
+            />
             <Select
               aria-label="Date field"
               options={DATE_FIELDS}
@@ -356,15 +359,8 @@ export default function SessionsPage() {
               }}
             />
             <DateRangeFilter label={DATE_FIELD_LABELS[dateField]} value={dateRange} onChange={(range) => handleDateRange(range, dateField)} />
-            <SearchInput
-              placeholder="Search username, email, IP..."
-              onSearch={(value) => setListParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }))}
-            />
           </>
         }
-      />
-
-      <DataTable
         caption="Sessions"
         data={data?.items ?? []}
         columns={columns}
