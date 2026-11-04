@@ -73,7 +73,6 @@ function GroupMembersView({ group, onBack }: { group: Group; onBack: () => void 
       col.display({
         id: "actions",
         header: "",
-        meta: { align: "end", width: 50 },
         cell: ({ row }) => (
           <ConfirmIconButton
             tooltip="Remove member"

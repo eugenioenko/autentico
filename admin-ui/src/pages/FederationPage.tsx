@@ -65,7 +65,6 @@ export default function FederationPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 100 },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             <ConfirmIconButton

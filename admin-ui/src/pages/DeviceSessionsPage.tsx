@@ -115,7 +115,6 @@ function SessionsView({ idpSession, onBack }: { idpSession: IdpSessionResponse; 
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 80 },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             {row.original.status === "active" && (

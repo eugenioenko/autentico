@@ -174,7 +174,6 @@ export default function GroupsPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: "1%" },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             <Tooltip content="Edit group">

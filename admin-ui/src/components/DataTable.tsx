@@ -165,16 +165,17 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
                   const meta = header.column.columnDef.meta;
+                  const isActions = header.column.id === "actions";
                   return (
                     <Table.HeaderCell
                       key={header.id}
-                      align={meta?.align}
-                      style={meta?.width !== undefined ? { width: meta.width } : undefined}
+                      align={isActions ? "end" : meta?.align}
+                      style={isActions ? { width: "1%" } : meta?.width !== undefined ? { width: meta.width } : undefined}
                       sortable={header.column.getCanSort()}
                       sortDirection={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
                       onSort={(direction) => header.column.toggleSorting(direction === "descending")}
                     >
-                      {header.isPlaceholder ? null : header.column.id === "actions" ? <VisuallyHidden>Actions</VisuallyHidden> : <table.FlexRender header={header} />}
+                      {header.isPlaceholder ? null : isActions ? <VisuallyHidden>Actions</VisuallyHidden> : <table.FlexRender header={header} />}
                     </Table.HeaderCell>
                   );
                 })}
@@ -198,11 +199,18 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                     className={onRowClick ? "data-table-clickable" : undefined}
                   >
-                    {row.getAllCells().map((cell) => (
-                      <Table.Cell key={cell.id} align={cell.column.columnDef.meta?.align}>
-                        <table.FlexRender cell={cell} />
-                      </Table.Cell>
-                    ))}
+                    {row.getAllCells().map((cell) => {
+                      const isActions = cell.column.id === "actions";
+                      return (
+                        <Table.Cell key={cell.id} align={isActions ? "end" : cell.column.columnDef.meta?.align}>
+                          {isActions ? (
+                            <Inline gap="xs" wrap={false} justify="end">
+                              <table.FlexRender cell={cell} />
+                            </Inline>
+                          ) : <table.FlexRender cell={cell} />}
+                        </Table.Cell>
+                      );
+                    })}
                   </Table.Row>
                 ))}
           </Table.Body>

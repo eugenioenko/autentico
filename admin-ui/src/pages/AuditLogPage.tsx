@@ -204,7 +204,6 @@ export default function AuditLogPage() {
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <Tooltip content="View details">
             <IconButton

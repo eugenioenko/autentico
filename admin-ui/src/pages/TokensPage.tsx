@@ -124,7 +124,6 @@ export default function TokensPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 80 },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             {row.original.status === "active" && (

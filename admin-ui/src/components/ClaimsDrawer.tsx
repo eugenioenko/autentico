@@ -87,7 +87,6 @@ export default function ClaimsDrawer({
       col.display({
         id: "actions",
         header: "",
-        meta: { align: "end", width: 50 },
         cell: ({ row }) => (
           <ConfirmIconButton
             tooltip="Remove claim"

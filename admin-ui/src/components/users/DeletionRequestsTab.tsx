@@ -98,7 +98,6 @@ export default function DeletionRequestsTab() {
       col.display({
         id: "actions",
         header: () => <VisuallyHidden>Actions</VisuallyHidden>,
-        meta: { width: 50 },
         cell: ({ row }) => (
           <Menu placement="bottom-end">
             <Menu.Trigger>

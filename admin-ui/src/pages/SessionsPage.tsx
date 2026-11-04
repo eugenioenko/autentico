@@ -149,7 +149,6 @@ export default function SessionsPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: "1%" },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
             <Tooltip content="View details">
