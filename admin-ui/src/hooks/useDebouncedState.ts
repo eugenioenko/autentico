@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Delays state updates; immediate updates also cancel any pending change. */
-export function useDebouncedState<T>(initial: T, timeInMs = 250) {
+export function useDebouncedState<T>(initial: T, timeInMs = 350) {
   const [value, setValue] = useState(initial);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
