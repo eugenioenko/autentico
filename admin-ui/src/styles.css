@@ -53,6 +53,7 @@ body {
 
 .yarcl-listbox {
   padding: var(--yarcl-space-sm);
+  gap: calc(var(--yarcl-space-xs) / 2);
 }
 
 .confirm-content {
