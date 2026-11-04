@@ -61,7 +61,7 @@ body {
 }
 
 .admin-back-button {
-  color: var(--yarcl-neutral-muted);
+  color: var(--yarcl-neutral-text);
 }
 
 .page-loading {
