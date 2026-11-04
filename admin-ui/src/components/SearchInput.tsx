@@ -18,6 +18,7 @@ export default function SearchInput({ value: valueProp, onSearch, onValueChange,
   return (
     <Input
       {...props}
+      className={["search-input", props.className].filter(Boolean).join(" ")}
       type="search"
       aria-label={props["aria-label"] ?? placeholder}
       placeholder={placeholder}

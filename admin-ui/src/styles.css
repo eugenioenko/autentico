@@ -47,6 +47,10 @@ body {
   margin-inline-start: var(--yarcl-space-sm);
 }
 
+.search-input input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 .confirm-content {
   max-width: 18rem;
 }
