@@ -149,3 +149,52 @@ test('row menus retain primary actions and confirm destructive actions before ch
   await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(device).toBeVisible();
 });
+
+test('member and device-session views have direct routes that survive refresh and browser navigation', async ({ page }) => {
+  await page.goto(base + '/admin/groups');
+  await page.waitForURL('**/oauth2/authorize**');
+  await page.fill('#username', 'admin');
+  await page.fill('#password', 'Password123!');
+  await page.locator('button[type=submit]').click();
+  await page.waitForURL(base + '/admin/groups');
+
+  const membersURL = `${base}/admin/groups/${groupID}/members`;
+  await page.getByRole('row').filter({ hasText: 'app1' })
+    .getByRole('button', { name: 'More actions for app1', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Manage members', exact: true }).click();
+  await expect(page).toHaveURL(membersURL);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Members of app1');
+  await expect(page.getByRole('table', { name: 'Members of app1', exact: true })).toBeVisible();
+  // Check router history separately from reload's fresh OIDC sign-in round trip.
+  await page.goBack();
+  await expect(page).toHaveURL(base + '/admin/groups');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Groups');
+  await page.goForward();
+  await expect(page).toHaveURL(membersURL);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Members of app1');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Members of app1');
+  await expect(page.getByRole('table', { name: 'Members of app1', exact: true })).toBeVisible();
+
+  await page.goto(base + '/admin/sessions');
+  const device = page.getByRole('row').filter({ hasText: 'admin@test.com' }).first();
+  await device.getByRole('button', { name: /^More actions for device / }).click();
+  await page.getByRole('menuitem', { name: 'View OAuth sessions', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/sessions\/[^/]+\/devices\/[^/]+$/);
+  const deviceURL = page.url();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('OAuth Sessions for admin');
+  await expect(page.getByRole('table', { name: 'OAuth sessions', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(base + '/admin/sessions');
+  await page.goForward();
+  await expect(page).toHaveURL(deviceURL);
+  await page.reload();
+  await expect(page).toHaveURL(deviceURL);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('OAuth Sessions for admin');
+  await expect(page.getByRole('table', { name: 'OAuth sessions', exact: true })).toBeVisible();
+
+  await page.goto(base + '/admin/groups/missing/members');
+  await expect(page.getByText('Group not found or unavailable', { exact: true })).toBeVisible();
+  await page.goto(deviceURL.replace(/\/devices\/[^/]+$/, '/devices/missing'));
+  await expect(page.getByText('Device session not found', { exact: true })).toBeVisible();
+});

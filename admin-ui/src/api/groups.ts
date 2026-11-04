@@ -27,7 +27,7 @@ export async function listGroups(
 }
 
 export async function getGroup(id: string): Promise<Group> {
-  const { data } = await apiClient.get<{ data: Group }>(`${BASE}/${id}`);
+  const { data } = await apiClient.get<{ data: Group }>(`${BASE}/${encodeURIComponent(id)}`);
   return data.data;
 }
 

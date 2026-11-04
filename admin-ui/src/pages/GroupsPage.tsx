@@ -1,11 +1,10 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Button,
-  Combobox,
   Drawer,
-  Field,
   IconButton,
   Inline,
   Input,
@@ -15,141 +14,25 @@ import {
   Tooltip,
   toast,
 } from "@yarcl/react";
-import { IconArrowLeft, IconEdit, IconPlus, IconUserMinus } from "@tabler/icons-react";
+import { IconEdit, IconPlus } from "@tabler/icons-react";
 import {
   useGroups,
   useCreateGroup,
   useUpdateGroup,
   useDeleteGroup,
-  useGroupMembers,
-  useAddMember,
-  useRemoveMember,
 } from "../hooks/useGroups";
 import GroupClaimsDrawer from "../components/groups/GroupClaimsDrawer";
-import { useUsers } from "../hooks/useUsers";
 import type { ListParams } from "../api/users";
-import type { Group, GroupMember } from "../types/group";
+import type { Group } from "../types/group";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import { DataTable, dataColumns } from "../components/DataTable";
 import { FormField } from "../components/FormField";
-import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
-import ConfirmIconButton from "../components/ConfirmIconButton";
 import RowActionMenu from "../components/RowActionMenu";
 
 const NAME_PATTERN = { value: /^[a-zA-Z0-9_-]+$/, message: "Only letters, numbers, hyphens, and underscores" };
 const NAME_MAX = { value: 100, message: "Max 100 characters" };
 
-function GroupMembersView({ group, onBack }: { group: Group; onBack: () => void }) {
-  const { data: members, isLoading } = useGroupMembers(group.id);
-  const addMember = useAddMember();
-  const removeMember = useRemoveMember();
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [adding, setAdding] = useState(false);
-  const [userSearchParams, setUserSearchParams] = useState<ListParams>({ limit: 20, offset: 0 });
-  const { data: usersData, isFetching: usersLoading } = useUsers(userSearchParams);
-
-  const memberUserIds = new Set((members ?? []).map((m) => m.user_id));
-  const userOptions = (usersData?.items ?? [])
-    .filter((u) => !memberUserIds.has(u.id))
-    .map((u) => ({ value: u.id, label: `${u.username} (${u.email})` }));
-
-  const handleUserSearch = (value: string) => {
-    setUserSearchParams((prev) => ({ ...prev, search: value || undefined, offset: 0 }));
-  };
-
-  const handleAddSelected = async () => {
-    if (selectedUserIds.length === 0) return;
-    setAdding(true);
-    try {
-      await Promise.all(selectedUserIds.map((userId) => addMember.mutateAsync({ groupId: group.id, userId })));
-      toast({
-        title: `Added ${selectedUserIds.length} member${selectedUserIds.length > 1 ? "s" : ""}`,
-        color: "success",
-      });
-      setSelectedUserIds([]);
-    } catch {
-      toast({ title: "Failed to add members", color: "danger" });
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const columns = useMemo(() => {
-    const handleRemove = async (userId: string) => {
-      try {
-        await removeMember.mutateAsync({ groupId: group.id, userId });
-        toast({ title: "Member removed", color: "success" });
-      } catch {
-        toast({ title: "Failed to remove member", color: "danger" });
-      }
-    };
-    const col = dataColumns<GroupMember>();
-    return col.columns([
-      col.accessor("username", { header: "Username" }),
-      col.accessor("email", { header: "Email" }),
-      col.accessor("created_at", {
-        header: "Added",
-        cell: (info) => new Date(info.getValue()).toLocaleDateString(),
-      }),
-      col.display({
-        id: "actions",
-        header: "",
-        meta: { align: "end", width: 50 },
-        cell: ({ row }) => (
-          <ConfirmIconButton
-            tooltip="Remove member"
-            aria-label="Remove member"
-            icon={<IconUserMinus />}
-            color="danger"
-            title="Remove this member?"
-            confirmLabel="Remove"
-            onConfirm={() => handleRemove(row.original.user_id)}
-          />
-        ),
-      }),
-    ]);
-  }, [group.id, removeMember]);
-
-  return (
-    <Stack gap="md">
-      <Inline>
-        <Button variant="ghost" color="neutral" startIcon={<IconArrowLeft />} onClick={onBack}>
-          Back to Groups
-        </Button>
-      </Inline>
-      <PageHeader title={`Members of ${group.name}`} description={group.description || undefined} />
-
-      <Inline gap="xs" wrap={false} align="end">
-        <Field label="Add members">
-          <Combobox
-            multiple
-            filter={false}
-            placeholder="Search users to add"
-            options={userOptions}
-            loading={usersLoading}
-            value={selectedUserIds}
-            onValueChange={setSelectedUserIds}
-            onInputValueChange={handleUserSearch}
-          />
-        </Field>
-        <Button startIcon={<IconPlus />} onClick={handleAddSelected} loading={adding} disabled={selectedUserIds.length === 0}>
-          Add{selectedUserIds.length > 0 ? ` (${selectedUserIds.length})` : ""}
-        </Button>
-      </Inline>
-
-      <DataTable
-        caption={`Members of ${group.name}`}
-        data={members ?? []}
-        columns={columns}
-        getRowId={(m) => m.user_id}
-        loading={isLoading}
-        pageSize={false}
-        emptyTitle="No members"
-      />
-    </Stack>
-  );
-}
 
 interface GroupFormValues {
   name: string;
@@ -224,6 +107,7 @@ function GroupDrawer({ mode, open, group, submitting, onSubmit, onClose }: Group
 
 /** Manages group details, membership, and group-local custom claim assignments. */
 export default function GroupsPage() {
+  const navigate = useNavigate();
   const [listParams, setListParams] = useState<ListParams>({
     limit: DEFAULT_PAGE_SIZE,
     offset: 0,
@@ -239,7 +123,6 @@ export default function GroupsPage() {
   const [claimsGroup, setClaimsGroup] = useState<Group | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
-  const [membersGroup, setMembersGroup] = useState<Group | null>(null);
 
   const handleCreate = async (values: GroupFormValues) => {
     try {
@@ -302,7 +185,7 @@ export default function GroupsPage() {
             <RowActionMenu
               label={`More actions for ${row.original.name}`}
               actions={[
-                { label: "Manage members", onSelect: () => setMembersGroup(row.original) },
+                { label: "Manage members", onSelect: () => navigate(`/groups/${encodeURIComponent(row.original.id)}/members`) },
                 { label: "Manage claims", onSelect: () => setClaimsGroup(row.original) },
                 {
                   label: "Delete group", danger: true, onSelect: () => handleDelete(row.original.id),
@@ -314,11 +197,7 @@ export default function GroupsPage() {
         ),
       }),
     ]);
-  }, [deleteGroupMutation]);
-
-  if (membersGroup) {
-    return <GroupMembersView group={membersGroup} onBack={() => setMembersGroup(null)} />;
-  }
+  }, [deleteGroupMutation, navigate]);
 
   if (error) {
     return <Alert color="danger" title="Failed to load groups" />;

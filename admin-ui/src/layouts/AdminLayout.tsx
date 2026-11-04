@@ -1,5 +1,5 @@
 import { Suspense, useState, type ReactNode } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { matchPath, Outlet, useLocation } from "react-router-dom";
 import {
   IconApi,
   IconApps,
@@ -23,6 +23,8 @@ import {
 import { AppLayout, Avatar, Button, Heading, IconButton, Inline, Menu, NavItem, NavSection, Spinner, Stack, Text } from "@yarcl/react";
 import { useAuth } from "oidc-js-react";
 import ColorSchemeToggle from "../components/ColorSchemeToggle";
+import { useGroup } from "../hooks/useGroups";
+import { useUser } from "../hooks/useUsers";
 import { RouterNavItem } from "../components/RouterLink";
 import "./AdminLayout.css";
 
@@ -97,6 +99,15 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { pathname } = useLocation();
   const currentPage = adminItems.find((item) => isActive(pathname, item.to));
+  const groupRoute = matchPath("/groups/:groupId/members", pathname);
+  const deviceRoute = matchPath("/sessions/:userId/devices/:sessionId", pathname);
+  const { data: group } = useGroup(groupRoute?.params.groupId ?? null);
+  const { data: sessionUser } = useUser(deviceRoute?.params.userId ?? "");
+  const pageTitle = groupRoute
+    ? group ? `Members of ${group.name}` : "Group Members"
+    : deviceRoute
+      ? sessionUser ? `OAuth Sessions for ${sessionUser.username}` : "OAuth Sessions"
+      : currentPage?.title ?? currentPage?.label ?? "Autentico";
 
   const navigation = (
     <>
@@ -141,7 +152,7 @@ export default function AdminLayout() {
           {collapsed ? <IconIndentIncrease /> : <IconIndentDecrease />}
         </IconButton>
         <Heading level={1} textStyle="subheading" className="admin-page-title">
-          {currentPage?.title ?? currentPage?.label ?? "Autentico"}
+          {pageTitle}
         </Heading>
       </Inline>
       <Inline gap="sm" align="center" wrap={false}>

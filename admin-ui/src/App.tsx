@@ -42,6 +42,8 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const CorsPage = lazy(() => import("./pages/CorsPage"));
 const FederationPage = lazy(() => import("./pages/FederationPage"));
 const GroupsPage = lazy(() => import("./pages/GroupsPage"));
+const GroupMembersPage = lazy(() => import("./pages/GroupMembersPage"));
+const DeviceSessionsPage = lazy(() => import("./pages/DeviceSessionsPage"));
 const TokensPage = lazy(() => import("./pages/TokensPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
@@ -104,7 +106,9 @@ export default function AppRoot() {
 <Route path="protected-apps" element={<ProtectedAppsPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="groups" element={<GroupsPage />} />
+                <Route path="groups/:groupId/members" element={<GroupMembersPage />} />
                 <Route path="sessions" element={<SessionsPage />} />
+                <Route path="sessions/:userId/devices/:sessionId" element={<DeviceSessionsPage />} />
                 <Route path="tokens" element={<TokensPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="cors" element={<CorsPage />} />

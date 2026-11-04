@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listGroups,
+  getGroup,
   createGroup,
   updateGroup,
   deleteGroup,
@@ -12,6 +13,14 @@ import type { ListParams } from "../api/users";
 import type { GroupCreateRequest, GroupUpdateRequest } from "../types/group";
 
 const GROUPS_KEY = ["groups"] as const;
+
+export function useGroup(id: string | null) {
+  return useQuery({
+    queryKey: [...GROUPS_KEY, "detail", id],
+    queryFn: () => getGroup(id!),
+    enabled: !!id,
+  });
+}
 
 export function useGroups(params?: ListParams) {
   return useQuery({
