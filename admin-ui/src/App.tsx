@@ -54,7 +54,7 @@ const queryClient = new QueryClient({
 const BASENAME = "/admin";
 
 const oidcConfig: OidcConfig = {
-  issuer: (import.meta.env.VITE_AUTENTICO_URL || window.location.origin) + "/oauth2",
+  issuer: window.location.origin + "/oauth2",
   clientId: "autentico-admin",
   redirectUri: window.location.origin + BASENAME + "/callback",
   scopes: ["openid", "profile", "email", "offline_access"],

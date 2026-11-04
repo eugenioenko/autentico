@@ -236,6 +236,9 @@ export default function UsersPage() {
   const deletionCount = deletionRequests?.total ?? 0;
 
   const handleTabChange = (key: string) => {
+    // The search input unmounts on tab changes, cancelling its pending debounce.
+    const search = searchText.trim() || undefined;
+    setListParams((prev) => prev.search === search ? prev : { ...prev, search, offset: 0 });
     navigate(key === "users" ? "/users" : `/users?tab=${key}`, { replace: true });
   };
 

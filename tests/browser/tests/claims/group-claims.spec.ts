@@ -106,6 +106,62 @@ test('admin manages group claims and individual overrides through the shared edi
   expect((await (await api(`/admin/api/groups/${groupID}/claims`)).json()).data).toEqual([]);
 });
 
+test('user search debounces typing, applies Enter and clear immediately, and survives tab changes', async ({ page }) => {
+  await page.goto(base + '/admin/users');
+  await page.fill('#username', 'admin');
+  await page.fill('#password', 'Password123!');
+  await page.locator('button[type=submit]').click();
+  await page.waitForURL(base + '/admin/users');
+  const admin = page.getByRole('row').filter({ hasText: 'admin@test.com' });
+  await expect(admin).toBeVisible();
+
+  await page.clock.install();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const search = page.getByRole('searchbox', { name: 'Search users...' });
+  const searches: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/admin/api/users') searches.push(url.searchParams.get('search') ?? '');
+  });
+
+  await search.fill('ad');
+  await page.clock.runFor(200);
+  await search.fill('admin');
+  await page.clock.runFor(349);
+  expect(searches).toEqual([]);
+  const searched = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.pathname === '/admin/api/users' && url.searchParams.get('search') === 'admin';
+  });
+  await page.clock.runFor(1);
+  expect((await searched).status()).toBe(200);
+  // Let React Query's notification timers render the response.
+  await page.clock.resume();
+  await expect(admin).toBeVisible();
+  expect(searches).toEqual(['admin']);
+
+  await search.fill('no-matching-user-enter');
+  await search.press('Enter');
+  await expect(page.getByText('No users found', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(search).toHaveValue('');
+  await expect(admin).toBeVisible();
+  await page.clock.runFor(350);
+  await expect(admin).toBeVisible();
+
+  // Keep time paused so switching tabs always happens before the debounce fires.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await search.fill('no-matching-user-tab');
+  await page.getByRole('tab', { name: 'Deletion Requests' }).click();
+  await page.getByRole('tab', { name: 'Users', exact: true }).click();
+  await page.clock.resume();
+  await expect(search).toHaveValue('no-matching-user-tab');
+  await expect(page.getByText('No users found', { exact: true })).toBeVisible();
+  expect(searches).toContain('no-matching-user-tab');
+  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+  await expect(admin).toBeVisible();
+});
+
 test('row menus retain primary actions and confirm destructive actions before changing data', async ({ page }) => {
   await page.goto(base + '/admin/users');
   await page.waitForURL('**/oauth2/authorize**');
