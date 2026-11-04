@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Alert, Badge, Button, Drawer, IconButton, Inline, Select, Stack, Text, Tooltip, toast, type DateRange } from "@yarcl/react";
-import { IconArrowLeft, IconInfoCircle, IconList, IconLogout, IconTrash } from "@tabler/icons-react";
+import { IconArrowLeft, IconInfoCircle, IconTrash } from "@tabler/icons-react";
 import {
   useIdpSessions,
   useForceLogoutIdpSession,
@@ -13,6 +13,7 @@ import { describeUserAgent } from "../lib/utils";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CopyText from "../components/CopyText";
 import ConfirmIconButton from "../components/ConfirmIconButton";
+import RowActionMenu from "../components/RowActionMenu";
 import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
 import DescriptionList from "../components/DescriptionList";
 import PageHeader from "../components/PageHeader";
@@ -296,35 +297,24 @@ export default function SessionsPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 120 },
+        meta: { width: "1%" },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
-            <ConfirmIconButton
-              tooltip="Force sign out device"
-              aria-label="Force sign out device"
-              color="danger"
-              icon={<IconLogout />}
-              title="Force sign out this device?"
-              description="This will revoke all sessions and tokens from this device."
-              confirmLabel="Sign Out"
-              onConfirm={() => handleForceLogout(row.original.id)}
-            />
-            <Tooltip content="View OAuth sessions">
-              <IconButton
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                aria-label="View OAuth sessions for device"
-                onClick={() => setSessionsIdp(row.original)}
-              >
-                <IconList />
-              </IconButton>
-            </Tooltip>
             <Tooltip content="View details">
               <IconButton variant="ghost" color="neutral" size="sm" aria-label="View device details" onClick={() => setDetailSession(row.original)}>
                 <IconInfoCircle />
               </IconButton>
             </Tooltip>
+            <RowActionMenu
+              label={`More actions for device ${row.original.id}`}
+              actions={[
+                { label: "View OAuth sessions", onSelect: () => setSessionsIdp(row.original) },
+                {
+                  label: "Force sign out", danger: true, onSelect: () => handleForceLogout(row.original.id),
+                  confirmation: { title: "Force sign out this device?", description: "This will revoke all sessions and tokens from this device.", confirmLabel: "Sign Out" },
+                },
+              ]}
+            />
           </Inline>
         ),
       }),

@@ -17,7 +17,7 @@ import {
   type SortingState,
   type TableFeatures,
 } from "@tanstack/react-table";
-import { EmptyState, Inline, Pagination, Select, Skeleton, Stack, Table, Text, type CellAlign } from "@yarcl/react";
+import { EmptyState, Inline, Pagination, Select, Skeleton, Stack, Table, Text, VisuallyHidden, type CellAlign } from "@yarcl/react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import type { ListParams } from "../api/users";
@@ -174,7 +174,7 @@ export function DataTable<T extends object>(props: DataTableProps<T>) {
                       sortDirection={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}
                       onSort={(direction) => header.column.toggleSorting(direction === "descending")}
                     >
-                      {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                      {header.isPlaceholder ? null : header.column.id === "actions" ? <VisuallyHidden>Actions</VisuallyHidden> : <table.FlexRender header={header} />}
                     </Table.HeaderCell>
                   );
                 })}

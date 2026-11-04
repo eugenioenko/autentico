@@ -15,7 +15,7 @@ import {
   Tooltip,
   toast,
 } from "@yarcl/react";
-import { IconArrowLeft, IconEdit, IconId, IconPlus, IconTrash, IconUserMinus, IconUsersGroup } from "@tabler/icons-react";
+import { IconArrowLeft, IconEdit, IconPlus, IconUserMinus } from "@tabler/icons-react";
 import {
   useGroups,
   useCreateGroup,
@@ -35,6 +35,7 @@ import { FormField } from "../components/FormField";
 import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import ConfirmIconButton from "../components/ConfirmIconButton";
+import RowActionMenu from "../components/RowActionMenu";
 
 const NAME_PATTERN = { value: /^[a-zA-Z0-9_-]+$/, message: "Only letters, numbers, hyphens, and underscores" };
 const NAME_MAX = { value: 100, message: "Max 100 characters" };
@@ -290,46 +291,25 @@ export default function GroupsPage() {
       col.display({
         id: "actions",
         header: "Actions",
-        meta: { width: 160 },
+        meta: { width: "1%" },
         cell: ({ row }) => (
           <Inline gap="xs" wrap={false}>
-            <ConfirmIconButton
-              tooltip="Delete group"
-              aria-label="Delete group"
-              icon={<IconTrash />}
-              color="danger"
-              title="Delete this group?"
-              description="All memberships and group claims will be removed."
-              confirmLabel="Delete"
-              onConfirm={() => handleDelete(row.original.id)}
-            />
-            <Tooltip content="Manage members">
-              <IconButton
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                aria-label="Manage group members"
-                onClick={() => setMembersGroup(row.original)}
-              >
-                <IconUsersGroup />
-              </IconButton>
-            </Tooltip>
-            <Tooltip content="Manage claims">
-              <IconButton
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                aria-label="Manage group claims"
-                onClick={() => setClaimsGroup(row.original)}
-              >
-                <IconId />
-              </IconButton>
-            </Tooltip>
             <Tooltip content="Edit group">
               <IconButton variant="ghost" color="neutral" size="sm" aria-label="Edit group" onClick={() => setEditGroup(row.original)}>
                 <IconEdit />
               </IconButton>
             </Tooltip>
+            <RowActionMenu
+              label={`More actions for ${row.original.name}`}
+              actions={[
+                { label: "Manage members", onSelect: () => setMembersGroup(row.original) },
+                { label: "Manage claims", onSelect: () => setClaimsGroup(row.original) },
+                {
+                  label: "Delete group", danger: true, onSelect: () => handleDelete(row.original.id),
+                  confirmation: { title: "Delete this group?", description: "All memberships and group claims will be removed.", confirmLabel: "Delete" },
+                },
+              ]}
+            />
           </Inline>
         ),
       }),

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Badge, Button, IconButton, Inline, Stack, Tabs, Text, Tooltip, toast, type DateRange } from "@yarcl/react";
-import { IconBan, IconDeviceLaptop, IconEdit, IconId, IconLockOpen, IconPlus, IconUsersGroup } from "@tabler/icons-react";
+import { IconEdit, IconPlus } from "@tabler/icons-react";
 import { useUsers, useDeleteUser, useUnlockUser } from "../hooks/useUsers";
 import { useGroups } from "../hooks/useGroups";
 import { useDeletionRequests } from "../hooks/useDeletionRequests";
@@ -16,7 +16,7 @@ import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
 import CopyText from "../components/CopyText";
-import ConfirmIconButton from "../components/ConfirmIconButton";
+import RowActionMenu from "../components/RowActionMenu";
 import DateRangeFilter, { dateRangeParams } from "../components/DateRangeFilter";
 import SearchInput from "../components/SearchInput";
 import { DataTable, dataColumns, type DataFilter } from "../components/DataTable";
@@ -202,54 +202,27 @@ export default function UsersPage() {
           const record = row.original;
           return (
             <Inline gap="xs" wrap={false}>
-              <ConfirmIconButton
-                tooltip="Deactivate user"
-                aria-label="Deactivate user"
-                color="danger"
-                icon={<IconBan />}
-                title="Deactivate this user?"
-                description="The user will no longer be able to log in."
-                confirmLabel="Deactivate"
-                onConfirm={() => handleDelete(record.id)}
-              />
-              <Tooltip content="Manage groups">
-                <IconButton variant="ghost" color="neutral" size="sm" aria-label="Manage user groups" onClick={() => setGroupsUser(record)}>
-                  <IconUsersGroup />
-                </IconButton>
-              </Tooltip>
-              <Tooltip content="Custom claims">
-                <IconButton
-                  variant="ghost"
-                  color="neutral"
-                  size="sm"
-                  aria-label={`Custom claims for ${record.username}`}
-                  onClick={() => setClaimsUser(record)}
-                >
-                  <IconId />
-                </IconButton>
-              </Tooltip>
-              <Tooltip content="View sessions">
-                <IconButton variant="ghost" color="neutral" size="sm" aria-label="View user sessions" onClick={() => setSessionsUser(record)}>
-                  <IconDeviceLaptop />
-                </IconButton>
-              </Tooltip>
               <Tooltip content="Edit user">
                 <IconButton variant="ghost" color="neutral" size="sm" aria-label="Edit user" onClick={() => setEditUser(record)}>
                   <IconEdit />
                 </IconButton>
               </Tooltip>
-              {isLocked(record) && (
-                <ConfirmIconButton
-                  tooltip="Unlock user"
-                  aria-label="Unlock user"
-                  icon={<IconLockOpen />}
-                  title="Unlock this user?"
-                  description="This will reset failed login attempts and remove the lockout."
-                  confirmLabel="Unlock"
-                  confirmColor="primary"
-                  onConfirm={() => handleUnlock(record.id)}
-                />
-              )}
+              <RowActionMenu
+                label={`More actions for ${record.username}`}
+                actions={[
+                  { label: "Manage groups", onSelect: () => setGroupsUser(record) },
+                  { label: "Custom claims", onSelect: () => setClaimsUser(record) },
+                  { label: "View sessions", onSelect: () => setSessionsUser(record) },
+                  ...(isLocked(record) ? [{
+                    label: "Unlock user", onSelect: () => handleUnlock(record.id),
+                    confirmation: { title: "Unlock this user?", description: "This will reset failed login attempts and remove the lockout.", confirmLabel: "Unlock", color: "primary" as const },
+                  }] : []),
+                  {
+                    label: "Deactivate user", danger: true, onSelect: () => handleDelete(record.id),
+                    confirmation: { title: "Deactivate this user?", description: "The user will no longer be able to log in.", confirmLabel: "Deactivate" },
+                  },
+                ]}
+              />
             </Inline>
           );
         },

@@ -65,7 +65,8 @@ test('admin manages group claims and individual overrides through the shared edi
   await page.locator('button[type=submit]').click();
   await page.waitForURL(base + '/admin/groups');
   const row = page.getByRole('row').filter({ hasText: 'app1' });
-  await row.getByRole('button', { name: 'Manage group claims' }).click();
+  await row.getByRole('button', { name: 'More actions for app1' }).click();
+  await page.getByRole('menuitem', { name: 'Manage claims', exact: true }).click();
   const drawer = page.getByRole('dialog');
   await expect(drawer).toContainText('Individual claims with the same full name override group values');
   await drawer.getByRole('textbox', { name: 'Claim name' }).fill('role');
@@ -86,7 +87,8 @@ test('admin manages group claims and individual overrides through the shared edi
   // Existing user editor accepts a namespaced override, including without membership.
   await page.goto(base + '/admin/users');
   const admin = page.getByRole('row').filter({ hasText: 'admin@test.com' });
-  await admin.getByRole('button', { name: 'Custom claims for admin', exact: true }).click();
+  await admin.getByRole('button', { name: 'More actions for admin', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Custom claims', exact: true }).click();
   await drawer.getByRole('textbox', { name: 'Claim name' }).fill('app1.role');
   await drawer.getByRole('textbox', { name: 'Claim value' }).fill('owner');
   await drawer.getByRole('button', { name: /Add$/ }).click();
@@ -96,9 +98,54 @@ test('admin manages group claims and individual overrides through the shared edi
   await row.getByRole('button', { name: 'Edit group', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Renaming the group changes the prefix');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await row.getByRole('button', { name: 'Manage group claims' }).click();
+  await row.getByRole('button', { name: 'More actions for app1' }).click();
+  await page.getByRole('menuitem', { name: 'Manage claims', exact: true }).click();
   await drawer.getByRole('button', { name: 'Remove claim role' }).click();
   await page.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(drawer).toContainText('No custom claims');
   expect((await (await api(`/admin/api/groups/${groupID}/claims`)).json()).data).toEqual([]);
+});
+
+test('row menus retain primary actions and confirm destructive actions before changing data', async ({ page }) => {
+  await page.goto(base + '/admin/users');
+  await page.waitForURL('**/oauth2/authorize**');
+  await page.fill('#username', 'admin');
+  await page.fill('#password', 'Password123!');
+  await page.locator('button[type=submit]').click();
+  await page.waitForURL(base + '/admin/users');
+
+  const user = page.getByRole('row').filter({ hasText: 'admin@test.com' });
+  await expect(user.getByRole('button', { name: 'Edit user', exact: true })).toBeVisible();
+  const userMenu = user.getByRole('button', { name: 'More actions for admin', exact: true });
+  await userMenu.click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Manage groups', 'Custom claims', 'View sessions', 'Deactivate user']);
+  await page.getByRole('menuitem', { name: 'Manage groups', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Groups for admin');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await userMenu.click();
+  await page.getByRole('menuitem', { name: 'Deactivate user', exact: true }).click();
+  const confirmation = page.getByRole('dialog');
+  await expect(confirmation).toContainText('Deactivate this user?');
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await (await api('/admin/api/users')).json()).data.total).toBe(1);
+
+  await page.goto(base + '/admin/groups');
+  const group = page.getByRole('row').filter({ hasText: 'app1' });
+  await expect(group.getByRole('button', { name: 'Edit group', exact: true })).toBeVisible();
+  await group.getByRole('button', { name: 'More actions for app1', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Manage members', 'Manage claims', 'Delete group']);
+  await page.getByRole('menuitem', { name: 'Delete group', exact: true }).click();
+  await expect(confirmation).toContainText('Delete this group?');
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await api(`/admin/api/groups/${groupID}`)).status).toBe(200);
+
+  await page.goto(base + '/admin/sessions');
+  const device = page.getByRole('row').filter({ hasText: 'admin@test.com' }).first();
+  await expect(device.getByRole('button', { name: 'View device details', exact: true })).toBeVisible();
+  await device.getByRole('button', { name: /^More actions for device / }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['View OAuth sessions', 'Force sign out']);
+  await page.getByRole('menuitem', { name: 'Force sign out', exact: true }).click();
+  await expect(confirmation).toContainText('Force sign out this device?');
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(device).toBeVisible();
 });
