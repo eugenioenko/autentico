@@ -1,6 +1,7 @@
 import { IconSearch, IconX } from "@tabler/icons-react";
 import { IconButton, Input } from "@yarcl/react";
-import { useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { useDebouncedState } from "../hooks/useDebouncedState";
 
 type SearchInputProps = Omit<ComponentProps<typeof Input>, "onChange" | "value" | "defaultValue" | "type"> & {
   value?: string;
@@ -11,9 +12,20 @@ type SearchInputProps = Omit<ComponentProps<typeof Input>, "onChange" | "value" 
 export default function SearchInput({ value: valueProp, onSearch, onValueChange, placeholder = "Search", ...props }: SearchInputProps) {
   const [own, setOwn] = useState("");
   const value = valueProp ?? own;
+  const [query, setQuery] = useDebouncedState(value.trim());
+  const lastSearch = useRef(query);
+
+  useEffect(() => {
+    if (lastSearch.current !== query) {
+      lastSearch.current = query;
+      onSearch(query);
+    }
+  }, [query, onSearch]);
+
   const change = (next: string) => {
     if (valueProp === undefined) setOwn(next);
     onValueChange?.(next);
+    setQuery(next.trim(), next === "");
   };
   return (
     <Input
@@ -25,10 +37,9 @@ export default function SearchInput({ value: valueProp, onSearch, onValueChange,
       value={value}
       onChange={(e) => {
         change(e.target.value);
-        if (e.target.value === "") onSearch("");
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onSearch(value.trim());
+        if (e.key === "Enter") setQuery(value.trim(), true);
       }}
       startContent={<IconSearch aria-hidden="true" className="search-input-icon" />}
       endContent={
@@ -39,7 +50,6 @@ export default function SearchInput({ value: valueProp, onSearch, onValueChange,
             aria-label="Clear search"
             onClick={() => {
               change("");
-              onSearch("");
             }}
           >
             <IconX />
