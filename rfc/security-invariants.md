@@ -16,7 +16,7 @@ Public passkey registration checks current self-signup policy (including client 
 
 `pkg/totpsecret` uses AES-256-GCM with a fresh nonce and authenticated user ID/version. `AUTENTICO_TOTP_ENCRYPTION_KEY` is a required persistent base64-encoded 32-byte bootstrap key. Fresh `init`/auto-setup include it; re-running `init` on an existing regular `.env` only adds a missing key and preserves existing settings and secrets. Startup and migration reject missing/invalid keys; startup and up-to-date migration validate stored enrollments against the key. There is no plaintext or ephemeral-key fallback.
 
-Schema 17 is a major offline transformation with backup/recovery and explicit approval. It encrypts all nonempty active, pending and deactivated TOTP seeds in place, preserving enrollment flags, replay state and lockout. It does not discard sessions. Schema 15 still discards old bearer credentials. Pre-v3 unattended upgrades approve `15,17`; schema 15/16 upgrades approve `17`. Keep the original encryption key for all restarts and database restores.
+Schema 17 is a major offline transformation with backup/recovery and explicit approval. It encrypts all nonempty active, pending and deactivated TOTP seeds in place, preserving enrollment flags, replay state and lockout. It does not discard sessions. Schema 15 still discards access and refresh tokens, OAuth/SSO sessions and pending login grants. Pre-v3 unattended upgrades approve `15,17`; schema 15/16 upgrades approve `17`. Keep the original encryption key for all restarts and database restores.
 
 ## Refresh client binding
 

@@ -37,10 +37,12 @@ The full Go suite runs in CI. Locally, focus on the changed packages plus any in
 ## Headless Onboarding & Admin Token (CI / Testing)
 
 ```bash
+# Fresh database; make sure no server is running before deleting it
 rm -f autentico.db
-./autentico start --auto-setup &
-sleep 2
+./autentico init
 ./autentico onboard --username admin --password secret --email admin@test.com --enable-admin-password-grant
+./autentico start &
+sleep 2
 
 TOKEN=$(curl -s http://localhost:9999/oauth2/token -X POST \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -50,7 +52,7 @@ TOKEN=$(curl -s http://localhost:9999/oauth2/token -X POST \
 curl -s http://localhost:9999/admin/api/clients -H "Authorization: Bearer $TOKEN"
 ```
 
-`--enable-admin-password-grant` adds the `password` grant to `autentico-admin` only when the client is created. If it already exists without that grant, delete the DB and onboard again.
+Run `onboard` before the first `start`: both seed `autentico-admin`, and seeding skips an existing client, so `--enable-admin-password-grant` only takes effect if `onboard` creates it. If the client already exists without the `password` grant, stop the server, delete the DB and onboard again.
 
 ## Feature Development Workflow
 
@@ -130,7 +132,8 @@ These rules apply across the codebase. `rfc/security-invariants.md` has the deta
 
 - **Revalidate at every step.** Browser flows carry signed parameters (`pkg/authzsig`), but each step must still call `client.ValidateAuthorization` for the current client, redirect, scope, grant and PKCE policy. Fail closed when the client is missing, inactive or changed.
 - **Single browser-login exit.** New primary login methods must finish through `mfa.FinishLogin`; don't issue sessions or codes directly.
-- **Atomic consumption.** Single-use credentials (codes, refresh tokens, reset tokens, MFA challenges, magic links, federation state) are claimed with a conditional update inside one writer transaction together with the resulting writes. Recheck expiry after acquiring the writer, explicitly roll back after a failed COMMIT, and only emit cookies, audit events or responses after commit.
+- **Atomic consumption.** Single-use credentials (codes, refresh tokens, reset tokens, MFA challenges, magic links) are claimed with a conditional update inside one writer transaction together with the resulting writes. Recheck expiry after acquiring the writer, explicitly roll back after a failed COMMIT, and only emit cookies, audit events or responses after commit.
+- **Federation state** is the exception: it is consumed and committed on its own before upstream discovery and token exchange, so the SQLite writer is never held across network I/O and replays are rejected immediately.
 - **Client authentication.** Use `client.AuthenticateClientFromRequest`; don't parse Basic or form credentials by hand.
 - **Client IP.** Use `utils.GetClientIP`, which honors `AUTENTICO_TRUSTED_PROXIES`. Never trust `X-Forwarded-For` or `X-Real-IP` directly.
 - **Callback URLs.** Build redirect query strings with `url.Values` (`Set`/`Encode`) on the parsed registered URL; never concatenate strings.
@@ -169,7 +172,7 @@ sudo ln -sf ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome /opt/google/
 The OpenID Foundation conformance suite runs locally via Docker; results and notes are in `openid.md` and `audits/`.
 
 1. Start the suite: `cd /tmp/conformance-suite && docker compose -f docker-compose-local.yml up -d`. UI at https://localhost:8444 (callbacks use 8443).
-2. Start Autentico in conformance mode and keep it running: `make conformance-server`. This overrides `APP_URL=http://172.17.0.1:9999` and disables secure cookies and rate limiting.
+2. Start Autentico in conformance mode and keep it running: `make conformance-server`. This overrides `AUTENTICO_APP_URL=http://172.17.0.1:9999` and disables secure cookies and rate limiting.
 3. Stop the suite: `cd /tmp/conformance-suite && docker compose -f docker-compose-local.yml down`.
 
 Notes:
