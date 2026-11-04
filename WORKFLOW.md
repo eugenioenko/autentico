@@ -72,7 +72,7 @@ For each layer you add tests to:
   - `configuration/bootstrap.mdx` for new env vars
   - `configuration/runtime-settings.mdx` for new runtime settings
   - Feature-specific pages (authentication, protocol, security, etc.)
-- [ ] **CLAUDE.md** — update if the feature adds new packages, config values, CLI commands, or changes architecture
+- [ ] **AGENTS.md** — update only for durable changes: new CLI commands, conventions, config layers or architecture. Record security-sensitive behavior in `rfc/security-invariants.md` (or `rfc/<feature>.md`) instead
 - [ ] **Swagger** — run `make generate-docs` if handler annotations changed
 
 ## 8. PR
