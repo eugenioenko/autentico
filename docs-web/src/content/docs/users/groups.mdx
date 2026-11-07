@@ -45,8 +45,9 @@ These are top-level keys, not nested objects. An individual claim named
 `app1.role` overrides that inherited value. An administrator can also assign
 that individual claim without adding the user to `app1`.
 
-Group-local names may include `role`, `email`, or `sub`: they are always prefixed
-and cannot replace Autentico's built-in claims. Names follow the existing bare
+Group-local names may include `role`, `email`, or `sub`: by default they are
+prefixed and cannot replace Autentico's built-in claims. With Merge Group Claims
+enabled they are not prefixed, so reserved names are omitted instead. Names follow the existing bare
 custom-claim pattern and are limited to 128 characters; values are strings of up
 to 4096 characters, including empty strings.
 

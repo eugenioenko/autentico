@@ -30,12 +30,13 @@ import FieldGroup from "../components/FieldGroup";
 import PasswordInput from "../components/PasswordInput";
 import { DataTable, dataColumns } from "../components/DataTable";
 import { makeTip } from "../lib/tips";
+import { isSettingOn } from "../lib/settings";
 import "./SettingsPage.css";
 
 type SettingValue = string | number | boolean | null | undefined;
 type SettingsValues = Record<string, SettingValue>;
 
-const isOn = (value: SettingValue) => value === true || value === "true";
+const isOn = (value: SettingValue) => isSettingOn(value);
 const asText = (value: SettingValue) => (value == null ? "" : String(value));
 
 interface PreviewRow {

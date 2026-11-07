@@ -6,6 +6,7 @@ import {
   useDeleteGroupClaim,
 } from "../../hooks/useGroupClaims";
 import { useSettings } from "../../hooks/useSettings";
+import { isSettingOn } from "../../lib/settings";
 import type { Group } from "../../types/group";
 
 interface GroupClaimsDrawerProps {
@@ -17,7 +18,7 @@ interface GroupClaimsDrawerProps {
 export default function GroupClaimsDrawer({ group, onClose }: GroupClaimsDrawerProps) {
   const { data, isLoading, isError } = useGroupClaims(group?.id ?? null);
   const { data: settings } = useSettings();
-  const merged = settings?.merge_group_claims === "true";
+  const merged = isSettingOn(settings?.merge_group_claims);
   const upsert = useUpsertGroupClaim();
   const remove = useDeleteGroupClaim();
   return (
