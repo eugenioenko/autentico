@@ -157,6 +157,8 @@ type Config struct {
 	SignupShowOptionalFields bool
 	// Copy given_name and family_name from the IdP only when federation creates a user.
 	FederationCopyNameClaims bool
+	// Emit inherited group claims under local names as merged arrays instead of group.claim strings.
+	MergeGroupClaims bool
 	// Link shown on the signed-out page when no client home URL is known.
 	// Empty values fall back to /account/ and "Go to your profile".
 	LogoutSuccessURL   string
@@ -230,6 +232,7 @@ var defaultConfig = Config{
 	AllowEmailChange:                   false,
 	SignupShowOptionalFields:           false,
 	FederationCopyNameClaims:           false,
+	MergeGroupClaims:                   false,
 	ProfileFieldEmail:                  "optional",
 	ProfileFieldGivenName:              "optional",
 	ProfileFieldFamilyName:             "optional",

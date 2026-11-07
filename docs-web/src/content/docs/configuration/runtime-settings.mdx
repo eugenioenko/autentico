@@ -53,6 +53,15 @@ Lifetime of one-time authorization codes issued during the auth code flow. Shoul
 
 ---
 
+## Custom claims
+
+### `merge_group_claims`
+Default: `false`
+
+When enabled, claims inherited from groups are emitted under their local names instead of `group.claim`, and values from all of a user's groups are combined into a JSON array. The value is always an array, even when only one group contributes it. Individual claims keep their names; one whose name matches an inherited claim replaces the inherited values. Reserved names such as `role` are never emitted. See [Custom Claims](/users/custom-claims/#merged-group-claims).
+
+---
+
 ## Authentication
 
 ### `auth_mode`

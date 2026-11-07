@@ -22,7 +22,7 @@ interface ClaimsDrawerProps {
 
 /**
  * Edits an owner's direct claim assignments, preserving drafts on failed saves.
- * An optional group prefix changes the emitted-name preview; saves use local names.
+ * A group prefix changes the emitted-name preview; an empty prefix marks group claims emitted unprefixed. Saves use local names.
  */
 export default function ClaimsDrawer({
   open,
@@ -123,7 +123,7 @@ export default function ClaimsDrawer({
               className="claims-drawer-name"
               aria-label="Claim name"
               placeholder="name"
-              maxLength={prefix ? 128 : 229}
+              maxLength={prefix !== undefined ? 128 : 229}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={onEnter}

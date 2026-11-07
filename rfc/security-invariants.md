@@ -155,6 +155,11 @@ prefix. Group local names remain 128 characters and values 4096 Unicode
 characters. Group renames change emitted prefixes; old JWTs remain snapshots.
 The shared Admin UI ClaimsDrawer supports both user and group wrappers. Group
 claim audit events target groups and include only the local claim name.
+The opt-in `merge_group_claims` setting drops the group prefix and emits
+inherited claims as sorted, unique string arrays; reserved names are then the
+only protection against a group-local `role`, so `EffectiveClaimsByUserID`
+filters them on every row. Individual claims with a matching name replace the
+inherited array with a one-element array.
 Contract: `rfc/group-custom-claims.md`.
 
 The isolated UI regression suite runs with a freshly built binary:

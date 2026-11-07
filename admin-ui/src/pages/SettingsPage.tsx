@@ -81,6 +81,7 @@ const tip = makeTip({
   smtp_password: "Password for SMTP authentication. Leave empty to keep current.",
   smtp_from: "Email address to use as the sender for system emails.",
   signup_show_optional_fields: "When off (default), optional fields are hidden during signup to keep the form minimal. Required fields are always shown.",
+  merge_group_claims: "When enabled, inherited group claims are emitted under their local names instead of group.claim, and values from all of a user's groups are combined into a JSON array (always an array, even with one value). Individual claims are unchanged. Reserved names such as role are never emitted.",
   federation_copy_name_claims: "When enabled, copy given_name and family_name from the identity provider's ID token when federation creates a new user. Existing users are not updated. This setting also applies when those fields are hidden from profile forms.",
   profile_field_given_name: "Controls the given_name (first name) field.",
   profile_field_family_name: "Controls the family_name (last name) field.",
@@ -711,6 +712,12 @@ export default function SettingsPage() {
                   <DurationSetting name="access_token_expiration" label="Access Token" />
                   <DurationSetting name="refresh_token_expiration" label="Refresh Token" />
                   <DurationSetting name="authorization_code_expiration" label="Auth Code" />
+                </Section>
+
+                <Divider />
+
+                <Section title="Custom Claims">
+                  <CheckSetting name="merge_group_claims" label="Merge Group Claims" />
                 </Section>
               </Stack>
             </Tabs.Panel>

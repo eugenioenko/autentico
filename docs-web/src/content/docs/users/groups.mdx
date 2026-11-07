@@ -57,6 +57,11 @@ refreshed tokens and current UserInfo responses; already issued JWTs retain thei
 original values until expiry. Applications continue to enforce access rules.
 </Aside>
 
+With **Merge Group Claims** enabled, inherited claims drop the group prefix and
+values from all of a user's groups are combined into an array, such as
+`"app1.type": ["admin", "user"]`. See
+[Merged group claims](/users/custom-claims/#merged-group-claims).
+
 The `custom_claims` scope controls inherited custom claims independently of the
 `groups` scope. See [Custom Claims](/users/custom-claims/) for individual overrides.
 
