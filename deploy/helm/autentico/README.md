@@ -128,6 +128,33 @@ persistence:
     helm.sh/resource-policy: keep
 ```
 
+## OIDC issuer under a subpath
+
+`application.oauthPath` is optional. When it is empty, Autentico uses its
+built-in default `/oauth2`. When set, the OIDC issuer is
+`application.appUrl + application.oauthPath`, so the issuer can live under a
+path prefix without a reverse-proxy rewrite:
+
+```yaml
+application:
+  appUrl: https://auth.example.com
+  oauthPath: /monitoring/auth
+```
+
+This produces:
+
+- issuer: `https://auth.example.com/monitoring/auth`
+- discovery: `https://auth.example.com/monitoring/auth/.well-known/openid-configuration`
+- authorize: `https://auth.example.com/monitoring/auth/authorize`
+
+The admin and account UIs remain at `/admin` and `/account`. Keep `appUrl` as an
+origin without a path; a path in `appUrl` breaks WebAuthn origins for passkeys.
+Use an Ingress/Gateway path such as `/monitoring/auth` without rewriting it,
+because the application registers the OAuth routes at that path itself.
+
+Running the entire application (including `/admin` and `/account`) under one
+prefix is not supported without proxy rewriting and custom UI base paths.
+
 ## Probes
 
 The chart uses `GET /healthz` for startup, readiness and liveness probes. The
@@ -170,7 +197,8 @@ stop the deployment first.
 | `image.registry` | `ghcr.io` | Image registry |
 | `image.repository` | `eugenioenko/autentico` | Image repository |
 | `image.tag` | `latest` | Pin a release tag in production |
-| `application.appUrl` | `""` | Public OIDC issuer URL; set this in Kubernetes |
+| `application.appUrl` | `""` | Public base URL (origin); set this in Kubernetes |
+| `application.oauthPath` | `""` | Optional OAuth2/OIDC path prefix; empty uses `/oauth2`; issuer = `appUrl + oauthPath` |
 | `application.launchWithAutoSetup` | `true` | Generate `.env` on first start |
 | `application.extraArgs` | `[]` | Extra arguments after `start` |
 | `persistence.enabled` | `true` | Mount persistent storage |

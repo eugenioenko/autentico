@@ -29,9 +29,15 @@ application:
   # Runs `autentico start --auto-setup`. The generated .env is written to the
   # data volume. Set to false when supplying all bootstrap settings via env.
   launchWithAutoSetup: true
-  # Public URL used as the OIDC issuer. Example: https://auth.example.com.
+  # Public base URL. Keep it as an origin (scheme + host + optional port) for
+  # WebAuthn/passkey correctness. Example: https://auth.example.com.
   # Leave empty only if clients really use http://localhost:9999.
   appUrl: ""
+  # Optional path prefix for OAuth2/OIDC endpoints. When set, the issuer is
+  # appUrl + oauthPath. Leave empty to use Autentico's default (/oauth2).
+  # Example: appUrl=https://auth.example.com and oauthPath=/monitoring/auth
+  # produce the issuer https://auth.example.com/monitoring/auth.
+  oauthPath: ""
   # Extra arguments appended after `start` (and `--auto-setup` when enabled).
   extraArgs: []
 

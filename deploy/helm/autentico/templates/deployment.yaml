@@ -80,6 +80,10 @@ spec:
             - name: AUTENTICO_APP_URL
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.application.oauthPath }}
+            - name: AUTENTICO_APP_OAUTH_PATH
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
