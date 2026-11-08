@@ -10,6 +10,10 @@ default `./autentico.db`). The container working directory is `/app/data`, so
 the chart mounts a persistent volume there and sets the database path to
 `/app/data/autentico.db`.
 
+When `application.launchWithAutoSetup` is enabled, the chart also passes
+`--env-file <persistence.mountPath>/.env`, so the generated `.env` is written to
+the same volume as the database even if `persistence.mountPath` is overridden.
+
 SQLite is a single-writer database. The chart therefore:
 
 - runs exactly one replica;

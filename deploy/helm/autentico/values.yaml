@@ -61,8 +61,9 @@ persistence:
   accessMode: ReadWriteOnce
   size: 5Gi
   # Directory where the volume is mounted. The chart sets
-  # AUTENTICO_DB_FILE_PATH to <mountPath>/autentico.db. With --auto-setup,
-  # the generated .env is written here too, so it must be writable.
+  # AUTENTICO_DB_FILE_PATH to <mountPath>/autentico.db and, with --auto-setup,
+  # passes --env-file <mountPath>/.env so the generated .env is persisted on
+  # the same volume. The directory must be writable.
   mountPath: /app/data
   # For production, consider keeping the database on `helm uninstall`:
   # annotations:

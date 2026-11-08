@@ -49,6 +49,8 @@ spec:
             - start
             {{- if .Values.application.launchWithAutoSetup }}
             - --auto-setup
+            - --env-file
+            - {{ printf "%s/.env" .Values.persistence.mountPath | quote }}
             {{- end }}
             {{- with .Values.application.extraArgs }}
             {{- toYaml . | nindent 12 }}
