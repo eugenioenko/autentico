@@ -240,3 +240,35 @@ jobs:
           path: |
             ${{ runner.temp }}/forward-auth-logs/*.log
             tests/browser/test-results/
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.1
+      - name: Lint chart
+        run: helm lint --strict deploy/helm/autentico
+      - name: Render chart variants
+        run: |
+          helm template autentico deploy/helm/autentico > /tmp/chart-default.yaml
+          helm template autentico deploy/helm/autentico --set persistence.createPV=true > /tmp/chart-pv.yaml
+          helm template autentico deploy/helm/autentico --set persistence.existingClaim=autentico-data > /tmp/chart-existing-pvc.yaml
+          helm template autentico deploy/helm/autentico --set persistence.enabled=false > /tmp/chart-no-persistence.yaml
+          helm template autentico deploy/helm/autentico --set ingress.enabled=true > /tmp/chart-ingress.yaml
+      - name: Validate manifests
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          /tmp/kubeconform -strict -summary /tmp/chart-*.yaml
+      - name: Package chart
+        run: |
+          mkdir -p dist/helm
+          helm package deploy/helm/autentico --destination dist/helm
+      - name: Upload chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autentico-helm-chart
+          path: dist/helm/*.tgz
+          retention-days: 7

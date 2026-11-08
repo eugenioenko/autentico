@@ -80,6 +80,19 @@ jobs:
           CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="$LDFLAGS" -o autentico-darwin-arm64  main.go
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o autentico-windows-amd64.exe main.go
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.1
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p dist/helm
+          helm package deploy/helm/autentico \
+            --destination dist/helm \
+            --version "${GITHUB_REF_NAME#v}" \
+            --app-version "${GITHUB_REF_NAME}"
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -91,6 +104,7 @@ jobs:
             autentico-darwin-amd64
             autentico-darwin-arm64
             autentico-windows-amd64.exe
+            dist/helm/*.tgz
 
   docker:
     name: Publish Docker image
@@ -135,3 +149,41 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  helm:
+    name: Publish Helm chart
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.1
+
+      - name: Lint chart
+        run: helm lint --strict deploy/helm/autentico
+
+      - name: Package chart
+        run: |
+          mkdir -p dist/helm
+          helm package deploy/helm/autentico \
+            --destination dist/helm \
+            --version "${GITHUB_REF_NAME#v}" \
+            --app-version "${GITHUB_REF_NAME}"
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
+
+      - name: Push chart to GHCR
+        run: |
+          owner="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          helm push dist/helm/*.tgz "oci://ghcr.io/${owner}/charts"

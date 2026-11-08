@@ -1,0 +1,17 @@
+apiVersion: v2
+name: autentico
+description: A Helm chart for Autentico, a self-contained OAuth 2.0 / OpenID Connect identity provider.
+type: application
+
+home: https://getautentico.dev
+sources:
+  - https://github.com/eugenioenko/autentico
+
+keywords:
+  - oauth2
+  - oidc
+  - openid-connect
+  - identity-provider
+  - sso
+
+version: 0.1.0

@@ -1,0 +1,32 @@
+{{- if .Values.tests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "autentico.fullname" . }}-test-connection"
+  labels:
+    {{- include "autentico.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  containers:
+    - name: wget
+      image: "{{ .Values.tests.image }}"
+      imagePullPolicy: {{ .Values.tests.imagePullPolicy }}
+      command:
+        - wget
+      args:
+        - -qO-
+        - "http://{{ include "autentico.fullname" . }}:{{ .Values.service.port }}/healthz"
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+{{- end }}

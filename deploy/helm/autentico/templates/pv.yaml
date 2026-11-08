@@ -1,0 +1,31 @@
+{{- if and .Values.persistence.enabled .Values.persistence.createPV (not .Values.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "autentico.pvName" . }}
+  labels:
+    {{- include "autentico.labels" . | nindent 4 }}
+  {{- with .Values.persistence.pv.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size | quote }}
+  accessModes:
+    - {{ .Values.persistence.accessMode | quote }}
+  persistentVolumeReclaimPolicy: {{ .Values.persistence.pv.reclaimPolicy | quote }}
+  storageClassName: {{ .Values.persistence.storageClass | default .Values.persistence.pv.storageClassName | quote }}
+  hostPath:
+    path: {{ .Values.persistence.pv.hostPath | quote }}
+    type: DirectoryOrCreate
+  {{- with .Values.persistence.pv.nodeAffinity }}
+  nodeAffinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: {{ .Release.Namespace }}
+    name: {{ include "autentico.fullname" . }}
+{{- end }}

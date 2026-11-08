@@ -7,8 +7,8 @@
 *.test
 *.out
 
-# Build
-autentico
+# Build (root binary only; the Helm chart lives in deploy/helm/autentico)
+/autentico
 
 # Databases
 /db/
@@ -56,3 +56,9 @@ autentico.db-shm
 autentico.db-wal
 data/
 scripts/.smtp-mail/
+
+# Helm packages and local value overrides
+/*.tgz
+/deploy/helm/**/*.tgz
+/deploy/helm/**/values.local.yaml
+/deploy/helm/**/values.*.local.yaml

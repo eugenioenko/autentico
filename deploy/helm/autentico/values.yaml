@@ -1,0 +1,265 @@
+# Default values for autentico.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  registry: ghcr.io
+  repository: eugenioenko/autentico
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Pin a release tag (for example "3.3.0") in production. "latest" follows the
+  # newest stable image but makes upgrades less predictable.
+  tag: "latest"
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# Autentico stores all state in a single SQLite database. SQLite allows only one
+# writer, so keep a single replica and release the ReadWriteOnce volume before
+# starting a replacement pod during upgrades.
+strategy:
+  type: Recreate
+
+# This is for setting args to run app
+application:
+  # Runs `autentico start --auto-setup`. The generated .env is written to the
+  # data volume. Set to false when supplying all bootstrap settings via env.
+  launchWithAutoSetup: true
+  # Public URL used as the OIDC issuer. Example: https://auth.example.com.
+  # Leave empty only if clients really use http://localhost:9999.
+  appUrl: ""
+  # Extra arguments appended after `start` (and `--auto-setup` when enabled).
+  extraArgs: []
+
+# Additional environment variables for bootstrap settings and credentials.
+# In production, provide the required secrets via envFrom and a Kubernetes
+# Secret instead of relying on --auto-setup.
+env: []
+# - name: AUTENTICO_ACCESS_TOKEN_SECRET
+#   valueFrom:
+#     secretKeyRef:
+#       name: autentico-secrets
+#       key: access-token-secret
+envFrom: []
+# - secretRef:
+#     name: autentico-secrets
+
+# Persistent storage for the SQLite database. Without a volume, all users,
+# clients, sessions and settings are lost when the pod is recreated.
+persistence:
+  enabled: true
+  # Use an existing PVC instead of creating one. When set, the chart creates
+  # neither a PVC nor a static PV.
+  existingClaim: ""
+  # StorageClass for the PVC/PV. Empty uses the cluster's default StorageClass.
+  # When createPV is true, empty falls back to pv.storageClassName.
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  # Directory where the volume is mounted. The chart sets
+  # AUTENTICO_DB_FILE_PATH to <mountPath>/autentico.db. With --auto-setup,
+  # the generated .env is written here too, so it must be writable.
+  mountPath: /app/data
+  # For production, consider keeping the database on `helm uninstall`:
+  # annotations:
+  #   helm.sh/resource-policy: keep
+  annotations: {}
+  # A PV is normally provisioned dynamically from the PVC. Enable createPV only
+  # on clusters without a dynamic provisioner (kind, minikube, bare metal).
+  # This creates one static hostPath PV bound to the chart's PVC.
+  createPV: false
+  pv:
+    # Defaults to "<namespace>-<release fullname>-pv".
+    name: ""
+    storageClassName: manual
+    reclaimPolicy: Retain
+    annotations: {}
+    hostPath: /var/lib/autentico
+    # Pin the PV to the node that holds the hostPath data, for example:
+    # nodeAffinity:
+    #   required:
+    #     nodeSelectorTerms:
+    #       - matchExpressions:
+    #           - key: kubernetes.io/hostname
+    #             operator: In
+    #             values:
+    #               - node-1
+    nodeAffinity: {}
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  # Autentico does not call the Kubernetes API, so this is disabled by default.
+  automount: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  # If you run the container as a non-root user, make the data volume writable
+  # for that user's group:
+  # fsGroup: 65532
+  # fsGroupChangePolicy: OnRootMismatch
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  # The published image currently runs as root. To harden it further, set a
+  # user (and matching podSecurityContext.fsGroup) that owns the data volume:
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 65532
+  # runAsGroup: 65532
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  port: 9999
+  annotations: {}
+
+# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# -- Expose the service via gateway-api HTTPRoute
+# Requires Gateway API resources and suitable controller installed within the cluster
+# (see: https://gateway-api.sigs.k8s.io/guides/)
+httpRoute:
+  # HTTPRoute enabled.
+  enabled: false
+  # HTTPRoute annotations.
+  annotations: {}
+  # Which Gateways this Route is attached to.
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    # namespace: default
+  # Hostnames matching HTTP header.
+  hostnames:
+  - chart-example.local
+  # List of rules and filters applied.
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+  #   filters:
+  #   - type: RequestHeaderModifier
+  #     requestHeaderModifier:
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
+
+resources: {}
+  # There are no defaults on purpose. A reasonable starting point for a small
+  # deployment (about 125 MB RSS idle in load tests):
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+  # limits:
+  #   memory: 512Mi
+  #
+  # Avoid a CPU limit: token and password handling is CPU-bound and throttling
+  # makes login latency much worse.
+
+# This is to setup the liveness, readiness and startup probes. Autentico
+# exposes a lightweight /healthz endpoint for this purpose.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+# Startup probes cover slow database migrations on large databases. Liveness
+# and readiness do not run until this probe succeeds.
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 60
+
+# Time allowed for graceful shutdown after SIGTERM.
+terminationGracePeriodSeconds: 30
+
+# Number of old ReplicaSets kept for rollback.
+revisionHistoryLimit: 3
+
+# Helm test pod. Run with: helm test <release>
+tests:
+  enabled: true
+  image: busybox:1.36.1
+  imagePullPolicy: IfNotPresent
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

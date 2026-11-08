@@ -100,6 +100,35 @@ account-ui-build-fast:
 	rm -rf pkg/account/dist
 	cp -r account-ui/dist pkg/account/dist
 
+HELM ?= helm
+HELM_CHART_DIR ?= deploy/helm/autentico
+HELM_CHART_DIST ?= dist/helm
+# Derive the registry owner from the origin remote so forks publish to their
+# own GHCR namespace. Override HELM_CHART_REPO to publish somewhere else.
+GITHUB_OWNER ?= $(shell git remote get-url origin 2>/dev/null | sed -nE 's|.*github\.com[:/]([^/]+)/.*|\1|p' | tr '[:upper:]' '[:lower:]')
+HELM_CHART_REPO ?= oci://ghcr.io/$(or $(GITHUB_OWNER),eugenioenko)/charts
+HELM_PACKAGE_FLAGS ?=
+
+.PHONY: helm-lint helm-template helm-package helm-push
+
+# Validate the Helm chart
+helm-lint:
+	$(HELM) lint --strict $(HELM_CHART_DIR)
+
+# Render the Helm chart with default values
+helm-template:
+	$(HELM) template autentico $(HELM_CHART_DIR)
+
+# Build the distributable chart archive in dist/helm (git-ignored)
+helm-package: helm-lint
+	rm -rf $(HELM_CHART_DIST)
+	mkdir -p $(HELM_CHART_DIST)
+	$(HELM) package $(HELM_CHART_DIR) --destination $(HELM_CHART_DIST) $(HELM_PACKAGE_FLAGS)
+
+# Package and publish to an OCI registry (login first: helm registry login ghcr.io)
+helm-push: helm-package
+	$(HELM) push $(HELM_CHART_DIST)/*.tgz $(HELM_CHART_REPO)
+
 docker-build:
 	docker build -t autentico:tag .
 
