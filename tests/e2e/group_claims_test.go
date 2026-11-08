@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/groupclaim"
 	"github.com/eugenioenko/autentico/pkg/model"
@@ -188,4 +189,59 @@ func TestGroupClaimsStorageFailureDoesNotIssuePartialCredentials(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &refreshed))
 	require.Equal(t, "editor", decodeJWTPayload(t, refreshed.AccessToken)["app1.role"])
 	require.Equal(t, "editor", decodeJWTPayload(t, refreshed.IDToken)["app1.role"])
+}
+
+func TestMergedGroupClaimsEndToEnd(t *testing.T) {
+	ts := startTestServer(t)
+	t.Cleanup(func() { config.Values.MergeGroupClaims = false })
+	_, adminToken := createTestAdmin(t, ts, "mergeadmin", "password123", "mergeadmin@test.com")
+	alice := createTestUser(t, "mergealice", "password123", "mergealice@test.com")
+	admins := adminCreateGroup(t, ts, adminToken, "app1_admin", "")
+	users := adminCreateGroup(t, ts, adminToken, "app1_user", "")
+	for _, g := range []struct{ id, value string }{{admins.ID, "admin"}, {users.ID, "user"}} {
+		require.NoError(t, groupclaim.UpsertClaim(g.id, "app1.type", g.value))
+		require.NoError(t, groupclaim.UpsertClaim(g.id, "role", "forged"))
+	}
+	adminAddMember(t, ts, adminToken, users.ID, alice.ID)
+	putSetting := func(value string) {
+		t.Helper()
+		req, err := http.NewRequest("PUT", ts.BaseURL+"/admin/api/settings", strings.NewReader(`{"merge_group_claims":"`+value+`"}`))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := ts.Client.Do(req)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+		require.Less(t, resp.StatusCode, 300)
+	}
+	assertClaims := func(want map[string]interface{}, absent ...string) {
+		t.Helper()
+		tr := passwordToken(t, ts, "mergealice", "password123", "openid custom_claims")
+		req, err := http.NewRequest("GET", ts.BaseURL+"/oauth2/userinfo", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tr.AccessToken)
+		resp, err := ts.Client.Do(req)
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		var ui map[string]interface{}
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&ui))
+		for _, claims := range []map[string]interface{}{decodeJWTPayload(t, tr.AccessToken), decodeJWTPayload(t, tr.IDToken), ui} {
+			require.Equal(t, alice.ID, claims["sub"])
+			require.NotEqual(t, "forged", claims["role"])
+			for name, value := range want {
+				require.Equal(t, value, claims[name], name)
+			}
+			for _, name := range absent {
+				require.NotContains(t, claims, name)
+			}
+		}
+	}
+
+	assertClaims(map[string]interface{}{"app1_user.app1.type": "user"}, "app1.type")
+	putSetting("true")
+	assertClaims(map[string]interface{}{"app1.type": []interface{}{"user"}}, "app1_user.app1.type")
+	adminAddMember(t, ts, adminToken, admins.ID, alice.ID)
+	assertClaims(map[string]interface{}{"app1.type": []interface{}{"admin", "user"}}, "app1_admin.app1.type")
+	putSetting("false")
+	assertClaims(map[string]interface{}{"app1_admin.app1.type": "admin", "app1_user.app1.type": "user"}, "app1.type")
 }

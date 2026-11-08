@@ -1048,6 +1048,6 @@ This optional local admission policy adds no OIDC discovery capability or grant.
 
 | Requirement | Implementation |
 |---|---|
-| OIDC Core §5.1.2: additional private claims MAY accompany standard claims | Group-local string claims emit as literal `group.claim` keys; individual full-name matches override them; reserved top-level claims stay protected. |
+| OIDC Core §5.1.2: additional private claims MAY accompany standard claims | Group-local string claims emit as literal `group.claim` keys; individual full-name matches override them; reserved top-level claims stay protected. With `merge_group_claims`, inherited claims emit under local names as sorted string arrays (#593). |
 | OIDC Core §5.3.2 / §5.4: additional UserInfo claims and scope-controlled release | One effective resolver serves access tokens, ID tokens, and live UserInfo only under the existing `custom_claims` scope. Discovery and `groups` scope remain unchanged. |
 | Local feature contract | `rfc/group-custom-claims.md`; routine migration 23, admin CRUD/UI, value-free auditing, current-data resolution, JWT snapshot semantics. |

@@ -84,3 +84,30 @@ Successful claim upserts and deletions MUST emit `group_claim_upserted` and
 `group_claim_deleted`, targeting the group. Details MUST identify `claim_name`
 and MUST NOT contain claim values. Rejected or failed mutations MUST NOT emit
 success events. Existing audit retention and best-effort storage apply.
+
+## 7. Merged group claims (#593)
+
+The runtime setting `merge_group_claims` (default `false`) changes how inherited
+claims are emitted. When it is disabled, §2 applies unchanged.
+
+When it is enabled:
+
+- Inherited claims MUST be emitted under their local claim name, without the
+  group prefix. Group `app1_user` with `app1.type=user` emits `app1.type`.
+- Each inherited key MUST carry a JSON array of strings, even when a single
+  group contributes it. Values MUST be unique and sorted by byte order. Empty
+  strings are valid values.
+- Individual claims MUST NOT be renamed or merged. An individual claim whose
+  name equals an inherited key MUST replace the inherited values and is emitted
+  as a one-element array, so members of that key always receive an array. Other
+  individual claims, including group-prefixed names such as
+  `office.allowed_network`, are emitted as plain strings and no longer override
+  an inherited claim.
+- Reserved top-level names MUST be excluded from inherited claims. A group-local
+  `role` is allowed on write but is never emitted while merging is enabled.
+- Access tokens, ID tokens, and UserInfo MUST use the same merged map under the
+  `custom_claims` scope. Changing the setting affects new and refreshed tokens
+  and live UserInfo; existing JWTs remain snapshots.
+
+Merging discards which group contributed each value. Keep the default for
+claims whose meaning depends on the group.

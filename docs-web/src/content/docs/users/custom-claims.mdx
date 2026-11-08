@@ -15,9 +15,12 @@ For a worked example, see [OpenCloud](/integrate/opencloud/): it uses a `openclo
 
 When the `custom_claims` scope is requested and granted, the effective custom claims assigned directly or inherited through groups are included in:
 
-- **Access tokens** -- as string values
-- **ID tokens** -- as string values
-- **UserInfo responses** -- as string fields
+- **Access tokens**
+- **ID tokens**
+- **UserInfo responses**
+
+Values are strings. With [merged group claims](#merged-group-claims) enabled,
+inherited claims are arrays of strings.
 
 Example token claims:
 
@@ -36,7 +39,7 @@ Add `custom_claims` to the client's allowed scopes and include it in the authori
 
 ### Group inheritance and individual overrides
 
-Claims defined on groups are inherited as literal `group.claim` keys. A group
+By default, claims defined on groups are inherited as literal `group.claim` keys. A group
 `app1` with local claim `role=user` contributes `"app1.role": "user"`.
 An individual `app1.role=editor` overrides it; deleting that individual claim
 reveals the inherited value again. Individual namespaced claims can be assigned
@@ -46,11 +49,37 @@ and API.
 The user claims editor and list endpoint show direct individual assignments.
 The token and UserInfo flows compute the effective combination. Current
 UserInfo and newly issued/refreshed tokens reflect changes; existing JWTs retain
-their original claims. Renaming a group changes its emitted namespace.
+their original claims. By default, renaming a group changes its emitted
+namespace; with merging enabled, group names are not emitted.
+
+### Merged group claims
+
+Enable **Settings → Sessions & Tokens → Custom Claims → Merge Group Claims**
+(`merge_group_claims`) to emit inherited claims under their local names and
+combine values across groups. This suits roles that already carry their
+application in the claim name. With groups `app1_admin` (`app1.type=admin`) and
+`app1_user` (`app1.type=user`):
+
+| Membership | Disabled (default) | Enabled |
+|---|---|---|
+| `app1_user` | `"app1_user.app1.type": "user"` | `"app1.type": ["user"]` |
+| both groups | `"app1_admin.app1.type": "admin"`, `"app1_user.app1.type": "user"` | `"app1.type": ["admin", "user"]` |
+
+- Inherited values are always arrays, even with one value, so adding or
+  removing groups does not change their type. Values are unique and sorted.
+- An individual claim named `app1.type` replaces the inherited values and is
+  emitted as `["owner"]`. Without an inherited `app1.type`, the same individual
+  claim is a plain string, so avoid individual claims that share a name with
+  merged group claims. Other individual claims stay plain strings;
+  group-prefixed names such as `app1_user.app1.type` no longer override anything.
+- Reserved names are never emitted, so a group-local `role` is dropped while
+  merging is enabled.
+- Merging loses which group contributed each value. Keep the default when that
+  matters.
 
 ### Values are strings
 
-Every custom claim value is emitted as a JSON string -- `"tier": "gold"`, never `"tier": 3` or `"active": true`. Typed values (numbers, booleans, arrays) are not supported in this version.
+Every custom claim value is stored and emitted as a JSON string -- `"tier": "gold"`, never `"tier": 3` or `"active": true`. Typed values (numbers, booleans) are not supported. The only exception is [merged group claims](#merged-group-claims), which emit arrays of strings.
 
 ### Reserved names
 

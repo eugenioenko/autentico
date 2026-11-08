@@ -5,6 +5,8 @@ import {
   useUpsertGroupClaim,
   useDeleteGroupClaim,
 } from "../../hooks/useGroupClaims";
+import { useSettings } from "../../hooks/useSettings";
+import { isSettingOn } from "../../lib/settings";
 import type { Group } from "../../types/group";
 
 interface GroupClaimsDrawerProps {
@@ -15,6 +17,8 @@ interface GroupClaimsDrawerProps {
 /** Connects the shared editor to one group's local claims and emitted-name prefix. */
 export default function GroupClaimsDrawer({ group, onClose }: GroupClaimsDrawerProps) {
   const { data, isLoading, isError } = useGroupClaims(group?.id ?? null);
+  const { data: settings } = useSettings();
+  const merged = isSettingOn(settings?.merge_group_claims);
   const upsert = useUpsertGroupClaim();
   const remove = useDeleteGroupClaim();
   return (
@@ -22,16 +26,25 @@ export default function GroupClaimsDrawer({ group, onClose }: GroupClaimsDrawerP
       key={group?.id}
       open={!!group}
       title={`Custom claims for group ${group?.name ?? ""}`}
-      prefix={group?.name}
+      prefix={merged ? "" : group?.name}
       description={
         <>
           Members inherit these claims with the{" "}
           <Text as="code" textStyle="code">
             custom_claims
           </Text>{" "}
-          scope.
-          Individual claims with the same full name override group values.
-          Renaming this group changes its emitted claim names.
+          scope.{" "}
+          {merged ? (
+            <>
+              Merge Group Claims is enabled: claims are emitted under their local names, and values from all of a
+              member's groups are combined into an array. Individual claims with the same name override group values.
+            </>
+          ) : (
+            <>
+              Individual claims with the same full name override group values. Renaming this group changes its emitted
+              claim names.
+            </>
+          )}
         </>
       }
       claims={data ?? []}

@@ -45,8 +45,9 @@ These are top-level keys, not nested objects. An individual claim named
 `app1.role` overrides that inherited value. An administrator can also assign
 that individual claim without adding the user to `app1`.
 
-Group-local names may include `role`, `email`, or `sub`: they are always prefixed
-and cannot replace Autentico's built-in claims. Names follow the existing bare
+Group-local names may include `role`, `email`, or `sub`: by default they are
+prefixed and cannot replace Autentico's built-in claims. With Merge Group Claims
+enabled they are not prefixed, so reserved names are omitted instead. Names follow the existing bare
 custom-claim pattern and are limited to 128 characters; values are strings of up
 to 4096 characters, including empty strings.
 
@@ -56,6 +57,11 @@ not renamed automatically. Group claim and membership changes appear in new or
 refreshed tokens and current UserInfo responses; already issued JWTs retain their
 original values until expiry. Applications continue to enforce access rules.
 </Aside>
+
+With **Merge Group Claims** enabled, inherited claims drop the group prefix and
+values from all of a user's groups are combined into an array, such as
+`"app1.type": ["admin", "user"]`. See
+[Merged group claims](/users/custom-claims/#merged-group-claims).
 
 The `custom_claims` scope controls inherited custom claims independently of the
 `groups` scope. See [Custom Claims](/users/custom-claims/) for individual overrides.
