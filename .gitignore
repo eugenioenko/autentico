@@ -9,6 +9,7 @@
 
 # Build (root binary only; the Helm chart lives in deploy/helm/autentico)
 /autentico
+/tests/functional/autentico
 
 # Databases
 /db/

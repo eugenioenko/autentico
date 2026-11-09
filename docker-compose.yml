@@ -1,22 +1,15 @@
 services:
   autentico:
     build: .
+    command: ["start", "--auto-setup"]
     restart: unless-stopped
     ports:
-      - "9999:9999"
+      - "127.0.0.1:9999:9999"
     volumes:
       - autentico-data:/app/data
     environment:
       AUTENTICO_APP_URL: http://localhost:9999
       AUTENTICO_DB_FILE_PATH: /app/data/autentico.db
-      # Secrets — override these or use a .env file
-      AUTENTICO_ACCESS_TOKEN_SECRET: change-me-in-production
-      AUTENTICO_REFRESH_TOKEN_SECRET: change-me-in-production
-      AUTENTICO_CSRF_SECRET_KEY: change-me-in-production
-      # Stable RSA private key (base64-encoded PEM).
-      # Generate with: autentico init
-      # If unset, an ephemeral key is used and tokens are lost on restart.
-      # AUTENTICO_PRIVATE_KEY: <base64-encoded PEM>
 
 volumes:
   autentico-data:
