@@ -94,6 +94,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 - [Client Interaction Examples](#client-interaction-examples)
 - [Security Considerations](#security-considerations)
 - [Deployment & Operations](#deployment--operations)
+  - [Kubernetes (Helm)](#kubernetes-helm)
 - [Testing](#testing)
 - [Use as a Test Fixture](#use-as-a-test-fixture)
 - [API Documentation](#api-documentation)
@@ -879,6 +880,60 @@ docker compose up -d
 ```
 
 The provided `docker-compose.yml` maps ports 9999 and 443.
+
+### Kubernetes (Helm)
+
+A Helm chart is included in [`deploy/helm/autentico`](deploy/helm/autentico). Release builds package it as a `.tgz` archive, attach it to the GitHub release, and publish it to GitHub Container Registry as an OCI artifact.
+
+Install the published chart:
+
+```bash
+helm install autentico oci://ghcr.io/eugenioenko/charts/autentico \
+  --version <chart-version> \
+  --namespace autentico \
+  --create-namespace \
+  --set application.appUrl=https://auth.example.com
+```
+
+Or install directly from the repository:
+
+```bash
+helm install autentico ./deploy/helm/autentico \
+  --namespace autentico \
+  --create-namespace \
+  --set application.appUrl=https://auth.example.com
+```
+
+The chart creates a `PersistentVolumeClaim` for the SQLite database and keeps a single replica, because SQLite is a single-writer database. Set `persistence.createPV=true` only in clusters without a dynamic storage provisioner. For production, disable `application.launchWithAutoSetup` and provide the bootstrap secrets through `envFrom`:
+
+```bash
+kubectl create secret generic autentico-secrets -n autentico \
+  --from-literal=AUTENTICO_ACCESS_TOKEN_SECRET='...' \
+  --from-literal=AUTENTICO_REFRESH_TOKEN_SECRET='...' \
+  --from-literal=AUTENTICO_CSRF_SECRET_KEY='...' \
+  --from-literal=AUTENTICO_PRIVATE_KEY='...' \
+  --from-literal=AUTENTICO_TOTP_ENCRYPTION_KEY='...'
+
+helm upgrade --install autentico ./deploy/helm/autentico \
+  --namespace autentico \
+  --set application.appUrl=https://auth.example.com \
+  --set application.launchWithAutoSetup=false \
+  --set envFrom[0].secretRef.name=autentico-secrets
+```
+
+See the [chart README](deploy/helm/autentico/README.md) for persistence options, backups, migrations, and all supported values. After installation, run `helm test autentico -n autentico` to check the `/healthz` endpoint.
+
+To build the chart archive locally:
+
+```bash
+make helm-lint
+make helm-package
+# -> dist/helm/autentico-<version>.tgz
+```
+
+`make helm-push` publishes the archive to `HELM_CHART_REPO`. By default the owner is derived from the `origin` remote, so a fork publishes to `oci://ghcr.io/<fork-owner>/charts`; override the variable to publish elsewhere. Run `helm registry login ghcr.io` first.
+
+Release workflows use the repository that runs them, not the upstream repository. Pushing a tag such as `v0.1.0-test.1` to a fork publishes the chart to that fork's GHCR namespace (`oci://ghcr.io/<fork-owner>/charts/autentico`) and the Docker image to `ghcr.io/<fork-owner>/autentico`, without touching the upstream registry. Make the GHCR package public or run `helm registry login ghcr.io` to install it.
 
 ### Reverse Proxy (nginx example)
 
