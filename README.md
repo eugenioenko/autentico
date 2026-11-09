@@ -862,7 +862,7 @@ The included `Dockerfile` produces a slim Debian image that runs `autentico star
 
 ```bash
 docker build -t autentico .
-docker run -p 9999:9999 \
+docker run -p 127.0.0.1:9999:9999 \
   -e AUTENTICO_APP_URL=https://auth.example.com \
   -e AUTENTICO_LISTEN_PORT=9999 \
   -e AUTENTICO_PRIVATE_KEY="..." \
@@ -880,7 +880,7 @@ docker run -p 9999:9999 \
 docker compose up -d
 ```
 
-The provided `docker-compose.yml` builds the image, maps port 9999 and runs `start --auto-setup`, which generates a `.env` with fresh secrets on the data volume on first start and reuses it afterwards. Open `http://localhost:9999/onboard` to create the admin account.
+The provided `docker-compose.yml` builds the image, maps port 9999 on `127.0.0.1` only and runs `start --auto-setup`, which generates a `.env` with fresh secrets on the data volume on first start and reuses it afterwards. Open `http://localhost:9999/onboard` to create the admin account.
 
 ### Kubernetes (Helm)
 
