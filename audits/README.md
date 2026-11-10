@@ -64,5 +64,6 @@ Then:
 | 2026-10-20 | claude-opus-5-5 | security-review | 21 findings (4 HIGH, 8 MEDIUM, 9 LOW), issues #462-#482 |
 | 2026-10-21 | claude-opus-5-5 | compliance-review | 14 OIDC/OAuth spec findings (1 HIGH, 4 MEDIUM, 9 LOW), issues #511-#523 + #471 |
 | 2026-10-22 | claude-opus-5-5 | pentest | Black-box pre-release test of the binary: 15 findings (1 MEDIUM, 14 LOW), issues #539-#553; all prior fixes held; upgrades, races and crash recovery clean |
+| 2026-11-10 | gpt-6-astra + govulncheck v1.1.4 | security-review | Incremental review: unsupported Go build line (MEDIUM), reproduced CSRF scheme-check weakness (LOW); targeted regressions passed; scanner alerts separately qualified |
 
 Keep this index updated when adding a file.

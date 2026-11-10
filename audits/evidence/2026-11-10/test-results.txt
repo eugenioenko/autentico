@@ -1,0 +1,26 @@
+Commit: e7280161320273a19509d6a47c8e03f88b40df71
+Toolchain: go1.25.1 linux/amd64
+Setup: isolated git archive; CI-style placeholder embedded admin/account index.html files.
+The archived CSRF probe was copied into pkg/middleware/audit_origin_test.go.
+
+$ go test -p 1 ./pkg/forwardauth ./pkg/federation ./pkg/groupclaim ./pkg/userclaim ./pkg/config ./pkg/middleware ./tests/security ./pkg/revoke ./pkg/token ./pkg/session ./pkg/account ./pkg/trusteddevice
+ok  	github.com/eugenioenko/autentico/pkg/forwardauth	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/federation	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/groupclaim	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/userclaim	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/config	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/middleware	0.859s
+ok  	github.com/eugenioenko/autentico/tests/security	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/revoke	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/token	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/session	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/account	(cached)
+ok  	github.com/eugenioenko/autentico/pkg/trusteddevice	(cached)
+Exit status: 0
+
+$ go test -race -p 1 ./pkg/forwardauth ./pkg/federation ./pkg/userclaim ./pkg/groupclaim
+ok  	github.com/eugenioenko/autentico/pkg/forwardauth	27.271s
+ok  	github.com/eugenioenko/autentico/pkg/federation	63.740s
+ok  	github.com/eugenioenko/autentico/pkg/userclaim	27.506s
+ok  	github.com/eugenioenko/autentico/pkg/groupclaim	12.084s
+Exit status: 0
