@@ -97,7 +97,9 @@
       setRevealed(input.type === 'password');
     });
     // Also mask when restoring a page from the browser's back/forward cache.
-    window.addEventListener('pageshow', function () { setRevealed(false); });
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) setRevealed(false);
+    });
     wrapper.append(toggle);
   });
 })();

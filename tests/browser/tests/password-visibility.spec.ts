@@ -60,6 +60,13 @@ test('signup fields toggle independently and reload masked', async ({ page }) =>
   await expect(page.locator('#confirm_password')).toHaveAttribute('type', 'password');
   await expectToggle(page.locator('#confirm_password'), 'NewPassword123!');
   await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+  // A delayed initial pageshow must not undo an explicit reveal while resources load.
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false })));
+  await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+  // A history-cache restore must re-mask a previously revealed secret.
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+  await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+  await page.locator('#password').locator('..').getByRole('button').click();
   await page.reload();
   await expect(page.locator('#password')).toHaveAttribute('type', 'password');
   await expect(page.locator('#confirm_password')).toHaveAttribute('type', 'password');
