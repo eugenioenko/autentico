@@ -31,9 +31,14 @@ async function expectToggle(input: Locator, value: string) {
   await expect(input).toHaveValue(value);
 }
 
-for (const colorScheme of ['light', 'dark'] as const) {
-  test(`login toggle preserves credentials without submitting (${colorScheme})`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme });
+for (const theme of ['system-light', 'system-dark', 'saved-light', 'saved-dark'] as const) {
+  test(`login toggle preserves credentials without submitting (${theme})`, async ({ page }) => {
+    const colorScheme = theme.endsWith('dark') ? 'dark' : 'light';
+    // Saved preferences must work even when they disagree with the OS theme.
+    await page.emulateMedia({ colorScheme: theme.startsWith('saved') ? (colorScheme === 'dark' ? 'light' : 'dark') : colorScheme });
+    if (theme.startsWith('saved')) {
+      await page.addInitScript(mode => localStorage.setItem('autentico-theme', mode), colorScheme);
+    }
     const violations: string[] = [];
     page.on('console', msg => { if (msg.text().includes('Content Security Policy')) violations.push(msg.text()); });
     let submissions = 0;
@@ -42,9 +47,30 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
     await page.goto(`${BASE_URL}/account/`);
     await page.fill('#username', ADMIN_USERNAME);
+    const toggle = page.getByRole('button', { name: 'Show password' });
+    // Both CSS icon states use the input's readable foreground, including saved dark mode.
+    const icon = () => toggle.evaluate(el => {
+      const style = getComputedStyle(el, '::before');
+      return { mask: style.maskImage, color: style.backgroundColor, width: style.width, height: style.height };
+    });
+    const maskedIcon = await icon();
+    expect(maskedIcon.mask).toContain('data:image/svg+xml');
+    expect(maskedIcon.width).toBe('20px');
+    expect(maskedIcon.height).toBe('20px');
+    expect(maskedIcon.color).toBe(colorScheme === 'dark' ? 'rgb(255, 255, 255)' : 'rgb(34, 34, 34)');
+    expect(maskedIcon.color).toBe(await page.locator('#password').evaluate(el => getComputedStyle(el).color));
+    await expect(toggle.locator('svg')).toHaveCount(0);
     await expectToggle(page.locator('#password'), ADMIN_PASSWORD);
     expect(submissions).toBe(0);
-    await page.getByRole('button', { name: 'Show password' }).click();
+    await toggle.click();
+    const revealedToggle = page.getByRole('button', { name: 'Hide password' });
+    await expect(revealedToggle).toHaveClass(/is-revealed/);
+    const revealedIcon = await revealedToggle.evaluate(el => {
+      const style = getComputedStyle(el, '::before');
+      return { mask: style.maskImage, color: style.backgroundColor };
+    });
+    expect(revealedIcon.mask).not.toBe(maskedIcon.mask);
+    expect(revealedIcon.color).toBe(maskedIcon.color);
     await page.locator('button[type="submit"]').click();
     await expect(page.getByTestId('account-dashboard')).toBeVisible();
     expect(submissions).toBe(1);
