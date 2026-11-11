@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from './PasswordInput';
 import { QRCodeSVG } from 'qrcode.react';
 import { IconCopy, IconCheck } from '@tabler/icons-react';
 import api from '../api';
@@ -72,9 +73,9 @@ const TotpSetupModal: React.FC<TotpSetupModalProps> = ({ onClose, onSuccess }) =
                 Enter your password to set up two-factor authentication.
               </p>
               <div>
-                <label>Password</label>
-                <input
-                  type="password"
+                <label htmlFor="totp-setup-password">Password</label>
+                <PasswordInput
+                  id="totp-setup-password" name="password" autoComplete="current-password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

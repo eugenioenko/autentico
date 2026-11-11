@@ -493,3 +493,36 @@ footer a:hover {
 .consent-scope-item + .consent-scope-item {
   border-top: 1px solid color-mix(in oklab, var(--color-fg) 8%, transparent);
 }
+
+/* Password visibility controls inherit the active light/dark theme. */
+.auth-password {
+  position: relative;
+}
+
+.auth-password .auth-input {
+  padding-right: 3rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.auth-password-toggle:hover {
+  color: var(--color-fg);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-highlight);
+  outline-offset: 2px;
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from './PasswordInput';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 import Modal from './Modal';
@@ -69,7 +70,7 @@ const AccountDeletionModal: React.FC<AccountDeletionModalProps> = ({ onClose, im
         {immediateDeletion && (
           <div>
             <label htmlFor="deletion-current-password">Current Password</label>
-            <input id="deletion-current-password" type="password" autoComplete="current-password"
+            <PasswordInput id="deletion-current-password" name="current_password" autoComplete="current-password"
               value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
           </div>
         )}

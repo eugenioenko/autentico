@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from './PasswordInput';
 import api from '../api';
 import Card from './Card';
 import Button from './Button';
@@ -67,8 +68,8 @@ const TotpCard: React.FC<TotpCardProps> = ({ totpEnabled, preferredLabel, onChan
         {showDisable && (
           <form onSubmit={handleDisable} className="mt-4 space-y-3 border-t border-theme-fg/10 pt-4">
             <p className="text-sm text-theme-muted">Enter your password to confirm disabling 2FA.</p>
-            <input
-              type="password"
+            <PasswordInput
+              aria-label="Current password" name="password" autoComplete="current-password"
               placeholder="Current password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

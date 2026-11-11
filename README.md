@@ -131,6 +131,7 @@ It is not designed for organizations that require horizontal scaling of the auth
 
 ### Authentication
 
+- **Password visibility** — accessible show/hide controls on sign-in, signup, reset, onboarding and account password forms; masked by default
 - **Three auth modes** — `password`, `password_and_passkey`, or `passkey_only` — switchable at runtime without restart
 - **Passkeys (WebAuthn)** — hardware-backed FIDO2 authentication via platform authenticators and security keys; passkey-only mode supports signup without passwords
 - **Passkey signup policy** — self-signup and client overrides apply at ceremony start and completion. Required email verification precedes sessions and authorization codes; registration is rate-limited and bound to the initiating browser.

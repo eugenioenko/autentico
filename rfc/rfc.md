@@ -1062,3 +1062,11 @@ This optional local admission policy adds no OIDC discovery capability or grant.
 | Local policy | n/a | Restricted clients admit listed users or members of any listed group | `client.CheckUserAccess`; empty lists with restriction on admit nobody; applies to built-in admin/account clients too. |
 
 No discovery capability, scope or grant changes. Routine schema 24. Contract: `rfc/client-access.md`.
+
+## Password entry usability
+
+| Spec | Level | Requirement | Status |
+|---|---|---|---|
+| NIST SP 800-63B §5.1.1.2 | SHOULD | Offer an option to display the entered secret | Implemented on server password pages and account password forms; masked by default, per-field toggles, no persisted visibility |
+
+This UI behavior introduces no protocol endpoints or discovery metadata.
