@@ -2,6 +2,7 @@ package consent
 
 import (
 	"crypto/hmac"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -65,6 +66,9 @@ func handleConsentGet(w http.ResponseWriter, r *http.Request) {
 	if !validateContinuation(w, params, session, registeredClient) {
 		return
 	}
+	if !checkAccess(w, r, params, registeredClient, userID) {
+		return
+	}
 	renderConsentPage(w, r, params, registeredClient.ClientName, userID)
 }
 
@@ -99,6 +103,9 @@ func handleConsentPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !validateContinuation(w, params, session, registeredClient) {
+		return
+	}
+	if !checkAccess(w, r, params, registeredClient, userID) {
 		return
 	}
 
@@ -263,6 +270,32 @@ func validateSession(w http.ResponseWriter, r *http.Request) (*idpsession.IdpSes
 		return nil, ""
 	}
 	return session, session.UserID
+}
+
+// checkAccess refuses users outside a restricted client's allowed users and groups.
+func checkAccess(w http.ResponseWriter, r *http.Request, params ConsentParams, registered *client.Client, userID string) bool {
+	err := client.CheckUserAccess(registered, userID)
+	if err == nil {
+		return true
+	}
+	if !errors.Is(err, client.ErrAccessDenied) {
+		slog.Error("consent: failed to check client access", "request_id", reqid.Get(r.Context()), "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Something went wrong")
+		return false
+	}
+	username := ""
+	if usr, userErr := user.UserByID(userID); userErr == nil {
+		username = usr.Username
+	}
+	client.LogAccessDenied(userID, username, registered.ClientID, "consent", utils.GetClientIP(r))
+	// RFC 6749 §4.1.2.1: access_denied: the authorization server denied the request.
+	target, err := client.AccessDeniedRedirect(params.RedirectURI, params.State)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_request", "Invalid redirect_uri")
+		return false
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+	return false
 }
 
 // validateMfa prevents direct consent from bypassing the local authentication policy.

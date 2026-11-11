@@ -47,6 +47,14 @@ func parentIdentity(a *App, parentID string) (*authenticatedParent, error) {
 	if !idpsession.IsFresh(parent, &cfg, time.Now()) || !idpsession.SatisfiesMfa(parent.MfaMethod, usr, &cfg) || cfg.RequireEmailVerification && !usr.IsEmailVerified && usr.Role != "admin" {
 		return nil, errDenied
 	}
+	// RFC 6749 §4.1.2.1: the backing client's access restriction applies on
+	// every check, so removing a user or group revokes access immediately.
+	if err := client.CheckUserAccess(c, usr.ID); err != nil {
+		if errors.Is(err, client.ErrAccessDenied) {
+			return nil, errForbidden
+		}
+		return nil, err
+	}
 	return &authenticatedParent{User: usr, Session: parent, IdleTimeout: cfg.AuthSsoSessionIdleTimeout}, nil
 }
 

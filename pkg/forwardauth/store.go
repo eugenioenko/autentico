@@ -155,3 +155,6 @@ func DeleteApp(id string) error {
 var errImmutableOrigin = errors.New("origin is immutable; register a new app")
 
 var errDenied = errors.New("session is not active")
+
+// errForbidden reports an authenticated user the application does not admit.
+var errForbidden = errors.New("user is not allowed to access this application")

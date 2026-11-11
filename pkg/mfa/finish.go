@@ -2,6 +2,7 @@ package mfa
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -100,6 +101,16 @@ func finishLogin(w http.ResponseWriter, r *http.Request, userID string, state Lo
 				return startLoginChallenge(usr.ID, state, method)
 			}
 		}
+	}
+
+	// RFC 6749 §4.1.2.1: a restricted client refuses users outside its allowed
+	// users and groups after authentication completes, before any session or code.
+	if err := client.CheckUserAccess(registered, usr.ID); err != nil {
+		if !errors.Is(err, client.ErrAccessDenied) {
+			return "", err
+		}
+		client.LogAccessDenied(usr.ID, usr.Username, registered.ClientID, string(primary), utils.GetClientIP(r))
+		return client.AccessDeniedRedirect(state.RedirectURI, state.State)
 	}
 
 	// OIDC Core §3.1.2.3: only a completed authentication establishes SSO.

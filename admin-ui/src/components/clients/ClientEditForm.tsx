@@ -7,12 +7,14 @@ import { FormField, InfoTip } from "../FormField";
 import { tip } from "./clientTips";
 import AccountAppFields from "./AccountAppFields";
 import ClientOverrideFields from "./ClientOverrideFields";
+import ClientAccessFields, { BuiltinAccessNotice } from "./ClientAccessFields";
 import UriListField from "./UriListField";
 import {
   GRANT_TYPE_OPTIONS,
   RESPONSE_TYPE_OPTIONS,
   SCOPE_OPTIONS,
   authMethodOptions,
+  isBuiltinClient,
   toClientRequest,
   toUriItems,
   type ClientFormValues,
@@ -56,6 +58,9 @@ function toFormValues(client: ClientInfoResponse): ClientFormValues {
     client_uri: client.client_uri,
     logo_uri: client.logo_uri,
     description: client.description,
+    restrict_access: client.restrict_access ?? false,
+    allowed_groups: client.allowed_groups ?? [],
+    allowed_users: client.allowed_users ?? [],
   };
 }
 
@@ -64,6 +69,7 @@ export default function ClientEditForm({ open, client, onClose }: ClientEditForm
   const { control, handleSubmit, reset } = useForm<ClientFormValues>({ defaultValues: EMPTY });
   const isActive = useWatch({ control, name: "is_active" });
   const updateClient = useUpdateClient();
+  const builtin = isBuiltinClient(client?.client_id);
   const hasLegacyResponseTypes = client?.response_types?.some((value) => value !== "code") ?? false;
 
   useEffect(() => {
@@ -73,7 +79,7 @@ export default function ClientEditForm({ open, client, onClose }: ClientEditForm
   const onSubmit = async (values: ClientFormValues) => {
     if (!client?.client_id) return;
     try {
-      await updateClient.mutateAsync({ clientId: client.client_id, data: toClientRequest(values) });
+      await updateClient.mutateAsync({ clientId: client.client_id, data: toClientRequest(values, builtin) });
       toast({ title: "Client updated successfully", color: "success" });
       onClose();
     } catch {
@@ -215,7 +221,17 @@ export default function ClientEditForm({ open, client, onClose }: ClientEditForm
 
           <Divider />
 
-          <Accordion type="multiple">
+          <Accordion
+            key={client?.client_id}
+            type="multiple"
+            defaultValue={client?.restrict_access && !builtin ? ["access"] : []}
+          >
+            <Accordion.Item value="access">
+              <Accordion.Trigger>Access</Accordion.Trigger>
+              <Accordion.Content>
+                {builtin ? <BuiltinAccessNotice /> : <ClientAccessFields control={control} />}
+              </Accordion.Content>
+            </Accordion.Item>
             <Accordion.Item value="overrides">
               <Accordion.Trigger>Configuration Overrides</Accordion.Trigger>
               <Accordion.Content>

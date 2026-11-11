@@ -33,7 +33,7 @@ var clientColumns = `id, client_id, client_secret, client_name, client_type, red
 	access_token_expiration, refresh_token_expiration, authorization_code_expiration,
 	allowed_audiences, allow_self_signup, sso_session_idle_timeout,
 	trust_device_enabled, trust_device_expiration, consent_required,
-	description, logo_uri, client_uri, show_in_account`
+	description, logo_uri, client_uri, show_in_account, restrict_access`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -50,7 +50,7 @@ func scanClient(rows rowScanner) (*Client, error) {
 		&c.AccessTokenExpiration, &c.RefreshTokenExpiration, &c.AuthorizationCodeExpiration,
 		&audiences, &c.AllowSelfSignup, &c.SsoSessionIdleTimeout,
 		&c.TrustDeviceEnabled, &c.TrustDeviceExpiration, &c.ConsentRequired,
-		&c.Description, &c.LogoURI, &c.ClientURI, &c.ShowInAccount,
+		&c.Description, &c.LogoURI, &c.ClientURI, &c.ShowInAccount, &c.RestrictAccess,
 	); err != nil {
 		return nil, err
 	}

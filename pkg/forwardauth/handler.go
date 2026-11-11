@@ -149,6 +149,11 @@ func HandleCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	usr, _, err := checkSession(a, cookie(r, a.cookieName()))
 	if err != nil {
+		// A refused user must not be sent back into a login loop.
+		if errors.Is(err, errForbidden) {
+			deny(w, 403)
+			return
+		}
 		if !errors.Is(err, errDenied) {
 			deny(w, 503)
 			return
@@ -371,8 +376,13 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		deny(w, 400)
 		return
 	}
-	if r.URL.Query().Get("error") != "" {
+	if errCode := r.URL.Query().Get("error"); errCode != "" {
 		setCookie(w, a, flowName(a, state), "", -1)
+		// RFC 6749 §4.1.2.1: access_denied is final for this user, not a login prompt.
+		if errCode == "access_denied" {
+			deny(w, 403)
+			return
+		}
 		deny(w, 401)
 		return
 	}
@@ -396,6 +406,10 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	current, err := parentIdentity(a, code.IdpSessionID)
+	if errors.Is(err, errForbidden) {
+		deny(w, 403)
+		return
+	}
 	if err != nil && !errors.Is(err, errDenied) {
 		deny(w, 503)
 		return

@@ -1,0 +1,67 @@
+---
+title: Access Restriction
+description: Limit which users and groups can sign in to a client application.
+---
+
+Some applications filter users themselves, for example by reading the `groups`
+claim. Others trust the identity provider completely: anyone who can sign in
+gets full access. For those, restrict the client so Autentico only admits
+specific users and groups.
+
+## How it works
+
+Each client has three access settings:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `restrict_access` | boolean | Off (default): every user can sign in. On: only listed users and members of listed groups can sign in. |
+| `allowed_groups` | array of group IDs | Members of **any** of these groups can sign in. |
+| `allowed_users` | array of user IDs | These users can sign in, whatever their groups. |
+
+With restriction on and both lists empty, nobody can sign in. Deleting the last
+allowed group or user therefore locks the client instead of opening it to
+everyone.
+
+The built-in `autentico-admin` and `autentico-account` clients cannot be
+restricted, so a mistake can never lock administrators or users out of
+Autentico itself.
+
+## Admin UI
+
+Open a client and use the **Access** section: turn on **Restrict Access**, then
+choose **Allowed Groups** and **Allowed Users**.
+
+## Admin API
+
+```bash
+curl -X PUT http://localhost:9999/admin/api/clients/my-dashboard \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"restrict_access": true, "allowed_groups": ["<group id>"], "allowed_users": ["<user id>"]}'
+```
+
+The same fields are accepted on client creation and returned by client reads
+and listings. On update, omitted fields are unchanged, a provided list replaces
+the stored list, and `[]` clears it. Unknown group or user IDs reject the whole
+request with `400 invalid_client_metadata`.
+
+## What a refused user sees
+
+Access is checked after the user authenticates (including MFA) and again
+whenever a token is issued:
+
+| Flow | Result |
+|---|---|
+| Browser login, SSO, `prompt=none`, consent | Redirect to the application with `error=access_denied` and the original `state`. No session or code is created. |
+| Password, refresh token, authorization code and device code grants | `400 invalid_grant` |
+| Device approval in the account UI | `403 access_denied`; another user can still approve the code |
+| [ForwardAuth](/integrate/forward-auth/) | `403` on the next request, without a login redirect |
+| `client_credentials` | Not affected (no user) |
+
+Membership changes apply immediately: removing a user from an allowed group
+stops new tokens and refreshes for that client. Access tokens already issued
+stay valid until they expire.
+
+The account dashboard only lists applications the user can sign in to.
+
+Each refusal is recorded as a `client_access_denied` audit event with the user
+and the flow, never the group names.

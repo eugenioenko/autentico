@@ -95,6 +95,7 @@ const (
 	EventClientCreated          Event = "client_created"
 	EventClientUpdated          Event = "client_updated"
 	EventClientDeleted          Event = "client_deleted"
+	EventClientAccessDenied     Event = "client_access_denied"
 	EventSettingsUpdated        Event = "settings_updated"
 	EventSettingsImported       Event = "settings_imported"
 	EventProtectedAppCreated    Event = "protected_app_created"

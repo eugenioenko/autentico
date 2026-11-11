@@ -1,6 +1,9 @@
 import { Badge, Drawer, Heading, Inline, Stack, Text } from "@yarcl/react";
 import type { ClientInfoResponse } from "../../types/client";
+import { useGroups } from "../../hooks/useGroups";
+import { useUsersByIds } from "../../hooks/useUsers";
 import DescriptionList from "../DescriptionList";
+import { isBuiltinClient } from "./clientForm";
 
 interface ClientDetailProps {
   open: boolean;
@@ -27,6 +30,51 @@ function UriList({ uris }: { uris: string[] }) {
         <span key={uri}>{uri}</span>
       ))}
     </Stack>
+  );
+}
+
+function AccessDetails({ client }: { client: ClientInfoResponse }) {
+  const groupIds = client.allowed_groups ?? [];
+  const userIds = client.allowed_users ?? [];
+  const { data: groups } = useGroups({ limit: 100, sort: "name", order: "asc" });
+  const { data: users } = useUsersByIds(userIds);
+  const groupNames = groupIds.map((id) => groups?.items.find((g) => g.id === id)?.name ?? id);
+  const usernames = userIds.map((id) => users?.find((u) => u.id === id)?.username ?? id);
+  const restricted = !!client.restrict_access;
+
+  if (isBuiltinClient(client.client_id)) {
+    return (
+      <DescriptionList.Item label="Restrict Access">
+        <Text muted>Not available for built-in clients</Text>
+      </DescriptionList.Item>
+    );
+  }
+
+  return (
+    <>
+      <DescriptionList.Item label="Restrict Access">
+        <Stack gap="xs">
+          <Inline gap="xs">
+            <Badge variant="soft" color={restricted ? "warning" : "neutral"}>
+              {restricted ? "On" : "Off"}
+            </Badge>
+          </Inline>
+          {restricted && groupIds.length === 0 && userIds.length === 0 && (
+            <Text color="danger">Nobody can sign in to this client</Text>
+          )}
+        </Stack>
+      </DescriptionList.Item>
+      {(restricted || groupIds.length > 0) && (
+        <DescriptionList.Item label="Allowed Groups">
+          {groupNames.length > 0 ? <Chips items={groupNames} /> : <Text muted>None</Text>}
+        </DescriptionList.Item>
+      )}
+      {(restricted || userIds.length > 0) && (
+        <DescriptionList.Item label="Allowed Users">
+          {usernames.length > 0 ? <Chips items={usernames} /> : <Text muted>None</Text>}
+        </DescriptionList.Item>
+      )}
+    </>
   );
 }
 
@@ -80,6 +128,15 @@ export default function ClientDetail({ open, client, onClose }: ClientDetailProp
           </DescriptionList.Item>
           <DescriptionList.Item label="Auth Method">{client.token_endpoint_auth_method}</DescriptionList.Item>
         </DescriptionList>
+
+        <Stack gap="sm">
+          <Heading level={3} textStyle="subheading">
+            Access
+          </Heading>
+          <DescriptionList>
+            <AccessDetails client={client} />
+          </DescriptionList>
+        </Stack>
 
         {hasOverrides && (
           <Stack gap="sm">

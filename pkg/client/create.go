@@ -16,11 +16,23 @@ func CreateClient(req ClientCreateRequest) (*ClientResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate client id: %w", err)
 	}
-	return createClientInternal(db.GetDB(), clientID, req)
+	return CreateClientWithID(clientID, req)
 }
 
 func CreateClientWithID(clientID string, req ClientCreateRequest) (*ClientResponse, error) {
-	return createClientInternal(db.GetDB(), clientID, req)
+	tx, err := db.GetDB().Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	resp, err := createClientInternal(tx, clientID, req)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	return resp, nil
 }
 
 // CreateClientWithIDTx registers a client atomically with its owning integration.
@@ -28,11 +40,17 @@ func CreateClientWithIDTx(tx *sql.Tx, clientID string, req ClientCreateRequest) 
 	return createClientInternal(tx, clientID, req)
 }
 
-type clientExecer interface {
-	Exec(string, ...any) (sql.Result, error)
-}
-
-func createClientInternal(exec clientExecer, clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+func createClientInternal(tx *sql.Tx, clientID string, req ClientCreateRequest) (*ClientResponse, error) {
+	access := accessUpdate{restrict: &req.RestrictAccess}
+	if req.AllowedGroups != nil {
+		access.groups = &req.AllowedGroups
+	}
+	if req.AllowedUsers != nil {
+		access.users = &req.AllowedUsers
+	}
+	if err := validateAccessUpdate(clientID, access); err != nil {
+		return nil, err
+	}
 	// RFC 7591 §2 / §3.2.2: resolve and validate metadata before generating a secret.
 	clientType, authMethod, err := resolveClientAuthentication(req.ClientType, req.TokenEndpointAuthMethod)
 	if err != nil {
@@ -107,7 +125,7 @@ func createClientInternal(exec clientExecer, clientID string, req ClientCreateRe
 			consent_required, description, logo_uri, client_uri, show_in_account
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = exec.Exec(query,
+	_, err = tx.Exec(query,
 		id, clientID, hashedSecret, req.ClientName, clientType, string(redirectURIs),
 		string(postLogoutURIs), string(grantTypes), string(responseTypes), scopes,
 		authMethod, req.AccessTokenExpiration, req.RefreshTokenExpiration,
@@ -117,6 +135,13 @@ func createClientInternal(exec clientExecer, clientID string, req ClientCreateRe
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	if err := writeAccess(tx, clientID, access); err != nil {
+		return nil, err
+	}
+	lists, err := accessListsTx(tx, clientID)
+	if err != nil {
+		return nil, err
 	}
 
 	// RFC 7591 §3.2.1: The server MUST return all registered metadata about this client.
@@ -137,5 +162,8 @@ func createClientInternal(exec clientExecer, clientID string, req ClientCreateRe
 		LogoURI:                 req.LogoURI,
 		ClientURI:               req.ClientURI,
 		ShowInAccount:           req.ShowInAccount,
+		RestrictAccess:          req.RestrictAccess,
+		AllowedGroups:           lists.Groups,
+		AllowedUsers:            lists.Users,
 	}, nil
 }

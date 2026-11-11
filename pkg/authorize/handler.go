@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -167,6 +168,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
 	cfg := config.GetForClient(registeredClient.ToOverrides())
 	autoLoginResult := tryAutoLogin(r, &cfg, request, registeredClient)
+	// RFC 6749 §4.1.2.1: SSO cannot admit a user a restricted client refuses.
+	if autoLoginResult.accessDenied {
+		client.LogAccessDenied(autoLoginResult.userID, autoLoginResult.username, registeredClient.ClientID, "sso", utils.GetClientIP(r))
+		redirectWithError(w, r, request.RedirectURI, request.State, "access_denied", "You do not have access to this application")
+		return
+	}
 	if autoLoginResult.redirectURL != "" {
 		http.Redirect(w, r, autoLoginResult.redirectURL, http.StatusFound)
 		return
@@ -328,7 +335,9 @@ type autoLoginResult struct {
 	redirectURL  string
 	needsConsent bool
 	hasSession   bool
+	accessDenied bool
 	userID       string
+	username     string
 }
 
 // tryAutoLogin checks for a valid IdP session and returns a redirect URL with
@@ -377,6 +386,14 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 	// OIDC Core §3.1.2.1 / §3.1.2.3: expired sessions do not authenticate
 	// the request, even if the client would otherwise also need consent.
 	if err != nil || !idpsession.IsFresh(session, cfg, now) || !idpsession.WithinMaxAge(session, maxAgeSecs, now) {
+		return autoLoginResult{}
+	}
+
+	// RFC 6749 §4.1.2.1: the client's access restriction applies to SSO too.
+	if err := client.CheckUserAccess(registeredClient, usr.ID); err != nil {
+		if errors.Is(err, client.ErrAccessDenied) {
+			return autoLoginResult{accessDenied: true, hasSession: true, userID: usr.ID, username: usr.Username}
+		}
 		return autoLoginResult{}
 	}
 

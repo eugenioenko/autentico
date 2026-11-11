@@ -33,3 +33,9 @@ export const overrideTip = makeTip({
   trust_device_enabled: "Enable or disable trusted devices for users authenticating through this client.",
   trust_device_expiration: "Override the trusted device token lifetime for this client.",
 }, "https://getautentico.dev/configuration/per-client-overrides");
+
+export const accessTip = {
+  restrict_access: "Limit sign-in to this client to the users and groups listed below. Applies to every sign-in path, including SSO, token refresh and device codes.",
+  allowed_groups: "Members of any of these groups can sign in when Restrict Access is on.",
+  allowed_users: "These users can sign in when Restrict Access is on, regardless of group membership.",
+};

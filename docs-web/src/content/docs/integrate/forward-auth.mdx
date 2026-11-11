@@ -40,6 +40,10 @@ Path prefixes match complete segments: `/reports` permits `/reports` and `/repor
 
 `GET /admin/api/protected-apps` lists apps, `PUT /admin/api/protected-apps/{id}` replaces name/paths/TTL and optionally active status, and `DELETE /admin/api/protected-apps/{id}` deletes the app and its sessions. Replacement requests must include `name`, `allowed_return_paths` and the existing, unchanged `origin`; omitting `origin` returns HTTP 400. The replacement also writes `session_ttl`: omitting it (or supplying an empty string) resets it to the default `8h`, so include the existing TTL when changing only the name or paths. An omitted `is_active` on replacement preserves its value. To change origin, register a new application. Shortening TTL also limits existing sessions; increasing it does not extend their stored expiry.
 
+To limit which users can open the application, restrict its backing
+`<name> (ForwardAuth)` client. See [Access Restriction](/clients/access-restriction/).
+Refused users receive `403` without a login redirect.
+
 ## Proxy contract
 
 Set `AUTENTICO_TRUSTED_PROXIES` to the addresses/CIDRs of the **immediate network peers** allowed to call ForwardAuth. The default trusts no proxy. Use the private Autentico listener for checks and app bootstrap routes. Never expose this listener directly to untrusted networks, and never trust a whole shared network merely for convenience.

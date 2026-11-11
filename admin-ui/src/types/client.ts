@@ -1,7 +1,14 @@
 import type { components } from "./api";
 
+export interface ClientAccess {
+  restrict_access?: boolean;
+  allowed_groups?: string[];
+  allowed_users?: string[];
+}
+
 export type ClientCreateRequest =
-  components["schemas"]["client.ClientCreateRequest"] & {
+  components["schemas"]["client.ClientCreateRequest"] &
+  ClientAccess & {
     client_id?: string;
     access_token_expiration?: string;
     refresh_token_expiration?: string;
@@ -19,7 +26,8 @@ export type ClientCreateRequest =
   };
 
 export type ClientUpdateRequest =
-  components["schemas"]["client.ClientUpdateRequest"] & {
+  components["schemas"]["client.ClientUpdateRequest"] &
+  ClientAccess & {
     access_token_expiration?: string;
     refresh_token_expiration?: string;
     authorization_code_expiration?: string;
@@ -38,7 +46,8 @@ export type ClientUpdateRequest =
 export type ClientResponse = components["schemas"]["client.ClientResponse"];
 
 export type ClientInfoResponse =
-  components["schemas"]["client.ClientInfoResponse"] & {
+  components["schemas"]["client.ClientInfoResponse"] &
+  ClientAccess & {
     access_token_expiration?: string;
     refresh_token_expiration?: string;
     authorization_code_expiration?: string;

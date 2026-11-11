@@ -249,6 +249,14 @@ definitions:
         items:
           type: string
         type: array
+      allowed_groups:
+        items:
+          type: string
+        type: array
+      allowed_users:
+        items:
+          type: string
+        type: array
       authorization_code_expiration:
         type: string
       client_id:
@@ -287,6 +295,10 @@ definitions:
         items:
           type: string
         type: array
+      restrict_access:
+        description: 'Access restriction: only listed users and members of listed
+          groups may sign in.'
+        type: boolean
       scopes:
         type: string
       show_in_account:
@@ -310,6 +322,14 @@ definitions:
       allow_self_signup:
         type: boolean
       allowed_audiences:
+        items:
+          type: string
+        type: array
+      allowed_groups:
+        items:
+          type: string
+        type: array
+      allowed_users:
         items:
           type: string
         type: array
@@ -349,6 +369,8 @@ definitions:
         items:
           type: string
         type: array
+      restrict_access:
+        type: boolean
       scopes:
         type: string
       show_in_account:
@@ -364,6 +386,14 @@ definitions:
     type: object
   client.ClientResponse:
     properties:
+      allowed_groups:
+        items:
+          type: string
+        type: array
+      allowed_users:
+        items:
+          type: string
+        type: array
       client_id:
         description: 'RFC 7591 §3.2.1: client_id is REQUIRED.'
         type: string
@@ -405,6 +435,8 @@ definitions:
         items:
           type: string
         type: array
+      restrict_access:
+        type: boolean
       scopes:
         type: string
       show_in_account:
@@ -420,6 +452,14 @@ definitions:
       allow_self_signup:
         type: boolean
       allowed_audiences:
+        items:
+          type: string
+        type: array
+      allowed_groups:
+        items:
+          type: string
+        type: array
+      allowed_users:
         items:
           type: string
         type: array
@@ -455,6 +495,10 @@ definitions:
         items:
           type: string
         type: array
+      restrict_access:
+        description: 'Access restriction: omitted fields are unchanged; an empty list
+          clears it.'
+        type: boolean
       scopes:
         type: string
       show_in_account:
@@ -1407,8 +1451,8 @@ paths:
       - forward-auth
   /account/api/apps:
     get:
-      description: Returns active clients an admin has marked show_in_account, for
-        display on the account dashboard.
+      description: Returns active clients an admin has marked show_in_account and
+        the user may sign in to, for display on the account dashboard.
       produces:
       - application/json
       responses:

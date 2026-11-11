@@ -1051,3 +1051,14 @@ This optional local admission policy adds no OIDC discovery capability or grant.
 | OIDC Core §5.1.2: additional private claims MAY accompany standard claims | Group-local string claims emit as literal `group.claim` keys; individual full-name matches override them; reserved top-level claims stay protected. With `merge_group_claims`, inherited claims emit under local names as sorted string arrays (#593). |
 | OIDC Core §5.3.2 / §5.4: additional UserInfo claims and scope-controlled release | One effective resolver serves access tokens, ID tokens, and live UserInfo only under the existing `custom_claims` scope. Discovery and `groups` scope remain unchanged. |
 | Local feature contract | `rfc/group-custom-claims.md`; routine migration 23, admin CRUD/UI, value-free auditing, current-data resolution, JWT snapshot semantics. |
+
+### Client access restriction (#609)
+
+| Keyword | Section | Requirement | Status |
+|---|---|---|---|
+| MUST | RFC 6749 §4.1.2.1 | Report a server-side refusal of the authorization request with `access_denied` on the redirect | Browser login, SSO (including `prompt=none`) and consent redirect with `access_denied` and the original `state`; no session, consent or code is created. |
+| MUST | RFC 6749 §5.2 | Reject a grant the authorization server will not honor with `invalid_grant` | `authorization_code`, `refresh_token`, `password` and device code grants recheck access before issuance. |
+| MUST | RFC 8628 §3.5 | Keep device polling semantics | A refused approval leaves the request `authorization_pending`; issuance is still rechecked at the token endpoint. |
+| Local policy | n/a | Restricted clients admit listed users or members of any listed group | `client.CheckUserAccess`; empty lists with restriction on admit nobody; built-in admin/account clients are exempt. |
+
+No discovery capability, scope or grant changes. Routine schema 24. Contract: `rfc/client-access.md`.
