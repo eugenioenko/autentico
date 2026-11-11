@@ -33,11 +33,11 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
     <aside
       className={cn(
         'fixed inset-y-0 left-0 z-50 w-60 bg-theme-accent-bg flex flex-col',
-        'transform transition-transform duration-200 ease-in-out md:translate-x-0 md:relative',
+        'transform transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-dvh md:shrink-0',
         open ? 'translate-x-0' : '-translate-x-full'
       )}
     >
-      <div className="flex items-center justify-between px-5 h-16">
+      <div className="flex items-center justify-between px-5 h-16 shrink-0">
         <div className="flex items-center gap-2">
           <img
             src={settings.theme_logo_url || '/account/favicon.svg'}
@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
         </button>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => (
           <SidebarItem
             key={item.to}
@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, username, initials, on
         ))}
       </nav>
 
-      <div className="px-3 py-4 border-t border-theme-accent-fg/30 space-y-1">
+      <div className="shrink-0 px-3 py-4 border-t border-theme-accent-fg/30 space-y-1">
         <div className="flex items-center gap-2.5 px-3 py-2.5">
           <div className="w-8 h-8 rounded-full bg-theme-accent-fg flex items-center justify-center text-theme-accent-bg text-xs font-bold flex-shrink-0">
             {initials}
