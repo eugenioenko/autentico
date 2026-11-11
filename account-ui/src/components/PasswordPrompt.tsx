@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from './PasswordInput';
 import Modal from './Modal';
 import Button from './Button';
 import Alert from './Alert';
@@ -44,9 +45,9 @@ const PasswordPrompt: React.FC<PasswordPromptProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-theme-muted">{message}</p>
         <div>
-          <label>Password</label>
-          <input
-            type="password"
+          <label htmlFor="prompt-password">Password</label>
+          <PasswordInput
+            id="prompt-password" name="password" autoComplete="current-password"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

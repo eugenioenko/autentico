@@ -493,3 +493,52 @@ footer a:hover {
 .consent-scope-item + .consent-scope-item {
   border-top: 1px solid color-mix(in oklab, var(--color-fg) 8%, transparent);
 }
+
+/* Password visibility controls inherit the active light/dark theme. */
+.auth-password {
+  position: relative;
+}
+
+.auth-password .auth-input {
+  padding-right: 3rem;
+}
+
+.auth-password-toggle {
+  --password-eye-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%2012s3.5-7%2010-7%2010%207%2010%207-3.5%207-10%207S2%2012%202%2012Z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E");
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-fg);
+}
+
+/* A CSS mask paints both SVG shapes with the active theme's foreground color. */
+.auth-password-toggle::before {
+  content: "";
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: currentColor;
+  -webkit-mask: var(--password-eye-icon) center / contain no-repeat;
+  mask: var(--password-eye-icon) center / contain no-repeat;
+}
+
+.auth-password-toggle.is-revealed {
+  --password-eye-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m3%203%2018%2018M10.6%2010.6a2%202%200%200%200%202.8%202.8M9.9%205.2A11%2011%200%200%201%2012%205c6.5%200%2010%207%2010%207a17%2017%200%200%201-3%203.9M6.1%206.1A18%2018%200%200%200%202%2012s3.5%207%2010%207a12%2012%200%200%200%205.9-1.9%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.auth-password-toggle:hover {
+  background-color: color-mix(in oklab, var(--color-fg) 10%, transparent);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-highlight);
+  outline-offset: 2px;
+}

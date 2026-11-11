@@ -184,3 +184,7 @@ are server errors, never allows. ForwardAuth refusals return 403 without a login
 redirect to avoid loops. Refusal audit details contain only `user_id` and
 `flow`; ForwardAuth audits at callback, not per check. Contract:
 `rfc/client-access.md`.
+
+## Password visibility
+
+Password display is an explicit, per-field UI choice. Server pages progressively enhance the existing password input using the nonce-authorized static script; without JavaScript it remains masked. Account components keep visibility only in component state. Toggling preserves the original input, value, name and autocomplete metadata, never submits a form and never stores credentials or visibility preferences. New page loads and newly opened account dialogs start masked.

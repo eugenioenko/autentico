@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from './PasswordInput';
 import api from '../api';
 import Modal from './Modal';
 import Button from './Button';
@@ -52,26 +53,26 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ onClose }) =>
     <Modal title="Change Password" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label>Current Password</label>
-          <input
-            type="password"
+          <label htmlFor="current-password">Current Password</label>
+          <PasswordInput
+            id="current-password" name="current-password" autoComplete="current-password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             autoFocus
           />
         </div>
         <div>
-          <label>New Password</label>
-          <input
-            type="password"
+          <label htmlFor="new-password">New Password</label>
+          <PasswordInput
+            id="new-password" name="new-password" autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
         </div>
         <div>
-          <label>Confirm New Password</label>
-          <input
-            type="password"
+          <label htmlFor="confirm-password">Confirm New Password</label>
+          <PasswordInput
+            id="confirm-password" name="confirm-password" autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />

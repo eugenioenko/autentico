@@ -70,3 +70,34 @@
   }
   frame();
 })();
+
+// NIST SP 800-63B §5.1.1.2: offer an opt-in display of the entered secret.
+// Progressive enhancement keeps ordinary masked inputs usable without JavaScript.
+(function () {
+  document.querySelectorAll('input.auth-input[type="password"]').forEach(function (input) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'auth-password';
+    input.before(wrapper);
+    wrapper.append(input);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'auth-password-toggle';
+    toggle.setAttribute('aria-controls', input.id);
+    function setRevealed(revealed) {
+      input.type = revealed ? 'text' : 'password';
+      toggle.setAttribute('aria-label', revealed ? 'Hide password' : 'Show password');
+      toggle.setAttribute('aria-pressed', String(revealed));
+      toggle.classList.toggle('is-revealed', revealed);
+    }
+    setRevealed(false);
+    toggle.addEventListener('click', function () {
+      setRevealed(input.type === 'password');
+    });
+    // Also mask when restoring a page from the browser's back/forward cache.
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) setRevealed(false);
+    });
+    wrapper.append(toggle);
+  });
+})();
