@@ -27,6 +27,9 @@ export interface ClientFormValues {
   client_uri?: string;
   logo_uri?: string;
   description?: string;
+  restrict_access?: boolean;
+  allowed_groups?: string[];
+  allowed_users?: string[];
 }
 
 export const GRANT_TYPE_OPTIONS = [
@@ -69,9 +72,13 @@ export function toUriItems(uris: string[] | undefined): UriItem[] {
   return (uris ?? []).map((value) => ({ value }));
 }
 
-export function toClientRequest({ redirect_uris, post_logout_redirect_uris, scopes, ...rest }: ClientFormValues) {
+export function toClientRequest(values: ClientFormValues) {
+  const { redirect_uris, post_logout_redirect_uris, scopes, restrict_access, allowed_groups, allowed_users, ...rest } = values;
   return {
     ...rest,
+    restrict_access: !!restrict_access,
+    allowed_groups: allowed_groups ?? [],
+    allowed_users: allowed_users ?? [],
     redirect_uris: redirect_uris.map((uri) => uri.value),
     post_logout_redirect_uris: post_logout_redirect_uris.map((uri) => uri.value),
     scopes: scopes?.join(" "),

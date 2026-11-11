@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useQuery,
   useMutation,
   useQueryClient,
@@ -10,6 +11,7 @@ import {
   updateUser,
   deleteUser,
   unlockUser,
+  lookupUsersByIds,
 } from "../api/users";
 import type { ListParams } from "../api/users";
 import type { UserCreateRequest, UserUpdateRequest } from "../types/user";
@@ -28,6 +30,16 @@ export function useUser(id: string) {
     queryKey: [...USERS_KEY, id],
     queryFn: () => getUser(id),
     enabled: !!id,
+  });
+}
+
+export function useUsersByIds(ids: string[]) {
+  const sorted = [...ids].sort();
+  return useQuery({
+    queryKey: [...USERS_KEY, "lookup", sorted],
+    queryFn: () => lookupUsersByIds(sorted),
+    enabled: sorted.length > 0,
+    placeholderData: keepPreviousData,
   });
 }
 

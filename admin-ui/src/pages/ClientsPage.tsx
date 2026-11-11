@@ -85,9 +85,16 @@ export default function ClientsPage() {
         header: "Status",
         enableSorting: false,
         cell: (info) => (
-          <Badge variant="soft" color={info.getValue() ? "success" : "danger"}>
-            {info.getValue() ? "Active" : "Inactive"}
-          </Badge>
+          <Inline gap="xs" wrap={false}>
+            <Badge variant="soft" color={info.getValue() ? "success" : "danger"}>
+              {info.getValue() ? "Active" : "Inactive"}
+            </Badge>
+            {info.row.original.restrict_access && (
+              <Badge variant="soft" color="warning">
+                Restricted
+              </Badge>
+            )}
+          </Inline>
         ),
       }),
       col.display({

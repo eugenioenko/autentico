@@ -99,6 +99,11 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		newShowInAccount = *req.ShowInAccount
 	}
 
+	access := accessUpdate{restrict: req.RestrictAccess, groups: req.AllowedGroups, users: req.AllowedUsers}
+	if err := validateAccessUpdate(access); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE clients SET
 			client_name = ?,
@@ -124,7 +129,12 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 			show_in_account = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE client_id = ?`
-	_, err = db.GetDB().Exec(query,
+	tx, err := db.GetDB().Begin()
+	if err != nil {
+		return fmt.Errorf("failed to update client: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.Exec(query,
 		newName, newRedirectURIs, newPostLogoutRedirectURIs, newGrantTypes,
 		newResponseTypes, newScopes, newAuthMethod, newIsActive,
 		req.AccessTokenExpiration, req.RefreshTokenExpiration,
@@ -135,6 +145,12 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		clientID,
 	)
 	if err != nil {
+		return fmt.Errorf("failed to update client: %v", err)
+	}
+	if err := writeAccess(tx, clientID, access); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to update client: %v", err)
 	}
 	return nil

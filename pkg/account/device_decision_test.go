@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/devicecode"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
@@ -20,6 +21,8 @@ func TestDeviceDecisionUpdateFailureMapping(t *testing.T) {
 			t.Run(handler.name+map[bool]string{true: "/stale update", false: "/SQL failure"}[stale], func(t *testing.T) {
 				testutils.WithTestDB(t)
 				_, _, info := setupTestUserAndSession(t)
+				_, err := client.CreateClientWithID("test", client.ClientCreateRequest{ClientName: "Test", RedirectURIs: []string{"http://localhost/cb"}})
+				require.NoError(t, err)
 				require.NoError(t, devicecode.CreateDeviceCode(devicecode.DeviceCode{Code: "device", UserCode: "ABCDEFGH", ClientID: "test", Status: "pending", ExpiresAt: time.Now().Add(time.Hour)}))
 				// A trigger forces a zero-row write after the handler has read pending.
 				// This deterministically exercises the update-result branch, independently
@@ -28,7 +31,7 @@ func TestDeviceDecisionUpdateFailureMapping(t *testing.T) {
 				if !stale {
 					action = `SELECT RAISE(ABORT,'injected decision failure')`
 				}
-				_, err := db.GetDB().Exec(`CREATE TRIGGER force_decision_result BEFORE UPDATE OF status ON device_codes BEGIN ` + action + `; END`)
+				_, err = db.GetDB().Exec(`CREATE TRIGGER force_decision_result BEFORE UPDATE OF status ON device_codes BEGIN ` + action + `; END`)
 				require.NoError(t, err)
 				response := mockAuthRequest(t, `{"user_code":"ABCDEFGH"}`, http.MethodPost, "/account/api/device/"+handler.name, handler.handle, info)
 				if stale {

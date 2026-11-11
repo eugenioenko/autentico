@@ -59,7 +59,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		// RFC 7591 §3.2.2: reject contradictory authentication metadata.
-		if errors.Is(err, ErrInvalidClientMetadata) {
+		if errors.Is(err, ErrInvalidClientMetadata) || errors.Is(err, ErrInvalidAccess) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 			return
 		}
@@ -102,7 +102,17 @@ func HandleGetClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteApiResponse(w, c.ToInfoResponse(), http.StatusOK)
+	writeClientInfo(w, c, http.StatusOK)
+}
+
+func writeClientInfo(w http.ResponseWriter, c *Client, status int) {
+	items, err := ToInfoResponseWithAccess([]*Client{c})
+	if err != nil {
+		slog.Error("client: failed to load access lists", "error", err, "client_id", c.ClientID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to load client")
+		return
+	}
+	utils.WriteApiResponse(w, items[0], status)
 }
 
 // HandleUpdateClient handles PUT /oauth2/register/{client_id} (RFC 7591) and PUT /admin/api/clients/{client_id}
@@ -149,7 +159,7 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	err := UpdateClient(clientID, request)
 	if err != nil {
 		// RFC 7591 §3.2.2: reject contradictory authentication metadata.
-		if errors.Is(err, ErrInvalidClientMetadata) {
+		if errors.Is(err, ErrInvalidClientMetadata) || errors.Is(err, ErrInvalidAccess) {
 			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 			return
 		}
@@ -164,8 +174,17 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
-	updated, _ := ClientByClientIDIncludingDisabled(clientID)
-	utils.WriteApiResponse(w, updated.ToInfoResponse(), http.StatusOK)
+	updated, err := ClientByClientIDIncludingDisabled(clientID)
+	if errors.Is(err, ErrClientNotFound) {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
+		return
+	}
+	if err != nil {
+		slog.Error("client: failed to reload updated client", "error", err, "client_id", clientID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to load client")
+		return
+	}
+	writeClientInfo(w, updated, http.StatusOK)
 }
 
 // HandleDeleteClient handles DELETE /oauth2/register/{client_id} (RFC 7591) and DELETE /admin/api/clients/{client_id}
@@ -232,12 +251,11 @@ func HandleAdminListClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var items []*ClientInfoResponse
-	for _, c := range clients {
-		items = append(items, c.ToInfoResponse())
-	}
-	if items == nil {
-		items = []*ClientInfoResponse{}
+	items, err := ToInfoResponseWithAccess(clients)
+	if err != nil {
+		slog.Error("client: failed to load access lists", "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to list clients")
+		return
 	}
 
 	utils.SuccessResponse(w, model.ListResponse[*ClientInfoResponse]{Items: items, Total: total})

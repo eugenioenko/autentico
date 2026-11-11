@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listGroups,
   getGroup,
@@ -19,6 +19,17 @@ export function useGroup(id: string | null) {
     queryKey: [...GROUPS_KEY, "detail", id],
     queryFn: () => getGroup(id!),
     enabled: !!id,
+  });
+}
+
+export function useGroupsByIds(ids: string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [...GROUPS_KEY, "detail", id],
+      queryFn: () => getGroup(id),
+      retry: false,
+    })),
+    combine: (results) => results.flatMap((q) => (q.data ? [q.data] : [])),
   });
 }
 

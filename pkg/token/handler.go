@@ -341,6 +341,27 @@ func HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 6749 §5.2: invalid_grant: a restricted client refuses users outside its
+	// allowed users and groups on every user grant, including refresh.
+	accessClient := authenticatedClient
+	if accessClient == nil {
+		accessClient, err = client.ClientByClientID(request.ClientID)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Access to this client is not allowed")
+			return
+		}
+	}
+	if err := client.CheckUserAccess(accessClient, usr.ID); err != nil {
+		if !errors.Is(err, client.ErrAccessDenied) {
+			slog.Error("token: failed to check client access", "request_id", reqid.Get(r.Context()), "error", err)
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to check client access")
+			return
+		}
+		client.LogAccessDenied(usr.ID, usr.Username, accessClient.ClientID, request.GrantType, utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "invalid_grant", "Access to this client is not allowed")
+		return
+	}
+
 	// Resolve per-client config overrides (falls back to global settings if client is nil or has no overrides)
 	clientCfg := config.Get()
 	if authenticatedClient != nil {

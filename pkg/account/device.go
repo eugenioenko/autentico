@@ -106,6 +106,18 @@ func HandleDeviceAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// RFC 8628 §3.3: a user a restricted client refuses cannot approve it. The
+	// request stays pending so an allowed user can still complete it.
+	if err := client.CheckUserAccessByClientID(dc.ClientID, usr.ID); err != nil {
+		if !errors.Is(err, client.ErrAccessDenied) {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to authorize device")
+			return
+		}
+		client.LogAccessDenied(usr.ID, usr.Username, dc.ClientID, "device_code", utils.GetClientIP(r))
+		utils.WriteErrorResponse(w, http.StatusForbidden, "access_denied", "You do not have access to this application")
+		return
+	}
+
 	if err := devicecode.AuthorizeDeviceCode(userCode, usr.ID); err != nil {
 		// RFC 8628 §3.3: a concurrent decision may already have consumed this request.
 		if errors.Is(err, devicecode.ErrCodeConsumed) {

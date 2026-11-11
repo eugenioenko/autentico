@@ -357,3 +357,37 @@ func TestRun_TotpReplayIsRoutineAndPreservesEnrollment(t *testing.T) {
 	require.True(t, verified)
 	require.Equal(t, int64(-1), step)
 }
+
+func TestRun_ClientAccessIsRoutineAndPreservesClients(t *testing.T) {
+	db := newTestDB(t)
+	allMigrations := migrations
+	useTestMigrations(t, allMigrations[:23])
+	require.NoError(t, Run(db, false))
+	_, err := db.Exec(`INSERT INTO clients (id, client_id, client_name, redirect_uris) VALUES ('c1', 'existing', 'Existing', '[]');
+		INSERT INTO users (id, username) VALUES ('u1', 'u1');
+		INSERT INTO groups (id, name) VALUES ('g1', 'g1')`)
+	require.NoError(t, err)
+	require.False(t, allMigrations[23].Major)
+	migrations, SchemaVersion = allMigrations[:24], 24
+	require.NoError(t, Run(db, false))
+
+	var restrict bool
+	require.NoError(t, db.QueryRow(`SELECT restrict_access FROM clients WHERE client_id = 'existing'`).Scan(&restrict))
+	assert.False(t, restrict, "existing clients stay unrestricted")
+
+	_, err = db.Exec(`PRAGMA foreign_keys = ON;
+		INSERT INTO client_allowed_groups (client_id, group_id) VALUES ('existing', 'g1');
+		INSERT INTO client_allowed_users (client_id, user_id) VALUES ('existing', 'u1')`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO client_allowed_groups (client_id, group_id) VALUES ('existing', 'missing')`)
+	require.Error(t, err, "allowed groups must reference existing groups")
+	_, err = db.Exec(`DELETE FROM groups WHERE id = 'g1'; DELETE FROM users WHERE id = 'u1'`)
+	require.NoError(t, err)
+	var n int
+	require.NoError(t, db.QueryRow(`SELECT (SELECT COUNT(*) FROM client_allowed_groups) + (SELECT COUNT(*) FROM client_allowed_users)`).Scan(&n))
+	assert.Zero(t, n, "deleting a group or user removes its access entries")
+
+	version, err := getUserVersion(db)
+	require.NoError(t, err)
+	assert.Equal(t, 24, version)
+}

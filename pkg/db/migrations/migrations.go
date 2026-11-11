@@ -10,7 +10,7 @@ import (
 
 // SchemaVersion is the schema version this binary expects.
 // Increment this and add a new Migration entry each time the schema changes.
-var SchemaVersion = 23
+var SchemaVersion = 24
 
 // Migration represents a single schema change.
 type Migration struct {
@@ -48,6 +48,7 @@ var migrations = []Migration{
 	{Version: 21, SQL: migration021},
 	{Version: 22, SQL: migration022},
 	{Version: 23, SQL: migration023},
+	{Version: 24, SQL: migration024},
 }
 
 func getUserVersion(db *sql.DB) (int, error) {

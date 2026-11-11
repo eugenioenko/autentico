@@ -113,6 +113,7 @@ export default defineConfig({
 						{ label: 'Registering a Client', link: '/clients/registering/' },
 						{ label: 'Client Types', link: '/clients/client-types/' },
 						{ label: 'Per-Client Configuration', link: '/clients/per-client-configuration/' },
+						{ label: 'Access Restriction', link: '/clients/access-restriction/' },
 					],
 				},
 				{

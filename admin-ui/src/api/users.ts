@@ -43,6 +43,22 @@ export async function getUser(id: string): Promise<UserResponseExt> {
   return data.data;
 }
 
+const LOOKUP_MAX_IDENTIFIERS = 100;
+
+export async function lookupUsersByIds(ids: string[]): Promise<UserResponseExt[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += LOOKUP_MAX_IDENTIFIERS) {
+    chunks.push(ids.slice(i, i + LOOKUP_MAX_IDENTIFIERS));
+  }
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      const { data } = await apiClient.post<{ data: { items: UserResponseExt[] } }>(`${BASE}/lookup`, { ids: chunk });
+      return data.data.items ?? [];
+    }),
+  );
+  return results.flat();
+}
+
 export async function createUser(
   request: UserCreateRequest
 ): Promise<UserResponseExt> {

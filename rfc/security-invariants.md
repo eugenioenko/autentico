@@ -166,3 +166,21 @@ The isolated UI regression suite runs with a freshly built binary:
 `AUTENTICO_TEST_BINARY=/absolute/path/autentico node node_modules/@playwright/test/cli.js test --config group-claims.config.ts`
 from `tests/browser`. It uses a temporary working directory, configuration,
 database, and an available port.
+
+## Client access restriction (#609)
+
+Routine schema 24 adds `clients.restrict_access` and the
+`client_allowed_groups` / `client_allowed_users` join tables. Every path that
+issues a user session, code or token for a client calls `client.CheckUserAccess`
+with the current client and user after authentication: `mfa.finishLogin` (before
+`FinalizeLoginWithMfa`, so a refused login creates no cookie), SSO in
+`authorize.tryAutoLogin`, consent GET/POST, the token endpoint for every user
+grant, device approval, and ForwardAuth `parentIdentity` on every check. New
+issuance paths must call it too. The explicit flag makes deleted groups or users
+fail closed; never infer restriction from non-empty lists. Built-in admin and
+account clients are restrictable like any other; the admin API role check is
+independent. Database errors
+are server errors, never allows. ForwardAuth refusals return 403 without a login
+redirect to avoid loops. Refusal audit details contain only `user_id` and
+`flow`; ForwardAuth audits at callback, not per check. Contract:
+`rfc/client-access.md`.

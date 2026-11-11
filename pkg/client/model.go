@@ -47,6 +47,7 @@ type Client struct {
 	LogoURI                     string  `db:"logo_uri"`
 	ClientURI                   string  `db:"client_uri"`
 	ShowInAccount               bool    `db:"show_in_account"`
+	RestrictAccess              bool    `db:"restrict_access"`
 }
 
 // ClientCreateRequest represents the request body for client registration
@@ -75,6 +76,10 @@ type ClientCreateRequest struct {
 	LogoURI                     string   `json:"logo_uri,omitempty"`
 	ClientURI                   string   `json:"client_uri,omitempty"`
 	ShowInAccount               bool     `json:"show_in_account,omitempty"`
+	// Access restriction: only listed users and members of listed groups may sign in.
+	RestrictAccess bool     `json:"restrict_access,omitempty"`
+	AllowedGroups  []string `json:"allowed_groups,omitempty"`
+	AllowedUsers   []string `json:"allowed_users,omitempty"`
 }
 
 // ClientUpdateRequest represents the request body for updating a client
@@ -101,6 +106,10 @@ type ClientUpdateRequest struct {
 	LogoURI                     *string  `json:"logo_uri,omitempty"`
 	ClientURI                   *string  `json:"client_uri,omitempty"`
 	ShowInAccount               *bool    `json:"show_in_account,omitempty"`
+	// Access restriction: omitted fields are unchanged; an empty list clears it.
+	RestrictAccess *bool     `json:"restrict_access,omitempty"`
+	AllowedGroups  *[]string `json:"allowed_groups,omitempty"`
+	AllowedUsers   *[]string `json:"allowed_users,omitempty"`
 }
 
 // ClientResponse represents the response for client operations
@@ -128,6 +137,9 @@ type ClientResponse struct {
 	LogoURI                 string   `json:"logo_uri,omitempty"`
 	ClientURI               string   `json:"client_uri,omitempty"`
 	ShowInAccount           bool     `json:"show_in_account"`
+	RestrictAccess          bool     `json:"restrict_access"`
+	AllowedGroups           []string `json:"allowed_groups"`
+	AllowedUsers            []string `json:"allowed_users"`
 }
 
 // ClientInfoResponse represents the response for getting client info (without secret)
@@ -156,6 +168,9 @@ type ClientInfoResponse struct {
 	LogoURI                     string   `json:"logo_uri"`
 	ClientURI                   string   `json:"client_uri"`
 	ShowInAccount               bool     `json:"show_in_account"`
+	RestrictAccess              bool     `json:"restrict_access"`
+	AllowedGroups               []string `json:"allowed_groups"`
+	AllowedUsers                []string `json:"allowed_users"`
 }
 
 // GetRedirectURIs parses and returns the redirect URIs as a slice
@@ -214,6 +229,9 @@ func (c *Client) ToInfoResponse() *ClientInfoResponse {
 		LogoURI:                     c.LogoURI,
 		ClientURI:                   c.ClientURI,
 		ShowInAccount:               c.ShowInAccount,
+		RestrictAccess:              c.RestrictAccess,
+		AllowedGroups:               []string{},
+		AllowedUsers:                []string{},
 	}
 	if c.AllowedAudiences != nil {
 		var aud []string

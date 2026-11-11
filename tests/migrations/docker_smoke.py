@@ -155,6 +155,9 @@ try:
     db = sqlite3.connect(dbpath)
     assert db.execute("PRAGMA user_version").fetchone()[0] == target_schema
     assert db.execute("SELECT count(*) FROM group_claims").fetchone()[0] == 0
+    assert db.execute("SELECT count(*) FROM client_allowed_groups").fetchone()[0] == 0
+    assert db.execute("SELECT count(*) FROM client_allowed_users").fetchone()[0] == 0
+    assert db.execute("SELECT count(*) FROM clients WHERE restrict_access").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM federation_login_flows").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_federation_login_flows_expiry'").fetchone()[0] == 1
     assert db.execute("SELECT count(*) FROM tokens").fetchone()[0] == 0

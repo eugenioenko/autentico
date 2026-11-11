@@ -7,6 +7,7 @@ import { FormField, InfoTip } from "../FormField";
 import { tip } from "./clientTips";
 import AccountAppFields from "./AccountAppFields";
 import ClientOverrideFields from "./ClientOverrideFields";
+import ClientAccessFields from "./ClientAccessFields";
 import UriListField from "./UriListField";
 import {
   GRANT_TYPE_OPTIONS,
@@ -56,6 +57,9 @@ function toFormValues(client: ClientInfoResponse): ClientFormValues {
     client_uri: client.client_uri,
     logo_uri: client.logo_uri,
     description: client.description,
+    restrict_access: client.restrict_access ?? false,
+    allowed_groups: client.allowed_groups ?? [],
+    allowed_users: client.allowed_users ?? [],
   };
 }
 
@@ -215,7 +219,17 @@ export default function ClientEditForm({ open, client, onClose }: ClientEditForm
 
           <Divider />
 
-          <Accordion type="multiple">
+          <Accordion
+            key={client?.client_id}
+            type="multiple"
+            defaultValue={client?.restrict_access ? ["access"] : []}
+          >
+            <Accordion.Item value="access">
+              <Accordion.Trigger>Access</Accordion.Trigger>
+              <Accordion.Content>
+                <ClientAccessFields control={control} />
+              </Accordion.Content>
+            </Accordion.Item>
             <Accordion.Item value="overrides">
               <Accordion.Trigger>Configuration Overrides</Accordion.Trigger>
               <Accordion.Content>

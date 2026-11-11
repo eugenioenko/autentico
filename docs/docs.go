@@ -159,7 +159,7 @@ const docTemplate = `{
                         "UserAuth": []
                     }
                 ],
-                "description": "Returns active clients an admin has marked show_in_account, for display on the account dashboard.",
+                "description": "Returns active clients an admin has marked show_in_account and the user may sign in to, for display on the account dashboard.",
                 "produces": [
                     "application/json"
                 ],
@@ -5222,6 +5222,18 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "allowed_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "authorization_code_expiration": {
                     "type": "string"
                 },
@@ -5277,6 +5289,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "restrict_access": {
+                    "description": "Access restriction: only listed users and members of listed groups may sign in.",
+                    "type": "boolean"
+                },
                 "scopes": {
                     "type": "string"
                 },
@@ -5309,6 +5325,18 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "allowed_audiences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_users": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5368,6 +5396,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "restrict_access": {
+                    "type": "boolean"
+                },
                 "scopes": {
                     "type": "string"
                 },
@@ -5391,6 +5422,18 @@ const docTemplate = `{
         "client.ClientResponse": {
             "type": "object",
             "properties": {
+                "allowed_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "client_id": {
                     "description": "RFC 7591 §3.2.1: client_id is REQUIRED.",
                     "type": "string"
@@ -5446,6 +5489,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "restrict_access": {
+                    "type": "boolean"
+                },
                 "scopes": {
                     "type": "string"
                 },
@@ -5468,6 +5514,18 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "allowed_audiences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_groups": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "allowed_users": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -5520,6 +5578,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "restrict_access": {
+                    "description": "Access restriction: omitted fields are unchanged; an empty list clears it.",
+                    "type": "boolean"
                 },
                 "scopes": {
                     "type": "string"

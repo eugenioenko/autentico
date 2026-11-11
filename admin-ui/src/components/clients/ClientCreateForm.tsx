@@ -10,6 +10,7 @@ import CopyText from "../CopyText";
 import { tip } from "./clientTips";
 import AccountAppFields from "./AccountAppFields";
 import ClientOverrideFields from "./ClientOverrideFields";
+import ClientAccessFields from "./ClientAccessFields";
 import UriListField from "./UriListField";
 import {
   CLIENT_TYPE_OPTIONS,
@@ -35,6 +36,9 @@ const DEFAULTS: ClientFormValues = {
   scopes: ["openid", "profile", "email", "offline_access"],
   redirect_uris: [{ value: "" }],
   post_logout_redirect_uris: [],
+  restrict_access: false,
+  allowed_groups: [],
+  allowed_users: [],
 };
 
 export default function ClientCreateForm({ open, onClose }: ClientCreateFormProps) {
@@ -191,6 +195,12 @@ export default function ClientCreateForm({ open, onClose }: ClientCreateFormProp
             <Divider />
 
             <Accordion type="multiple">
+              <Accordion.Item value="access">
+                <Accordion.Trigger>Access</Accordion.Trigger>
+                <Accordion.Content>
+                  <ClientAccessFields control={control} />
+                </Accordion.Content>
+              </Accordion.Item>
               <Accordion.Item value="overrides">
                 <Accordion.Trigger>Configuration Overrides</Accordion.Trigger>
                 <Accordion.Content>
