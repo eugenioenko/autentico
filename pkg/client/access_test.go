@@ -137,13 +137,13 @@ func TestCheckUserAccess_DeletingLastGroupOrUserFailsClosed(t *testing.T) {
 	requireDenied(t, c, "u-other")
 }
 
-func TestCheckUserAccess_BuiltInClientsAreNeverRestricted(t *testing.T) {
+func TestCheckUserAccess_BuiltInClientsCanBeRestricted(t *testing.T) {
 	seedAccessFixtures(t)
 	for _, id := range []string{config.AdminClientID, config.AccountClientID} {
-		createAccessClient(t, id, ClientCreateRequest{})
-		_, err := db.GetDB().Exec(`UPDATE clients SET restrict_access = TRUE WHERE client_id = ?`, id)
-		require.NoError(t, err)
-		requireAllowed(t, loadClient(t, id), "u-other")
+		createAccessClient(t, id, ClientCreateRequest{RestrictAccess: true, AllowedUsers: []string{"u-direct"}})
+		c := loadClient(t, id)
+		requireAllowed(t, c, "u-direct")
+		requireDenied(t, c, "u-other")
 	}
 }
 
@@ -160,6 +160,16 @@ func TestCheckUserAccessByClientID_MissingOrInactiveClientFailsClosed(t *testing
 	require.NoError(t, CheckUserAccessByClientID("app", "u-direct"))
 	require.NoError(t, DeleteClient("app"))
 	require.ErrorIs(t, CheckUserAccessByClientID("app", "u-direct"), ErrAccessDenied)
+}
+
+func TestCheckUserAccessByClientID_LookupFailureIsNotAccessDenied(t *testing.T) {
+	seedAccessFixtures(t)
+	createAccessClient(t, "app", ClientCreateRequest{})
+	_, err := db.GetDB().Exec(`ALTER TABLE clients RENAME COLUMN restrict_access TO restrict_access_gone`)
+	require.NoError(t, err)
+	err = CheckUserAccessByClientID("app", "u-direct")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrAccessDenied)
 }
 
 func TestCheckUserAccess_DatabaseFailureIsNotAccessDenied(t *testing.T) {
@@ -198,14 +208,6 @@ func TestCreateClient_UnknownAccessEntryRollsBackClient(t *testing.T) {
 		_, err = ClientByClientIDIncludingDisabled("broken")
 		require.Error(t, err, "a failed access write must not leave the client behind")
 	}
-}
-
-func TestCreateClient_BuiltInClientCannotBeRestricted(t *testing.T) {
-	seedAccessFixtures(t)
-	_, err := CreateClientWithID(config.AdminClientID, ClientCreateRequest{
-		ClientName: "Admin", RedirectURIs: []string{"https://app.example/callback"}, RestrictAccess: true,
-	})
-	require.ErrorIs(t, err, ErrInvalidAccess)
 }
 
 func TestCreateClientWithIDTx_WritesUnrestrictedDefault(t *testing.T) {
@@ -275,17 +277,17 @@ func TestUpdateClient_UnknownAccessEntryChangesNothing(t *testing.T) {
 	require.Equal(t, []string{"g-staff"}, lists["app"].Groups)
 }
 
-func TestUpdateClient_BuiltInClientRestrictionRejected(t *testing.T) {
+func TestUpdateClient_BuiltInClientRestriction(t *testing.T) {
 	seedAccessFixtures(t)
 	for _, id := range []string{config.AdminClientID, config.AccountClientID} {
 		createAccessClient(t, id, ClientCreateRequest{})
 		groups := []string{"g-staff"}
-		require.ErrorIs(t, UpdateClient(id, ClientUpdateRequest{RestrictAccess: boolPtr(true)}), ErrInvalidAccess)
-		require.ErrorIs(t, UpdateClient(id, ClientUpdateRequest{AllowedGroups: &groups}), ErrInvalidAccess)
-		// Explicitly clearing is harmless and allowed, so the admin UI can save its form.
-		empty := []string{}
-		require.NoError(t, UpdateClient(id, ClientUpdateRequest{RestrictAccess: boolPtr(false), AllowedGroups: &empty, AllowedUsers: &empty}))
-		require.False(t, loadClient(t, id).RestrictAccess)
+		require.NoError(t, UpdateClient(id, ClientUpdateRequest{RestrictAccess: boolPtr(true), AllowedGroups: &groups}))
+		c := loadClient(t, id)
+		requireAllowed(t, c, "u-member")
+		requireDenied(t, c, "u-other")
+		require.NoError(t, UpdateClient(id, ClientUpdateRequest{RestrictAccess: boolPtr(false)}))
+		requireAllowed(t, loadClient(t, id), "u-other")
 	}
 }
 
@@ -414,7 +416,6 @@ func TestHandlers_UnrestrictedClientReportsEmptyLists(t *testing.T) {
 func TestHandlers_InvalidAccessMetadata(t *testing.T) {
 	seedAccessFixtures(t)
 	createAccessClient(t, "app", ClientCreateRequest{})
-	createAccessClient(t, config.AdminClientID, ClientCreateRequest{})
 
 	cases := []struct {
 		name     string
@@ -427,7 +428,6 @@ func TestHandlers_InvalidAccessMetadata(t *testing.T) {
 		{"create unknown user", http.MethodPost, "", map[string]any{"client_id": "new", "client_name": "New", "redirect_uris": []string{"https://app.example/cb"}, "allowed_users": []string{"u-missing"}}, HandleRegister},
 		{"update unknown group", http.MethodPut, "app", map[string]any{"allowed_groups": []string{"g-missing"}}, HandleUpdateClient},
 		{"update unknown user", http.MethodPut, "app", map[string]any{"allowed_users": []string{"u-missing"}}, HandleUpdateClient},
-		{"restrict built-in", http.MethodPut, config.AdminClientID, map[string]any{"restrict_access": true}, HandleUpdateClient},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -440,5 +440,4 @@ func TestHandlers_InvalidAccessMetadata(t *testing.T) {
 	}
 	_, err := ClientByClientIDIncludingDisabled("new")
 	require.Error(t, err)
-	require.False(t, loadClient(t, config.AdminClientID).RestrictAccess)
 }

@@ -1,10 +1,7 @@
-import { useMemo } from "react";
 import { useWatch, type Control } from "react-hook-form";
-import { useQueries } from "@tanstack/react-query";
 import { Alert, Combobox, Stack, Switch, Text } from "@yarcl/react";
 import { FormField } from "../FormField";
-import { getGroup } from "../../api/groups";
-import { useGroups } from "../../hooks/useGroups";
+import { useGroups, useGroupsByIds } from "../../hooks/useGroups";
 import { useUsers, useUsersByIds } from "../../hooks/useUsers";
 import { useDebouncedState } from "../../hooks/useDebouncedState";
 import { accessTip } from "./clientTips";
@@ -20,30 +17,26 @@ interface SelectProps {
 const contains = (label: string, text: string) => label.toLowerCase().includes(text.trim().toLowerCase());
 
 function GroupSelect({ value, onChange, onBlur, disabled }: SelectProps) {
-  const { data, isLoading } = useGroups({ limit: 100, sort: "name", order: "asc" });
-  const listed = useMemo(() => data?.items ?? [], [data]);
-  const missing = data ? value.filter((id) => !listed.some((g) => g.id === id)) : [];
-  const extra = useQueries({
-    queries: missing.map((id) => ({
-      queryKey: ["groups", "detail", id],
-      queryFn: () => getGroup(id),
-      retry: false,
-    })),
-  });
+  const [search, setSearch] = useDebouncedState("", 300);
+  const { data: searchData, isFetching } = useGroups({ limit: 20, sort: "name", order: "asc", search: search || undefined });
+  const selectedGroups = useGroupsByIds(value);
 
+  const searchIds = new Set((searchData?.items ?? []).map((g) => g.id));
   const options = [
-    ...listed.map((g) => ({ value: g.id, label: g.name })),
-    ...extra.flatMap((q) => (q.data ? [{ value: q.data.id, label: q.data.name }] : [])),
-  ];
+    ...(searchData?.items ?? []),
+    ...selectedGroups.filter((g) => !searchIds.has(g.id)),
+  ].map((g) => ({ value: g.id, label: g.name }));
 
   return (
     <Combobox
       multiple
-      placeholder={disabled ? undefined : "Select groups..."}
+      placeholder={disabled ? undefined : "Search groups..."}
       options={options}
-      loading={isLoading}
+      filter={(option, text) => searchIds.has(option.value) || contains(option.label, text)}
+      loading={isFetching}
       value={value}
       onValueChange={onChange}
+      onInputValueChange={(text) => setSearch(text)}
       onBlur={onBlur}
       disabled={disabled}
     />
@@ -127,13 +120,5 @@ export default function ClientAccessFields({ control }: { control: Control<Clien
         </Text>
       ) : null}
     </Stack>
-  );
-}
-
-export function BuiltinAccessNotice() {
-  return (
-    <Alert color="info" title="Built-in clients can't be restricted">
-      The admin console and account dashboard must stay available so administrators and account owners can't be locked out.
-    </Alert>
   );
 }

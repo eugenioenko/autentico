@@ -100,7 +100,7 @@ func queryClient(where string, arg string) (*Client, error) {
 	c, err := scanClient(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("client not found")
+			return nil, ErrClientNotFound
 		}
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}

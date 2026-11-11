@@ -21,6 +21,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/token"
+	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/gorilla/securecookie"
 	"github.com/rs/xid"
 )
@@ -407,6 +408,7 @@ func HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	current, err := parentIdentity(a, code.IdpSessionID)
 	if errors.Is(err, errForbidden) {
+		client.LogAccessDenied(usr.ID, usr.Username, a.ClientID, "forward_auth", utils.GetClientIP(r))
 		deny(w, 403)
 		return
 	}

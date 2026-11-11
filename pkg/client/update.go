@@ -100,7 +100,7 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 	}
 
 	access := accessUpdate{restrict: req.RestrictAccess, groups: req.AllowedGroups, users: req.AllowedUsers}
-	if err := validateAccessUpdate(clientID, access); err != nil {
+	if err := validateAccessUpdate(access); err != nil {
 		return err
 	}
 

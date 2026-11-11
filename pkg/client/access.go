@@ -8,7 +8,6 @@ import (
 	"sort"
 
 	"github.com/eugenioenko/autentico/pkg/audit"
-	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
@@ -17,19 +16,16 @@ const maxAccessEntries = 1000
 // ErrAccessDenied reports that a restricted client does not admit the user.
 var ErrAccessDenied = errors.New("user is not allowed to access this client")
 
+// ErrClientNotFound reports that no client matches the lookup.
+var ErrClientNotFound = errors.New("client not found")
+
 // ErrInvalidAccess identifies access metadata the server cannot accept.
 var ErrInvalidAccess = errors.New("invalid client access metadata")
-
-// IsBuiltInClient reports whether clientID is a client seeded by Autentico itself.
-func IsBuiltInClient(clientID string) bool {
-	return clientID == config.AdminClientID || clientID == config.AccountClientID
-}
 
 // CheckUserAccess returns ErrAccessDenied when c restricts access and the user
 // is neither listed directly nor a member of any allowed group.
 func CheckUserAccess(c *Client, userID string) error {
-	// Client access §2: built-in clients are never restricted.
-	if c == nil || !c.RestrictAccess || IsBuiltInClient(c.ClientID) {
+	if c == nil || !c.RestrictAccess {
 		return nil
 	}
 	var allowed bool
@@ -54,9 +50,12 @@ func CheckUserAccess(c *Client, userID string) error {
 // CheckUserAccessByClientID resolves the active client and applies CheckUserAccess.
 func CheckUserAccessByClientID(clientID, userID string) error {
 	c, err := ClientByClientID(clientID)
-	if err != nil {
+	if errors.Is(err, ErrClientNotFound) {
 		// Client access §3: a missing or inactive client fails closed.
 		return ErrAccessDenied
+	}
+	if err != nil {
+		return err
 	}
 	return CheckUserAccess(c, userID)
 }
@@ -195,24 +194,8 @@ type accessUpdate struct {
 	users    *[]string
 }
 
-func (u accessUpdate) empty() bool {
-	return u.restrict == nil && u.groups == nil && u.users == nil
-}
-
-// validateAccessUpdate rejects restriction of built-in clients and oversized lists.
-func validateAccessUpdate(clientID string, u accessUpdate) error {
-	if u.empty() {
-		return nil
-	}
-	if IsBuiltInClient(clientID) {
-		restricting := u.restrict != nil && *u.restrict
-		listed := u.groups != nil && len(*u.groups) > 0 || u.users != nil && len(*u.users) > 0
-		// Client access §2: built-in clients cannot be restricted, so a mistaken
-		// list can never lock administrators or account owners out.
-		if restricting || listed {
-			return fmt.Errorf("%w: access restriction is not supported for built-in clients", ErrInvalidAccess)
-		}
-	}
+// validateAccessUpdate rejects oversized lists.
+func validateAccessUpdate(u accessUpdate) error {
 	if u.groups != nil && len(*u.groups) > maxAccessEntries || u.users != nil && len(*u.users) > maxAccessEntries {
 		return fmt.Errorf("%w: at most %d allowed groups and %d allowed users", ErrInvalidAccess, maxAccessEntries, maxAccessEntries)
 	}

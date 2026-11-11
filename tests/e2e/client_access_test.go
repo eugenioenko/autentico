@@ -200,7 +200,7 @@ func TestClientAccess_BrowserLogin(t *testing.T) {
 	}
 }
 
-func TestClientAccess_UnrestrictedAndBuiltInClientsAdmitEveryone(t *testing.T) {
+func TestClientAccess_UnrestrictedClientsAdmitEveryone(t *testing.T) {
 	f := setupAccessFixture(t)
 	f.createRestrictedClient(t, "restricted-web", nil)
 
@@ -208,12 +208,18 @@ func TestClientAccess_UnrestrictedAndBuiltInClientsAdmitEveryone(t *testing.T) {
 	require.NotEmpty(t, location.Query().Get("code"))
 	status, body := passwordGrant(t, f.ts, "autentico-admin", "acc-outsider")
 	require.Equal(t, http.StatusOK, status, body)
+}
 
-	status, data := f.adminJSON(t, http.MethodPut, "/admin/api/clients/autentico-admin", map[string]any{"restrict_access": true})
-	require.Equal(t, http.StatusBadRequest, status, string(data))
-	require.Contains(t, string(data), "invalid_client_metadata")
-	status, data = f.adminJSON(t, http.MethodPut, "/admin/api/clients/autentico-account", map[string]any{"allowed_groups": []string{f.staffID}})
-	require.Equal(t, http.StatusBadRequest, status, string(data))
+func TestClientAccess_BuiltInClientsCanBeRestricted(t *testing.T) {
+	f := setupAccessFixture(t)
+	status, data := f.adminJSON(t, http.MethodPut, "/admin/api/clients/autentico-admin", map[string]any{"restrict_access": true, "allowed_groups": []string{f.staffID}})
+	require.Equal(t, http.StatusOK, status, string(data))
+
+	status, body := passwordGrant(t, f.ts, "autentico-admin", "acc-outsider")
+	require.Equal(t, http.StatusBadRequest, status, body)
+	require.Equal(t, "invalid_grant", body["error"])
+	status, body = passwordGrant(t, f.ts, "autentico-admin", "acc-member")
+	require.Equal(t, http.StatusOK, status, body)
 }
 
 func TestClientAccess_SSODoesNotBypassRestriction(t *testing.T) {

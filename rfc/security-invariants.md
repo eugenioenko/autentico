@@ -178,7 +178,9 @@ with the current client and user after authentication: `mfa.finishLogin` (before
 grant, device approval, and ForwardAuth `parentIdentity` on every check. New
 issuance paths must call it too. The explicit flag makes deleted groups or users
 fail closed; never infer restriction from non-empty lists. Built-in admin and
-account clients are rejected on write and ignored by the check. Database errors
+account clients are restrictable like any other; the admin API role check is
+independent. Database errors
 are server errors, never allows. ForwardAuth refusals return 403 without a login
 redirect to avoid loops. Refusal audit details contain only `user_id` and
-`flow`. Contract: `rfc/client-access.md`.
+`flow`; ForwardAuth audits at callback, not per check. Contract:
+`rfc/client-access.md`.

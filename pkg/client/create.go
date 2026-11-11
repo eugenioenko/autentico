@@ -48,7 +48,7 @@ func createClientInternal(tx *sql.Tx, clientID string, req ClientCreateRequest) 
 	if req.AllowedUsers != nil {
 		access.users = &req.AllowedUsers
 	}
-	if err := validateAccessUpdate(clientID, access); err != nil {
+	if err := validateAccessUpdate(access); err != nil {
 		return nil, err
 	}
 	// RFC 7591 §2 / §3.2.2: resolve and validate metadata before generating a secret.

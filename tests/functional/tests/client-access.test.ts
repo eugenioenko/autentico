@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
-  BASE_URL, OAUTH_URL, getAdminToken, getResponse, postForm, postJSON, putJSON, deleteRequest,
-  obtainAuthorizationCode, obtainAccountToken,
+  BASE_URL, OAUTH_URL, ADMIN_USERNAME, ADMIN_PASSWORD, getAdminToken, getResponse, postForm, postJSON, putJSON,
+  deleteRequest, obtainAuthorizationCode, obtainAccountToken, obtainTokenViaAuthCode,
 } from '../helpers';
 
 const API = `${BASE_URL}/admin/api`;
@@ -170,15 +170,28 @@ describe('Client access restriction (black box)', () => {
       expect((await getResponse(`${API}/clients/ca-invalid-new`, admin)).status).toBe(404);
     });
 
-    it('refuses to restrict the built-in admin and account clients', async () => {
-      for (const id of ['autentico-admin', 'autentico-account']) {
-        for (const body of [{ restrict_access: true }, { allowed_groups: [staffGroup] }, { allowed_users: [users.direct] }]) {
-          const resp = await putJSON(`${API}/clients/${id}`, body, admin);
-          expect(resp.status).toBe(400);
-          expect((await resp.json()).error).toBe('invalid_client_metadata');
-        }
-        expect(await getClient(id)).toMatchObject({ restrict_access: false, allowed_groups: [], allowed_users: [] });
+    it('restricts the built-in account client', async () => {
+      const restricted = await putJSON(`${API}/clients/autentico-account`, { restrict_access: true, allowed_groups: [staffGroup] }, admin);
+      expect(restricted.status).toBe(200);
+      expect(await restricted.json()).toMatchObject({ restrict_access: true, allowed_groups: [staffGroup] });
+      try {
+        expect((await obtainAccountToken('ca-member', PASSWORD)).access_token).toBeTruthy();
+        await expect(obtainAccountToken('ca-outsider', PASSWORD)).rejects.toThrow('No code');
+      } finally {
+        expect((await putJSON(`${API}/clients/autentico-account`, { restrict_access: false, allowed_groups: [] }, admin)).status).toBe(200);
       }
+      expect((await obtainAccountToken('ca-outsider', PASSWORD)).access_token).toBeTruthy();
+    });
+
+    it('restricts the built-in admin client; issued admin tokens keep working', async () => {
+      expect((await putJSON(`${API}/clients/autentico-admin`, { restrict_access: true, allowed_users: [users.direct] }, admin)).status).toBe(200);
+      try {
+        await expect(obtainTokenViaAuthCode(ADMIN_USERNAME, ADMIN_PASSWORD)).rejects.toThrow('No code');
+        expect((await getResponse(`${API}/clients/autentico-admin`, admin)).status).toBe(200);
+      } finally {
+        expect((await putJSON(`${API}/clients/autentico-admin`, { restrict_access: false, allowed_users: [] }, admin)).status).toBe(200);
+      }
+      expect((await obtainTokenViaAuthCode(ADMIN_USERNAME, ADMIN_PASSWORD)).access_token).toBeTruthy();
     });
 
     it('requires an admin token', async () => {

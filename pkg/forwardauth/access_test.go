@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/eugenioenko/autentico/pkg/client"
+	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	testutils "github.com/eugenioenko/autentico/tests/utils"
 	"github.com/stretchr/testify/require"
@@ -58,6 +59,7 @@ func TestForwardAuthAllowedGroupMemberPasses(t *testing.T) {
 
 func TestForwardAuthCallbackRefusesUserOutsideAllowedLists(t *testing.T) {
 	a := fixture(t)
+	config.Values.AuditLogRetentionStr = "-1"
 	restrictApp(t, a, []string{}, []string{})
 	c, f, state := start(t, a)
 	r := req(a, a.route("callback")+"?code="+code(t, a, f)+"&state="+state)
@@ -69,6 +71,23 @@ func TestForwardAuthCallbackRefusesUserOutsideAllowedLists(t *testing.T) {
 	for _, cookie := range w.Result().Cookies() {
 		require.NotEqual(t, a.cookieName(), cookie.Name)
 	}
+	var target, detail string
+	require.NoError(t, db.GetDB().QueryRow(`SELECT target_id, detail FROM audit_logs WHERE event = 'client_access_denied'`).Scan(&target, &detail))
+	require.Equal(t, a.ClientID, target)
+	require.JSONEq(t, `{"user_id":"user","flow":"forward_auth"}`, detail)
+}
+
+func TestForwardAuthCheckRefusalIsNotAuditedPerRequest(t *testing.T) {
+	a := fixture(t)
+	config.Values.AuditLogRetentionStr = "-1"
+	session := login(t, a)
+	restrictApp(t, a, []string{}, []string{})
+	for range 3 {
+		require.Equal(t, 403, check(a, session).Code)
+	}
+	var n int
+	require.NoError(t, db.GetDB().QueryRow(`SELECT COUNT(*) FROM audit_logs WHERE event = 'client_access_denied'`).Scan(&n))
+	require.Zero(t, n)
 }
 
 func TestForwardAuthCallbackAccessDeniedErrorIsForbidden(t *testing.T) {

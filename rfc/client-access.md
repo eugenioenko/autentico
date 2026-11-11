@@ -24,9 +24,10 @@ empty, nobody may authenticate.
 The explicit flag exists so that deleting the last bound group or user fails
 closed instead of silently opening the client to everyone.
 
-The built-in `autentico-admin` and `autentico-account` clients MUST NOT be
-restricted. Writes that would restrict them are rejected, and the check ignores
-them, so a mistaken list can never lock administrators or account owners out.
+The built-in `autentico-admin` and `autentico-account` clients follow the same
+rule. The admin API still requires the `admin` role independently. Keeping at
+least one administrator admitted to `autentico-admin` is the operator's
+responsibility.
 
 ## 3. Enforcement
 
@@ -40,7 +41,7 @@ authenticated, on every path that issues a user session, code or token:
 | Consent screen (GET and POST) | Redirect with `access_denied`; no consent or code is stored. |
 | Token endpoint: `authorization_code`, `refresh_token`, `password`, device code | `400 invalid_grant` (RFC 6749 §5.2). `access_denied` is not a token endpoint error. |
 | Device approval (`/account/api/device/authorize`) | `403 access_denied`; the request stays pending so an allowed user can still approve it. |
-| ForwardAuth check and callback | `403`, never a login redirect, so a refused user does not loop. Removing a user or group revokes access on the next check. |
+| ForwardAuth check and callback | `403`, never a login redirect, so a refused user does not loop. Once no direct entry or allowed group matches the user, the next check is refused. |
 
 A missing or inactive client fails closed. A database error while checking is
 a server error, never an implicit allow. `client_credentials` has no user and is
@@ -57,8 +58,8 @@ unknown or wrongly authenticated user never reveals restriction state.
 ## 5. Administration
 
 Admin client create, read, list and update include `restrict_access`,
-`allowed_groups` and `allowed_users` (IDs). On update, omitted fields are
-unchanged, a provided list replaces the stored list, and `[]` clears it. Lists
+`allowed_groups` and `allowed_users` (IDs). On update, omitted access fields
+are unchanged, a provided list replaces the stored list, and `[]` clears it. Lists
 are deduplicated and capped at 1000 entries each. Unknown IDs reject the whole
 request with `400 invalid_client_metadata`; the client row and lists are written
 in one transaction, so a rejected request changes nothing.
@@ -67,5 +68,11 @@ in one transaction, so a rejected request changes nothing.
 
 Every refusal emits `client_access_denied` targeting the client, with the user as
 actor and details limited to `user_id` and `flow` (the primary login method,
-`sso`, `consent`, `device_code` or the grant type). Group names and list contents
-are never recorded or returned in error responses.
+`sso`, `consent`, `device_code`, `forward_auth` or the grant type). Group names
+and list contents are never recorded or returned in error responses.
+ForwardAuth audits the refusal at its callback; per-request `/check` refusals
+return 403 without an audit row, so a refused user cannot flood the audit log.
+
+A failure to evaluate access (for example a database error) is a server error on
+every path, including SSO, where it returns `server_error` instead of
+`login_required`.

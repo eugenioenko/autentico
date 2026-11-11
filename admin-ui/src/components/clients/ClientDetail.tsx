@@ -1,9 +1,8 @@
 import { Badge, Drawer, Heading, Inline, Stack, Text } from "@yarcl/react";
 import type { ClientInfoResponse } from "../../types/client";
-import { useGroups } from "../../hooks/useGroups";
+import { useGroupsByIds } from "../../hooks/useGroups";
 import { useUsersByIds } from "../../hooks/useUsers";
 import DescriptionList from "../DescriptionList";
-import { isBuiltinClient } from "./clientForm";
 
 interface ClientDetailProps {
   open: boolean;
@@ -36,19 +35,11 @@ function UriList({ uris }: { uris: string[] }) {
 function AccessDetails({ client }: { client: ClientInfoResponse }) {
   const groupIds = client.allowed_groups ?? [];
   const userIds = client.allowed_users ?? [];
-  const { data: groups } = useGroups({ limit: 100, sort: "name", order: "asc" });
+  const groups = useGroupsByIds(groupIds);
   const { data: users } = useUsersByIds(userIds);
-  const groupNames = groupIds.map((id) => groups?.items.find((g) => g.id === id)?.name ?? id);
+  const groupNames = groupIds.map((id) => groups.find((g) => g.id === id)?.name ?? id);
   const usernames = userIds.map((id) => users?.find((u) => u.id === id)?.username ?? id);
   const restricted = !!client.restrict_access;
-
-  if (isBuiltinClient(client.client_id)) {
-    return (
-      <DescriptionList.Item label="Restrict Access">
-        <Text muted>Not available for built-in clients</Text>
-      </DescriptionList.Item>
-    );
-  }
 
   return (
     <>

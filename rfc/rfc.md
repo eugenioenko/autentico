@@ -1059,6 +1059,6 @@ This optional local admission policy adds no OIDC discovery capability or grant.
 | MUST | RFC 6749 §4.1.2.1 | Report a server-side refusal of the authorization request with `access_denied` on the redirect | Browser login, SSO (including `prompt=none`) and consent redirect with `access_denied` and the original `state`; no session, consent or code is created. |
 | MUST | RFC 6749 §5.2 | Reject a grant the authorization server will not honor with `invalid_grant` | `authorization_code`, `refresh_token`, `password` and device code grants recheck access before issuance. |
 | MUST | RFC 8628 §3.5 | Keep device polling semantics | A refused approval leaves the request `authorization_pending`; issuance is still rechecked at the token endpoint. |
-| Local policy | n/a | Restricted clients admit listed users or members of any listed group | `client.CheckUserAccess`; empty lists with restriction on admit nobody; built-in admin/account clients are exempt. |
+| Local policy | n/a | Restricted clients admit listed users or members of any listed group | `client.CheckUserAccess`; empty lists with restriction on admit nobody; applies to built-in admin/account clients too. |
 
 No discovery capability, scope or grant changes. Routine schema 24. Contract: `rfc/client-access.md`.

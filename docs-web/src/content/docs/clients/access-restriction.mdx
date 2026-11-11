@@ -3,6 +3,8 @@ title: Access Restriction
 description: Limit which users and groups can sign in to a client application.
 ---
 
+import { Aside } from '@astrojs/starlight/components';
+
 Some applications filter users themselves, for example by reading the `groups`
 claim. Others trust the identity provider completely: anyone who can sign in
 gets full access. For those, restrict the client so Autentico only admits
@@ -22,9 +24,11 @@ With restriction on and both lists empty, nobody can sign in. Deleting the last
 allowed group or user therefore locks the client instead of opening it to
 everyone.
 
-The built-in `autentico-admin` and `autentico-account` clients cannot be
-restricted, so a mistake can never lock administrators or users out of
-Autentico itself.
+The built-in `autentico-admin` and `autentico-account` clients can be
+restricted too. The admin console additionally requires the `admin` role.
+Restricting `autentico-admin` to a list that leaves out every administrator
+locks the console: tokens already issued keep working until they expire, after
+which recovery needs a direct database edit.
 
 ## Admin UI
 
@@ -40,9 +44,15 @@ curl -X PUT http://localhost:9999/admin/api/clients/my-dashboard \
 ```
 
 The same fields are accepted on client creation and returned by client reads
-and listings. On update, omitted fields are unchanged, a provided list replaces
-the stored list, and `[]` clears it. Unknown group or user IDs reject the whole
-request with `400 invalid_client_metadata`.
+and listings. On update, omitted access fields are unchanged, a provided list
+replaces the stored list, and `[]` clears it. Unknown group or user IDs reject
+the whole request with `400 invalid_client_metadata`.
+
+<Aside type="caution">
+A client update replaces the [per-client overrides](/configuration/per-client-overrides/):
+any override left out of the request reverts to the global default. If the
+client has overrides, read it first and send them back with the access fields.
+</Aside>
 
 ## What a refused user sees
 
@@ -57,11 +67,15 @@ whenever a token is issued:
 | [ForwardAuth](/integrate/forward-auth/) | `403` on the next request, without a login redirect |
 | `client_credentials` | Not affected (no user) |
 
-Membership changes apply immediately: removing a user from an allowed group
-stops new tokens and refreshes for that client. Access tokens already issued
-stay valid until they expire.
+Membership changes apply immediately. A user keeps access while they are
+listed directly or belong to any allowed group, so revoking access means
+removing every match: the direct entry and each allowed group they are in. Once
+nothing matches, new tokens, refreshes and ForwardAuth requests are refused.
+Access tokens already issued stay valid until they expire.
 
 The account dashboard only lists applications the user can sign in to.
 
 Each refusal is recorded as a `client_access_denied` audit event with the user
-and the flow, never the group names.
+and the flow, never the group names. ForwardAuth records the refusal at login;
+the per-request `403` on later requests is not audited, so a refused user
+cannot fill the audit log.

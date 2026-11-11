@@ -168,6 +168,12 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// OIDC Core §3.1.2.1: prompt=consent requires user consent — skip SSO auto-login
 	cfg := config.GetForClient(registeredClient.ToOverrides())
 	autoLoginResult := tryAutoLogin(r, &cfg, request, registeredClient)
+	if autoLoginResult.accessErr != nil {
+		slog.Error("authorize: client access check failed", "error", autoLoginResult.accessErr, "client_id", registeredClient.ClientID)
+		// RFC 6749 §4.1.2.1: server_error: the authorization server cannot fulfill the request.
+		redirectWithError(w, r, request.RedirectURI, request.State, "server_error", "")
+		return
+	}
 	// RFC 6749 §4.1.2.1: SSO cannot admit a user a restricted client refuses.
 	if autoLoginResult.accessDenied {
 		client.LogAccessDenied(autoLoginResult.userID, autoLoginResult.username, registeredClient.ClientID, "sso", utils.GetClientIP(r))
@@ -336,6 +342,7 @@ type autoLoginResult struct {
 	needsConsent bool
 	hasSession   bool
 	accessDenied bool
+	accessErr    error
 	userID       string
 	username     string
 }
@@ -394,7 +401,7 @@ func tryAutoLogin(r *http.Request, cfg *config.Config, request AuthorizeRequest,
 		if errors.Is(err, client.ErrAccessDenied) {
 			return autoLoginResult{accessDenied: true, hasSession: true, userID: usr.ID, username: usr.Username}
 		}
-		return autoLoginResult{}
+		return autoLoginResult{accessErr: err, hasSession: true}
 	}
 
 	_ = idpsession.UpdateLastActivity(session.ID)

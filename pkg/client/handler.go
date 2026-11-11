@@ -175,8 +175,13 @@ func HandleUpdateClient(w http.ResponseWriter, r *http.Request) {
 
 	audit.Log(audit.EventClientUpdated, audit.ActorFromRequest(r), audit.TargetClient, clientID, nil, utils.GetClientIP(r))
 	updated, err := ClientByClientIDIncludingDisabled(clientID)
-	if err != nil {
+	if errors.Is(err, ErrClientNotFound) {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "invalid_client", "Client not found")
+		return
+	}
+	if err != nil {
+		slog.Error("client: failed to reload updated client", "error", err, "client_id", clientID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "server_error", "Failed to load client")
 		return
 	}
 	writeClientInfo(w, updated, http.StatusOK)

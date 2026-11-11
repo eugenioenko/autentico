@@ -32,12 +32,6 @@ export interface ClientFormValues {
   allowed_users?: string[];
 }
 
-export const BUILTIN_CLIENT_IDS = ["autentico-admin", "autentico-account"];
-
-export function isBuiltinClient(clientId: string | undefined) {
-  return !!clientId && BUILTIN_CLIENT_IDS.includes(clientId);
-}
-
 export const GRANT_TYPE_OPTIONS = [
   { label: "Authorization Code", value: "authorization_code" },
   { label: "Refresh Token", value: "refresh_token" },
@@ -78,18 +72,13 @@ export function toUriItems(uris: string[] | undefined): UriItem[] {
   return (uris ?? []).map((value) => ({ value }));
 }
 
-export function toClientRequest(values: ClientFormValues, builtin = isBuiltinClient(values.client_id)) {
+export function toClientRequest(values: ClientFormValues) {
   const { redirect_uris, post_logout_redirect_uris, scopes, restrict_access, allowed_groups, allowed_users, ...rest } = values;
-  const access = builtin
-    ? {}
-    : {
-        restrict_access: !!restrict_access,
-        allowed_groups: allowed_groups ?? [],
-        allowed_users: allowed_users ?? [],
-      };
   return {
     ...rest,
-    ...access,
+    restrict_access: !!restrict_access,
+    allowed_groups: allowed_groups ?? [],
+    allowed_users: allowed_users ?? [],
     redirect_uris: redirect_uris.map((uri) => uri.value),
     post_logout_redirect_uris: post_logout_redirect_uris.map((uri) => uri.value),
     scopes: scopes?.join(" "),
