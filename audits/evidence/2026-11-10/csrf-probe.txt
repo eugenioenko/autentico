@@ -1,0 +1,22 @@
+=== RUN   TestAuditCSRFOriginDowngrade
+=== RUN   TestAuditCSRFOriginDowngrade/https_control
+    audit_origin_test.go:59: origin=https://auth.example.test trusted=true token_present=true status=204
+=== RUN   TestAuditCSRFOriginDowngrade/HTTP_downgrade_accepted
+    audit_origin_test.go:59: origin=http://auth.example.test trusted=true token_present=true status=204
+=== RUN   TestAuditCSRFOriginDowngrade/foreign_origin_denied
+2026/11/10 00:21:26 WARN csrf validation failed request_id="" reason="origin invalid" ip=192.0.2.1 url=https://auth.example.test/oauth2/login
+    audit_origin_test.go:59: origin=https://evil.example trusted=true token_present=true status=403
+=== RUN   TestAuditCSRFOriginDowngrade/HTTP_without_token_denied
+2026/11/10 00:21:26 WARN csrf validation failed request_id="" reason="CSRF token not found in request" ip=192.0.2.1 url=https://auth.example.test/oauth2/login
+    audit_origin_test.go:59: origin=http://auth.example.test trusted=true token_present=false status=403
+=== RUN   TestAuditCSRFOriginDowngrade/HTTP_denied_without_TrustedOrigins
+2026/11/10 00:21:26 WARN csrf validation failed request_id="" reason="origin invalid" ip=192.0.2.1 url=https://auth.example.test/oauth2/login
+    audit_origin_test.go:59: origin=http://auth.example.test trusted=false token_present=true status=403
+--- PASS: TestAuditCSRFOriginDowngrade (0.00s)
+    --- PASS: TestAuditCSRFOriginDowngrade/https_control (0.00s)
+    --- PASS: TestAuditCSRFOriginDowngrade/HTTP_downgrade_accepted (0.00s)
+    --- PASS: TestAuditCSRFOriginDowngrade/foreign_origin_denied (0.00s)
+    --- PASS: TestAuditCSRFOriginDowngrade/HTTP_without_token_denied (0.00s)
+    --- PASS: TestAuditCSRFOriginDowngrade/HTTP_denied_without_TrustedOrigins (0.00s)
+PASS
+ok  	github.com/eugenioenko/autentico/pkg/middleware	0.055s
