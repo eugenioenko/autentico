@@ -184,7 +184,9 @@ Which address that is depends on the network path:
 | --- | --- | --- |
 | Ingress/Gateway controller pod, in-cluster routing | controller pod IP | the cluster pod CIDR |
 | kube-proxy or CNI masquerades to the node | node IP | the node CIDR |
-| Service mesh sidecar (Istio, Linkerd) | `127.0.0.1` or `::1` | `127.0.0.1/32,::1/128` |
+| Istio sidecar, REDIRECT interception (default) | `127.0.0.1`, or `127.0.0.6` on passthrough ports | those loopback addresses **and** the CIDR of any proxy in front of the mesh; the sidecar appends the ingress hop to `X-Forwarded-For` |
+| Istio sidecar, TPROXY interception | the original proxy IP | the ingress/gateway CIDR; no loopback needed |
+| Linkerd sidecar | `127.0.0.1` | `127.0.0.1/32`; Linkerd forwards `X-Forwarded-For` unchanged and adds no hop |
 | EKS/AKS with the VPC CNI | VPC address | the VPC or subnet CIDR |
 
 Find the pod CIDR (`10.244.0.0/16` is the kubeadm/kind default):
