@@ -38,12 +38,30 @@ application:
   # Example: appUrl=https://auth.example.com and oauthPath=/monitoring/auth
   # produce the issuer https://auth.example.com/monitoring/auth.
   oauthPath: ""
+  # CIDRs of the reverse proxies (Ingress or Gateway controller pods) allowed
+  # to supply client IPs through X-Forwarded-For. Rendered as the
+  # comma-separated AUTENTICO_TRUSTED_PROXIES bootstrap variable.
+  #
+  # Leave empty when Autentico is not behind a proxy. Behind an Ingress or
+  # Gateway every request otherwise arrives from the proxy's IP, so all
+  # clients share one rate-limit budget and audit logs record the proxy.
+  #
+  # Use the cluster pod CIDR (or the node CIDR when the CNI masquerades):
+  #   kubectl get nodes -o jsonpath='{range .items[*]}{.spec.podCIDR}{"\n"}{end}'
+  #
+  # Trust only the proxy network, never 0.0.0.0/0, and keep the pod
+  # unreachable from anywhere else, for example with a NetworkPolicy.
+  # Do not also set AUTENTICO_TRUSTED_PROXIES through env.
+  trustedProxies: []
+  # - 10.244.0.0/16
+  # - fd00:10:244::/56
   # Extra arguments appended after `start` (and `--auto-setup` when enabled).
   extraArgs: []
 
 # Additional environment variables for bootstrap settings and credentials.
 # In production, provide the required secrets via envFrom and a Kubernetes
 # Secret instead of relying on --auto-setup.
+# Proxy CIDRs belong in application.trustedProxies, not here.
 env: []
 # - name: AUTENTICO_ACCESS_TOKEN_SECRET
 #   valueFrom:
@@ -172,18 +190,18 @@ httpRoute:
   annotations: {}
   # Which Gateways this Route is attached to.
   parentRefs:
-  - name: gateway
-    sectionName: http
-    # namespace: default
+    - name: gateway
+      sectionName: http
+      # namespace: default
   # Hostnames matching HTTP header.
   hostnames:
-  - chart-example.local
+    - chart-example.local
   # List of rules and filters applied.
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
   #   filters:
   #   - type: RequestHeaderModifier
   #     requestHeaderModifier:

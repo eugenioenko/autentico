@@ -155,6 +155,59 @@ because the application registers the OAuth routes at that path itself.
 Running the entire application (including `/admin` and `/account`) under one
 prefix is not supported without proxy rewriting and custom UI base paths.
 
+## Client IPs behind an Ingress or Gateway
+
+Autentico ignores forwarding headers unless the network peer is trusted. Behind
+an Ingress controller or Gateway API implementation every request reaches the
+pod from the proxy, so without `AUTENTICO_TRUSTED_PROXIES`:
+
+- all clients share one rate-limit budget (the proxy's IP);
+- session IPs and audit logs record the proxy address instead of the client.
+
+Set `application.trustedProxies` to the CIDRs that the proxy connects from:
+
+```yaml
+application:
+  appUrl: https://auth.example.com
+  trustedProxies:
+    - 10.244.0.0/16
+```
+
+The chart renders the list as the comma-separated `AUTENTICO_TRUSTED_PROXIES`
+bootstrap variable. Autentico trusts the **immediate peer** and then walks
+`X-Forwarded-For` from right to left, so the CIDR must cover the address the pod
+sees, not the end clients.
+
+Which address that is depends on the network path:
+
+| Path | Peer seen by Autentico | Configure |
+| --- | --- | --- |
+| Ingress/Gateway controller pod, in-cluster routing | controller pod IP | the cluster pod CIDR |
+| kube-proxy or CNI masquerades to the node | node IP | the node CIDR |
+| Service mesh sidecar (Istio, Linkerd) | `127.0.0.1` or `::1` | `127.0.0.1/32,::1/128` |
+| EKS/AKS with the VPC CNI | VPC address | the VPC or subnet CIDR |
+
+Find the pod CIDR (`10.244.0.0/16` is the kubeadm/kind default):
+
+```bash
+kubectl get nodes -o jsonpath='{range .items[*]}{.spec.podCIDR}{"\n"}{end}'
+```
+
+On kubeadm check `kubeadm-config`; with Cilium or Calico read the CNI config.
+The pod CIDR is not in the kube-apiserver settings — `--service-cluster-ip-range`
+there is the Service CIDR. To confirm you picked the right range, compare it
+with the controller pod IPs:
+
+```bash
+kubectl -n ingress-nginx get pods -o wide
+```
+
+Trust only the proxy network. Never use `0.0.0.0/0`: any workload that can reach
+the pod directly could then forge `X-Forwarded-For`. Restrict access to the pod
+with a NetworkPolicy that allows traffic only from the ingress/gateway
+namespace. Set the value either through `application.trustedProxies` or through
+`env`, not both.
+
 ## Probes
 
 The chart uses `GET /healthz` for startup, readiness and liveness probes. The
@@ -199,6 +252,7 @@ stop the deployment first.
 | `image.tag` | `latest` | Pin a release tag in production |
 | `application.appUrl` | `""` | Public base URL (origin); set this in Kubernetes |
 | `application.oauthPath` | `""` | Optional OAuth2/OIDC path prefix; empty uses `/oauth2`; issuer = `appUrl + oauthPath` |
+| `application.trustedProxies` | `[]` | Proxy CIDRs allowed to supply client IPs via `X-Forwarded-For`; empty trusts no proxy |
 | `application.launchWithAutoSetup` | `true` | Generate `.env` on first start |
 | `application.extraArgs` | `[]` | Extra arguments after `start` |
 | `persistence.enabled` | `true` | Mount persistent storage |
