@@ -84,6 +84,12 @@ spec:
             - name: AUTENTICO_APP_OAUTH_PATH
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.application.trustedProxies }}
+            # Trusted proxy networks for X-Forwarded-For. Without this, every
+            # client behind an Ingress/Gateway resolves to the proxy address.
+            - name: AUTENTICO_TRUSTED_PROXIES
+              value: {{ join "," . | quote }}
+            {{- end }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
