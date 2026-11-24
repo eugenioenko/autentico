@@ -26,6 +26,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/userclaim"
@@ -149,6 +150,8 @@ func startTestServer(t *testing.T) *TestServer {
 	mux.Handle(oauth+"/mfa", plaintextCSRF(http.HandlerFunc(mfa.HandleMfa)))
 	mux.Handle(oauth+"/consent", plaintextCSRF(http.HandlerFunc(consent.HandleConsent)))
 	mux.Handle(oauth+"/signup", plaintextCSRF(http.HandlerFunc(signup.HandleSignup)))
+	mux.HandleFunc("GET "+oauth+"/invite", signupinvite.HandleOpen)
+	mux.Handle("POST /admin/api/signup-invites", middleware.AdminAuthMiddleware(http.HandlerFunc(signupinvite.HandleCreate)))
 
 	// OAuth2 client registration (admin-protected)
 	mux.Handle("POST "+oauth+"/register", middleware.AdminAuthMiddleware(http.HandlerFunc(client.HandleRegister)))

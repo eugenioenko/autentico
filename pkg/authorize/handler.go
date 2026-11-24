@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"errors"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -206,11 +207,16 @@ func HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// OIDC Core §3.1.2.1: prompt=create signals the client wants the registration form
 	if client.HasPrompt(request.Prompt, "create") {
-		if !cfg.AuthAllowSelfSignup {
+		inv, err := signupinvite.Resolve(r, request.ClientID, get("invite_id"))
+		if err != nil {
+			view.RenderError(w, r, http.StatusGone, "This invitation is unavailable. Reopen your invitation link.")
+			return
+		}
+		if !cfg.AuthAllowSelfSignup && inv == nil {
 			renderLogin(w, r, request, "Self-registration is not enabled")
 			return
 		}
-		signup.RenderSignup(w, r, signup.SignupParams{
+		signup.RenderSignup(w, r, signup.SignupParams{Invite: inv,
 			State:               request.State,
 			RedirectURI:         request.RedirectURI,
 			ClientID:            request.ClientID,

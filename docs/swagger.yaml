@@ -863,6 +863,20 @@ definitions:
       error:
         $ref: '#/definitions/model.ApiError'
     type: object
+  model.ApiResponse-signupinvite_Created:
+    properties:
+      data:
+        $ref: '#/definitions/signupinvite.Created'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
+  model.ApiResponse-signupinvite_ListResponse:
+    properties:
+      data:
+        $ref: '#/definitions/signupinvite.ListResponse'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
   model.ApiResponse-user_LookupUsersResponse:
     properties:
       data:
@@ -1127,6 +1141,60 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  signupinvite.CreateRequest:
+    properties:
+      delivery_method:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      kind:
+        type: string
+      max_uses:
+        type: integer
+      never_expires:
+        type: boolean
+      unlimited:
+        type: boolean
+    type: object
+  signupinvite.Created:
+    properties:
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  signupinvite.Invite:
+    properties:
+      created_at:
+        type: string
+      delivery_method:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      max_uses:
+        type: integer
+      revoked_at:
+        type: string
+      use_count:
+        type: integer
+    type: object
+  signupinvite.ListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/signupinvite.Invite'
+        type: array
+      smtp_available:
+        type: boolean
     type: object
   token.AdminTokenResponse:
     properties:
@@ -3412,6 +3480,82 @@ paths:
       summary: Test SMTP configuration
       tags:
       - admin-settings
+  /admin/api/signup-invites:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-signupinvite_ListResponse'
+      summary: List signup invitations and email delivery availability
+      tags:
+      - signup invites
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Invitation settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/signupinvite.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ApiResponse-signupinvite_Created'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Create a personal or shared signup invite
+      tags:
+      - signup invites
+  /admin/api/signup-invites/{id}:
+    delete:
+      parameters:
+      - description: Invitation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Revoke a signup invitation
+      tags:
+      - signup invites
+  /admin/api/signup-invites/{id}/retry:
+    post:
+      parameters:
+      - description: Invitation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Rotate and resend a pending email invitation
+      tags:
+      - signup invites
   /admin/api/stats:
     get:
       description: Returns a summary of users, clients, and active sessions.

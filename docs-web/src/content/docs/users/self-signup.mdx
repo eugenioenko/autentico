@@ -50,3 +50,18 @@ Consider enabling [Email Verification](/authentication/email-verification/) alon
 <Aside type="caution">
 Enabling self-signup means anyone can create an account. Consider pairing it with email verification (`validation_email_required = true`) or manual review before allowing access to sensitive clients.
 </Aside>
+
+## Invite-only signup
+
+Leave public self-signup disabled and open **Admin → Users → Signup invites → Create invite**. Recipients register through the built-in account client with the configured password or passkey flow. New accounts have the user role and ordinary application access rules apply.
+
+| Invitation | Recipient and delivery | Use limit |
+|---|---|---|
+| Personal | Copy the URL, optionally restrict it to an email address, or select **Send email invite** when SMTP is configured. | One completed signup. |
+| Shared | Copy one URL for a group. Each person supplies their own account details. | Choose a positive number of signups or **Unlimited uses**. |
+
+Invitations expire after seven days by default. Pick a different expiration when creating one. Shared links can also have **No expiration**. Anyone with an unlimited, non-expiring link can register until an administrator revokes it.
+
+Copy a generated URL before leaving the page. Email delivery keeps the URL private to the recipient and verifies the bound address on redemption. **Resend email** rotates the URL, invalidating earlier copies. A manually copied link follows normal email verification policy. A link with no bound address can be used without email when the instance's signup policy permits it.
+
+The list shows usage, expiry and revocation status. Opening a link or abandoning the form leaves the remaining count intact. If the signup page has been open for over 30 minutes, reopen the invitation URL to continue.

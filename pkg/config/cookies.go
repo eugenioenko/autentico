@@ -22,6 +22,7 @@ func (bs BootstrapConfig) validateCookieNames() error {
 		{"AUTENTICO_CSRF_COOKIE_NAME", bs.AuthCSRFCookieName},
 		{"AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME", bs.AuthTrustedDeviceCookieName},
 		{"AUTENTICO_FEDERATION_COOKIE_NAME", bs.AuthFederationCookieName},
+		{"AUTENTICO_SIGNUP_INVITE_COOKIE_NAME", bs.AuthSignupInviteCookieName},
 		{"AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME", bs.AuthPasskeyRegistrationCookieName},
 		{"AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX", bs.AuthForwardAuthCookiePrefix},
 	}
@@ -44,6 +45,7 @@ func (bs BootstrapConfig) validateCookieNames() error {
 		{"AUTENTICO_CSRF_COOKIE_NAME", bs.AuthCSRFCookieName},
 		{"AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME", bs.AuthTrustedDeviceCookieName},
 		{"AUTENTICO_FEDERATION_COOKIE_NAME", HostCookieName(bs.AuthFederationCookieName, bs.AuthIdpSessionSecureCookie)},
+		{"AUTENTICO_SIGNUP_INVITE_COOKIE_NAME", HostCookieName(bs.AuthSignupInviteCookieName, bs.AuthCSRFSecureCookie)},
 		{"AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME", HostCookieName(bs.AuthPasskeyRegistrationCookieName, bs.AuthCSRFSecureCookie)},
 	} {
 		// Keep the pre-existing IdP/refresh configuration semantics. New

@@ -131,6 +131,8 @@ It is not designed for organizations that require horizontal scaling of the auth
 
 ### Authentication
 
+- **Invite-only signup** — admins can issue personal links, email invitations through SMTP, or reusable shared links with use limits and expiration. Manage and revoke invitations under **Users → Signup invites**.
+
 - **Password visibility** — accessible show/hide controls on sign-in, signup, reset, onboarding and account password forms; masked by default
 - **Three auth modes** — `password`, `password_and_passkey`, or `passkey_only` — switchable at runtime without restart
 - **Passkeys (WebAuthn)** — hardware-backed FIDO2 authentication via platform authenticators and security keys; passkey-only mode supports signup without passwords
