@@ -64,13 +64,13 @@ export async function startServer(): Promise<void> {
   await waitForServer(`${BASE_URL}/.well-known/openid-configuration`);
 }
 
-export function stopServer(): void {
-  if (serverProcess?.pid) {
-    try {
-      process.kill(serverProcess.pid, "SIGTERM");
-    } catch {}
-    serverProcess = null;
-  }
+export async function stopServer(): Promise<void> {
+  const proc = serverProcess;
+  if (!proc?.pid || proc.exitCode !== null || proc.signalCode !== null) return;
+  const exited = new Promise<void>((resolve) => proc.once("exit", () => resolve()));
+  proc.kill("SIGTERM");
+  await exited;
+  if (serverProcess === proc) serverProcess = null;
 }
 
 export async function getAdminToken(): Promise<string> {

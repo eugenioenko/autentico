@@ -20,6 +20,7 @@ func TestConfiguredCookieFamilyAuthenticatesStripsAndClears(t *testing.T) {
 			config.Bootstrap.AuthTrustedDeviceCookieName = "tenant_trusted"
 			config.Bootstrap.AuthFederationCookieName = "tenant_federation"
 			config.Bootstrap.AuthPasskeyRegistrationCookieName = "tenant_registration"
+			config.Bootstrap.AuthSignupInviteCookieName = "tenant_invite"
 			a := crossSiteApp(t, origin)
 			credential := completeLogin(t, a)
 			expected := "tenant_fa_" + a.ID
@@ -33,7 +34,7 @@ func TestConfiguredCookieFamilyAuthenticatesStripsAndClears(t *testing.T) {
 			require.Empty(t, credential.Domain)
 			r := req(a, "/check")
 			r.AddCookie(credential)
-			for _, name := range []string{"tenant_idp", "tenant_refresh", "tenant_csrf", "tenant_trusted", "__Host-tenant_federation", "__Host-tenant_registration", "tenant_fa_other", "__Host-tenant_fa_other_flow_state", "autentico_fa_old", "__Host-autentico_fa_old_flow_state", "autentico_idp_session", "autentico_refresh_token", "_gorilla_csrf", "autentico_trusted_device", "__Host-autentico_federation", "__Host-autentico_passkey_registration"} {
+			for _, name := range []string{"tenant_idp", "tenant_refresh", "tenant_csrf", "tenant_trusted", "__Host-tenant_federation", "__Host-tenant_registration", "tenant_fa_other", "__Host-tenant_fa_other_flow_state", "autentico_fa_old", "__Host-autentico_fa_old_flow_state", "autentico_idp_session", "autentico_refresh_token", "_gorilla_csrf", "autentico_trusted_device", "__Host-autentico_federation", "__Host-autentico_passkey_registration", "tenant_invite", "__Host-tenant_invite", "autentico_signup_invite", "__Host-autentico_signup_invite"} {
 				r.AddCookie(&http.Cookie{Name: name, Value: "withheld-secret"})
 			}
 			r.AddCookie(&http.Cookie{Name: "app-preference", Value: "dark"})

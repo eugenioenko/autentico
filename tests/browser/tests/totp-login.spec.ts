@@ -35,9 +35,7 @@ test.beforeAll(async () => {
   });
 });
 
-test.afterAll(() => {
-  stopServer();
-});
+test.afterAll(() => stopServer());
 
 let totpSecret: string;
 let adminToken: string;

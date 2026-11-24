@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import Spinner from '../components/Spinner';
+
 export interface Settings {
   theme_logo_url: string;
   theme_title: string;
@@ -51,12 +53,18 @@ const defaultSettings: Settings = {
 const SettingsContext = createContext<Settings>(defaultSettings);
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    fetch('/account/api/settings')
-      .then((r) => r.json())
+    const controller = new AbortController();
+    fetch('/account/api/settings', { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error('Could not load account settings');
+        return r.json();
+      })
       .then((res: { data: Settings }) => {
+        if (typeof res.data?.oauth_path !== 'string') throw new Error('Missing OAuth path');
         const merged = { ...defaultSettings, ...res.data };
         setSettings(merged);
         if (merged.theme_logo_url) {
@@ -64,9 +72,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
           if (link) link.href = merged.theme_logo_url;
         }
       })
-      .catch(() => { });
+      .catch(() => { if (!controller.signal.aborted) setLoadFailed(true); });
+    return () => controller.abort();
   }, []);
 
+  if (loadFailed) return <div role="alert">Could not load account settings. <button onClick={() => window.location.reload()}>Retry</button></div>;
+  // Mount the OIDC provider only after the server supplies its issuer path.
+  if (!settings) return <Spinner />;
   return <SettingsContext.Provider value={settings}>{children}</SettingsContext.Provider>;
 };
 

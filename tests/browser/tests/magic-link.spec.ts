@@ -43,9 +43,7 @@ test.describe("magic link login", () => {
     await setupMagicLink();
   });
 
-  test.afterAll(() => {
-    stopServer();
-  });
+  test.afterAll(() => stopServer());
 
   test("magic link code login shows account dashboard", async ({ browser }) => {
     await magicLinkLogin(browser);
@@ -61,9 +59,7 @@ test.describe("magic link login with MFA email enabled", () => {
     });
   });
 
-  test.afterAll(() => {
-    stopServer();
-  });
+  test.afterAll(() => stopServer());
 
   test("magic link skips redundant email MFA", async ({ browser }) => {
     await magicLinkLogin(browser);

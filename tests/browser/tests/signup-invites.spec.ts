@@ -11,7 +11,10 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => stopServer());
 
-test('admin creates a capped shared link, recipient signs up without email, admin revokes it', async ({ page, browser }) => {
+test('admin creates a capped shared link, recipient signs up without email, admin revokes it', async ({ page, browser, request }) => {
+  const earlier = await request.post(api, { headers: {Authorization:'Bearer '+admin},
+    data: { kind: 'personal', delivery_method: 'link', email: 'earlier@test.com' } });
+  expect(earlier.status()).toBe(201);
   await page.goto(BASE_URL + '/admin/users?tab=invites');
   await page.fill('#username', ADMIN_USERNAME);
   await page.fill('#password', ADMIN_PASSWORD);
@@ -21,6 +24,8 @@ test('admin creates a capped shared link, recipient signs up without email, admi
   await page.getByLabel('Maximum signups').fill('2');
   await page.getByRole('button', {name:'Generate link'}).click();
   const link = await page.getByText(/http.*\/invite\?token=/).innerText();
+  await page.getByRole('group', {name:'earlier@test.com'}).getByRole('button', {name:'Revoke'}).click();
+  await expect(page.getByText(link, {exact:true})).toBeVisible();
   const guest = await browser.newContext();
   const signup = await guest.newPage();
   await signup.goto(link);
@@ -32,13 +37,13 @@ test('admin creates a capped shared link, recipient signs up without email, admi
   await page.reload();
   await expect(page.getByText(/1 of 2 used/)).toBeVisible();
   await page.getByRole('button',{name:'Revoke'}).click();
-  await expect(page.getByText('Revoked',{exact:true})).toBeVisible();
+  await expect(page.getByText('Revoked',{exact:true})).toHaveCount(2);
   expect((await signup.goto(link))?.status()).toBe(410);
   await guest.close();
 });
 
 test('emailed invite verifies only its bound address and completes passkey signup', async ({ page, request }) => {
-  await updateSettings(admin, { auth_mode:'passkey_only', require_email_verification:'true', smtp_host:'localhost', smtp_port:'2525',smtp_from:'admin@test.com' });
+  await updateSettings(admin, { auth_mode:'passkey_only', profile_field_locale:'required', require_email_verification:'true', smtp_host:'localhost', smtp_port:'2525',smtp_from:'admin@test.com' });
   await clearEmails();
   const headers={Authorization:'Bearer '+admin};
   const created=await request.post(api,{headers,data:{kind:'personal',delivery_method:'email',email:'member@test.com'}});
@@ -57,13 +62,15 @@ test('emailed invite verifies only its bound address and completes passkey signu
   await expect(page.locator('#email')).toHaveValue('member@test.com');
   await expect(page.locator('#email')).toHaveAttribute('readonly','');
   await page.fill('#username','invite-passkey');
+  await expect(page.getByLabel('Locale')).toHaveAttribute('required', '');
+  await page.getByLabel('Locale').fill('en-US');
   await page.click('#signup-btn');
   await expect(page.getByTestId('account-dashboard')).toBeVisible();
   expect((await request.get(link)).status()).toBe(410);
 });
 
 test('revoking an invitation during WebAuthn registration leaves no user or spent use', async ({ page, request }) => {
-  await updateSettings(admin, { auth_mode: 'passkey_only', require_email_verification: 'false' });
+  await updateSettings(admin, { auth_mode: 'passkey_only', profile_field_locale: 'hidden', require_email_verification: 'false' });
   const headers = { Authorization: 'Bearer ' + admin };
   const issued = await request.post(api, { headers, data: { kind: 'personal', delivery_method: 'link' } });
   expect(issued.status()).toBe(201);
@@ -85,4 +92,21 @@ test('revoking an invitation during WebAuthn registration leaves no user or spen
   expect(listed.find((item: {id: string}) => item.id === invite.id).use_count).toBe(0);
   const users = (await (await request.get(BASE_URL + '/admin/api/users?search=abandoned-invite', { headers })).json()).data.items;
   expect(users).toHaveLength(0);
+});
+
+test('invitation discovery waits for the configured OAuth path', async ({ page }) => {
+  const discoveries: string[] = [];
+  await page.route('**/.well-known/openid-configuration', async route => {
+    discoveries.push(new URL(route.request().url()).pathname);
+    await route.fulfill({status: 503, body: 'test discovery endpoint'});
+  });
+  await page.route('**/account/api/settings', route => route.fulfill({status: 503, body: 'temporarily unavailable'}));
+  await page.goto(BASE_URL + '/account/invite?id=public-invite-id');
+  await expect(page.getByRole('alert')).toContainText('Could not load account settings');
+  expect(discoveries).toEqual([]);
+  await page.unroute('**/account/api/settings');
+  await page.route('**/account/api/settings', route => route.fulfill({json: {data: {oauth_path: '/custom-issuer'}}}));
+  await page.getByRole('button', {name:'Retry'}).click();
+  await expect.poll(() => discoveries.length).toBeGreaterThan(0);
+  expect(new Set(discoveries)).toEqual(new Set(['/custom-issuer/.well-known/openid-configuration']));
 });

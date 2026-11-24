@@ -23,9 +23,7 @@ test.beforeAll(async () => {
   });
 });
 
-test.afterAll(() => {
-  stopServer();
-});
+test.afterAll(() => stopServer());
 
 async function addVirtualAuthenticator(page: Page): Promise<CDPSession> {
   const cdp = await page.context().newCDPSession(page);

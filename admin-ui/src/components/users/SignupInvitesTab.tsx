@@ -36,7 +36,7 @@ export default function SignupInvitesTab() {
   const [sendEmail, setSendEmail] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
   const [neverExpires, setNeverExpires] = useState(false);
-  const [link, setLink] = useState("");
+  const [link, setLink] = useState<{ id: string; url: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,7 +66,7 @@ export default function SignupInvitesTab() {
         never_expires: shared && neverExpires,
         expires_at: expiry ? new Date(String(expiry)).toISOString() : undefined,
       });
-      setLink(response.data.data.url ?? "");
+      setLink(response.data.data.url ? response.data.data : null);
       setOpen(false);
       if (!response.data.data.url) toast({ title: "Invitation emailed", color: "success" });
     });
@@ -75,15 +75,15 @@ export default function SignupInvitesTab() {
   return <Stack gap="md">
     <Inline><Button onClick={() => {
       setShared(false); setSendEmail(false); setUnlimited(false); setNeverExpires(false);
-      setError(""); setLink(""); setOpen(true);
+      setError(""); setLink(null); setOpen(true);
     }}>Create invite</Button></Inline>
     {error && !open && <Alert color="danger">{error}</Alert>}
     {link && <Stack gap="xs"><Text>Copy this signup link before leaving this page.</Text>
-      <CopyText text={link} /><Inline><Button variant="ghost" onClick={() => setLink("")}>Dismiss link</Button></Inline></Stack>}
+      <CopyText text={link.url} /><Inline><Button variant="ghost" onClick={() => setLink(null)}>Dismiss link</Button></Inline></Stack>}
     {list.isLoading && <Text>Loading invitations…</Text>}
     {list.isError && <Alert color="danger">Could not load invitations.</Alert>}
     {list.data?.items.length === 0 && <Text>No signup invitations yet.</Text>}
-    {list.data?.items.map(invite => <Stack key={invite.id} gap="xs">
+    {list.data?.items.map(invite => <Stack key={invite.id} gap="xs" role="group" aria-label={invite.email || invite.id}>
       <Inline><strong>{invite.kind === "shared" ? "Shared link" : "Personal invitation"}</strong>
         {invite.email && <Text>{invite.email}</Text>}<Text>{status(invite)}</Text></Inline>
       <Text>Created {new Date(invite.created_at).toLocaleString()} · {invite.use_count} of {invite.max_uses ?? "unlimited"} used · {invite.expires_at ? "Expires " + new Date(invite.expires_at).toLocaleString() : "No expiration"}</Text>
@@ -92,7 +92,8 @@ export default function SignupInvitesTab() {
           await apiClient.post(path + "/" + invite.id + "/retry"); toast({title: "New invitation emailed", color: "success"});
         })}>Resend email</Button>}
         <Button disabled={busy} color="danger" variant="ghost" onClick={() => void run(async () => {
-          await apiClient.delete(path + "/" + invite.id); setLink("");
+          await apiClient.delete(path + "/" + invite.id);
+          setLink(current => current?.id === invite.id ? null : current);
         })}>Revoke</Button>
       </Inline>}
     </Stack>)}
