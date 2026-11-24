@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/eugenioenko/autentico/pkg/user"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 

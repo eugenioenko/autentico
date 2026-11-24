@@ -57,13 +57,13 @@ func TestCookieNamesFromExplicitEnvFile(t *testing.T) {
 		require.NoError(t, os.Unsetenv(env))
 	}
 	file := filepath.Join(t.TempDir(), "cookies.env")
-	require.NoError(t, os.WriteFile(file, []byte("AUTENTICO_CSRF_COOKIE_NAME=file_csrf\nAUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=file_trusted\nAUTENTICO_FEDERATION_COOKIE_NAME=file_federation\nAUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=file_passkey\nAUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=file_fa_\n"), 0600))
+	require.NoError(t, os.WriteFile(file, []byte("AUTENTICO_CSRF_COOKIE_NAME=file_csrf\nAUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=file_trusted\nAUTENTICO_FEDERATION_COOKIE_NAME=file_federation\nAUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=file_passkey\nAUTENTICO_SIGNUP_INVITE_COOKIE_NAME=file_invite\nAUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=file_fa_\n"), 0600))
 	t.Setenv("AUTENTICO_CSRF_COOKIE_NAME", "process_csrf")
 	require.NoError(t, InitBootstrap(file))
 	require.Equal(t, "process_csrf", Bootstrap.AuthCSRFCookieName)
 	require.Equal(t, "file_trusted", Bootstrap.AuthTrustedDeviceCookieName)
 	require.Equal(t, "file_federation", Bootstrap.AuthFederationCookieName)
-	require.Equal(t, "autentico_signup_invite", Bootstrap.AuthSignupInviteCookieName)
+	require.Equal(t, "file_invite", Bootstrap.AuthSignupInviteCookieName)
 	require.Equal(t, "file_passkey", Bootstrap.AuthPasskeyRegistrationCookieName)
 	require.Equal(t, "file_fa_", Bootstrap.AuthForwardAuthCookiePrefix)
 }

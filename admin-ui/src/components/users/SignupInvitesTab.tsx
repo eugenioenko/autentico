@@ -45,6 +45,7 @@ export default function SignupInvitesTab() {
     setError("");
     try { await action(); }
     catch (err) {
+      if (isAxiosError(err) && err.response?.data?.data?.id) setOpen(false);
       setError((isAxiosError(err) && err.response?.data?.error?.message) || "Invitation request failed.");
     } finally {
       await list.refetch();

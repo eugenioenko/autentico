@@ -2,15 +2,16 @@ package e2e
 
 import (
 	"encoding/json"
-	"github.com/eugenioenko/autentico/pkg/config"
-	"github.com/eugenioenko/autentico/pkg/signupinvite"
-	"github.com/eugenioenko/autentico/pkg/user"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
+	"github.com/eugenioenko/autentico/pkg/user"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAdminInviteWithPublicSignupClosed(t *testing.T) {
@@ -26,17 +27,17 @@ func TestAdminInviteWithPublicSignupClosed(t *testing.T) {
 	var out struct{ Data signupinvite.Created }
 	require.Equal(t, 201, res.StatusCode)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&out))
-	res.Body.Close()
+	require.NoError(t, res.Body.Close())
 	res, err = ts.Client.Get(out.Data.URL)
 	require.NoError(t, err)
-	res.Body.Close()
+	require.NoError(t, res.Body.Close())
 	require.Equal(t, 303, res.StatusCode)
 	form := url.Values{"prompt": {"create"}, "response_type": {"code"}, "redirect_uri": {"http://localhost:3000/account/callback"}, "client_id": {config.AccountClientID}, "code_challenge": {testCodeChallenge}, "code_challenge_method": {"S256"}, "invite_id": {out.Data.ID}, "state": {"invite-test"}}
 	res, err = ts.Client.Get(ts.BaseURL + "/oauth2/authorize?" + form.Encode())
 	require.NoError(t, err)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	res.Body.Close()
+	require.NoError(t, res.Body.Close())
 	require.Equal(t, 200, res.StatusCode, string(body))
 	form.Set("authorize_sig", getAuthorizeSig(string(body)))
 	form.Set("gorilla.csrf.Token", getCSRFToken(string(body)))
@@ -45,7 +46,7 @@ func TestAdminInviteWithPublicSignupClosed(t *testing.T) {
 	form.Set("confirm_password", "password123")
 	res, err = ts.Client.PostForm(ts.BaseURL+"/oauth2/signup", form)
 	require.NoError(t, err)
-	res.Body.Close()
+	require.NoError(t, res.Body.Close())
 	require.Equal(t, 302, res.StatusCode)
 	usr, err := user.UserByUsername("invited-user")
 	require.NoError(t, err)
@@ -53,6 +54,6 @@ func TestAdminInviteWithPublicSignupClosed(t *testing.T) {
 	require.False(t, usr.IsEmailVerified)
 	res, err = ts.Client.Get(out.Data.URL)
 	require.NoError(t, err)
-	res.Body.Close()
+	require.NoError(t, res.Body.Close())
 	require.Equal(t, 410, res.StatusCode)
 }

@@ -2,8 +2,9 @@ package user
 
 import (
 	"errors"
-	"github.com/eugenioenko/autentico/pkg/config"
 	"net/url"
+
+	"github.com/eugenioenko/autentico/pkg/config"
 )
 
 func SignupProfile(values url.Values, cfg *config.Config) (UserUpdateRequest, error) {
@@ -34,7 +35,7 @@ func SignupProfile(values url.Values, cfg *config.Config) (UserUpdateRequest, er
 	}
 	for field, visibility := range fieldVisibility {
 		if visibility == "required" && profileFields[field] == "" {
-			return UserUpdateRequest{}, errors.New("Please fill in all required fields")
+			return UserUpdateRequest{}, errors.New("Please fill in all required fields") //nolint:staticcheck // Displayed verbatim on the signup form.
 		}
 	}
 

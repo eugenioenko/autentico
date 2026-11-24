@@ -1,7 +1,6 @@
 package signup
 
 import (
-	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -169,7 +169,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if inv == nil {
 		_ = user.UpdateUser(usr.ID, profileUpdate)
 	} else {
-		signupinvite.Clear(w)
+		inv.Complete(w, r, usr.ID)
 	}
 
 	// Email verification gate — non-admin users with an email must verify before logging in

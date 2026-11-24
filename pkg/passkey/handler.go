@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/eugenioenko/autentico/pkg/signupinvite"
-	"github.com/rs/xid"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -20,10 +18,12 @@ import (
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/rs/xid"
 )
 
 // HandleRegisterBegin starts a passkey registration ceremony.
@@ -590,7 +590,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, 409, "Invitation or username unavailable")
 			return
 		}
-		signupinvite.Clear(w)
+		inv.Complete(w, r, usr.ID)
 	} else {
 		if err := CreatePasskeyCredential(pCred); err != nil {
 			slog.Error("passkey: failed to store credential", "request_id", reqid.Get(r.Context()), "error", err)

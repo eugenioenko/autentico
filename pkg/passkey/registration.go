@@ -3,13 +3,13 @@ package passkey
 import (
 	"database/sql"
 	"errors"
-	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"net/http"
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 )
 
 const registrationLifetime = 5 * time.Minute

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eugenioenko/autentico/pkg/audit"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/utils"
@@ -42,7 +43,12 @@ func cookie(raw string, age int) *http.Cookie {
 	bs := config.GetBootstrap()
 	return &http.Cookie{Name: config.HostCookieName(bs.AuthSignupInviteCookieName, bs.AuthCSRFSecureCookie), Value: raw, Path: "/", HttpOnly: true, Secure: bs.AuthCSRFSecureCookie, SameSite: http.SameSiteLaxMode, MaxAge: age}
 }
-func Clear(w http.ResponseWriter) { http.SetCookie(w, cookie("", -1)) }
+
+// Complete emits browser and audit effects only after the account transaction commits (§3).
+func (i *Invite) Complete(w http.ResponseWriter, r *http.Request, userID string) {
+	http.SetCookie(w, cookie("", -1))
+	audit.Log("signup_invite_redeemed", audit.SimpleActor{ID: userID}, "signup_invite", i.ID, nil, utils.GetClientIP(r))
+}
 
 // Resolve requires both the public invitation ID and the secret held by this browser (§2).
 func Resolve(r *http.Request, clientID, id string) (*Invite, error) {

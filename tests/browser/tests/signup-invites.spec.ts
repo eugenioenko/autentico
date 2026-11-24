@@ -61,3 +61,28 @@ test('emailed invite verifies only its bound address and completes passkey signu
   await expect(page.getByTestId('account-dashboard')).toBeVisible();
   expect((await request.get(link)).status()).toBe(410);
 });
+
+test('revoking an invitation during WebAuthn registration leaves no user or spent use', async ({ page, request }) => {
+  await updateSettings(admin, { auth_mode: 'passkey_only', require_email_verification: 'false' });
+  const headers = { Authorization: 'Bearer ' + admin };
+  const issued = await request.post(api, { headers, data: { kind: 'personal', delivery_method: 'link' } });
+  expect(issued.status()).toBe(201);
+  const { data: invite } = await issued.json();
+  const session = await page.context().newCDPSession(page);
+  await session.send('WebAuthn.enable');
+  await session.send('WebAuthn.addVirtualAuthenticator', {
+    options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true },
+  });
+  await page.route('**/passkey/register/finish?**', async route => {
+    expect((await request.delete(api + '/' + invite.id, { headers })).status()).toBe(204);
+    await route.continue();
+  });
+  await page.goto(invite.url);
+  await page.fill('#username', 'abandoned-invite');
+  await page.click('#signup-btn');
+  await expect(page.locator('#signup-error')).toContainText('invitation unavailable');
+  const listed = (await (await request.get(api, { headers })).json()).data.items;
+  expect(listed.find((item: {id: string}) => item.id === invite.id).use_count).toBe(0);
+  const users = (await (await request.get(BASE_URL + '/admin/api/users?search=abandoned-invite', { headers })).json()).data.items;
+  expect(users).toHaveLength(0);
+});

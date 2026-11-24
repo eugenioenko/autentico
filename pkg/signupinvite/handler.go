@@ -16,7 +16,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/middleware"
-	_ "github.com/eugenioenko/autentico/pkg/model" // Swagger API envelopes.
+	"github.com/eugenioenko/autentico/pkg/model"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
 	"github.com/rs/xid"
@@ -106,7 +106,7 @@ func HandleList(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorResponse(w, "Could not list invites", 500)
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	list := ListResponse{Items: []Invite{}, SMTP: config.Get().SmtpHost != ""}
 	for rows.Next() {
 		i, err := scan(rows)
@@ -177,7 +177,7 @@ func HandleCreate(w http.ResponseWriter, r *http.Request) {
 	if p.Delivery == "link" {
 		out.URL = inviteURL(raw)
 	} else if err = email.SendSignupInvite(p.Email, inviteURL(raw)); err != nil {
-		utils.ErrorResponse(w, "Invitation created. Email delivery failed. Retry from the invitation list.", 502)
+		utils.WriteApiResponse(w, model.ApiResponse[Created]{Data: out, Error: &model.ApiError{Code: http.StatusBadGateway, Message: "Invitation created. Email delivery failed. Retry from the invitation list."}}, http.StatusBadGateway)
 		return
 	}
 	utils.SuccessResponse(w, out, http.StatusCreated)

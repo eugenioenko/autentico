@@ -369,6 +369,7 @@ These are infrastructure-level settings read once at startup. Changing them requ
 | `AUTENTICO_CSRF_COOKIE_NAME` | CSRF cookie name | `_gorilla_csrf` |
 | `AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME` | Trusted-device cookie name | `autentico_trusted_device` |
 | `AUTENTICO_FEDERATION_COOKIE_NAME` | Federation browser-cookie base name (automatic secure `__Host-` prefix) | `autentico_federation` |
+| `AUTENTICO_SIGNUP_INVITE_COOKIE_NAME` | Signup invitation cookie base name (automatic secure `__Host-` prefix) | `autentico_signup_invite` |
 | `AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME` | Passkey-registration cookie base name (automatic secure `__Host-` prefix) | `autentico_passkey_registration` |
 | `AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX` | App-session/flow cookie prefix (automatic `__Host-` for HTTPS apps) | `autentico_fa_` |
 | `AUTENTICO_CSRF_SECURE_COOKIE`   | Require Secure flag on CSRF cookie                             | `true`                  |
