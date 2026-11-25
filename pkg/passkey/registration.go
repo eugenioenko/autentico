@@ -9,21 +9,22 @@ import (
 	"github.com/eugenioenko/autentico/pkg/client"
 	"github.com/eugenioenko/autentico/pkg/config"
 	"github.com/eugenioenko/autentico/pkg/db"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 )
 
 const registrationLifetime = 5 * time.Minute
 
-func registrationPolicy(clientID, email string) (int, error) {
+func registrationPolicy(clientID, email string, inv *signupinvite.Invite) (int, error) {
 	c, err := client.ClientByClientID(clientID)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
 	cfg := config.GetForClient(c.ToOverrides())
 	// WebAuthn §7.1: the RP's account registration policy also applies to ceremonies.
-	if !cfg.AuthAllowSelfSignup || (cfg.AuthMode != "password_and_passkey" && cfg.AuthMode != "passkey_only") {
+	if (!cfg.AuthAllowSelfSignup && inv == nil) || (cfg.AuthMode != "password_and_passkey" && cfg.AuthMode != "passkey_only") {
 		return http.StatusForbidden, errors.New("passkey signup is disabled")
 	}
-	if cfg.RequireEmailVerification {
+	if cfg.RequireEmailVerification && (inv == nil || inv.Delivery != "email") {
 		if email == "" {
 			return http.StatusBadRequest, errors.New("email is required for verification")
 		}

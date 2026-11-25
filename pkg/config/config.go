@@ -41,6 +41,7 @@ type BootstrapConfig struct {
 	AuthCSRFCookieName                string
 	AuthTrustedDeviceCookieName       string
 	AuthFederationCookieName          string
+	AuthSignupInviteCookieName        string
 	AuthPasskeyRegistrationCookieName string
 	AuthForwardAuthCookiePrefix       string
 	AuthJwkCertKeyID                  string
@@ -264,6 +265,7 @@ var (
 		AuthCSRFCookieName:                "_gorilla_csrf",
 		AuthTrustedDeviceCookieName:       "autentico_trusted_device",
 		AuthFederationCookieName:          "autentico_federation",
+		AuthSignupInviteCookieName:        "autentico_signup_invite",
 		AuthPasskeyRegistrationCookieName: "autentico_passkey_registration",
 		AuthForwardAuthCookiePrefix:       "autentico_fa_",
 		AuthJwkCertKeyID:                  "autentico-key-1",
@@ -350,6 +352,7 @@ func InitBootstrap(envFiles ...string) error {
 		AuthCSRFCookieName:                getEnv("AUTENTICO_CSRF_COOKIE_NAME", "_gorilla_csrf"),
 		AuthTrustedDeviceCookieName:       getEnv("AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME", "autentico_trusted_device"),
 		AuthFederationCookieName:          getEnv("AUTENTICO_FEDERATION_COOKIE_NAME", "autentico_federation"),
+		AuthSignupInviteCookieName:        getEnv("AUTENTICO_SIGNUP_INVITE_COOKIE_NAME", "autentico_signup_invite"),
 		AuthPasskeyRegistrationCookieName: getEnv("AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME", "autentico_passkey_registration"),
 		AuthForwardAuthCookiePrefix:       getEnv("AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX", "autentico_fa_"),
 		PrivateKeyBase64:                  getEnv("AUTENTICO_PRIVATE_KEY", ""),

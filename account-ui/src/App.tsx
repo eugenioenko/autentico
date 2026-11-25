@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from 'oidc-js-react';
+import { AuthProvider, useAuth } from 'oidc-js-react';
 import type { OidcConfig } from 'oidc-js-react';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import AuthBridge from './components/AuthBridge';
@@ -60,6 +60,19 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function InviteSignup() {
+  const { actions, isLoading, error } = useAuth();
+  const started = useRef(false);
+  useEffect(() => {
+    if (isLoading || started.current) return;
+    started.current = true;
+    actions.login({ returnTo: '/account', extraParams: {
+      prompt: 'create', invite_id: new URLSearchParams(window.location.search).get('id') ?? '',
+    } });
+  }, [actions, isLoading]);
+  return error ? <p role="alert">{error.message}</p> : <Spinner />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -67,6 +80,7 @@ function App() {
         <BrowserRouter basename={BASENAME}>
           <AuthWrapper>
             <Routes>
+              <Route path="/invite" element={<InviteSignup />} />
               <Route path="/callback" element={<Callback />} />
               <Route path="/device/:code" element={
                 <RequireAuth fallback={<div className="min-h-dvh flex items-center justify-center bg-theme-bg"><Spinner /></div>}>

@@ -50,6 +50,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/revoke"
 	"github.com/eugenioenko/autentico/pkg/session"
 	"github.com/eugenioenko/autentico/pkg/signup"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/token"
 	"github.com/eugenioenko/autentico/pkg/totpsecret"
 	"github.com/eugenioenko/autentico/pkg/user"
@@ -182,6 +183,7 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	mux.Handle("GET "+oauth+"/passkey/discoverable/begin", rateLimitedFunc(passkey.HandleDiscoverableLoginBegin))
 	mux.Handle("POST "+oauth+"/passkey/discoverable/finish", rateLimitedFunc(passkey.HandleDiscoverableLoginFinish))
 	mux.Handle("GET "+oauth+"/passkey/register/begin", rateLimitedFunc(passkey.HandleRegisterBegin))
+	mux.Handle("POST "+oauth+"/passkey/register/begin", rateLimited(csrfProtected(passkey.HandleRegisterBegin)))
 	mux.Handle("POST "+oauth+"/passkey/register/finish", rateLimitedFunc(passkey.HandleRegisterFinish))
 	mux.Handle("GET "+oauth+"/verify-email/pending", rateLimited(csrfProtected(emailverification.HandlePendingVerification)))
 	mux.Handle("GET "+oauth+"/verify-email", rateLimited(csrfProtected(emailverification.HandleVerifyEmail)))
@@ -214,6 +216,11 @@ func runStart(c *cli.Context, federationLogin *federation.LoginHandler) error {
 	// -------------------------------------------------------------------------
 	// Admin API (admin-authenticated)
 	// -------------------------------------------------------------------------
+	mux.Handle("GET "+oauth+"/invite", rateLimitedFunc(signupinvite.HandleOpen))
+	mux.Handle("GET /admin/api/signup-invites", adminAPI(signupinvite.HandleList))
+	mux.Handle("POST /admin/api/signup-invites", adminAPI(signupinvite.HandleCreate))
+	mux.Handle("DELETE /admin/api/signup-invites/{id}", adminAPI(signupinvite.HandleRevoke))
+	mux.Handle("POST /admin/api/signup-invites/{id}/retry", adminAPI(signupinvite.HandleRetry))
 	mux.Handle("GET /admin/api/users", adminAPI(user.HandleListUsers))
 	mux.Handle("POST /admin/api/users", adminAPI(user.HandleCreateUser))
 	mux.Handle("GET /admin/api/users/{id}", adminAPI(user.HandleGetUser))

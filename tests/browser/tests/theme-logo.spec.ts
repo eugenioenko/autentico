@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   const token = await getAdminToken();
   await updateSettings(token, { theme_logo_url: "" });
-  stopServer();
+  await stopServer();
 });
 
 function collectCspViolations(page: Page): string[] {

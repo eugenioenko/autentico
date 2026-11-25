@@ -1,0 +1,5 @@
+# Admin signup invitations
+
+1. A personal invitation authorizes one ordinary account and expires after seven days by default. It can bind a normalized email address. SMTP delivery requires a bound address, exposes no link to the admin and verifies only that address. Retry rotates the secret. A shared invitation has no address, a positive limit or explicitly unlimited uses, and an independent expiration or explicit no-expiry choice. Revocation is immediate.
+2. Store only the SHA-256 digest of a random 256-bit secret. Opening the link establishes a short-lived HttpOnly browser cookie and starts the account client's PKCE signup flow. Only that client can redeem invites. No preview, failed validation or unfinished passkey ceremony spends a use.
+3. Recheck secret, expiry, binding, revocation and remaining uses under the SQLite writer. Increment usage and create the registered user (including any passkey credential) in one transaction. Only email delivery verifies an address. Existing verification, MFA, consent and application access policy continue to apply.

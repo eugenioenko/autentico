@@ -14,6 +14,7 @@ import (
 	"github.com/eugenioenko/autentico/pkg/email"
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/mfa"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/eugenioenko/autentico/view"
@@ -95,7 +96,13 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	// RFC 6749 §2: apply the current registration's local signup policy before
 	// account creation. Explicit client true/false overrides the global default.
 	cfg := config.GetForClient(registeredClient.ToOverrides())
-	if !cfg.AuthAllowSelfSignup {
+	inv, err := signupinvite.Resolve(r, params.ClientID, r.Form.Get("invite_id"))
+	if err != nil {
+		view.RenderError(w, r, http.StatusGone, "This invitation is unavailable. Reopen your invitation link.")
+		return
+	}
+	params.Invite = inv
+	if !cfg.AuthAllowSelfSignup && inv == nil {
 		view.RenderError(w, r, http.StatusMethodNotAllowed, "Self-registration is not enabled for this client.")
 		return
 	}
@@ -116,6 +123,10 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		emailAddr = username
 	}
 
+	if inv != nil && !inv.Accepts(username, emailAddr) {
+		redirectSignupError(w, r, params, "Use the email address on the invitation")
+		return
+	}
 	// Local verification policy requires an address even if the profile field is optional.
 	if config.Get().RequireEmailVerification && emailAddr == "" {
 		redirectSignupError(w, r, params, "Email is required for verification")
@@ -137,57 +148,17 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required profile fields
-	profileFields := map[string]string{
-		"given_name":          r.FormValue("given_name"),
-		"family_name":         r.FormValue("family_name"),
-		"phone_number":        r.FormValue("phone_number"),
-		"picture":             r.FormValue("picture"),
-		"locale":              r.FormValue("locale"),
-		"address_street":      r.FormValue("address_street"),
-		"address_locality":    r.FormValue("address_locality"),
-		"address_region":      r.FormValue("address_region"),
-		"address_postal_code": r.FormValue("address_postal_code"),
-		"address_country":     r.FormValue("address_country"),
-	}
-	fieldVisibility := map[string]string{
-		"given_name":          cfg.ProfileFieldGivenName,
-		"family_name":         cfg.ProfileFieldFamilyName,
-		"phone_number":        cfg.ProfileFieldPhone,
-		"picture":             cfg.ProfileFieldPicture,
-		"locale":              cfg.ProfileFieldLocale,
-		"address_street":      cfg.ProfileFieldAddress,
-		"address_locality":    cfg.ProfileFieldAddress,
-		"address_region":      cfg.ProfileFieldAddress,
-		"address_postal_code": cfg.ProfileFieldAddress,
-		"address_country":     cfg.ProfileFieldAddress,
-	}
-	for field, visibility := range fieldVisibility {
-		if visibility == "required" && profileFields[field] == "" {
-			redirectSignupError(w, r, params, "Please fill in all required fields")
-			return
-		}
-	}
-
-	// Validate profile fields (e.g. URL scheme checks) before creating the user
-	profileUpdate := user.UserUpdateRequest{
-		GivenName:         profileFields["given_name"],
-		FamilyName:        profileFields["family_name"],
-		PhoneNumber:       profileFields["phone_number"],
-		Picture:           profileFields["picture"],
-		Locale:            profileFields["locale"],
-		AddressStreet:     profileFields["address_street"],
-		AddressLocality:   profileFields["address_locality"],
-		AddressRegion:     profileFields["address_region"],
-		AddressPostalCode: profileFields["address_postal_code"],
-		AddressCountry:    profileFields["address_country"],
-	}
-	if err := user.ValidateUserUpdateRequest(profileUpdate); err != nil {
+	profileUpdate, err := user.SignupProfile(r.PostForm, &cfg)
+	if err != nil {
 		redirectSignupError(w, r, params, err.Error())
 		return
 	}
-
-	usr, err := user.CreateUser(username, password, emailAddr)
+	var usr *user.UserResponse
+	if inv != nil {
+		usr, err = inv.CreatePasswordUser(r.Context(), username, password, emailAddr, profileUpdate)
+	} else {
+		usr, err = user.CreateUser(username, password, emailAddr)
+	}
 	if err != nil {
 		redirectSignupError(w, r, params, "Could not create account. Username may already be taken.")
 		return
@@ -195,10 +166,14 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 	audit.Log(audit.EventUserCreated, nil, audit.TargetUser, usr.ID, audit.Detail("source", "signup", "username", username), utils.GetClientIP(r))
 
 	// Save profile fields
-	_ = user.UpdateUser(usr.ID, profileUpdate)
+	if inv == nil {
+		_ = user.UpdateUser(usr.ID, profileUpdate)
+	} else {
+		inv.Complete(w, r, usr.ID)
+	}
 
 	// Email verification gate — non-admin users with an email must verify before logging in
-	if config.Get().RequireEmailVerification && usr.Email != "" && usr.Role != "admin" {
+	if config.Get().RequireEmailVerification && !usr.IsEmailVerified && usr.Email != "" && usr.Role != "admin" {
 		rawToken, tokenHash, err := emailverification.GenerateToken()
 		if err == nil {
 			expiresAt := time.Now().Add(config.Get().EmailVerificationExpiration)
@@ -254,6 +229,7 @@ func handleSignupPost(w http.ResponseWriter, r *http.Request) {
 }
 
 type SignupParams struct {
+	Invite              *signupinvite.Invite
 	State               string
 	RedirectURI         string
 	ClientID            string
@@ -275,6 +251,7 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 	}
 
 	data := map[string]any{
+		"Invite":                   params.Invite,
 		"State":                    params.State,
 		"RedirectURI":              params.RedirectURI,
 		"ClientID":                 params.ClientID,
@@ -314,6 +291,9 @@ func RenderSignup(w http.ResponseWriter, r *http.Request, params SignupParams, e
 // and all OAuth params preserved, so the user stays in the authorize flow.
 func redirectSignupError(w http.ResponseWriter, r *http.Request, params SignupParams, errMsg string) {
 	q := url.Values{}
+	if params.Invite != nil {
+		q.Set("invite_id", params.Invite.ID)
+	}
 	q.Set("response_type", "code")
 	q.Set("prompt", "create")
 	q.Set("error", errMsg)

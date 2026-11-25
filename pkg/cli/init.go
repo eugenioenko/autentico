@@ -101,6 +101,7 @@ func buildEnvContent(p envParams) string {
 		"# Names below are base names: omit __Host-; secure bindings add it automatically.",
 		"AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=autentico_trusted_device",
 		"AUTENTICO_FEDERATION_COOKIE_NAME=autentico_federation",
+		"AUTENTICO_SIGNUP_INVITE_COOKIE_NAME=autentico_signup_invite",
 		"AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=autentico_passkey_registration",
 		"# ForwardAuth app and pending-flow names append IDs to this reserved prefix.",
 		"AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=autentico_fa_",

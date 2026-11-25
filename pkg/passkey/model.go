@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
@@ -45,17 +46,20 @@ type LoginState struct {
 // RegistrationState is stored in passkey_challenges for registration ceremonies.
 // It is a superset of LoginState so completeAuthFlow can deserialise it directly.
 type RegistrationState struct {
-	Username            string `json:"username"`
-	Email               string `json:"email"`
-	RedirectURI         string `json:"redirect_uri"`
-	State               string `json:"state"`
-	ClientID            string `json:"client_id"`
-	Scope               string `json:"scope"`
-	Nonce               string `json:"nonce"`
-	CodeChallenge       string `json:"code_challenge"`
-	CodeChallengeMethod string `json:"code_challenge_method"`
-	Prompt              string `json:"prompt,omitempty"`
-	MaxAge              string `json:"max_age,omitempty"`
+	InviteID            string                  `json:"invite_id,omitempty"`
+	NewUserID           string                  `json:"new_user_id,omitempty"`
+	Profile             *user.UserUpdateRequest `json:"signup_profile,omitempty"`
+	Username            string                  `json:"username"`
+	Email               string                  `json:"email"`
+	RedirectURI         string                  `json:"redirect_uri"`
+	State               string                  `json:"state"`
+	ClientID            string                  `json:"client_id"`
+	Scope               string                  `json:"scope"`
+	Nonce               string                  `json:"nonce"`
+	CodeChallenge       string                  `json:"code_challenge"`
+	CodeChallengeMethod string                  `json:"code_challenge_method"`
+	Prompt              string                  `json:"prompt,omitempty"`
+	MaxAge              string                  `json:"max_age,omitempty"`
 }
 
 // WebAuthnUser implements the webauthn.User interface.

@@ -1,6 +1,7 @@
 package passkey
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -17,10 +18,12 @@ import (
 	"github.com/eugenioenko/autentico/pkg/emailverification"
 	"github.com/eugenioenko/autentico/pkg/mfa"
 	"github.com/eugenioenko/autentico/pkg/reqid"
+	"github.com/eugenioenko/autentico/pkg/signupinvite"
 	"github.com/eugenioenko/autentico/pkg/user"
 	"github.com/eugenioenko/autentico/pkg/utils"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/rs/xid"
 )
 
 // HandleRegisterBegin starts a passkey registration ceremony.
@@ -71,7 +74,12 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if status, err := registrationPolicy(q.Get("client_id"), email); err != nil {
+	inv, err := signupinvite.Resolve(r, q.Get("client_id"), q.Get("invite_id"))
+	if err != nil || (inv != nil && !inv.Accepts(username, email)) {
+		writeJSONError(w, 400, "invalid signup invitation")
+		return
+	}
+	if status, err := registrationPolicy(q.Get("client_id"), email, inv); err != nil {
 		writeJSONError(w, status, err.Error())
 		return
 	}
@@ -84,43 +92,60 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find existing user or create a new one.
-	usr, err := user.UserByUsername(username)
-	if err != nil {
-		// User does not exist — create them with a null password.
-		created, createErr := user.CreatePasskeyUser(username, email)
-		if createErr != nil {
-			slog.Error("passkey: failed to create user for registration", "request_id", reqid.Get(r.Context()), "error", createErr)
-			writeJSONError(w, http.StatusConflict, "username unavailable")
+	var usr *user.User
+	var profile *user.UserUpdateRequest
+	if inv != nil {
+		// Invitation §2: reserve only a WebAuthn handle until successful attestation.
+		if r.Method != http.MethodPost || r.ParseForm() != nil {
+			writeJSONError(w, 400, "invalid signup form")
 			return
 		}
-		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
-	} else {
-		// User exists — only allow registration if the previous attempt was never completed.
-		if usr.Password != "" || usr.RegisteredAt != nil {
-			writeJSONError(w, http.StatusConflict, "username already taken")
-			return
-		}
-		// WebAuthn §7.1: only the initiating browser may replace a live ceremony.
-		deleted, err := deletePendingRegistration(usr.ID, registrationOwner(r))
+		fields, err := user.SignupProfile(r.PostForm, config.Get())
 		if err != nil {
-			slog.Error("passkey: failed to reclaim pending registration", "request_id", reqid.Get(r.Context()), "error", err)
-			writeJSONError(w, http.StatusInternalServerError, "server_error")
+			writeJSONError(w, 400, err.Error())
 			return
 		}
-		if !deleted {
-			writeJSONError(w, http.StatusConflict, "username already taken")
-			return
+		profile = &fields
+		usr = &user.User{ID: xid.New().String(), Username: username, Email: email, Role: "user"}
+	} else {
+		// Find existing user or create a new one.
+		usr, err = user.UserByUsername(username)
+		if err != nil {
+			// User does not exist — create them with a null password.
+			created, createErr := user.CreatePasskeyUser(username, email)
+			if createErr != nil {
+				slog.Error("passkey: failed to create user for registration", "request_id", reqid.Get(r.Context()), "error", createErr)
+				writeJSONError(w, http.StatusConflict, "username unavailable")
+				return
+			}
+			usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
+		} else {
+			// User exists — only allow registration if the previous attempt was never completed.
+			if usr.Password != "" || usr.RegisteredAt != nil {
+				writeJSONError(w, http.StatusConflict, "username already taken")
+				return
+			}
+			// WebAuthn §7.1: only the initiating browser may replace a live ceremony.
+			deleted, err := deletePendingRegistration(usr.ID, registrationOwner(r))
+			if err != nil {
+				slog.Error("passkey: failed to reclaim pending registration", "request_id", reqid.Get(r.Context()), "error", err)
+				writeJSONError(w, http.StatusInternalServerError, "server_error")
+				return
+			}
+			if !deleted {
+				writeJSONError(w, http.StatusConflict, "username already taken")
+				return
+			}
+			created, createErr := user.CreatePasskeyUser(username, email)
+			if createErr != nil {
+				slog.Error("passkey: failed to recreate user for registration", "request_id", reqid.Get(r.Context()), "error", createErr)
+				writeJSONError(w, http.StatusConflict, "username unavailable")
+				return
+			}
+			usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
 		}
-		created, createErr := user.CreatePasskeyUser(username, email)
-		if createErr != nil {
-			slog.Error("passkey: failed to recreate user for registration", "request_id", reqid.Get(r.Context()), "error", createErr)
-			writeJSONError(w, http.StatusConflict, "username unavailable")
-			return
-		}
-		usr = &user.User{ID: created.ID, Username: created.Username, Email: created.Email}
-	}
 
+	}
 	regState := RegistrationState{
 		Username:            username,
 		Email:               email,
@@ -133,6 +158,11 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		CodeChallengeMethod: q.Get("code_challenge_method"),
 		Prompt:              q.Get("prompt"),
 		MaxAge:              q.Get("max_age"),
+	}
+	if inv != nil {
+		regState.InviteID = inv.ID
+		regState.NewUserID = usr.ID
+		regState.Profile = profile
 	}
 	stateJSON, err := json.Marshal(regState)
 	if err != nil {
@@ -179,6 +209,9 @@ func HandleRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		Type:          "registration",
 		LoginState:    string(stateJSON),
 		ExpiresAt:     time.Now().Add(registrationLifetime),
+	}
+	if inv != nil {
+		challenge.UserID = ""
 	}
 	if err := CreatePasskeyChallenge(challenge); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "server_error")
@@ -454,14 +487,31 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usr, err := user.UserByID(challenge.UserID)
-	if err != nil {
-		slog.Error("passkey: failed to get user for registration", "request_id", reqid.Get(r.Context()), "error", err)
-		writeJSONError(w, http.StatusInternalServerError, "server_error")
+	var reg RegistrationState
+	if json.Unmarshal([]byte(challenge.LoginState), &reg) != nil {
+		writeJSONError(w, 400, "invalid registration state")
 		return
 	}
-
-	if status, err := registrationPolicy(loginState.ClientID, usr.Email); err != nil {
+	inv, err := signupinvite.Resolve(r, loginState.ClientID, reg.InviteID)
+	if err != nil {
+		writeJSONError(w, 403, "invitation unavailable")
+		return
+	}
+	var usr *user.User
+	if inv != nil {
+		if reg.NewUserID == "" || reg.Profile == nil || !inv.Accepts(reg.Username, reg.Email) {
+			writeJSONError(w, 403, "invalid signup invitation")
+			return
+		}
+		usr = &user.User{ID: reg.NewUserID, Username: reg.Username, Email: reg.Email, Role: "user"}
+	} else {
+		usr, err = user.UserByID(challenge.UserID)
+		if err != nil {
+			writeJSONError(w, 500, "server_error")
+			return
+		}
+	}
+	if status, err := registrationPolicy(loginState.ClientID, usr.Email, inv); err != nil {
 		writeJSONError(w, status, err.Error())
 		return
 	}
@@ -487,7 +537,7 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	// deleteIfUnregistered removes the user account only if registration was never
 	// completed (registered_at is NULL). Fully registered accounts are left intact.
 	deleteIfUnregistered := func() {
-		if usr.RegisteredAt == nil {
+		if inv == nil && usr.RegisteredAt == nil {
 			_, cleanupErr := deletePendingRegistration(challenge.UserID, registrationOwner(r))
 			if cleanupErr != nil {
 				slog.Error("passkey: failed to remove pending registration", "request_id", reqid.Get(r.Context()), "error", cleanupErr)
@@ -518,21 +568,46 @@ func HandleRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		Name:       GeneratePasskeyName(),
 		Credential: string(credJSON),
 	}
-	if err := CreatePasskeyCredential(pCred); err != nil {
-		slog.Error("passkey: failed to store credential", "request_id", reqid.Get(r.Context()), "error", err)
-		deleteIfUnregistered()
-		writeJSONError(w, http.StatusInternalServerError, "server_error")
-		return
-	}
+	if inv != nil {
+		err = inv.Redeem(r.Context(), usr.Email, func(tx *sql.Tx, verified bool) error {
+			if !time.Now().Before(challenge.ExpiresAt) {
+				return signupinvite.ErrUnavailable
+			}
+			res, err := tx.Exec("UPDATE passkey_challenges SET used=TRUE WHERE id=? AND used=FALSE", challenge.ID)
+			if err != nil {
+				return err
+			}
+			if n, _ := res.RowsAffected(); n != 1 {
+				return signupinvite.ErrUnavailable
+			}
+			if err = signupinvite.InsertAccount(tx, usr.ID, usr.Username, usr.Email, nil, verified, *reg.Profile); err != nil {
+				return err
+			}
+			usr.IsEmailVerified = verified
+			return insertCredential(tx, pCred)
+		})
+		if err != nil {
+			writeJSONError(w, 409, "Invitation or username unavailable")
+			return
+		}
+		inv.Complete(w, r, usr.ID)
+	} else {
+		if err := CreatePasskeyCredential(pCred); err != nil {
+			slog.Error("passkey: failed to store credential", "request_id", reqid.Get(r.Context()), "error", err)
+			deleteIfUnregistered()
+			writeJSONError(w, http.StatusInternalServerError, "server_error")
+			return
+		}
 
-	if err := user.SetRegisteredAt(usr.ID); err != nil {
-		slog.Error("passkey: failed to mark user as registered", "request_id", reqid.Get(r.Context()), "error", err)
-		writeJSONError(w, http.StatusInternalServerError, "server_error")
-		return
-	}
+		if err := user.SetRegisteredAt(usr.ID); err != nil {
+			slog.Error("passkey: failed to mark user as registered", "request_id", reqid.Get(r.Context()), "error", err)
+			writeJSONError(w, http.StatusInternalServerError, "server_error")
+			return
+		}
 
+		_ = MarkPasskeyChallengeUsed(challenge.ID)
+	}
 	isNewUser := usr.RegisteredAt == nil
-	_ = MarkPasskeyChallengeUsed(challenge.ID)
 	audit.Log(audit.EventPasskeyAdded, usr, audit.TargetUser, usr.ID, audit.Detail("source", "registration"), utils.GetClientIP(r))
 	if isNewUser {
 		audit.Log(audit.EventUserCreated, usr, audit.TargetUser, usr.ID, audit.Detail("source", "passkey"), utils.GetClientIP(r))

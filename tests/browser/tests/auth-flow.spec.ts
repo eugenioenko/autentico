@@ -14,9 +14,7 @@ test.beforeAll(async () => {
   await startServer();
 });
 
-test.afterAll(() => {
-  stopServer();
-});
+test.afterAll(() => stopServer());
 
 test("admin UI dashboard loads after login", async ({ page }) => {
   await page.goto(`${BASE_URL}/admin/`);

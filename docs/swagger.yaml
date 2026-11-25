@@ -863,6 +863,20 @@ definitions:
       error:
         $ref: '#/definitions/model.ApiError'
     type: object
+  model.ApiResponse-signupinvite_Created:
+    properties:
+      data:
+        $ref: '#/definitions/signupinvite.Created'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
+  model.ApiResponse-signupinvite_ListResponse:
+    properties:
+      data:
+        $ref: '#/definitions/signupinvite.ListResponse'
+      error:
+        $ref: '#/definitions/model.ApiError'
+    type: object
   model.ApiResponse-user_LookupUsersResponse:
     properties:
       data:
@@ -1127,6 +1141,64 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  signupinvite.CreateRequest:
+    properties:
+      delivery_method:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      kind:
+        type: string
+      max_uses:
+        type: integer
+      never_expires:
+        type: boolean
+      unlimited:
+        type: boolean
+    type: object
+  signupinvite.Created:
+    properties:
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  signupinvite.Invite:
+    properties:
+      created_at:
+        type: string
+      delivery_method:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      max_uses:
+        type: integer
+      revoked_at:
+        type: string
+      status:
+        type: string
+      use_count:
+        type: integer
+    type: object
+  signupinvite.ListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/signupinvite.Invite'
+        type: array
+      smtp_available:
+        type: boolean
+      total:
+        type: integer
     type: object
   token.AdminTokenResponse:
     properties:
@@ -3412,6 +3484,155 @@ paths:
       summary: Test SMTP configuration
       tags:
       - admin-settings
+  /admin/api/signup-invites:
+    get:
+      parameters:
+      - description: Search recipient email or public invitation ID
+        in: query
+        name: search
+        type: string
+      - description: Invitation type
+        enum:
+        - personal
+        - shared
+        in: query
+        name: kind
+        type: string
+      - description: Delivery method
+        enum:
+        - link
+        - email
+        in: query
+        name: delivery_method
+        type: string
+      - description: Invitation status
+        enum:
+        - active
+        - used
+        - expired
+        - revoked
+        in: query
+        name: status
+        type: string
+      - description: First creation date (ISO 8601)
+        in: query
+        name: created_at_from
+        type: string
+      - description: Last creation date (ISO 8601)
+        in: query
+        name: created_at_to
+        type: string
+      - description: Sort field
+        enum:
+        - id
+        - kind
+        - delivery_method
+        - email
+        - use_count
+        - created_at
+        - expires_at
+        - status
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort direction
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - default: 100
+        description: Maximum rows (1–100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Rows to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ApiResponse-signupinvite_ListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      security:
+      - AdminAuth: []
+      summary: List signup invitations
+      tags:
+      - signup invites
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Invitation settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/signupinvite.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ApiResponse-signupinvite_Created'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ApiError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Create a personal or shared signup invite
+      tags:
+      - signup invites
+  /admin/api/signup-invites/{id}:
+    delete:
+      parameters:
+      - description: Invitation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Revoke a signup invitation
+      tags:
+      - signup invites
+  /admin/api/signup-invites/{id}/retry:
+    post:
+      parameters:
+      - description: Invitation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/model.ApiError'
+      summary: Rotate and resend a pending email invitation
+      tags:
+      - signup invites
   /admin/api/stats:
     get:
       description: Returns a summary of users, clients, and active sessions.

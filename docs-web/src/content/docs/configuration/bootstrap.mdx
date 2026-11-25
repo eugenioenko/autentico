@@ -53,6 +53,7 @@ The two `_SECURE` cookie flags default to `true`. They should only be set to `fa
 | `AUTENTICO_CSRF_COOKIE_NAME` | `_gorilla_csrf` | CSRF middleware cookie name; the form field and header names stay unchanged. |
 | `AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME` | `autentico_trusted_device` | Trusted-device cookie name, retaining its OAuth path and Strict SameSite policy. |
 | `AUTENTICO_FEDERATION_COOKIE_NAME` | `autentico_federation` | Base name for the upstream-login browser binding. Adds `__Host-` when `AUTENTICO_IDP_SESSION_SECURE=true`. |
+| `AUTENTICO_SIGNUP_INVITE_COOKIE_NAME` | `autentico_signup_invite` | Base name for the signup invitation binding. Adds `__Host-` when `AUTENTICO_CSRF_SECURE_COOKIE=true`. |
 | `AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME` | `autentico_passkey_registration` | Base name for the passkey-registration binding. Adds `__Host-` when `AUTENTICO_CSRF_SECURE_COOKIE=true`. |
 | `AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX` | `autentico_fa_` | Reserved prefix for app sessions and pending login cookies; app IDs and transaction state are appended. Adds `__Host-` for HTTPS app origins. |
 | `AUTENTICO_CSRF_SECURE_COOKIE` | `true` | Adds the `Secure` flag to the CSRF cookie. Set to `false` only when running over plain HTTP (local development). |
@@ -73,6 +74,7 @@ AUTENTICO_REFRESH_TOKEN_COOKIE_NAME=tenant_a_refresh
 AUTENTICO_CSRF_COOKIE_NAME=tenant_a_csrf
 AUTENTICO_TRUSTED_DEVICE_COOKIE_NAME=tenant_a_trusted
 AUTENTICO_FEDERATION_COOKIE_NAME=tenant_a_federation
+AUTENTICO_SIGNUP_INVITE_COOKIE_NAME=tenant_a_invite
 AUTENTICO_PASSKEY_REGISTRATION_COOKIE_NAME=tenant_a_registration
 AUTENTICO_FORWARD_AUTH_COOKIE_PREFIX=tenant_a_fa_
 ```

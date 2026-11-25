@@ -35,9 +35,7 @@ test.beforeAll(async () => {
   });
 });
 
-test.afterAll(() => {
-  stopServer();
-});
+test.afterAll(() => stopServer());
 
 test("signup → email verify → MFA enroll → login with TOTP", async ({
   page,

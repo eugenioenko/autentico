@@ -210,9 +210,9 @@ func isAuthCookie(name string) bool {
 	}
 	for _, base := range []string{
 		bs.AuthIdpSessionCookieName, bs.AuthRefreshTokenCookieName, bs.AuthCSRFCookieName,
-		bs.AuthTrustedDeviceCookieName, bs.AuthFederationCookieName, bs.AuthPasskeyRegistrationCookieName,
+		bs.AuthTrustedDeviceCookieName, bs.AuthFederationCookieName, bs.AuthPasskeyRegistrationCookieName, bs.AuthSignupInviteCookieName,
 		"autentico_idp_session", "autentico_refresh_token", "_gorilla_csrf",
-		"autentico_trusted_device", "autentico_federation", "autentico_passkey_registration",
+		"autentico_trusted_device", "autentico_federation", "autentico_passkey_registration", "autentico_signup_invite",
 	} {
 		if name == base || name == "__Host-"+base {
 			return true

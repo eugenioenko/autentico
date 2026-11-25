@@ -3185,6 +3185,228 @@
                 }
             }
         },
+        "/admin/api/signup-invites": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "signup invites"
+                ],
+                "summary": "List signup invitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search recipient email or public invitation ID",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "personal",
+                            "shared"
+                        ],
+                        "type": "string",
+                        "description": "Invitation type",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "link",
+                            "email"
+                        ],
+                        "type": "string",
+                        "description": "Delivery method",
+                        "name": "delivery_method",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "used",
+                            "expired",
+                            "revoked"
+                        ],
+                        "type": "string",
+                        "description": "Invitation status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "First creation date (ISO 8601)",
+                        "name": "created_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Last creation date (ISO 8601)",
+                        "name": "created_at_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "id",
+                            "kind",
+                            "delivery_method",
+                            "email",
+                            "use_count",
+                            "created_at",
+                            "expires_at",
+                            "status"
+                        ],
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort direction",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum rows (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Rows to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-signupinvite_ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "signup invites"
+                ],
+                "summary": "Create a personal or shared signup invite",
+                "parameters": [
+                    {
+                        "description": "Invitation settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/signupinvite.CreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiResponse-signupinvite_Created"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/signup-invites/{id}": {
+            "delete": {
+                "tags": [
+                    "signup invites"
+                ],
+                "summary": "Revoke a signup invitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/api/signup-invites/{id}/retry": {
+            "post": {
+                "tags": [
+                    "signup invites"
+                ],
+                "summary": "Rotate and resend a pending email invitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/api/stats": {
             "get": {
                 "security": [
@@ -6122,6 +6344,28 @@
                 }
             }
         },
+        "model.ApiResponse-signupinvite_Created": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/signupinvite.Created"
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
+                }
+            }
+        },
+        "model.ApiResponse-signupinvite_ListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/signupinvite.ListResponse"
+                },
+                "error": {
+                    "$ref": "#/definitions/model.ApiError"
+                }
+            }
+        },
         "model.ApiResponse-user_LookupUsersResponse": {
             "type": "object",
             "properties": {
@@ -6503,6 +6747,95 @@
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "signupinvite.CreateRequest": {
+            "type": "object",
+            "properties": {
+                "delivery_method": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "max_uses": {
+                    "type": "integer"
+                },
+                "never_expires": {
+                    "type": "boolean"
+                },
+                "unlimited": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "signupinvite.Created": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "signupinvite.Invite": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "delivery_method": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "max_uses": {
+                    "type": "integer"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "use_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "signupinvite.ListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/signupinvite.Invite"
+                    }
+                },
+                "smtp_available": {
+                    "type": "boolean"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

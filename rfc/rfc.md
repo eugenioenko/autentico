@@ -1070,3 +1070,10 @@ No discovery capability, scope or grant changes. Routine schema 24. Contract: `r
 | NIST SP 800-63B §5.1.1.2 | SHOULD | Offer an option to display the entered secret | Implemented on server password pages and account password forms; masked by default, per-field toggles, no persisted visibility |
 
 This UI behavior introduces no protocol endpoints or discovery metadata.
+
+## Admin signup invitations
+
+| Basis | Requirement | Implementation |
+|---|---|---|
+| Local signup policy | Personal and shared invitations MUST enforce revocation, expiry, address binding and remaining uses at registration. | A conditional writer transaction creates one ordinary account per use. Only an email-delivered personal invite verifies its bound address. See [signup invitations](signup-invites.md). |
+| RFC 6749 §4.1.1 and RFC 7636 §4 | Invited signup MUST preserve the account client's normal authorization and PKCE checks. | The account UI starts authorization with prompt=create. Invites add no grant type or discovery metadata. |

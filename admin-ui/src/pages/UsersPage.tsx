@@ -13,6 +13,7 @@ import UserGroupsDrawer from "../components/users/UserGroupsDrawer";
 import UserClaimsDrawer from "../components/users/UserClaimsDrawer";
 import UserSessionsDrawer from "../components/users/UserSessionsDrawer";
 import DeletionRequestsTab from "../components/users/DeletionRequestsTab";
+import SignupInvitesTab from "../components/users/SignupInvitesTab";
 import { DEFAULT_PAGE_SIZE } from "../constants/table";
 import CountTooltip from "../components/CountTooltip";
 import CopyText from "../components/CopyText";
@@ -252,6 +253,7 @@ export default function UsersPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <Tabs.List aria-label="Users">
           <Tabs.Trigger value="users">Users</Tabs.Trigger>
+          <Tabs.Trigger value="invites">Signup invites</Tabs.Trigger>
           <Tabs.Trigger value="deletions">
             <Inline as="span" gap="xs" wrap={false}>
               Deletion Requests
@@ -300,6 +302,7 @@ export default function UsersPage() {
             </Stack>
           )}
         </Tabs.Panel>
+        <Tabs.Panel value="invites">{activeTab === "invites" && <SignupInvitesTab />}</Tabs.Panel>
         <Tabs.Panel value="deletions">{activeTab === "deletions" && <DeletionRequestsTab />}</Tabs.Panel>
       </Tabs>
 
