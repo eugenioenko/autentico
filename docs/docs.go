@@ -3193,18 +3193,122 @@ const docTemplate = `{
         },
         "/admin/api/signup-invites": {
             "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "signup invites"
                 ],
-                "summary": "List signup invitations and email delivery availability",
+                "summary": "List signup invitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search recipient email or public invitation ID",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "personal",
+                            "shared"
+                        ],
+                        "type": "string",
+                        "description": "Invitation type",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "link",
+                            "email"
+                        ],
+                        "type": "string",
+                        "description": "Delivery method",
+                        "name": "delivery_method",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "used",
+                            "expired",
+                            "revoked"
+                        ],
+                        "type": "string",
+                        "description": "Invitation status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "First creation date (ISO 8601)",
+                        "name": "created_at_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Last creation date (ISO 8601)",
+                        "name": "created_at_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "id",
+                            "kind",
+                            "delivery_method",
+                            "email",
+                            "use_count",
+                            "created_at",
+                            "expires_at",
+                            "status"
+                        ],
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort direction",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum rows (1–100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Rows to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/model.ApiResponse-signupinvite_ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ApiError"
                         }
                     }
                 }
@@ -6716,6 +6820,9 @@ const docTemplate = `{
                 "revoked_at": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "use_count": {
                     "type": "integer"
                 }
@@ -6732,6 +6839,9 @@ const docTemplate = `{
                 },
                 "smtp_available": {
                     "type": "boolean"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

@@ -89,40 +89,6 @@ func HandleOpen(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/account/invite?id="+url.QueryEscape(id), http.StatusSeeOther)
 }
 
-type ListResponse struct {
-	Items []Invite `json:"items"`
-	SMTP  bool     `json:"smtp_available"`
-}
-
-// HandleList godoc
-// @Summary List signup invitations and email delivery availability
-// @Tags signup invites
-// @Produce json
-// @Success 200 {object} model.ApiResponse[signupinvite.ListResponse]
-// @Router /admin/api/signup-invites [get]
-func HandleList(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.GetDB().Query("SELECT " + columns + " FROM signup_invites ORDER BY created_at DESC,id DESC")
-	if err != nil {
-		utils.ErrorResponse(w, "Could not list invites", 500)
-		return
-	}
-	defer func() { _ = rows.Close() }()
-	list := ListResponse{Items: []Invite{}, SMTP: config.Get().SmtpHost != ""}
-	for rows.Next() {
-		i, err := scan(rows)
-		if err != nil {
-			utils.ErrorResponse(w, "Could not read invite", 500)
-			return
-		}
-		list.Items = append(list.Items, *i)
-	}
-	if rows.Err() != nil {
-		utils.ErrorResponse(w, "Could not list invites", 500)
-		return
-	}
-	utils.SuccessResponse(w, list)
-}
-
 type Created struct {
 	ID  string `json:"id"`
 	URL string `json:"url,omitempty"`

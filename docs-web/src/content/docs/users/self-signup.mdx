@@ -65,3 +65,5 @@ Invitations expire after seven days by default. Pick a different expiration when
 Copy a generated URL before leaving the page. Email delivery keeps the URL private to the recipient and verifies the bound address on redemption. **Resend email** rotates the URL, invalidating earlier copies. A manually copied link follows normal email verification policy. A link with no bound address can be used without email when the instance's signup policy permits it.
 
 The list shows usage, expiry and revocation status. Opening a link or abandoning the form leaves the remaining count intact. If the signup page has been open for over 30 minutes, reopen the invitation URL to continue.
+
+Use the invitations table to search by recipient email or public invitation ID, filter by type, delivery method, status or creation date, and sort or page through matching invitations. The admin API uses the same controls. For example, `GET /admin/api/signup-invites?kind=personal&delivery_method=email&status=active&limit=20&offset=0` returns the first page and the total number of matches. The maximum page size is 100.

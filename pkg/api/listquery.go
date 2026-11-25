@@ -26,6 +26,7 @@ type ListConfig struct {
 	SearchColumns  []string
 	AllowedFilters map[string]bool
 	DefaultSort    string
+	TieBreaker     string // Optional unique column for stable ordering across pages.
 	MaxLimit       int
 	TableAlias     string
 }
@@ -61,9 +62,9 @@ func ParseFilters(r *http.Request, allowed map[string]bool) map[string]string {
 
 // dateFormats lists the accepted date/datetime formats in order of preference.
 var dateFormats = []string{
-	time.RFC3339,            // 2006-01-02T15:04:05Z07:00
-	"2006-01-02T15:04:05",  // datetime without timezone
-	"2006-01-02",           // date only
+	time.RFC3339,          // 2006-01-02T15:04:05Z07:00
+	"2006-01-02T15:04:05", // datetime without timezone
+	"2006-01-02",          // date only
 }
 
 // parseDate attempts to parse a date string using the accepted formats.
@@ -165,6 +166,9 @@ func BuildListQuery(params ListParams, cfg ListConfig) ListResult {
 		order = "DESC"
 	}
 	result.Order = fmt.Sprintf(" ORDER BY %s %s", sortCol, order)
+	if cfg.TieBreaker != "" && cfg.qualify(cfg.TieBreaker) != sortCol {
+		result.Order += ", " + cfg.qualify(cfg.TieBreaker) + " " + order
+	}
 
 	maxLimit := cfg.MaxLimit
 	if maxLimit <= 0 {

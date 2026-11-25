@@ -17,6 +17,7 @@ import (
 
 type Invite struct {
 	ID       string     `json:"id"`
+	Status   string     `json:"status"`
 	Kind     string     `json:"kind"`
 	Delivery string     `json:"delivery_method"`
 	Email    string     `json:"email,omitempty"`
@@ -35,7 +36,7 @@ var ErrUnavailable = errors.New("invitation is unavailable")
 
 func scan(row interface{ Scan(...any) error }) (*Invite, error) {
 	var i Invite
-	err := row.Scan(&i.ID, &i.Kind, &i.Delivery, &i.Email, &i.MaxUses, &i.Uses, &i.Created, &i.Expires, &i.Revoked)
+	err := row.Scan(&i.ID, &i.Kind, &i.Delivery, &i.Email, &i.MaxUses, &i.Uses, &i.Created, &i.Expires, &i.Revoked, &i.Status)
 	return &i, err
 }
 
@@ -60,7 +61,7 @@ func Resolve(r *http.Request, clientID, id string) (*Invite, error) {
 		return nil, ErrUnavailable
 	}
 	hash := utils.HashToken(c.Value)
-	i, err := scan(db.GetDB().QueryRow("SELECT "+columns+" FROM signup_invites WHERE id=? AND token_hash=? AND "+available, id, hash))
+	i, err := scan(db.GetDB().QueryRow("SELECT "+columns+",'active' FROM signup_invites WHERE id=? AND token_hash=? AND "+available, id, hash))
 	if err != nil {
 		return nil, ErrUnavailable
 	}

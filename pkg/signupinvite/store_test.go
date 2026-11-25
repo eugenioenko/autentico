@@ -2,6 +2,7 @@ package signupinvite
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http/httptest"
 	"testing"
@@ -80,4 +81,41 @@ func TestExplicitLimits(t *testing.T) {
 	require.NoError(t, p.validate(now))
 	require.Nil(t, p.Expires)
 	require.Nil(t, p.MaxUses)
+}
+
+func TestListFiltersSearchAndPagination(t *testing.T) {
+	testutils.WithTestDB(t)
+	for _, entry := range []struct{ id, email string }{{"a", "first@example.org"}, {"b", "second@example.org"}, {"c", "outside@example.com"}} {
+		_, err := db.GetDB().Exec(`INSERT INTO signup_invites(id,token_hash,kind,delivery_method,email,max_uses,created_at,expires_at)
+ VALUES(?,?,'personal','email',?,1,'2025-04-02 10:00:00','2099-10-01 00:00:00')`, entry.id, entry.id, entry.email)
+		require.NoError(t, err)
+	}
+	_, err := db.GetDB().Exec("UPDATE signup_invites SET revoked_at=CURRENT_TIMESTAMP WHERE id='c'")
+	require.NoError(t, err)
+	query := func(q string) ListResponse {
+		t.Helper()
+		w := httptest.NewRecorder()
+		HandleList(w, httptest.NewRequest("GET", "/admin/api/signup-invites?"+q, nil))
+		require.Equal(t, 200, w.Code, w.Body.String())
+		var envelope struct{ Data ListResponse }
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&envelope))
+		return envelope.Data
+	}
+	q := "kind=personal&delivery_method=email&status=active&search=example.org&created_at_from=2025-04-02T11:00:00%2B02:00&created_at_to=2025-04-02T11:00:00Z&limit=1&order=desc"
+	first := query(q)
+	require.Equal(t, 2, first.Total)
+	require.Len(t, first.Items, 1)
+	require.Equal(t, "b", first.Items[0].ID)
+	next := query(q + "&offset=1")
+	require.Equal(t, "a", next.Items[0].ID)
+	empty := query(q + "&offset=2")
+	require.Empty(t, empty.Items)
+	require.Equal(t, 2, empty.Total)
+	revoked := query("status=revoked&search=c")
+	require.Len(t, revoked.Items, 1)
+	require.Equal(t, "revoked", revoked.Items[0].Status)
+	require.Empty(t, query("delivery_method=link").Items)
+	w := httptest.NewRecorder()
+	HandleList(w, httptest.NewRequest("GET", "/admin/api/signup-invites?created_at_from=invalid", nil))
+	require.Equal(t, 400, w.Code)
 }

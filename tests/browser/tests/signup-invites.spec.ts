@@ -20,11 +20,15 @@ test('admin creates a capped shared link, recipient signs up without email, admi
   await page.fill('#password', ADMIN_PASSWORD);
   await page.click('button[type=submit]');
   await page.getByRole('button', {name:'Create invite'}).click();
-  await page.getByLabel('Invitation type').selectOption('shared');
+  const drawer = page.getByRole('dialog', {name:'Create invite'});
+  await drawer.getByLabel('Invitation type').click();
+  await page.getByRole('option', {name:'Shared link'}).click();
   await page.getByLabel('Maximum signups').fill('2');
   await page.getByRole('button', {name:'Generate link'}).click();
   const link = await page.getByText(/http.*\/invite\?token=/).innerText();
-  await page.getByRole('group', {name:'earlier@test.com'}).getByRole('button', {name:'Revoke'}).click();
+  await page.getByRole('row').filter({hasText:'earlier@test.com'}).getByRole('button', {name:'Invitation actions'}).click();
+  await page.getByRole('menuitem', {name:'Revoke'}).click();
+  await page.getByRole('dialog', {name:'Revoke invitation?'}).getByRole('button', {name:'Revoke'}).click();
   await expect(page.getByText(link, {exact:true})).toBeVisible();
   const guest = await browser.newContext();
   const signup = await guest.newPage();
@@ -36,10 +40,44 @@ test('admin creates a capped shared link, recipient signs up without email, admi
   await expect(signup.getByTestId('account-dashboard')).toBeVisible();
   await page.reload();
   await expect(page.getByText(/1 of 2 used/)).toBeVisible();
-  await page.getByRole('button',{name:'Revoke'}).click();
+  await page.getByRole('row').filter({hasText:'Shared link'}).getByRole('button', {name:'Invitation actions'}).click();
+  await page.getByRole('menuitem', {name:'Revoke'}).click();
+  await page.getByRole('dialog', {name:'Revoke invitation?'}).getByRole('button', {name:'Revoke'}).click();
   await expect(page.getByText('Revoked',{exact:true})).toHaveCount(2);
   expect((await signup.goto(link))?.status()).toBe(410);
+  await page.getByRole('searchbox').fill('earlier@test.com');
+  await expect(page.getByText('1 invitation', {exact:true})).toBeVisible();
+  await page.getByLabel('Status', {exact:true}).click();
+  await page.getByRole('option', {name:'Active', exact:true}).click();
+  await expect(page.getByText('No invitations found')).toBeVisible();
   await guest.close();
+});
+
+test('search and page size apply to the same filtered invitation list', async ({page, request}) => {
+  const headers = {Authorization: 'Bearer ' + admin};
+  for (let i = 0; i < 12; i++) {
+    const created = await request.post(api, {headers, data: {
+      kind: 'personal', delivery_method: 'link', email: 'page-' + i + '@paging.test',
+    }});
+    expect(created.status()).toBe(201);
+  }
+  await page.goto(BASE_URL + '/admin/users?tab=invites');
+  await page.fill('#username', ADMIN_USERNAME);
+  await page.fill('#password', ADMIN_PASSWORD);
+  await page.click('button[type=submit]');
+  await page.getByRole('searchbox').fill('@paging.test');
+  await expect(page.getByText('12 invitations', {exact:true})).toBeVisible();
+  await page.getByLabel('Rows per page').click();
+  await page.getByRole('option', {name:'10 / page', exact:true}).click();
+  const rows = page.getByRole('row').filter({hasText: '@paging.test'});
+  await expect(rows).toHaveCount(10);
+  const firstPage = await rows.allInnerTexts();
+  await page.getByRole('button', {name:/next page/i}).click();
+  await expect(rows).toHaveCount(2);
+  for (const row of await rows.allInnerTexts()) expect(firstPage).not.toContain(row);
+  await page.getByRole('searchbox').fill('page-10@paging.test');
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toContainText('page-10@paging.test');
 });
 
 test('emailed invite verifies only its bound address and completes passkey signup', async ({ page, request }) => {
