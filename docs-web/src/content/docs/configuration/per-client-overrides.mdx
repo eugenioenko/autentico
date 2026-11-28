@@ -43,7 +43,7 @@ curl -X PUT https://auth.example.com/oauth2/register/YOUR_CLIENT_ID \
   }'
 ```
 
-**Update semantics** (`PUT /admin/api/clients/{client_id}` and `PUT /oauth2/register/{client_id}`): each override field has three states.
+**Update semantics** (`PUT /admin/api/clients/{client_id}` and `PUT /oauth2/register/{client_id}`): the seven override fields listed below have three states.
 
 | Request | Result |
 |---|---|
@@ -52,6 +52,8 @@ curl -X PUT https://auth.example.com/oauth2/register/YOUR_CLIENT_ID \
 | a value | set to that value |
 
 Example: `{"client_name": "Renamed"}` leaves every override as it is.
+
+`allowed_audiences` is separate: omitting it or sending `null` preserves the stored list. Send an array to replace it, or `[]` to clear it.
 
 <Aside type="tip">
 Duration strings use Go's `time.Duration` format: `"15m"`, `"1h"`, `"720h"`, `"30s"`. A value of `"0"` means no idle expiration (e.g. `sso_session_idle_timeout: "0"` means sessions for that client never expire from inactivity).

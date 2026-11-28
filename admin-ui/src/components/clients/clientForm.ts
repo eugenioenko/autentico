@@ -1,3 +1,5 @@
+import type { ClientCreateRequest } from "../../types/client";
+
 export interface UriItem {
   value: string;
 }
@@ -93,5 +95,20 @@ export function toClientRequest(values: ClientFormValues) {
     redirect_uris: redirect_uris.map((uri) => uri.value),
     post_logout_redirect_uris: post_logout_redirect_uris.map((uri) => uri.value),
     scopes: scopes?.join(" "),
+  };
+}
+
+// Create requests treat an unset override as the server default; only updates use null to clear.
+export function toClientCreateRequest(values: ClientFormValues): ClientCreateRequest {
+  const request = toClientRequest(values);
+  return {
+    ...request,
+    access_token_expiration: request.access_token_expiration ?? undefined,
+    refresh_token_expiration: request.refresh_token_expiration ?? undefined,
+    authorization_code_expiration: request.authorization_code_expiration ?? undefined,
+    sso_session_idle_timeout: request.sso_session_idle_timeout ?? undefined,
+    allow_self_signup: request.allow_self_signup ?? undefined,
+    trust_device_enabled: request.trust_device_enabled ?? undefined,
+    trust_device_expiration: request.trust_device_expiration ?? undefined,
   };
 }

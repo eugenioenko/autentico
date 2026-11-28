@@ -18,7 +18,7 @@ import {
   RESPONSE_TYPE_OPTIONS,
   SCOPE_OPTIONS,
   authMethodOptions,
-  toClientRequest,
+  toClientCreateRequest,
   type ClientFormValues,
 } from "./clientForm";
 
@@ -50,7 +50,7 @@ export default function ClientCreateForm({ open, onClose }: ClientCreateFormProp
 
   const onSubmit = async (values: ClientFormValues) => {
     try {
-      const result = await createClient.mutateAsync(toClientRequest(values));
+      const result = await createClient.mutateAsync(toClientCreateRequest(values));
       reset(DEFAULTS);
       onClose();
       if (result.client_secret) {
