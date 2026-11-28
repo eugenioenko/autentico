@@ -101,6 +101,16 @@ When a user authenticates through a federation provider, Autentico resolves the 
 Auto-linking by email only occurs when the email is verified on both sides (the external provider reports `email_verified: true` and the local account has a verified email). This prevents account takeover via unverified email claims.
 </Aside>
 
+### Email collisions with pre-created accounts
+
+Admin-created users start with an unverified email. If you create an account before its first federated login, confirm that the address belongs to the intended user and mark **Email Verified** in **Admin → Users**. The upstream provider must also send `email_verified: true`. A missing or false upstream claim prevents automatic linking even when the local email is verified.
+
+If the email already exists locally but either side is unverified, Autentico refuses to link the accounts. The server log explains `email collision prevented account linking: automatic linking requires verified email on both sides`, with `local_email_verified` and `upstream_email_verified` flags. The address itself is not logged. A collision with a deactivated local account is logged separately; verifying its email does not reactivate it.
+
+The browser shows: “Unable to complete sign-in. Try another sign-in method, or contact your administrator for help.” Account-resolution failures use the same message and HTTP 500 status without exposing account existence or verification state. Administrators can inspect the server log's provider and request ID to diagnose the failure.
+
+These requirements apply when establishing a new link by email. Once linked, subsequent logins resolve the identity by provider and subject.
+
 ## Managing providers via admin API
 
 All federation provider endpoints require admin authentication.
