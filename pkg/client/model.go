@@ -82,6 +82,28 @@ type ClientCreateRequest struct {
 	AllowedUsers   []string `json:"allowed_users,omitempty"`
 }
 
+// Optional records whether a JSON field was present. Omitted means unchanged,
+// null means clear (inherit the global setting), and a value means set.
+type Optional[T any] struct {
+	Set   bool
+	Value *T
+}
+
+// UnmarshalJSON marks the field as present; null leaves Value nil.
+func (o *Optional[T]) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Value = nil
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	o.Value = &v
+	return nil
+}
+
 // ClientUpdateRequest represents the request body for updating a client
 type ClientUpdateRequest struct {
 	ClientName              string   `json:"client_name,omitempty"`
@@ -92,15 +114,15 @@ type ClientUpdateRequest struct {
 	Scopes                  string   `json:"scopes,omitempty"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"` // Public clients use none; confidential clients use client_secret_basic or client_secret_post.
 	IsActive                *bool    `json:"is_active,omitempty"`
-	// Per-client overrides
-	AccessTokenExpiration       *string  `json:"access_token_expiration,omitempty"`
-	RefreshTokenExpiration      *string  `json:"refresh_token_expiration,omitempty"`
-	AuthorizationCodeExpiration *string  `json:"authorization_code_expiration,omitempty"`
-	AllowedAudiences            []string `json:"allowed_audiences,omitempty"`
-	AllowSelfSignup             *bool    `json:"allow_self_signup,omitempty"`
-	SsoSessionIdleTimeout       *string  `json:"sso_session_idle_timeout,omitempty"`
-	TrustDeviceEnabled          *bool    `json:"trust_device_enabled,omitempty"`
-	TrustDeviceExpiration       *string  `json:"trust_device_expiration,omitempty"`
+	// Per-client overrides: omitted leaves the override unchanged; null clears it (inherits global); a value sets it.
+	AccessTokenExpiration       Optional[string] `json:"access_token_expiration,omitzero"`
+	RefreshTokenExpiration      Optional[string] `json:"refresh_token_expiration,omitzero"`
+	AuthorizationCodeExpiration Optional[string] `json:"authorization_code_expiration,omitzero"`
+	AllowedAudiences            []string         `json:"allowed_audiences,omitempty"`
+	AllowSelfSignup             Optional[bool]   `json:"allow_self_signup,omitzero"`
+	SsoSessionIdleTimeout       Optional[string] `json:"sso_session_idle_timeout,omitzero"`
+	TrustDeviceEnabled          Optional[bool]   `json:"trust_device_enabled,omitzero"`
+	TrustDeviceExpiration       Optional[string] `json:"trust_device_expiration,omitzero"`
 	ConsentRequired             *bool    `json:"consent_required,omitempty"`
 	Description                 *string  `json:"description,omitempty"`
 	LogoURI                     *string  `json:"logo_uri,omitempty"`

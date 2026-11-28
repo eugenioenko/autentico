@@ -3,7 +3,6 @@ title: Access Restriction
 description: Limit which users and groups can sign in to a client application.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
 
 Some applications filter users themselves, for example by reading the `groups`
 claim. Others trust the identity provider completely: anyone who can sign in
@@ -47,12 +46,6 @@ The same fields are accepted on client creation and returned by client reads
 and listings. On update, omitted access fields are unchanged, a provided list
 replaces the stored list, and `[]` clears it. Unknown group or user IDs reject
 the whole request with `400 invalid_client_metadata`.
-
-<Aside type="caution">
-A client update replaces the [per-client overrides](/configuration/per-client-overrides/):
-any override left out of the request reverts to the global default. If the
-client has overrides, read it first and send them back with the access fields.
-</Aside>
 
 ## What a refused user sees
 

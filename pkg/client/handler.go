@@ -117,7 +117,7 @@ func writeClientInfo(w http.ResponseWriter, c *Client, status int) {
 
 // HandleUpdateClient handles PUT /oauth2/register/{client_id} (RFC 7591) and PUT /admin/api/clients/{client_id}
 // @Summary Update client information
-// @Description Updates a registered client. Also available at /oauth2/register/{client_id}.
+// @Description Updates a registered client. Also available at /oauth2/register/{client_id}. Per-client override fields (access_token_expiration, refresh_token_expiration, authorization_code_expiration, allow_self_signup, sso_session_idle_timeout, trust_device_enabled, trust_device_expiration): omitting a field keeps the stored override, null clears it so the global setting applies, and a value sets it.
 // @Tags admin-client
 // @Accept json
 // @Produce json
