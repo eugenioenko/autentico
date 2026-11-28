@@ -83,31 +83,36 @@ const TotpCard: React.FC<TotpCardProps> = ({ totpEnabled, preferredLabel, onChan
             <p className="text-sm text-theme-muted">
               Enter your current password (if your account has one) and a fresh 6-digit code from your authenticator app to disable 2FA.
             </p>
-            <div>
-              <label htmlFor="totp-disable-password">Current password (if set)</label>
-              <PasswordInput
-                id="totp-disable-password" name="password" autoComplete="current-password"
-                placeholder="Current password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isDisabling}
-              />
+            <p className="text-sm text-theme-muted">
+              Disabling 2FA will sign you out on all devices. Sign in again to continue.
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="totp-disable-password">Current password (if set)</label>
+                <PasswordInput
+                  id="totp-disable-password" name="password" autoComplete="current-password"
+                  placeholder="Current password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isDisabling}
+                />
+              </div>
+              <div>
+                <label htmlFor="totp-disable-code">Authenticator code</label>
+                <input
+                  id="totp-disable-code" name="code" type="text" inputMode="numeric"
+                  autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  disabled={isDisabling}
+                  aria-describedby="totp-disable-code-help"
+                />
+              </div>
             </div>
-            <div>
-              <label htmlFor="totp-disable-code">Authenticator code</label>
-              <input
-                id="totp-disable-code" name="code" type="text" inputMode="numeric"
-                autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                disabled={isDisabling}
-                aria-describedby="totp-disable-code-help"
-              />
-              <p id="totp-disable-code-help" className="mt-1 text-sm text-theme-muted">
-                If you just used a code to sign in or set up 2FA, wait for the next code.
-              </p>
-            </div>
+            <p id="totp-disable-code-help" className="text-sm text-theme-muted">
+              If you just used a code to sign in or set up 2FA, wait for the next code.
+            </p>
             {error && <Alert type="danger" message={error} />}
             <div className="flex gap-2">
               <Button type="button" variant="ghost" onClick={closeDisable} disabled={isDisabling} className="flex-1">

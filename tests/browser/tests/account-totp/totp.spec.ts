@@ -93,6 +93,27 @@ test('enrolls and disables personal TOTP through the account UI with both creden
   const code = page.getByLabel('Authenticator code', { exact: true });
   const disable = page.getByRole('button', { name: 'Disable 2FA', exact: true });
   await expect(page.getByText('If you just used a code to sign in or set up 2FA, wait for the next code.')).toBeVisible();
+  await expect(page.getByText('Disabling 2FA will sign you out on all devices. Sign in again to continue.')).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const desktopPassword = await currentPassword.boundingBox();
+  const desktopCode = await code.boundingBox();
+  expect(desktopPassword).not.toBeNull();
+  expect(desktopCode).not.toBeNull();
+  expect(Math.abs(desktopPassword!.y - desktopCode!.y)).toBeLessThan(1);
+  expect(desktopCode!.x).toBeGreaterThan(desktopPassword!.x + desktopPassword!.width);
+  await page.screenshot({ path: test.info().outputPath('disable-totp-desktop.png'), fullPage: true, animations: 'disabled' });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobilePassword = await currentPassword.boundingBox();
+  const mobileCode = await code.boundingBox();
+  expect(mobilePassword).not.toBeNull();
+  expect(mobileCode).not.toBeNull();
+  expect(mobileCode!.y).toBeGreaterThan(mobilePassword!.y + mobilePassword!.height);
+  expect(Math.abs(mobilePassword!.x - mobileCode!.x)).toBeLessThan(1);
+  await page.screenshot({ path: test.info().outputPath('disable-totp-mobile.png'), fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   await expect(disable).toBeDisabled();
   await currentPassword.fill(password);
   await code.fill('12ab34');
