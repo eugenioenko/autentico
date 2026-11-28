@@ -4,6 +4,14 @@ as its OIDC issuer, which is usually wrong inside Kubernetes. Set
 application.appUrl to the public HTTPS URL of this deployment.
 {{- end }}
 
+{{- if and (or .Values.ingress.enabled .Values.httpRoute.enabled) (not .Values.application.trustedProxies) }}
+WARNING: an Ingress or HTTPRoute exposes Autentico, but
+application.trustedProxies is empty. Every request will arrive from the proxy's
+IP: clients share one rate-limit budget and audit logs record the proxy instead
+of the client. Set it to the ingress/gateway pod CIDR, for example:
+    --set application.trustedProxies={10.244.0.0/16}
+{{- end }}
+
 {{- if .Values.persistence.enabled }}
 Data (including the SQLite database) is stored in the persistent volume
 "{{ .Values.persistence.existingClaim | default (include "autentico.fullname" .) }}".
