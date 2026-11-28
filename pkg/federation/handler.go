@@ -306,7 +306,8 @@ func (h *LoginHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	usr, err := resolveUser(r.Context(), providerID, claims.Sub, claims.Email, claims.EmailVerified, claims.GivenName, claims.FamilyName)
 	if err != nil {
 		slog.Error("federation: failed to resolve user", "request_id", reqid.Get(r.Context()), "provider_id", providerID, "error", err)
-		http.Error(w, "server error", http.StatusInternalServerError)
+		// OIDC Core §5.7: keep account-resolution details private; email is not an identity key.
+		http.Error(w, "Unable to complete sign-in. Try another sign-in method, or contact your administrator for help.", http.StatusInternalServerError)
 		return
 	}
 
@@ -350,6 +351,20 @@ func resolveUser(ctx context.Context, providerID, sub, email string, emailVerifi
 		}
 		createdUser, createErr := user.CreateUser(username, randomPassword(), email)
 		if createErr != nil {
+			// OIDC Core §5.1 / §5.7: diagnose collisions without treating an email
+			// match as identity proof or logging the address. Autentico's auto-link
+			// policy requires verified email on both sides and an active local account.
+			if email != "" {
+				verified, deactivated, lookupErr := localEmailStatus(email)
+				if lookupErr == nil && deactivated {
+					// OIDC Core §5.7: an email match cannot override local account policy.
+					return nil, fmt.Errorf("email collision prevented account linking: local account is deactivated")
+				}
+				if lookupErr == nil && (!verified || !emailVerified) {
+					// OIDC Core §5.1: report verification evidence, never the claim value.
+					return nil, fmt.Errorf("email collision prevented account linking: automatic linking requires verified email on both sides (local_email_verified=%t, upstream_email_verified=%t)", verified, emailVerified)
+				}
+			}
 			return nil, fmt.Errorf("failed to create federated user: %w", createErr)
 		}
 		if config.Get().FederationCopyNameClaims && (givenName != "" || familyName != "") {

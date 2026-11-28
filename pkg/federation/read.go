@@ -27,6 +27,17 @@ var federationListConfig = api.ListConfig{
 	MaxLimit:    api.DefaultMaxLimit,
 }
 
+// localEmailStatus diagnoses a failed account creation, including unverified and
+// deactivated users excluded from user.UserByEmail. It never authorizes linking.
+func localEmailStatus(email string) (verified, deactivated bool, err error) {
+	// OIDC Core §5.7: use the exact stored address that can cause a uniqueness
+	// collision; this lookup provides diagnostics, not a stable identity match.
+	err = db.GetDB().QueryRow(
+		`SELECT is_email_verified, deactivated_at IS NOT NULL FROM users WHERE email = ?`, email,
+	).Scan(&verified, &deactivated)
+	return verified, deactivated, err
+}
+
 func ListFederationProvidersWithParams(params api.ListParams) ([]*FederationProvider, int, error) {
 	lq := api.BuildListQuery(params, federationListConfig)
 
