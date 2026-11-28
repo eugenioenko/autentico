@@ -188,3 +188,7 @@ redirect to avoid loops. Refusal audit details contain only `user_id` and
 ## Password visibility
 
 Password display is an explicit, per-field UI choice. Server pages progressively enhance the existing password input using the nonce-authorized static script; without JavaScript it remains masked. Account components keep visibility only in component state. Toggling preserves the original input, value, name and autocomplete metadata, never submits a form and never stores credentials or visibility preferences. New page loads and newly opened account dialogs start masked.
+
+## Personal TOTP removal (#622)
+
+The Account UI sends `current_password` and a separate six-digit `code` when disabling TOTP. The existing API requires both for accounts with a local password; passwordless accounts need only the code. RFC 6238 §5.2 replay protection applies across setup, login and removal, so the UI asks for a fresh code and explains waiting after a previous use. Closing or canceling the form clears both credentials and its error. Removal revokes sessions and does not change global MFA policy. An isolated Playwright test enrolls and removes TOTP through the real account UI and HTTP APIs, including missing password, invalid/reused codes, cancellation and subsequent password-only login.

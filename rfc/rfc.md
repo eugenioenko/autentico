@@ -860,6 +860,7 @@ This is analogous to the existing "public endpoints by design" decision for intr
 |---|---|---|
 | MUST NOT accept a second successful use of the same OTP | §5.2 | `pkg/mfa/totp_replay.go`: persistent per-enrollment timestep, atomically consumed across browser login, password grants, account actions, and setup confirmation |
 | Define a bounded time-skew policy | §5.2, §6 | Six-digit SHA-1, 30-second periods, ±1 timestep; every matching timestep must exceed the last successful one; advance the watermark to the newest match |
+| Local account-removal policy | OIDC Core §3.1.2.3 / RFC 6238 §5.2 | The Account UI submits password confirmation (when set) and a separate fresh TOTP code; isolated Playwright coverage enrolls, rejects invalid/reused credentials, removes TOTP and signs in again (#622). |
 
 Regression coverage includes sequential, concurrent and cross-path replay, enrollment and replacement, fresh timesteps, clock skew, and persistence failures. Discovery capabilities are unchanged.
 
