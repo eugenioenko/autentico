@@ -583,7 +583,7 @@ Authentication is handled automatically: on first visit, users are redirected th
 **Security**
 
 - **Password**: Change password with current password verification
-- **TOTP (Two-Factor Authentication)**: Set up TOTP by scanning a QR code in any authenticator app (Google Authenticator, Authy, 1Password, etc.) and confirming with a 6-digit code; disable TOTP with password confirmation
+- **TOTP (Two-Factor Authentication)**: Set up TOTP by scanning a QR code in any authenticator app (Google Authenticator, Authy, 1Password, etc.) and confirming with a 6-digit code; disable TOTP with a fresh 6-digit authenticator code and current password (if set)
 - **Passkeys**: Register new passkeys via WebAuthn ceremony, view existing passkeys with creation date, rename or remove any passkey
 
 **Sessions (Devices)**

@@ -185,6 +185,9 @@ jobs:
       - name: Run smoke tests
         working-directory: tests/browser
         run: pnpm exec playwright test
+      - name: Run isolated account TOTP enrollment and removal test
+        working-directory: tests/browser
+        run: pnpm exec playwright test --config account-totp.config.ts
 
   tidy-check:
     runs-on: ubuntu-latest

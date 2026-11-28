@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: "**/proxy/**",
+  testIgnore: ["**/proxy/**", "**/account-totp/**"],
   timeout: 30000,
   retries: 0,
   fullyParallel: false,
