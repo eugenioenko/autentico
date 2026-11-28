@@ -1,0 +1,62 @@
+// Point-in-time audit probe. Copy into pkg/middleware to reproduce.
+// This asserts observed behavior, including the weakness; it is not a fix regression.
+package middleware
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/eugenioenko/autentico/pkg/config"
+	"github.com/gorilla/csrf"
+)
+
+func TestAuditCSRFOriginDowngrade(t *testing.T) {
+	saved := config.Bootstrap
+	t.Cleanup(func() { config.Bootstrap = saved })
+	config.Bootstrap.AppHost = "auth.example.test"
+	config.Bootstrap.AuthCSRFProtectionSecretKey = "audit-only-key-01234567890123456789"
+	config.Bootstrap.AuthCSRFCookieName = "_gorilla_csrf"
+	config.Bootstrap.AuthCSRFSecureCookie = true
+	var token string
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token = csrf.Token(r)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	h := CSRFMiddleware(inner)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "https://auth.example.test/oauth2/authorize", nil))
+	if w.Code != 204 || len(w.Result().Cookies()) != 1 || token == "" {
+		t.Fatal("could not obtain test CSRF pair")
+	}
+	pairToken, pairCookie := token, w.Result().Cookies()[0]
+	for _, tc := range []struct {
+		name, origin, requestToken string
+		trustHost                  bool
+		want                       int
+	}{
+		{"https control", "https://auth.example.test", pairToken, true, 204},
+		{"HTTP downgrade accepted", "http://auth.example.test", pairToken, true, 204},
+		{"foreign origin denied", "https://evil.example", pairToken, true, 403},
+		{"HTTP without token denied", "http://auth.example.test", "", true, 403},
+		{"HTTP denied without TrustedOrigins", "http://auth.example.test", pairToken, false, 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config.Bootstrap.AppHost = "auth.example.test"
+			if !tc.trustHost {
+				config.Bootstrap.AppHost = ""
+			}
+			h := CSRFMiddleware(inner)
+			r := httptest.NewRequest("POST", "https://auth.example.test/oauth2/login", nil)
+			r.Header.Set("Origin", tc.origin)
+			r.Header.Set("X-CSRF-Token", tc.requestToken)
+			r.AddCookie(pairCookie)
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tc.want {
+				t.Fatalf("got %d, want %d", w.Code, tc.want)
+			}
+			t.Logf("origin=%s trusted=%t token_present=%t status=%d", tc.origin, tc.trustHost, tc.requestToken != "", w.Code)
+		})
+	}
+}
