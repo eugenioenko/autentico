@@ -26,16 +26,19 @@ export type ClientCreateRequest =
   };
 
 export type ClientUpdateRequest =
-  components["schemas"]["client.ClientUpdateRequest"] &
+  Omit<components["schemas"]["client.ClientUpdateRequest"],
+    "access_token_expiration" | "refresh_token_expiration" | "authorization_code_expiration" |
+    "allow_self_signup" | "sso_session_idle_timeout" | "trust_device_enabled" | "trust_device_expiration"> &
   ClientAccess & {
-    access_token_expiration?: string;
-    refresh_token_expiration?: string;
-    authorization_code_expiration?: string;
+    // null clears the override (inherit global); omitted leaves it unchanged.
+    access_token_expiration?: string | null;
+    refresh_token_expiration?: string | null;
+    authorization_code_expiration?: string | null;
     allowed_audiences?: string[];
-    allow_self_signup?: boolean;
-    sso_session_idle_timeout?: string;
-    trust_device_enabled?: boolean;
-    trust_device_expiration?: string;
+    allow_self_signup?: boolean | null;
+    sso_session_idle_timeout?: string | null;
+    trust_device_enabled?: boolean | null;
+    trust_device_expiration?: string | null;
     consent_required?: boolean;
     description?: string;
     logo_uri?: string;

@@ -1,3 +1,5 @@
+import type { ClientCreateRequest } from "../../types/client";
+
 export interface UriItem {
   value: string;
 }
@@ -72,15 +74,41 @@ export function toUriItems(uris: string[] | undefined): UriItem[] {
   return (uris ?? []).map((value) => ({ value }));
 }
 
+// Per-client overrides: an empty or unset field is sent as explicit null so the server clears it (inherit global).
+// Omitting a field would leave the stored override unchanged.
+const nullIfEmpty = <T,>(value: T | undefined | ""): T | null => (value === undefined || value === "" ? null : value);
+
 export function toClientRequest(values: ClientFormValues) {
   const { redirect_uris, post_logout_redirect_uris, scopes, restrict_access, allowed_groups, allowed_users, ...rest } = values;
   return {
     ...rest,
+    access_token_expiration: nullIfEmpty(rest.access_token_expiration),
+    refresh_token_expiration: nullIfEmpty(rest.refresh_token_expiration),
+    authorization_code_expiration: nullIfEmpty(rest.authorization_code_expiration),
+    sso_session_idle_timeout: nullIfEmpty(rest.sso_session_idle_timeout),
+    allow_self_signup: nullIfEmpty(rest.allow_self_signup),
+    trust_device_enabled: nullIfEmpty(rest.trust_device_enabled),
+    trust_device_expiration: nullIfEmpty(rest.trust_device_expiration),
     restrict_access: !!restrict_access,
     allowed_groups: allowed_groups ?? [],
     allowed_users: allowed_users ?? [],
     redirect_uris: redirect_uris.map((uri) => uri.value),
     post_logout_redirect_uris: post_logout_redirect_uris.map((uri) => uri.value),
     scopes: scopes?.join(" "),
+  };
+}
+
+// Create requests treat an unset override as the server default; only updates use null to clear.
+export function toClientCreateRequest(values: ClientFormValues): ClientCreateRequest {
+  const request = toClientRequest(values);
+  return {
+    ...request,
+    access_token_expiration: request.access_token_expiration ?? undefined,
+    refresh_token_expiration: request.refresh_token_expiration ?? undefined,
+    authorization_code_expiration: request.authorization_code_expiration ?? undefined,
+    sso_session_idle_timeout: request.sso_session_idle_timeout ?? undefined,
+    allow_self_signup: request.allow_self_signup ?? undefined,
+    trust_device_enabled: request.trust_device_enabled ?? undefined,
+    trust_device_expiration: request.trust_device_expiration ?? undefined,
   };
 }

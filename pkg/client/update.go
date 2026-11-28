@@ -7,6 +7,15 @@ import (
 	"github.com/eugenioenko/autentico/pkg/db"
 )
 
+// resolveOptional returns the new override value: the request's value or null if it was present,
+// otherwise the current stored value.
+func resolveOptional[T any](o Optional[T], current *T) *T {
+	if o.Set {
+		return o.Value
+	}
+	return current
+}
+
 func UpdateClient(clientID string, req ClientUpdateRequest) error {
 	// Get existing client to preserve values
 	c, err := ClientByClientIDIncludingDisabled(clientID)
@@ -99,6 +108,15 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 		newShowInAccount = *req.ShowInAccount
 	}
 
+	// Per-client overrides: omitted keeps the stored value; null clears it (NULL inherits global); a value sets it.
+	accessTokenExpiration := resolveOptional(req.AccessTokenExpiration, c.AccessTokenExpiration)
+	refreshTokenExpiration := resolveOptional(req.RefreshTokenExpiration, c.RefreshTokenExpiration)
+	authorizationCodeExpiration := resolveOptional(req.AuthorizationCodeExpiration, c.AuthorizationCodeExpiration)
+	allowSelfSignup := resolveOptional(req.AllowSelfSignup, c.AllowSelfSignup)
+	ssoSessionIdleTimeout := resolveOptional(req.SsoSessionIdleTimeout, c.SsoSessionIdleTimeout)
+	trustDeviceEnabled := resolveOptional(req.TrustDeviceEnabled, c.TrustDeviceEnabled)
+	trustDeviceExpiration := resolveOptional(req.TrustDeviceExpiration, c.TrustDeviceExpiration)
+
 	access := accessUpdate{restrict: req.RestrictAccess, groups: req.AllowedGroups, users: req.AllowedUsers}
 	if err := validateAccessUpdate(access); err != nil {
 		return err
@@ -137,9 +155,9 @@ func UpdateClient(clientID string, req ClientUpdateRequest) error {
 	_, err = tx.Exec(query,
 		newName, newRedirectURIs, newPostLogoutRedirectURIs, newGrantTypes,
 		newResponseTypes, newScopes, newAuthMethod, newIsActive,
-		req.AccessTokenExpiration, req.RefreshTokenExpiration,
-		req.AuthorizationCodeExpiration, audiences, req.AllowSelfSignup,
-		req.SsoSessionIdleTimeout, req.TrustDeviceEnabled, req.TrustDeviceExpiration,
+		accessTokenExpiration, refreshTokenExpiration,
+		authorizationCodeExpiration, audiences, allowSelfSignup,
+		ssoSessionIdleTimeout, trustDeviceEnabled, trustDeviceExpiration,
 		newConsentRequired,
 		newDescription, newLogoURI, newClientURI, newShowInAccount,
 		clientID,
